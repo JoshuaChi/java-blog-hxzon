@@ -1,0 +1,546 @@
+﻿（hxzon读书笔记）《clojure编程》第3章：集合和数据结构
+
+by hxzon
+《clojure编程》第3章：集合和数据结构
+--------
+摘要：
+
+主要抽象：Collection，Sequence（序列），Associative（关系型的），Indexed（索引的），Stack（栈），Set，Sorted（有序的）。
+
+不可变性，持久性，结构共享。
+
+易变集合（只是一种性能优化手段）。
+
+group-by，reduce-by。
+
+==========
+1，《3.1，Abstractions over Implementations，抽象优于实现》
+
+一百种算法对一种数据结构操作，优于十种算法对十种数据结构操作。
+—Alan J. Perlis in the foreword to Structure and Interpretation of Computer Programs,
+http://mitpress.mit.edu/sicp/toc/toc.html
+
+clojure：更优的是一百种算法对一种抽象操作。
+
+clojure的集合抽象以及具体的数据结构的实现是整个语言的核心。
+它比clojure的其它任何特性都更能代表这门语言的能力、特征以及世界观。
+
+
+2，《3.6，Putting Clojure’s Collections to Work，用Clojure的集合来小试牛刀》
+
+在《人月神话》中，Frederick Brooks说：“
+Show me your flowchart and conceal your tables, and I shall continue to be mystified.
+Show me your tables, and I won’t usually need your flowchart; it’ll be obvious.”
+
+告诉我数据库表就可以了，我不需要你的流程图。
+
+Eric Raymond说：“
+Show me your code and conceal your data structures, and I shall continue to be mystified.
+Show me your data structures, and I won’t usually need your code; it’ll be obvious.”。
+告诉我数据结构就可以了，我不需要你的代码。
+
+就像Brooks说的，具体的代码怎么编写是由你的数据建模方式决定的，
+同样的道理，要编写好的clojure代码也需要你正确地使用好的数据结构，
+而这些“好的数据结构”通常是自然标识符、set以及map。
+参见《（hxzon读书笔记）《clojure编程》第3章：集合和数据结构-生命游戏》
+和《（hxzon读书笔记）《clojure编程》第3章：集合和数据结构-迷宫，zipper》。
+
+--
+标识符和循环引用。
+
+数据结构本身就是它们的最佳自然标识，不再需要复杂的人工的唯一标识。
+循环引用容易导致不一致性。
+
+===========
+3，主要的抽象：
+
+• Collection
+• Sequence 序列
+• Associative 关系型的
+• Indexed 可索引的
+• Stack 栈
+• Set
+• Sorted 有序的
+
+3.1，Collection，所有数据结构都实现了此抽象。
+
+seq
+conj ，保证高效的添加元素。
+into
+count ，保证高效的。（但序列除外，因为序列的长度可能是未知的。）
+empty ，返回一个同样具体类型的空集合。
+= 比较集合相等。
+
+3.2，序列
+
+seq。
+可序列类型：
+所有clojure集合类型。
+所有java集合类型，即java.util.* 。
+所有java map。
+所有java.lang.CharSequence，包括String。
+实现了java.lang.Iterable的任意类型。
+数组。
+nil。
+任何实现了clojure.lang.Seqable接口的类型。
+
+seq对于任何nil或者任何类型的空集合都返回nil。
+很多函数都在内部对参数调用seq。
+--
+遍历序列：first，rest，next 。
+
+lazy-seq，创建一个内容是一个表达式结果的惰性序列。
+
+empty?
+
+--
+序列不是迭代器。有状态的迭代器一旦被遍历，就不能再遍历了。
+
+序列不是列表。计算一个序列的长度是耗时的，而列表会保存它的长度。
+序列的内容可能是惰性的，可能是无限的，所以也就是不可数的。
+
+--
+延迟序列
+map,  for,  filter,  take, 和  drop 都返回延迟序列。
+file-seq, line-seq, 和 xml-seq 。
+
+next始终返回nil而不是空的序列，因为它始终会去强制实例化序列尾巴的第一个元素。
+而rest则始终简单的返回序列的尾巴。
+顺序结构始终使用next而不是rest。所以如果你在解构一个惰性序列时，始终会实例化它的尾巴的头元素。
+
+(defn random-ints
+    [limit]
+    (lazy-seq
+        (println "realizing random number") 
+        (cons (rand-int limit)
+            (random-ints limit))))
+
+(let [[x & rest] (random-ints 50)])
+; realizing random number
+; realizing random number
+;= nil
+
+doall
+dorun
+
+iterate([f x]) ，返回一个延迟序列，元素为x, (f x), (f (f x))。f不能有副作用。
+
+reverse ，返回一个非延迟序列，元素逆序。
+
+“头保持”问题。
+
+split-with，分割序列。
+
+3.3，关系型
+
+assoc
+dissoc
+get
+contains? ，是否含有指定的键。
+
+注意nil值（无法区分正好是nil值还是找不到），使用find，因为返回的是键值对，或者nil（找不到）。
+
+3.4，可索引的。
+下标是新的指针。
+
+nth。下标越界，nth会跑出异常，而get返回nil。
+
+3.5，栈。clojure没有独立的“栈”集合。
+
+conj。
+pop。
+peek。
+
+3.6，set。
+
+disj，移除元素。
+
+subset?,  superset?,  union,  intersection,  project。
+
+3.7，有序的。
+
+rseq。
+subseq。
+rsubreq。
+sorted-map。
+sorted-set。
+sorted-map-by。
+sorted-set-by。
+
+compare：默认顺序，即正序。
+
+clojure如何把二元谓词变成排序器？
+
+----
+线性插值。
+(defn interpolate
+	"Takes a collection of points (as [x y] tuples), returning a function
+	which is a linear interpolation between those points."
+	[points]
+	(let [results (into (sorted-map) (map vec points))] 
+		(fn [x]
+			(let [[xa ya] (first (rsubseq results <= x)) 
+				[xb yb] (first (subseq results > x))]
+				(if (and xa xb) 
+					(/ (+ (* ya (- xb x)) (* yb (- x xa))) 
+						(- xb xa))
+					(or ya yb))))))
+
+(def f (interpolate [[0 0] [10 10] [15 5]]))
+;= #'user/f
+
+(map f [2 10 12])
+;= (2 10 8)
+
+
+=======
+集合本身就是函数。
+
+([:a :b :c] 2)
+;= :c
+
+({:a 5 :b 6} :b)
+;= 6
+
+({:a 5 :b 6} :c 7)
+;= 7
+
+(#{1 2 3} 3)
+;= 3
+
+等价于：
+(get [:a :b :c] 2)
+;= :c
+
+(get {:a 5 :b 6} :b)
+;= 6
+
+(get {:a 5 :b 6} :c 7)
+;= 7
+
+(get #{1 2 3} 3)
+;= 3
+
+注意，
+([:a :b :c] -1)
+;= #<IndexOutOfBoundsException java.lang.IndexOutOfBoundsException>
+
+----
+集合的键也是函数，用来从集合中查找自己对应的值。
+
+(:b {:a 5 :b 6})
+;= 6
+
+(:c {:a 5 :b 6} 7)
+;= 7
+
+(:d #{:a :b :c})
+;= nil
+
+优先使用键，因为键是字面量，不会出现空指针异常。
+(coll idx)不能保证coll不为nil，也不能保证coll为集合。
+
+----
+集合和键都是高阶函数。
+
+(filter (comp (partial <= 25) :age) 
+	[{:age 21 :name "David"}
+		{:gender :f :name "Suzanne" :age 20}
+		{:name "Sara" :location "NYC" :age 34}])
+;= ({:age 34, :name "Sara", :location "NYC"})
+
+4，数据结构的类型
+----
+列表。
+
+向量。
+公共api优先使用map作为参数和返回值，因为向量（元组）不是自解释的，
+除非是含义很清晰的，例如点的坐标。
+
+set。
+set，将集合转成set。
+
+映射。
+
+keys。
+vals。
+key。
+val。
+
+map作为临时结构。
+defrecord。
+
+----
+分组及分组聚合。
+
+(group-by key-fn coll)：根据key-fn函数把一个集合分成多组。
+
+(group-by #(rem % 3) (rang 10))
+;= {0 [0 3 6 9] , 1 [1 4 7] , 2 [2 5 8]}
+
+(def playlist
+[   {:title "Elephant", :artist "The White Stripes", :year 2003}
+    {:title "Helioself", :artist "Papas Fritas", :year 1997}
+    {:title "Stories from the City, Stories from the Sea",
+        :artist "PJ Harvey", :year 2000}
+    {:title "Buildings and Grounds", :artist "Papas Fritas", :year 2000}
+    {:title "Zen Rodeo", :artist "Mardi Gras BB", :year 2002}])
+
+;按某个键分组。
+(group-by :artist playlist)
+;= {"Papas Fritas" [{:title "Helioself", :artist "Papas Fritas", :year 1997}
+;= {:title "Buildings and Grounds", :artist "Papas Fritas"}]
+;= ...}
+
+;按两个键分组。
+(group-by (juxt :col1 :col2) data)
+
+;分组，计算每组的聚合信息。
+;key-fn，分组函数。summarize，聚合函数。
+(into {} (for [[k v] (group-by key-fn coll)]    ;将group-by的结果解构成键和值。
+              [k (summarize v)]))
+
+;reduce-by，对任意种类的数据计算聚合数据。
+(defn reduce-by
+    [key-fn f init coll]    ;f为聚合函数。
+    (reduce (fn [summaries x]   ;summaries为上一轮的聚合结果，是一个map。
+                (let [k (key-fn x)]
+                    (assoc summaries k (f (summaries k init) x))))
+            {} coll))
+
+(def orders
+    [   {:product "Clock", :customer "Wile Coyote", :qty 6, :total 300}
+        {:product "Dynamite", :customer "Wile Coyote", :qty 20, :total 5000}
+        {:product "Shotgun", :customer "Elmer Fudd", :qty 2, :total 800}
+        {:product "Shells", :customer "Elmer Fudd", :qty 4, :total 100}
+        {:product "Hole", :customer "Wile Coyote", :qty 1, :total 1000}
+        {:product "Anvil", :customer "Elmer Fudd", :qty 2, :total 300}
+        {:product "Anvil", :customer "Wile Coyote", :qty 6, :total 900}])
+
+;按照客户名字分组，每个分组求和total值。
+(reduce-by :customer #(+ %1 (:total %2)) 0 orders)
+;= {"Elmer Fudd" 1200, "Wile Coyote" 7200}
+
+;按照产品名字分组，收集每个产品的客户名字。
+(reduce-by :product #(conj %1 (:customer %2)) #{} orders)
+;= {"Anvil" #{"Wile Coyote" "Elmer Fudd"},
+;=  "Hole" #{"Wile Coyote"},
+;=  "Shells" #{"Elmer Fudd"},
+;=  "Shotgun" #{"Elmer Fudd"},
+;=  "Dynamite" #{"Wile Coyote"},
+;=  "Clock" #{"Wile Coyote"}}
+
+;查看每个客户在每种产品上的金额。（下面三种方式是等价的。）
+(fn [order]
+    [(:customer order) (:product order)])
+
+#(vector (:customer %) (:product %))
+
+(fn [{:keys [customer product]}]
+    [customer product])
+
+(juxt :customer :product)
+
+(reduce-by  (juxt :customer :product)
+            #(+ %1 (:total %2)) 0 orders)
+;= {["Wile Coyote" "Anvil"] 900,
+;=  ["Elmer Fudd" "Anvil"] 300,
+;=  ["Wile Coyote" "Hole"] 1000,
+;=  ["Elmer Fudd" "Shells"] 100,
+;=  ["Elmer Fudd" "Shotgun"] 800,
+;=  ["Wile Coyote" "Dynamite"] 5000,
+;=  ["Wile Coyote" "Clock"] 300}
+
+;如果需要包含map的map，需要将assoc和get（隐式调用）换成assoc-in和get-in。
+(defn reduce-by-in
+    [keys-fn f init coll]
+    (reduce (fn [summaries x]
+                (let [ks (keys-fn x)]
+                     (assoc-in summaries ks
+                        (f (get-in summaries ks init) x))))
+            {} coll))
+
+(reduce-by-in (juxt :customer :product)
+              #(+ %1 (:total %2)) 0 orders)
+;= {"Elmer Fudd" {  "Anvil" 300,
+;=                  "Shells" 100,
+;=                  "Shotgun" 800},
+;= "Wile Coyote" {  "Anvil" 900,
+;=                  "Hole" 1000,
+;=                  "Dynamite" 5000,
+;=                  "Clock" 300}}
+
+;或者直接对结果转换。
+(def flat-breakup
+    {   ["Wile Coyote" "Anvil"] 900,
+        ["Elmer Fudd" "Anvil"] 300,
+        ["Wile Coyote" "Hole"] 1000,
+        ["Elmer Fudd" "Shells"] 100,
+        ["Elmer Fudd" "Shotgun"] 800,
+        ["Wile Coyote" "Dynamite"] 5000,
+        ["Wile Coyote" "Clock"] 300})
+
+(reduce #(apply assoc-in %1 %2) {} flat-breakup)    ;前面的向量正好是键序列。
+;= {"Elmer Fudd" {  "Shells" 100,
+;=                  "Anvil" 300,
+;=                  "Shotgun" 800},
+;= "Wile Coyote" {  "Hole" 1000,
+;=                  "Dynamite" 5000,
+;=                  "Clock" 300,
+;=                  "Anvil" 900}}
+
+==========
+5，不可变和持久性
+
+书： Okasaki《Purely  Functional  Data  Structures》
+
+树的森林。
+See http://blog.higher-order.net/2009/09/08/understanding-clojures-persistenthashmap-deftwicefor an
+overview of the hash array mapped trie implementation in Clojure’s PersistentHashMapclass.
+
+See  http://blog.higher-order.net/2009/02/01/understanding-clojures-persistentvector-implementation
+for an overview of the implementation in Clojure’s PersistentVectorclass.
+
+http://eclipsesource.com/blogs/2009/12/13/persistent-trees-in-git-clojure-and-couchdb-data-structure-convergence
+
+持久性与结构共享。
+持久性图解。
+
+=======
+6，易变集合
+
+持久化集合保证一个值的历史版本的完整性，而易变集合不做这个保证。
+在对一个易变集合做修改后，对于旧版本易变集合的任何引用都不能再使用了，
+这个旧版本可能是旧的，可能包含了新值，也可能已经被垃圾回收了。
+
+易变集合只是设计来对某些场景进行优化的。
+
+(def x (transient [])) 
+;= #'user/x
+
+(def y (conj! x 1))     ;conj!是conj的易变版本
+;= #'user/y
+
+(count y) 
+;= 1
+
+(count x) 
+;= 1
+
+transient，
+conj! ，
+
+----
+自己实现一个into函数。
+
+(defn naive-into
+    [coll source]
+    (reduce conj coll source))
+
+(=  (into #{} (range 500))
+    (naive-into #{} (range 500)))
+;= true
+
+和into函数对比一下性能。
+(time (do (into #{} (range 1e6)) 
+          nil))
+; "Elapsed time: 1756.696 msecs"
+
+(time (do (naive-into #{} (range 1e6))
+          nil))
+; "Elapsed time: 3394.684 msecs"
+
+naive-into慢两倍。因为into在任何可以使用易变集合的地方都使用了易变集合。
+也就是说，当目标集合是vector，或者无序map，或者无序set时，使用了易变集合（它们是目前有易变集合的几种集合）。
+
+--
+使用易变集合来实现into函数。
+(defn faster-into
+      [coll source]
+      (persistent! (reduce conj! (transient coll) source)))
+
+性能已经和into相当了。
+(time (do (faster-into #{} (range 1e6))
+          nil))
+; "Elapsed time: 1639.156 msecs"
+
+----
+目前没有一个标准谓词可以检测一个集合是否有易变版本。
+可以检测一个集合是不是clojure.lang.IEditableCollection的实例，它标明一个集合可以产生可变版本。
+
+(defn transient-capable?
+    "Returns true if a transient can be obtained for the given collection.
+    i.e. tests if `(transient coll)` will succeed."
+    [coll]
+    (instance? clojure.lang.IEditableCollection coll))
+
+----
+(def v [1 2])
+;= #'user/v
+
+(def tv (transient v))
+;= #'user/tv
+
+(conj v 3)
+;= [1 2 3]
+
+用persistent!来把一个易变集合变成持久性集合，会使得易变集合不再可用。
+(persistent! tv)
+;= [1 2]
+
+(get tv 0)
+;= #<IllegalAccessError java.lang.IllegalAccessError:
+;= Transient used after persistent! call>
+
+
+(nth (transient [1 2]) 1)
+;= 2
+
+(get (transient {:a 1 :b 2}) :a)
+;= 1
+
+易变集合也是函数。
+((transient {:a 1 :b 2}) :a) 
+;= 1
+
+((transient [1 2]) 1)
+;= 2
+
+(find (transient {:a 1 :b 2}) :a)
+;= #<CompilerException java.lang.ClassCastException:
+;= clojure.lang.PersistentArrayMap$TransientArrayMap
+;= cannot be cast to java.util.Map (NO_SOURCE_FILE:0)>
+
+易变集合不支持seq，因为一个序列可能会比它的数据源活得时间更长，而易变集合是可变的，因此不适合做序列的数据源。
+
+(let [tm (transient {})]
+     (doseq [x (range 100)]
+            (assoc! tm x 0))
+     (persistent! tm))
+;= {0 0, 1 0, 2 0, 3 0, 4 0, 5 0, 6 0, 7 0}
+
+易变集合只是一种优化手段。
+使用时控制它的范围，通常限制在单个函数（或者一个库里面几个相关的私有函数之间）。
+这个最佳实践其实在实现层上被强制了
+——易变集合在实现的时候提供了一个并发保护——易变集合只能在创建这个集合的线程内操作。
+
+(let [t (transient {})]
+     @(future (get t :a)))
+;= #<IllegalAccessError java.lang.IllegalAccessError:
+;= Transient used by non-owner thread>
+
+易变集合是不可组合的。
+persistent!不会遍历你创建的嵌套易变集合，
+因此对最上层调用persistent!，对于内嵌的子集合是没有效果的。
+
+(persistent! (transient [(transient {})]))
+;= [#<TransientArrayMap clojure.lang.PersistentArrayMap$TransientArrayMap@b57b39f>]
+
+在任何情况下，因为易变集合是可修改的，所以没有值语义。
+(= (transient [1 2]) (transient [1 2]))
+;= false
+
+======
+元数据。见《（hxzon翻译）clojure元数据》。
+
+

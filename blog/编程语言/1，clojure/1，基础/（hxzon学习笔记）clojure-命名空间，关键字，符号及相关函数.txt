@@ -1,0 +1,393 @@
+（hxzon学习笔记）clojure-命名空间，关键字，符号及相关函数
+
+by hxzon
+《clojure编程》第8章：clojure项目的组织与构建-项目布局
+《clojure编程》第10章：面向REPL的编程-工具集-内省命名空间
+《clojure编程》第1章：进入clojure仙境-关键字
+
+------
+hxzon学习笔记：
+
+1，ns；in-ns，refer，require，use，import。
+2，ns-map，ns-imports，ns-refers，ns-publics，ns-aliases，ns-interns。
+ns-unmap。remove-ns。
+3，keyword，symbol，name，intern，namespace，keyword?，symbol? 。
+
+==========
+clojure的命名空间，是从符号到java类名和var的动态映射。
+
+1，ns。
+
+in-ns，refer，require，use，import等命名空间函数一般是保留在repl下使用。
+在代码文件中应该使用ns，它对上述函数做了封装。
+
+(ns examples.ns
+    (:refer-clojure :exclude [next replace remove])
+    (:require (clojure  [string :as string]
+                        [set :as set])
+              [clojure.java.shell :as sh])
+    (:use (clojure zip xml))
+    (:import java.util.Date
+             java.text.SimpleDateFormat
+             (java.util.concurrent Executors
+                LinkedBlockingQueue)))
+
+等价于：
+(in-ns 'examples.ns)
+
+(clojure.core/refer 'clojure.core :exclude '[next replace remove])
+
+(require '(clojure [string :as string]
+                   [set :as set])
+         '[clojure.java.shell :as sh])
+
+(use '(clojure zip xml))
+
+(import 'java.util.Date
+        'java.text.SimpleDateFormat
+        '(java.util.concurrent Executors
+            LinkedBlockingQueue))
+
+--
+命名空间与文件：
+-1，一个命名空间一个文件。源文件在根目录下的位置必须与命名空间的节段对应。
+-2，命名空间含连字线时，文件名用下划线。
+-3，每个命名空间以完整的ns形式开始。（可让代码阅读者立刻了解依赖关系。）
+
+-4，避免命名空间循环依赖。
+
+#<Exception java.lang.Exception:
+Cyclic load dependency:
+[ /some/namespace/X ]->/some/namespace/Y->[ /some/namespace/X ]>
+
+-5，用declare启用前向引用。
+-6，避免单节段的命名空间。
+如果提前编译，一个单节段命名空间会产生一个不在java包的光杆class文件，
+在某些环境，这会阻止命名空间被载入，
+也总会阻止被java使用，因为java语言限制默认包里的class文件的使用。
+
+命名空间最终通过classpath载入。
+classpath默认情况下是空的（没有包含当前工作目录）。
+
+
+========
+2，in-ns。
+
+*ns* ，当前命名空间。
+
+使用in-ns 可以转到其他命名空间（如果不存在就创建）。
+切换到新空间后，特殊形式还是可用的，但是clojure.core里的函数（例如+）都不再直接可用了（和user空间不同）。
+
+3，refer。
+假设某个命名空间已经载入，可以用refer把这个命名空间里的映射加入到我们的命名空间。
+可以使用可选关键字，:exclude :only :rename 来指定排除、包含或重命名某些var。
+
+refer很少直接使用，而是通过use来间接使用它。
+
+(clojure.core/refer 'clojure.core
+    :exclude '(range)
+    :rename '{+ add
+    - sub
+    / div
+    * mul})
+;= nil
+
+(-> 5 (add 18) (mul 2) (sub 6))
+;= 40
+
+(range -20 20 4)
+;= #<CompilerException java.lang.RuntimeException:
+;= Unable to resolve symbol: range in this context, compiling:(NO_SOURCE_PATH:1)>
+
+
+4，require和use。
+
+require确保命名空间被载入，可为命名空间里的名字建立别名。
+
+use基于require和refer，以简洁的方式，让代码不需要限定就可以使用其他命名空间的var。
+use会把所有的参数传给refer。
+
+有效使用require、refer和use。
+总是用require，给每个命名空间提供别名。
+或者使用use，但是用别名和 :only 来明确包含。
+避免无节制地使用use，这样可以表明你的代码使用了其他命名空间的什么部分，
+也避免函数库修改，产生名字冲突。
+
+使用use时，可以加上:reload 或 :reload-all 选项实时加载最新的库代码。
+
+(require '[clojure.set :as set]) 
+;= nil
+
+(set/union #{1 2 3} #{4 5 6})
+;= #{1 2 3 4 5 6}
+
+(require '(clojure string [set :as set]))
+
+--
+(use 'clojure.xml)等价于：
+(require 'clojure.xml)
+(refer 'clojure.xml)
+
+--
+(use '(clojure [string :only (join) :as str]
+               [set :exclude (join)]))
+;= nil
+
+join
+;= #<string$join clojure.string$join@2259a735>
+
+intersection
+;= #<set$intersection clojure.set$intersection@2f7fc44f>
+
+str/trim
+;= #<string$trim clojure.string$trim@283aa791>
+
+5，import
+
+符号也可映射到java类和接口。
+import使得类的简短名称在当前命名空间可用。
+java.lang包的所有类默认总是被引进每个命名空间。
+
+不能把两个相同简名的类引进同一个命名空间。
+
+如果需要引入一个内部类，需要用java的内部记法，即使用美元符号。
+
+(Date.) 
+;= #<CompilerException java.lang.IllegalArgumentException:
+;= Unable to resolve classname: Date, compiling:(NO_SOURCE_PATH:1)>
+
+(java.util.Date.) 
+;= #<Date Mon Jul 18 12:31:38 EDT 2011>
+
+(import 'java.util.Date 'java.text.SimpleDateFormat) 
+;= java.text.SimpleDateFormat
+
+(.format (SimpleDateFormat. "MM/dd/yyyy") (Date.)) 
+;= "07/18/2011"
+
+--
+(import '(java.util Arrays Collections))
+;= java.util.Collections
+
+(->> (iterate inc 0)
+     (take 5)
+     into-array
+     Arrays/asList
+     Collections/max)
+;= 4
+
+--
+(import 'java.awt.List 'java.util.List)
+;= #<IllegalStateException java.lang.IllegalStateException:
+;= List already refers to: class java.awt.List in namespace: user>
+
+==========
+6，内省命名空间
+
+(apropos #"(ns-|-ns)") 会提供一个更完整的列表。
+
+
+6.1，报告不同类型的映射：
+ns-map，ns-imports，ns-refers，ns-publics，ns-aliases，ns-interns。
+
+(ns clean-namespace)
+;= nil
+
+(ns-aliases *ns*)
+;= {}
+
+(require '[clojure.set :as set])
+;= nil
+
+(ns-aliases *ns*)
+;= {set #<Namespace clojure.set>}
+
+(ns-publics *ns*)
+;= {}
+
+(def x 0)
+;= #'clean-namespace/x
+
+(ns-publics *ns*)
+;= {x #'clean-namespace/x}
+
+6.2，ns-unmap，删除符号到var（或引进的类）的映射。
+ns-unalias，删除命名空间别名。
+
+(ns-unalias *ns* 'set)
+;= nil
+
+(ns-aliases *ns*)
+;= {}
+
+(ns-unmap *ns* 'x)
+;= nil
+
+(ns-publics *ns*)
+;= {}
+
+6.3，remove-ns，删除一个命名空间。
+
+在丢弃的命名空间里内化的var所定义的所有代码和数据都无法访问并等待垃圾回收。
+但如果在其它命名空间还有指向这些函数、协议或数据的引用，则不会被垃圾回收。
+
+(in-ns 'user)
+;= #<Namespace user>
+
+(filter #(= 'clean-namespace (ns-name %)) (all-ns))
+;= (#<Namespace clean-namespace>)
+
+(remove-ns 'clean-namespace)
+;= #<Namespace clean-namespace>
+
+(filter #(= 'clean-namespace (ns-name %)) (all-ns))
+;= ()
+
+==============
+==============
+7，关键字
+
+关键字求值成它们自身。
+关键字经常作为访问器来获取它们对应的值。
+
+关键字是一个内部字符串；
+两个同样的关键字指向同一个对象；
+通常被用来作为map的key。 
+
+语法上，关键字始终以冒号开头。
+如果关键字包含斜杠，表示这个关键字是命名空间限定的。
+如果关键字以两个冒号开头，表示是当前命名空间的关键字。
+如果关键字以两个冒号开头，同时又包含斜杠，表示是某个特定命名空间里的关键字。
+这个设计与xml里的命名空间实体的用法和动机是一样的。
+
+命名空间限定的关键字，在多重方法以及isa?体系里面有很多的使用。
+
+关键字中的点号没有特别意义，只是名字的一部分。
+
+----
+7.1，创建关键字，keyword函数。 
+
+user=> (keyword 'foo)  
+:foo  
+
+user=> (keyword "foo")  
+:foo  
+
+user=> (keyword "user" "foo")  
+:user/foo  
+
+user=> (keyword "abc def")  
+:abc def  	（hxzon：含有空格如何理解？）
+
+user=> (keyword "abcdef")  
+:abcdef  
+
+user=> (keyword "/abc/def/ghi")  
+:/abc/def/ghi  
+
+========
+8，符号
+
+Symbol是用来给东西命名的。
+这些名字是被限制在名字空间里面的，要么是指定的名字空间，要么是当前的名字空间。 
+
+----
+8.1，创建符号，symbol函数。 
+
+user=> (symbol 'foo)  
+foo  
+
+user=> (symbol "foo")  
+foo  
+
+user=> (symbol "clojure.core" "foo")  
+clojure.core/foo  
+
+user=> (symbol "abc def")  
+abc def  
+
+user=> (symbol "abcdef")  
+abcdef  
+
+=========
+9，关键字和符号相关函数。
+
+---- 
+9.1，name： 
+
+name函数接受一个参数，如果该参数为字符串，则直接返回该参数。
+如果不是字符串，则返回名称值。
+
+user=> (name :foo)  
+"foo"  
+
+user=> (name 'x)  
+"x"  
+
+user=> (name "x")  
+"x"  
+
+----
+9.2，intern: 
+
+intern函数有两个实现：(intern ns name)、(intern ns name val)。 
+根据命名空间ns中查找是否存在符号name，不存在，则创建；
+最后一个参数val作为值与符号进行绑定。
+
+user=> (intern 'user 'x)  
+#'user/x  
+
+user=> x  
+#<Unbound Unbound: #'user/x>  
+
+user=> (intern 'user 'x "1")  
+#'user/x  
+
+user=> x  
+"1"  
+
+----
+9.3，namespace： 
+
+namespace函数根据给定的符号、或者关键字返回所在的命名空间名称，如果当前没有，则返回nil。
+
+user=> (symbol 'xx)  
+xx  
+
+user=> (namespace 'user/xxx)  
+"user"  
+
+user=> (namespace 'xxx)  
+nil  
+
+user=> (def x :val)  
+#'user/x  
+
+user=> (namespace 'x)  
+nil  
+
+user=> (namespace 'user/x)  
+"user"  
+
+----
+9.4，keyword?、symbol?用于检查指定的参数是否为关键字、或者是符号，是则返回true，否则返回false。 
+
+user=> (symbol? 'x)  
+true  
+
+user=> (symbol? "x")  
+false  
+
+user=> (keyword? 'x)  
+false  
+
+user=> (keyword? :x)  
+true  
+
+user=> (keyword? "x")  
+false  
+
+参考资料：
+clojure-基本语法-符号及关键字
+http://dead-knight.iteye.com/blog/1830465
+

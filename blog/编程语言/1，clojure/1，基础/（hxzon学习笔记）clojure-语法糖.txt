@@ -1,0 +1,191 @@
+（hxzon学习笔记）clojure-语法糖
+
+by hxzon
+
+==========
+能被求值的S表达式称为“形式”。
+
+2.2  读者宏(Reader  Macros)
+
+语法糖即读者宏（Reader  Macros）。
+Clojure允许你定义自己的读者宏。
+读者宏是被前缀macro触发的特殊读者行为。
+读者宏是长列表形式的缩写，被用来减少复杂度，使代码看起来更简洁。
+
+==========
+clojure Reader （《clojure编程》第1章：进入clojure仙境）
+
+reader的所有操作是由一个叫做read的函数定义的，
+这个函数从一个字符流（需要一个类型为java.io.PushbackReader的参数，这是一个实现细节）里
+读入代码的文本形式，产生这个文本形式所对应的数据结构。
+
+clojure repl就是使用reader来读入文本代码的。
+reader函数读出的每个完整数据结构都会传给clojure的运行时来求值。
+
+read-string，这个函数与read函数做相同的事，但是接受一个字符串作为参数。
+
+(read-string "42")
+;= 42
+
+(read-string "(+ 1 2)")
+;= (+ 1 2)
+
+read的作用其实可以看做一种反序列化机制。
+
+pr和pr-str，它们把clojure里面的值打印到*out*，并且把这个值返回。
+
+==========
+----
+1，串行宏（《clojure编程》第5章《宏》）
+
+-> 把第一个form插入到第二个form的第二个位置。
+->> 把第一个form插入到第二个form的最后一个位置。
+
+(-> x (a b) ) 即 (a x b)
+
+(->> x (a b) ) 即 (a b x)
+
+(thread [1 2 3] reverse (conj 4) prn) 即 (prn (conj (reverse [1 2 3]) 4))
+
+将从内向外阅读变成从左向右阅读，Start with [1 2 3], reverse it, conj4 onto it, then prnit.
+
+=============
+----
+2，“模板”
+http://clojure.org/reader
+http://clojure.org/special_forms#quote
+
+-2.1，单引号（Quote）'，阻止求值，例如'(+ 1 2)，等价于(list + 1 2)。'form 等价于 (quote form)
+
+~'，波浪号和单引号是一种常见的搭配，如下。
+~'session，外层已经阻止求值，为什么不直接使用 session ？
+因为直接使用session，会加上当前的命名空间，见下。
+let绑定是不允许有名字空间的。
+
+(defmacro with-session
+  [session-factory & body]
+  `(with-open [~'session (.openSession ~(vary-meta session-factory assoc
+                                          :tag 'SessionFactory))]
+     ~@body))
+
+ (macroexpand-1 '(with-session @session-factory
+       (-> session
+         (.createQuery "from Author")
+         .list)))
+;= (clojure.core/with-open [session (.openSession (clojure.core/deref session-factory))] 
+;	                                   (-> session (.createQuery "from Author") .list))
+
+ (defmacro with-session2
+        [session-factory & body]
+        `(with-open [session (.openSession ~(vary-meta session-factory assoc
+                                                :tag 'SessionFactory))]
+           ~@body))
+
+ (macroexpand-1 '(with-session2 @session-factory
+          (-> session
+            (.createQuery "from Author")
+            .list)))
+;= (clojure.core/with-open [user/session (.openSession (clojure.core/deref session-factory))] 
+;                                      (-> session (.createQuery "from Author") .list))
+
+
+-2.2，反引号（Syntax-quote）·，阻止求值。
+除了符号，列表，向量，集合，映射外的所有形式，`x 和 'x 相同。
+
+（hxzon：' 和 ` 区别在于Syntax-quote (`)会进行symbol的解析。）
+
+语法引述：跟引述很像，但语法引述把无命名空间限定的符号求值成当前命名空间的符号。
+符号的默认空间化对于产生正确的代码非常关键。
+它使我们不会因为疏忽而重定义一个已经定义过的值。这被称为“宏卫生”。
+另，语法引述里面允许“反引述”。
+
+For Symbols, syntax-quote resolves the symbol in the current context, yielding a fully-qualified symbol 
+(i.e. namespace/name or fully.qualified.Classname). 
+If a symbol is non-namespace-qualified and ends with '#', 
+it is resolved to a generated symbol with the same name to which '_' and a unique id have been appended. 
+e.g. x# will resolve to x_123. 
+All references to that symbol within a syntax-quoted expression resolve to the same generated symbol.
+
+对于符号，反引用在当前上下文识别它们，返回它们的全名。
+如果一个符号没有命名空间限定，且以井号结尾，
+会作为一个生成符号（名字为符号名加上下划线再加上一个唯一标识）。
+在反引用表达式中，所有对该符号的引用会继续维持。
+
+
+For Lists/Vectors/Sets/Maps, syntax-quote establishes a template of the corresponding data structure. 
+Within the template, unqualified forms behave as if recursively syntax-quoted, 
+but forms can be exempted from such recursive quoting by qualifying them with unquote or unquote-splicing, 
+in which case they will be treated as expressions 
+and be replaced in the template by their value, or sequence of values, respectively.
+
+对于列表、向量、集合、映射，反引用使得它们像个数据结构的模板，
+在模板中，所有形式（递归的包括内部）都是不求值的，
+除非使用波浪号或波浪地址号，这会让它们（递归的包括内部）被求值。
+
+
+-2.3，波浪号（Unquote）~，嵌在反引号表达式内，表示求值。
+（hxzon：相当于common lisp中的 , ，之所以用波浪号取代逗号，是因为逗号在clojure中作为空白符。）
+
+示例：
+user=> `(1 (dec 3) 3)
+(1 (clojure.core/dec 3) 3)
+对比：
+user => `(1 ~(dec 3) 3)
+(1 2 3)
+
+
+-2.4，（Unquote-splicing）~@，将表达式（必须求值为一个列表）的值嵌入到其外围的列表里。
+（hxzon：相当于common lisp中的 ,@ ，之所以用波浪号取代逗号，是因为逗号在clojure中作为空白符。）
+
+示例：
+ser=> `(1 2 ~(list 3 4))
+(1 2 (3 4))
+对比：
+user=> `(1 2 ~@(list 3 4))
+(1 2 3 4)
+
+=============
+3，
+
+-3.1，@，地址号，解引用，等价于(deref form)。
+
+
+-3.2，与号&，用来将函数参数打包成列表 （相当于java中的...）。
+
+示例1：
+(defn count-args [& args]
+  (str "You passed " (count args) " args: " args))
+
+(count-args 1 2 3) ; => "You passed 3 args: (1 2 3)"
+
+示例2（普通参数和列表参数混合使用）：
+(defn hello-count [name & args]
+  (str "Hello " name ", you passed " (count args) " extra args"))
+
+(hello-count "Finn" 1 2 3)
+; => "Hello Finn, you passed 3 extra args"
+
+-3.3，
+#'，变量引用（Var-quote），表示获取符号（symbol）本身，#'x 等价于 (var x)。
+
+#(...) ，定义匿名函数，等价于 (fn [args] (...))。
+
+#{}，定义集合。
+
+#"pattern"，定义正则表达式。
+
+(#_)，忽略该形式（将整个form注释掉）。
+
+
+-3.4，下划线_，占位符，不关注的匹配项。
+
+-3.5，^，获得元数据，^form等价于(meta  form)。
+
+#^，是旧的格式，新版clojure改用 ^ 。
+
+一般来说，给变量和参数添加元数据使用元数据读者宏，给数据添加元数据使用with-meta。
+
+^{:a 1 :b 2} [1 2 3] ，给向量添加元数据。
+
+-3.6，;，分号，单行注释。
+

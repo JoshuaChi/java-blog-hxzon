@@ -1,0 +1,488 @@
+（hxzon学习笔记）clojure-集合相关的函数-1，基本操作
+
+by hxzon
+---------
+into，
+cons，concat，conj，
+assoc，assoc-in，get，get-in，
+find，dissoc，disj，
+last，first，rest，next，peek，pop，
+drop，take，take-last，take-nth，take-while 。
+
+clojure.set/union，clojure.set/select，
+clojure.set/difference，clojure.set/intersection。
+
+keys，vals，key，val。
+
+count，empty，not-empty，
+
+========
+向量看成以索引为键的映射。
+set看成元素到自身的映射。
+
+列表是以单向链接列表的形式来实现的。
+读取列表的第一个元素或者在列表头添加一个元素的操作都可以在常量时间内完成，然而访问列表的第N个元素却需要N次操作。 
+
+向量支持高效地根据索引来访问元素，与数组类似。
+
+----
+1，into： 
+into接受两个集合参数，并且将第二个集合参数的元素全部插入到第一个集合参数中，再返回。 
+
+user=> (into {} [[1 2] [3 4]])  
+{1 2, 3 4}  
+
+user=> (into [] {:a 1 :b 2})  
+[[:a 1] [:b 2]]  
+
+user=> (into () '(1 2 3))  
+(3 2 1)  
+
+user=> (into ["a" "b"] '(1 2 3))  
+["a" "b" 1 2 3]  
+
+----
+2，cons，(cons x seq)，返回一个新的序列， 序列的第一个元素是 x ， 而 seq 则是序列的其余部分。
+
+user=> (cons 1 (list 2 3 4 5))  
+(1 2 3 4 5)
+
+user=> (cons (list 1 2) '(3 4 5))  
+((1 2) 3 4 5)
+
+----
+3，concat
+function
+Usage: (concat)
+       (concat x)
+       (concat x y)
+       (concat x y & zs)
+
+Returns a lazy seq representing the concatenation of the elements in the supplied colls.
+返回一个延迟序列，元素为参数（是一个集合）里的元素。
+
+----
+4，conj，如果是列表，在列表头部插入元素。
+如果是向量，在尾部插入元素。
+也支持映射，set。
+(conj coll x)
+(conj coll x & xs)
+
+当 coll 等于 nil ， 也即是，执行 (conj nil item) 时， 结果为 (item) 。
+--
+; 处理多个元素的 conj
+; 注意向量和列表的结果之间的不同
+
+user=> (conj [0 1 2] 3 4 5)
+[0 1 2 3 4 5]
+
+user=> (conj (list 0 1 2) 3 4 5)
+(5 4 3 0 1 2)
+
+--
+user=> (conj nil 2)  
+(2)
+
+user=> (conj nil 2 3)  
+(3 2)
+
+user=> (conj [1 2 3] [4])  
+[1 2 3 [4]]  
+
+user=> (conj [1 2 3] 4)
+[1 2 3 4]  
+
+user=> (conj '(1 2 3) 4)
+(4 1 2 3)  
+
+user=> (conj ["a" 2 3.4] -1)  
+["a" 2 3.4 -1]  
+
+user=> (conj ["a" "b"] ["c"])  
+["a" "b" ["c"]]
+
+--
+user=> (conj #{1 3} 1 5 7)
+#{1 3 5 7}
+
+----
+5，assoc，
+如果是映射，更新（或添加）指定的键的值。
+如果是向量，更新指定索引的值，注意，索引不能超出范围，否则抛出异常。
+
+user=> (assoc [1 2 3] 0 10)  
+[10 2 3]
+
+user=> (assoc [1 2 3] 3 10)  
+[1 2 3 10]
+
+user=> (assoc [1 2 3] 4 10)  
+IndexOutOfBoundsException   clojure.lang.PersistentVector.assocN (PersistentVect  
+or.java:136)
+
+user=> (assoc {} :key1 "value1" :key2 2)  
+{:key2 2, :key1 "value1"}
+
+user=> (assoc {:key1 "old value"} :key1 "new value")  
+{:key1 "new value"}
+
+----
+5.1，assoc-in，
+function
+Usage: (assoc-in m [k & ks] v)
+
+Associates a value in a nested associative structure, 
+where ks is a sequence of keys and v is the new value and returns a new nested structure.
+If any levels do not exist, hash-maps will be created.
+用来更新嵌套的关系型结构，ks是一个键的序列。
+如果某一层级不存在，将创建一个hash-map。
+
+user=> (assoc-in {:name "tom" :age 26} [:age] 36)
+{:age 36, :name "tom"}
+
+----
+6，get，
+(get map key)
+(get map key not-found)
+如果是映射，返回指定键的值。
+如果是向量，返回指定索引处的值。
+如果是set，返回键本身（集合看成元素到元素自身的映射）。
+如果key不存在，返回not-found，如果不指定not-found，返回nil。
+
+user=> (get [1 2 3] 1)  
+2
+
+user=> (get [1 2 3] 4)  
+nil
+
+user=> (get {:a 1 :b 2} :b)  
+2
+
+user=> (get {:a 1 :b 2} :z "missing")  
+"missing"
+
+----
+6.1，get-in，
+function
+Usage: (get-in m ks)
+       (get-in m ks not-found)
+
+Returns the value in a nested associative structure,where ks is a sequence of keys. 
+Returns nil if the key is not present, or the not-found value if supplied.
+根据指定的键序列，获取嵌套的关系型结构中的值。
+如果键不存在，且没指定not-found，返回nil。
+
+
+user=> (get-in {:n "qh", :addr {:cn {:bj {:hd "tsinghua"}}}} [:addr :cn :bj :hd])
+"tsinghua"
+
+相当于：
+user=> (((({:n "qh", :addr {:cn {:bj {:hd "tsinghua"}}}} :addr) :cn) :bj) :hd)
+"tsinghua"
+
+
+----
+7，find，(find map key)，
+如果是映射，返回指定的键值对（用向量表示）。
+如果是向量，返回指定的索引和值（用向量表示）。
+如果键不存在，返回nil。
+
+Returns the map entry for key, or nil if key not present.
+
+user=> (find {:a 1 :b 2} :c)  
+nil
+
+user=> (find {:a 1 :b 2} :a)  
+[:a 1]
+
+user=> (find [1 2 3] 2)  
+[2 3]
+
+user=> (find [1 2 3] 4)  
+nil
+
+---------
+----
+8，dissoc
+function
+Usage: (dissoc map)
+       (dissoc map key)
+       (dissoc map key & ks)
+
+dissoc[iate]. Returns a new map of the same (hashed/sorted) type,that does not contain a mapping for key(s).
+从映射中去除指定的键。
+
+user=> (dissoc {:a 1 :b 2 :c 3} :b);丢弃key为:b的元素  
+{:a 1, :c 3}
+
+user=> (dissoc {:a 1 :b 2 :c 3});没有key的参数时，直接返回  
+{:a 1, :c 3, :b 2}
+
+user=> (dissoc {:a 1 :b 2 :c 3} :d);  
+{:a 1, :c 3, :b 2}
+
+user=> (dissoc {:a 1 :b 2 :c 3} :a :b :c)  
+{}
+
+----
+9，disj
+function
+Usage: (disj set)
+       (disj set key)
+       (disj set key & ks)
+
+disj[oin]. Returns a new set of the same (hashed/sorted) type, that does not contain key(s).
+从set中去除指定的键。
+
+user=> (disj #{1 3 5 7} 3 7)
+#{1 5}
+
+----------
+----
+10，last，Return the last item in coll, in linear time。
+在线性时间内返回集合的最后一个元素。
+
+----
+11，first，返回第一个元素（传入的coll会被seq处理）。
+如果 coll 为 nil ，返回 nil 。
+支持向量，列表，映射，set。
+
+user=> (first nil)
+nil
+
+user=> (first ())
+nil
+
+user=> (first (list 1 2 3))
+1
+
+----
+11.1，rest，
+Returns a possibly empty seq of the items after the first. Calls seq on its argument.
+rest返回去除first之后的序列，内部对参数调用seq。
+如果没有更多元素，返回空序列。
+
+user=> (rest '(1 2 3))  
+(2 3)
+
+user=> (rest nil)
+()
+
+user=> (rest ())  
+()
+
+----
+11.2，next，
+Returns a seq of the items after the first. 
+Calls seq on its argument.  
+If there are no more items, returns nil.
+返回除去first之后的序列。
+内部对参数调用seq。
+如果没有更多元素，返回nil。（而rest返回空序列）
+
+----
+12，peek，
+如果是列表或队列，类似于first。
+如果是向量，类似last，但更高效。
+如果列表或向量是空的，返回nil。
+
+user=> (peek '(2 3 4))  
+2
+
+user=> (peek (list nil "2" 3))  
+nil
+
+user=> (peek [1 2 3])  
+3
+
+user=> (peek '(1 2 3))  
+1
+
+user=> (peek [])
+nil
+
+----
+12.1，pop，
+返回去除peek之后的新集合。
+如果是列表，返回去除头部元素的新列表。
+如果是向量，返回去除尾部元素的新向量。
+如果列表或向量是空的，抛出异常。
+
+user=> (pop '(2 3 4))  
+(3 4)
+
+user=> (pop (list nil "2" 3))  
+("2" 3)
+
+user=> (peek [1 2 3])  
+3
+
+user=> (pop [1 2 3])  
+[1 2]
+
+user=> (peek '(1 2 3))  
+1
+
+user=> (pop '(1 2 3))  
+(2 3)  
+
+----
+13，drop
+function
+Usage: (drop n) ，hxzon：抛出异常。
+       (drop n coll)
+
+Elides the first n values from the reduction of coll.
+（Elides，滑动，幻灯片。）
+丢弃开头n个元素。
+
+(drop 2 [\a \b \c \d \e \f])
+;= (\c \d \e \f)
+
+----
+14，take
+function
+Usage: (take n coll)
+
+Returns a lazy sequence of the first n items in coll, or all items if there are fewer than n.
+获取惰性序列的开头n个元素。
+
+----
+14.1，take-last
+function
+Usage: (take-last n coll)
+
+Returns a seq of the last n items in coll.  
+Depending on the type of coll may be no better than linear time.  
+For vectors, see also subvec.
+获取惰性序列尾部n个元素。
+
+----
+14.2，take-nth
+function
+Usage: (take-nth n coll)
+
+Returns a lazy seq of every nth item in coll.
+
+----
+14.3，take-while
+function
+Usage: (take-while pred coll)
+
+Returns a lazy sequence of successive items from coll while (pred item) returns true. 
+pred must be free of side-effects.
+获取满足谓词的元素。
+
+
+=======
+set操作：
+
+----
+1，合并子集
+user=> (clojure.set/union #{1 2 3} #{1 2 4})
+#{1 2 3 4}
+
+----
+2，根据条件选择
+select
+(select pred xset)
+
+返回 xset 中所有使 pred 为真的元素。
+select 和 clojure.core/filter 类似，只是 select 的输入和输出都是 set 。
+
+user=> (clojure.set/select even? #{1 2 3 4 5})
+#{2 4}
+
+----
+3，取差集
+user=> (clojure.set/difference #{1 2 3} #{1 2 4})
+#{3}
+
+----
+4，取交集
+user=> (clojure.set/intersection #{1 2 3} #{1 2 4})
+#{1 2}
+
+
+=======
+map操作：
+
+----
+1，keys： 
+keys的参数为map，返回map中的key组成列表。 
+
+user=> (keys {:a 1 :b 2})  
+(:a :b)  
+
+----
+2，vals： 
+与keys类似，参数为map，返回map中的value组成的列表。 
+
+user=> (vals {:a 1 :b 2})  
+(1 2)  
+
+----
+3，key： 
+key的参数为map中的元素（entry），所以不能直接把key作用在map上。
+key用于返回元素的key名称。 
+
+user=> (map key {:a 1 :b 2})
+(:a :b)  
+
+user=> (key (first {:a 1 :b 2}))
+:a  
+
+----
+4、val： 
+与key类似，参数为map元素（entry），返回元素的value值。 
+
+user=> (val (first {:one :two}))  
+:two  
+
+
+========
+
+----
+1，count： 
+count函数返回集合中元素的个数，如果count参数为nil，则返回0 。
+
+user=> (count nil)  
+0  
+user=> (count [])  
+0  
+user=> (count [1 2 3])  
+3  
+user=> (count '(1 "a"))  
+2  
+user=> (count {:one 1 :two 2})  
+2  
+user=> (count "string")  
+6  
+
+----
+2，empty： 
+返回一个空的集合，集合类型不变，如果empty参数为nil，则返回nil 。
+
+user=> (empty [1 2 3])  
+[]  
+
+user=> (empty (list 1 2 3))  
+()  
+
+user=> (empty {:key1 1})  
+{}  
+
+user=> (empty nil)  
+nil  
+
+----
+3，not-empty： 
+如果集合为空，返回nil，否则直接返回参数指向的集合 。
+
+user=> (not-empty [])  
+nil  
+
+user=> (not-empty '(1 2 3))  
+(1 2 3)  
+
+

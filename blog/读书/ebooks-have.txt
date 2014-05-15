@@ -1,0 +1,321 @@
+﻿ebooks-have
+
+========================
+工具实践-编程环境-web-js（前端mvc，控件编程，js基础）
+
+----
+150，JavaScript异步编程：设计快速响应的网络应用
+Async JavaScript: Build More Responsive Apps with Less Code
+http://www.ituring.com.cn/book/1132
+
+----
+154，AngularJS
+认真阅读。
+
+《用AngularJS开发下一代Web应用》，38.00(6.9折)，仅仅入门，不买，有英文电子版。
+
+----
+63，O'Reilly, 2011:JavaScript Web Applications
+http://jayli.github.com/jswebapps/
+《JavaScript Web 富应用开发》
+英文打印版，如何开发javascript框架，3个javascript mvc框架的使用
+
+----
+84，designing with progressive enhancement(building the web that works for everyone)
+http://filamentgroup.com/dwpe/#aboutthisbook
+《构建多平台可用的网站——渐进增强设计实践》
+http://www.ituring.com.cn/book/922
+英文打印版，html，css，浏览器检测和自定义控件
+
+----
+72，JavaScript DOM高级程序设计
+AdvancED DOM Scripting: Dynamic Web Design Techniques
+有英文电子版（，2008），观望
+
+----
+119，JavaScript Patterns
+《javascript模式》
+by Stoyan Stefanov，2010
+英文打印版
+
+----
+83，JavaScript设计模式
+《Learning JavaScript Design Patterns》
+http://www.ituring.com.cn/book/388
+http://product.dangdang.com/product.aspx?product_id=20511558
+有英文电子版，不买
+
+----
+152，Jquery1.2.6源码分析
+英文打印版
+
+----
+74，JavaScript高级程序设计(第3版)
+http://www.ituring.com.cn/book/946
+48.50(49折)，有英文电子版，不买
+
+----
+28，JavaScript语言精粹
+31.90(91折)，有英文电子版，不买
+
+----
+153，Professional JavaScript Frameworks : Prototype, YUI, Ext JS, Dojo and MooTools
+英文打印版，节选“Part III: Ext JS”部分。
+
+----
+79，
+《HTML5游戏开发》
+http://product.dangdang.com/product.aspx?product_id=22508162
+英文打印版，32.90 (67折)，不买
+
+
+=========================
+工具实践-编程环境-web-css
+
+----
+75，Pro HTML5 and CSS3 Design Patterns
+《精通HTML5和CSS3设计模式》
+http://www.ituring.com.cn/book/903
+英文打印版，css多态性
+
+----
+87，Smashing CSS: Professional Techniques for Modern Layout
+《精彩绝伦的CSS》
+http://www.ituring.com.cn/book/924
+英文打印版
+
+----
+68，Eric Meyer谈CSS(卷2)
+http://product.dangdang.com/product.aspx?product_id=20176096
+36.80 (75折)，有中文电子版，不买
+
+==========================
+架构，系统设计
+
+----
+191，领域驱动设计与模式实战
+尼尔森(Jimmy Nilsson) (作者), 赵俐 (译者), 马燕新 (译者), 等 (译者)
+2009年11月1日
+52.00(75折)，有中文扫描电子版，基于.net
+
+----
+领域驱动设计C# 2008实现:问题•设计•解决方案
+麦卡锡(Tim McCarthy) (作者), UML China (译者)
+2010年3月1日
+24.50(5折)
+
+==========================
+交互设计，软件工程，it视野
+
+----
+168，七周七数据库
+Eric Redmond (作者), Jim R.Wilson (作者), 王海鹏 (译者), 田思源 (译者), 王晨 (译者) 
+44.20(7.5折)，41.30(7折)，40.70(69折)，不买，电子书优先
+
+----
+159，代码的未来
+[日]松本行弘 (作者), 周自恒 (译者)
+59.20(75折)，39.50(5折)，必看，不买，有扫描电子版
+
+==========================
+工具实践-编程语言-观望和体验
+
+----
+185，Go语言编程
+许式伟，49.00，有电子版
+
+
+----
+141，Real World Haskell
+2008-12出版
+http://book.realworldhaskell.org/read/
+--
+真实世界的Haskell(影印版) 
+沙利文(Bryan O'sullivan)、戈尔(Jobn Goerzen)、 斯图尔特(Don Stewart) 
+东南大学出版社 (2010-01出版)
+
+缺货，编程思想的学习，想买，英文版是否有耐心读？
+中文版夭折，http://rwh.readthedocs.org/en/latest/
+
+--
+Parallel and Concurrent Programming in Haskell
+
+
+
+==========================
+工具实践-编程环境-Linux
+
+178，
+鸟哥的Linux私房菜:基础学习篇(第3版) 
+- 王世江 (2010年7月1日) 
+59.50(6.8折)
+
+--
+鸟哥的Linux私房菜:服务器架设篇(第3版) 
+- 鸟哥 (2012年7月2日) 
+81.40(7.5折)
+
+http://vbird.dic.ksu.edu.tw/linux_basic/linux_basic.php
+http://linux.vbird.org/
+
+简体中文电子版。收益匪浅
+
+----
+167，Linux命令行与shell脚本编程大全(第2版)
+49.50 (5折)，想买，有中文清晰扫描版
+
+
+==========================
+工具实践-编程语言-C和C++
+
+----
+93，C语言程序设计：现代方法(第2版)
+600页，2010年4月1日，55.30(7折)，54.50(69折)，系统学习。
+
+有清晰2007第1版，2010第2版。不买。
+
+----
+212，C语言接口与实现:创建可重用软件的技术
+David R. Hanson (作者), 郭旭 (译者)
+368页，2011年9月1日，56.80(76折)，51.80(69折)，库（常用功能）的设计，评价很好。
+
+有清晰2004，2011电子中文版。不买。
+
+==========================
+工具实践-编程环境-windows和VC++
+
+----
+118，Visual C++ 2012入门经典(第6版)
+68.60(7折)，67.60(69折)，49.00(5折)，
+752页，工具入门书，不买，有英文版电子书
+
+Visual C++2010入门经典(第5版)，有中文版电子书
+Visual C++2008入门经典(第4版)，有中文版电子书
+
+----
+117，深入解析:Windows操作系统(第4版)
+http://www.amazon.cn/%E6%B7%B1%E5%85%A5%E8%A7%A3%E6%9E%90-Windows%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F-%E7%BD%97%E6%96%AF/dp/B0011F3VZY/ref=pd_sim_b_86
+http://www.amazon.cn/%E6%B7%B1%E5%85%A5%E8%A7%A3%E6%9E%90Windows%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F-%E6%8B%89%E8%A5%BF%E8%AF%BA%E7%BB%B4/dp/B002PEX4Y8/ref=pd_cp_b_2
+《Microsoft Windows Internals（Fourth Edition》，覆盖Windows XP和Windows Server 2003中所做的内核变化
+74.30(7.5折)，中文版2007.4，有中文扫描电子版。
+
+--
+深入解析Windows操作系统(第5版.英文版)，2009.9，针对Windows Vista和Windows Server 2008进行了全面的更新
+117.50(7.4折)，
+
+--
+深入解析Windows操作系统，卷1（英文版 第6版），49.50 (5折)，75.70(76折)，有电子版。
+深入解析Windows操作系统，卷2（英文版 第6版），49.50 (5折)，77.40(78折)，有电子版。
+《Windows Internals, Part 2》
+http://www.ituring.com.cn/book/1083
+
+----
+188，ASP.NET 4高级程序设计(第4版)
+《Pro ASP.NET 4 in c# 2010,fourth edition》
+2011年6月1日，103.30(7折)，102.10(69折)，有中文电子版，不买
+[ASP.NET.4高级程序设计.第4版中文版].(Pro.ASP.NET.4.in.C#.2010.4.edition).博思工作室.扫描版.pdf，146M
+
+----
+Professional C# 2012 and .NET 4.5
+《C#高级编程(第8版)》，英文电子版
+
+----
+209，C#与.NET 4高级程序设计(第5版)
+特罗尔森
+2011年4月1日
+1197页，104.30(7折)，评价很高，较旧，有中文电子版（225M），不买
+
+==========================
+工具实践-编程语言-java
+
+----
+java nio（中文版）
+中文电子版，已做学习笔记。
+
+----
+Java 7 Concurrency Cookbook
+http://ifeve.com/thread-synchronization-utilities-1/
+http://ifeve.com/concurrency-collection-9/
+
+----
+48，Programming Concurrency on the JVM
+英文打印版
+
+----
+162，Java虚拟机并发编程
+215页，40.70(69折)，38.40(65折)，28.90(51折)
+《Programming Concurrency on the JVM》，有英文打印版，必看，不买
+
+----
+151，Filthy Rich Clients,2007
+英文打印版，java swing，java 2d。
+
+========================
+游戏开发（3D，大型多人在线游戏，人工智能）
+
+----
+Unity 4.X 从入门到精通
+http://edu.china.unity3d.com/book/detail/book_id/6
+
+中国官网教材
+http://pan.baidu.com/s/1kYnMs
+unitybook2013-12-12(1).zip
+
+参考手册，值得一读，快速了解功能和概念，有清晰完整的中文扫描电子版。
+不买。
+
+----
+197，大型多人在线游戏开发
+有扫描中文电子版，有详细书签。
+
+----
+195，游戏人工智能编程案例精粹(修订版)
+《Programming Game AI by Example》
+Mat Buckland (作者), 罗岱 (译者), 等 (译者)
+有扫描中文电子版，有详细书签。
+
+----
+196，游戏开发中的人工智能
+有扫描中文电子版，有详细书签。
+
+
+----
+194，Windows游戏编程大师技巧(第2版)
+拉莫斯(André LaMothe)，
+第1版，有扫描中文电子版，没有书签。
+第2版，有扫描中文电子版，有详细书签。
+
+----
+202，DIRECTX9.03D游戏开发编程基础
+有扫描中文电子版，有详细书签。
+
+
+----
+192，3D数学基础:图形与游戏开发
+邓恩 (作者), 帕贝利 (作者), 史银雪 (译者), 陈洪 (译者), 王荣静 (译者)
+25.20，不如《3D游戏编程大师技巧》？
+
+----
+198，人工智能:一种现代方法(第2版)
+斯图尔特·罗素(Stuart Russell) (作者), 诺文(Peter Norvig) (作者), 姜哲 (译者), 金奕江 (译者), 张敏 (译者), 等 (译者)
+
+----
+人工智能游戏编程真言
+有扫描中文电子版，没有书签。
+
+----
+C++游戏设计案例教程
+有扫描中文电子版，有详细书签。
+
+=================
+=================
+感觉一般，不值，或过时的书
+
+----
+127，Seven Languages in Seven Weeks
+《七周七语言》，不买，只是入门简介。
+英文打印版，节选“7 Clojure，8 Haskell”部分。
+
+Clojure:简单介绍，day1基本数据类型，绑定，day2集合，延迟计算，类和接口，day3并发（引用，原子，代理）
+
+Haskell:

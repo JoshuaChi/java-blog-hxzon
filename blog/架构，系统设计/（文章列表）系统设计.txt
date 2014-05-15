@@ -1,0 +1,20 @@
+﻿（文章列表）系统设计
+
+1，数据库设计-从传统方式到事实表加维表的方式1
+http://virusswb.blog.51cto.com/115214/1205589
+
+2，从头开始实现领域驱动设计
+http://www.infoq.com/cn/news/2013/11/ddd-ground-up
+
+3，
+《流程的永恒之道》（序）：模式是个什么东东？伟大的Alexander大师
+http://www.infoq.com/cn/articles/eternal-road-of-process-part0?utm_campaign=infoq_content&utm_source=infoq&utm_medium=feed&utm_term=global
+
+《流程的永恒之道》（一）：控制模式之串行、并发分裂及并发汇聚模式
+http://www.infoq.com/cn/articles/eternal-road-of-process-part1?utm_campaign=infoq_content&utm_source=infoq&utm_medium=feed&utm_term=global
+
+4，王垠-SQL，NoSQL 以及数据库的实质
+http://www.yinwang.org/blog-cn/2013/04/14/os-design/
+
+5，
+

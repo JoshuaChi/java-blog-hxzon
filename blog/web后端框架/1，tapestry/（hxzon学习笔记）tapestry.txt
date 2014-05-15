@@ -1,0 +1,46 @@
+﻿（hxzon学习笔记）tapestry
+
+by hxzon
+----
+1，如何自己重新实现5.3版的客户端校验？
+
+5.3版的客户端校验使用ajax提交时有问题。
+
+
+----
+2，tapestry5组件学习：
+
+grid：加入BeforeGridInplaceUpdate事件，渲染前触发一次事件让page准备表格数据（例如分页时）
+submitNotifier：form提交时触发一次事件
+loop：
+tree：dom原始事件-》组件事件-》ajax请求-》ajax更新
+zone：
+
+
+----
+3，tree组件的后台加载原理。
+
+5.4版tree组件有问题。
+
+
+----
+4，结合其它js ui库实现tapestry组件。
+
+自定义组件
+基于js ui框架-》js ui事件触发组件事件（ajax请求）-》返回html片段或json数据-》js ui更新
+
+
+
+----
+5，组合组件，如何让普通属性传递至内部组件？
+
+
+----
+6，组件不允许自递归。
+
+The template for component org.hxzon.xx.web.components.Xx is recursive (contains another direct or indirect reference to component org.hxzon.xx.web.components.Xx). This is not supported (components may not contain themselves).
+
+----
+7，tapestry的渲染器和表单提交期是完全分开的，而不像别的框架是连续的（数据容器放在会话中），
+所以表单提交前需要重新准备数据容器。
+

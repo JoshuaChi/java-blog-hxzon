@@ -1,0 +1,411 @@
+（hxzon学习笔记）clojure-流程控制
+
+补充by hxzon
+======
+
+clojure-基本语法-流程控制
+http://dead-knight.iteye.com/blog/1828668
+http://dead-knight.iteye.com/blog/1829618
+
+hxzon摘要：
+
+1，标准流程控制
+if，if-not，if-let，
+when，when-not，when-let，
+cond，condp，cond-> ，cond->> ，
+case，do，
+loop..recur。
+while（循环）。
+
+2，异常处理
+try..catch..finally，throw。
+assert。
+
+3，基于函数的流程控制
+repeatedly（重复执行函数），iterate（返回延迟序列）。
+
+4，基于序列的流程控制。
+dotimes，doseq，for。
+
+5，or，and，not。
+
+============
+一、标准的流程控制 
+
+----
+1，if： 
+将一个判断表达式作为它的第一个参数进行求值。
+如果求值为true，那么就返回它的第二个参数（相当于“then”子句）的求值结果。
+如果结果为false（包括nil）就返回第三个参数的求值结果（相当于“else”子句），前提是有提供第三个参数并且不为空。 
+
+user=> (defn is-small [number] (if (< number 100) "yes" "no"))  
+#'user/is-small  
+
+user=> (is-small 50)  
+"yes"  
+
+user=> (is-small 110)  
+"no"  
+
+if条件中除了false和nil，其他都为true： 
+
+user=> (if true "true")  
+"true"  
+user=> (if 0 "true")  
+"true"  
+user=> (if "" "true")  
+"true"  
+user=> (if nil "true")  
+nil  
+user=> (if false "true")  
+nil  
+
+----
+2，if-not： 
+跟 if 的用法相同，但是作用是相反的。
+当逻辑为false的时候会去计算第二个参数的值，为true的时候才计算第三个参数的值。
+
+user=> (if-not (zero? 0) "no" "yes")  
+"yes"  
+user=> (if (not (zero? 0)) "no" "yes")  
+"yes"  
+
+----
+3，if-let： 
+if-let宏接受两个参数，第一个参数为绑定变量，第二个参数为表达式。
+并根据第二个表达式参数返回的值确定执行then、else语句。 
+
+user=> (defn if-let-test [arg] (if-let [x arg] "true" "false"))
+#'user/if-let-test  
+
+user=> (if-let-test 1)  
+"true"  
+user=> (if-let-test nil)  
+"false"  
+user=> (if-let-test false)  
+"false"  
+
+--
+if-let
+macro
+Usage: (if-let bindings then)
+       (if-let bindings then else & oldform)
+bindings => binding-form test
+
+If test is true, evaluates then with binding-form bound to the value of test, if not, yields else
+如果 test 为真，那么结合 binding-form 绑定，对 then 部分进行求值。
+如果 test 为假，那么对 else 部分进行求值。
+
+user=> (defn sum-all-even-number [all-number]
+           (if-let [all-even-number (filter even? all-number)]
+               (reduce + all-even-number)
+               0))
+#'user/sum-all-even-number
+
+（hxzon：这里test表达式为(filter even? all-number)，找出偶数，如果含有偶数，整体为真，则绑定到all-even-number。）
+
+user=> (sum-all-even-number [1 2 3 4 5 6 7 8 9])
+20  ; 2 + 4 + 6 + 8
+
+user=> (sum-all-even-number [1 3 5 7 9])
+0
+
+http://clojure-api-cn.readthedocs.org/en/latest/clojure.core/if-let.html
+
+(defmacro if-let
+  "bindings => binding-form test
+
+  If test is true, evaluates then with binding-form bound to the value of 
+  test, if not, yields else"
+  {:added "1.0"}
+  ([bindings then]
+   `(if-let ~bindings ~then nil))
+  ([bindings then else & oldform]
+   (assert-args
+     (vector? bindings) "a vector for its binding"
+     (nil? oldform) "1 or 2 forms after binding vector"
+     (= 2 (count bindings)) "exactly 2 forms in binding vector")
+   (let [form (bindings 0) tst (bindings 1)]
+     `(let [temp# ~tst]
+        (if temp#
+          (let [~form temp#]
+            ~then)
+          ~else)))))
+
+----
+4，when: 
+when没有else子句，如果when后面第一个参数为true，则执行条件后的所有语句，否则返回nil。 
+
+user=> (when false (println "is true") "return true")  
+nil  
+
+user=> (when true (println "is true") "return true")  
+is true  
+"return true"  
+
+user=> (def has-value (when true (println "hello world") "returned value"))  
+hello world  
+#'user/has-value  
+
+user=> has-value  
+"returned value"  
+
+----
+5，when-not： 
+when-not与when类似，只是第一个参数返回false，才执行后面所有语句，否则返回nil。 
+
+user=> (when-not  false (println "is true") "return true")  
+is true  
+"return true"  
+user=> (when-not true (println "is true") "return true")  
+nil  
+
+----
+6，when-let： 
+when-let与if-let类似，只有绑定变量值不是false、nil时，才执行后面所有语句，否则直接返回nil。 
+
+user=> (when-let [a true] (println "true") "return true")  
+true  
+"return true"  
+
+user=> (when-let [a false] (println "true"))  
+nil  
+
+user=> (when-let [a nil] (println "true"))  
+nil  
+
+----
+7，cond： 
+cond 可以有任意个“判断/表达式”对，作为它的参数。
+如果满足第一个判断，就执行第一个判断对应的表达式。
+如果没有满足第一个条件，就会尝试后面的判断表达式，以此类推。
+如果一个都没有满足，那么返回 nil 。
+除非你用一个 :else 关键字放在最后来抓住剩下的所有可能性。
+
+cond类似于java中的if..else if...else语句。 
+
+user=> (defn f [n] (cond (< n 0) "<0" (< n 10) "<10" :else ">=10"))  
+#'user/f  
+
+user=> (f -2)  
+"<0"  
+
+user=> (f 2)  
+"<10"  
+
+user=> (f 10)  
+">=10"  
+
+----
+7.1，condp
+macro
+Usage: (condp pred expr & clauses)
+
+condp类似于if(pred test-expr expr)...else if(pred test-expr expr) 。
+
+Takes a binary predicate, an expression, and a set of clauses.
+pred是一个两元谓词。
+
+Each clause can take the form of either:
+test-expr result-expr
+result-expr :>> result-fn
+Note :>> is an ordinary keyword.
+（ordinary，普通。）
+每个子句或者含有测试表达式和结果表达式两部分，
+或者含有 test-expr  :>> result-fn 三部分（这里，:>> 只是一个普通关键字）。
+
+For each clause, (pred test-expr expr) is evaluated. 
+pred以expr表达式和每个子句的测试表达式求值。
+If it returns logical true, the clause is a match. 
+如果谓词返回真，这个子句匹配。
+If a binary clause matches, the result-expr is returned, 
+如果子句是两部分，返回子句的result-expr的值。
+if a ternary clause matches, its result-fn,
+which must be a unary function, is called with the result of the predicate as its argument, 
+the result of that call being the return value of condp. 
+如果子句是三部分，
+子句的result-fn部分必须是一元函数，将谓词表达式的值作为它的参数，返回result-fn的值。
+
+A single default expression can follow the clauses,
+and its value will be returned if no clause matches. 
+在最后，可以有一个没有测试表达式的子句，作为默认值。
+If no default expression is provided and no clause matches, 
+an IllegalArgumentException is thrown.
+如果没有子句匹配，也没有提供默认值，将抛出异常。
+
+(defrecord Point [x y]
+    Matrix
+    (lookup [pt i j]
+        (when (zero? j)
+            (case i
+                  0 x
+                  1 y)))
+    (update [pt i j value]
+        (if (zero? j)
+            (condp = i
+                0 (Point. value y)
+                1 (Point. x value))
+            pt))
+    (rows [pt] [[x] [y]])
+    (cols [pt] [[x y]])
+    (dims [pt] [2 1]))
+
+(condp some [1 2 3 4]
+         #{0 6 7} :>> inc
+         #{4 5 9} :>> dec
+         #{1 2 3} :>> #(+ % 3))
+;= 3
+
+(some #{0 6 7}  [1 2 3 4] )
+;= nil
+(some #{4 5 9} [1 2 3 4])
+;= 4
+----
+7.2，cond->
+macro
+Usage: (cond-> expr & clauses)
+
+Takes an expression and a set of test/form pairs. 
+Threads expr (via ->) through each form for which the corresponding test expression is true. 
+一个初始表达式和一系列子句，每个子句含测试表达式和执行体。
+顺序测试每个子句的test，如果为真，将上一次为真的form的值放入本子句的form的第2个位置。
+
+Note that, unlike cond branching, 
+cond-> threading does not short circuit after the first true test expression.
+和cond不一样，cond->不是短路的。
+
+user=> (cond-> 1
+               true inc	;true为逻辑真，(inc 1)得到2。
+               false (* 42) ;false为逻辑假，不执行。
+               (= 2 2) (* 3)) ;(= 2 2)为逻辑真，(* 2 3)得到6。
+6
+
+----
+7.3，cond->>
+macro
+Usage: (cond->> expr & clauses)
+
+Takes an expression and a set of test/form pairs. 
+Threads expr (via ->>) through each form for which the corresponding test expression is true.
+和cond-> 一样，但是放入位置为最后。
+
+Note that, unlike cond branching, 
+cond->> threading does not short circuit after the first true test expression.
+和cond不一样，cond->>不是短路的。
+
+----
+8，case： 
+case可以简单理解为java中switch的case，如下 
+
+user=> (let [mystr "hello"];首先绑定mystr的值为hello  
+          (case mystr    
+            "" 0   
+            "hello" (count mystr)));case用于匹配mystr的值  
+5       
+
+user=> (let [mystr "no match"]   
+          (case mystr    
+                "" 0   
+                "hello" (count mystr)   
+                "default")) ;最后一个表达式只有匹配不成功时才执行  
+"default"  
+
+--
+case可以用列表一次匹配多个值： 
+
+user=> (defn f [x] (case x  
+       (5 10) "*5"  
+       (3 6 9) "*3"  
+       "others"))  
+#'user/f  
+
+user=> (f 5)  
+"*5"  
+
+user=> (f 10)  
+"*5"  
+
+user=> (f 6)  
+"*3"  
+
+user=> (f 1)  
+"others"  
+
+----
+9，do： 
+do执行多条语句，返回最后一条语句值 
+
+user=> (def v (do (println 123) (println 321) -1))  
+123  
+321  
+#'user/v  
+
+user=> v  
+-1  
+
+----
+10，loop、recur： 
+
+如果递归的层次太深的话，那么可能会产生内存不足的情况。
+所以一些编程语言利用 “tail call optimization” (TCO)的技术来解决这个问题。
+在Clojure里面避免这个问题的一个办法是使用loop 和recur。 
+
+;定义递归语句完成10+9+……1=55  
+user=> (loop [sum 0 cnt 10] (if (= cnt 0) sum (recur (+ cnt sum) (dec cnt))))  
+55  
+
+--
+(def factorial
+  (fn [n]
+    (loop [cnt n acc 1]
+       (if (zero? cnt)
+            acc
+          (recur (dec cnt) (* acc cnt))))))
+
+（hxzon：
+loop建立了一个递归点。
+初始时，用n和1初始化cnt和acc。
+执行到recur时，cnt和acc重新绑定为（dec cnt）和（* acc cnt），
+再次回到loop处开始执行。
+）
+
+--
+loop/recur 组合把一个看似递归的调用变成一个迭代，迭代不需要占用栈空间。 
+loop special form 跟let special form 类似的地方是它们都会建立一个本地binding，但是同时它也建立一个递归点，
+而这个递归点就是recur的参数里面的那个函数。
+
+loop给这些binding一个初始值。
+对recur 的调用使得程序的控制权返回给loop， 并且给那些本地binding赋了新的值。
+给recur传递的参数一定要和loop所创建的binding的个数一样。
+同样recur只能出现在loop这个special form的最后一行。
+
+--
+recur
+special form
+Usage: (recur exprs*)
+
+Evaluates the exprs in order, then, in parallel, rebinds the bindings of the recursion point to the values of the exprs.
+Execution then jumps back to the recursion point, a loop or fn method.
+
+Please see http://clojure.org/special_forms#recur
+
+--
+loop
+special form
+Usage: (loop [bindings*] exprs*)
+
+Evaluates the exprs in a lexical context in 
+which the symbols in the binding-forms are bound to their respective init-exprs or parts therein. 
+Acts as a recur target.
+
+----
+11，while
+macro
+Usage: (while test & body)
+
+Repeatedly executes body while test expression is true. 
+Presumes some side-effect will cause test to become false/nil. 
+Returns nil.
+当test表达式为true时不断执行body，确保test能变为false或nil。
+返回nil。
+

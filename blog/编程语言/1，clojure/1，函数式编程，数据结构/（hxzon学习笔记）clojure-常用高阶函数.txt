@@ -1,0 +1,134 @@
+（hxzon学习笔记）clojure-常用高阶函数
+
+by hxzon
+
+http://clojure-api-cn.readthedocs.org/en/latest/index.html
+http://clojure.github.io/clojure/
+
+=======
+----
+1，apply，函数应用。
+
+(apply fnX paramsYY)
+(apply fnX param1 param2 paramsYY)
+可以先指定前几个参数。
+
+======
+构建函数：
+
+----
+1，partial，部分参数应用，先配置好一个函数的开头几个参数。
+
+(def only-strings (partial filter string?))
+;= #'user/only-strings
+
+(only-strings ["a" 5 "b" 6])
+;= ("a" "b")
+
+----
+2，comp，函数组合。
+
+(comp f3 f2 f1)
+
+(defn negated-sum-str
+    [& numbers]
+    (str (- (apply + numbers))))
+;= #'user/negated-sum-str
+
+(negated-sum-str 10 12 3.4)
+;= "-25.4"
+
+----
+3，fnil
+返回一个给参数加上默认值的函数（下面示例中是0），它使得不用显示去检查参数是不是nil。
+
+(fnil inc 0)
+
+----
+4，complement （补充，补语。）
+(complement f)
+
+接受一个函数 f ，返回一个匿名函数。
+这个匿名函数接受的参数、产生的作用都和 f 一样， 但它返回的真值和 f 相反。
+
+user=> (defn f []
+           (println "hello")
+           false)
+#'user/f
+
+user=> (f)
+hello
+false
+
+user=> ((complement f))
+hello
+true
+
+----
+5，constantly
+(constantly x)
+
+返回一个匿名函数， 接受任何数量的参数， 但总是返回 x 。
+
+====
+并发相关：
+
+----
+1，pmap
+(pmap f coll)
+(pmap f coll & colls)
+
+pmap 类似于 map ，唯一的不同是， pmap 对函数 f 的应用是并行的。
+pmap 的返回值是半惰性的(semi-lazy)： 并行计算总是发生在消耗(consumption)之前， 不过，计算结果只有在被需要时，才会被 realize 。
+只有当 f 为计算密集型函数， 而且并行获得的性能提升足以抵消并行所需的协调消耗时， 才应该使用 pmap 。
+
+----
+2，pcalls
+(pcalls & fns)
+
+并行计算 fns 中的无参数函数，并以惰性序列的形式返回它们的值。
+
+注意，因为 pcalls 和 pvalues 的返回值都是惰性序列，
+因此，如果有一个非常耗时的表达式阻塞在其他一些表达式的前面，那么就算后面的这些表达式已经计算完了，它们也不能被返回。
+以下是这样一个实例，在序列前面的三个元素，可以立即被返回，
+但是，后面的三个元素只有等待 (Thread/sleep 3000) 执行完毕之后，才会被返回，尽管它们早就在并发线程里被求值完了：
+
+user=> (for [i (pvalues 1 2 3
+                        (Thread/sleep 3000)
+                        (do (println "eval 4") 4)
+                        (do (println "eval 5") 5)
+                        (do (println "eval 6") 6))
+            ]
+           (println i)
+       )
+(1
+2
+nil eval 5  ; 从 println 的输出可以看到
+eval 4      ; 4 、 5 、 6 三个数已经被计算出来了，但还没办法返回
+3
+nil eval 6
+nil         ; sleep 执行，停滞 3 秒
+nil 4
+nil 5
+nil 6
+nil nil)
+
+----
+3，pvalues
+(pvalues & exprs)
+
+并行计算 exprs 中的表达式，并以惰性序列的形式返回它们的值。
+
+====
+其它：
+
+----
+1，memoize，内存化，即缓存函数调用结果。
+
+----
+2，time
+(time expr)
+
+对 expr 进行求值，并打印求值所花费的时间。
+expr 的值作为函数的返回值被返回。
+

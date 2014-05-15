@@ -1,0 +1,434 @@
+﻿itbooks-工具实践
+
+web前端开发（通用）：js，css，html
+
+web后端开发-大众：java，C#/ASP.NET，php，
+web后端开发-较大众：ruby/rails，Python，Perl
+
+桌面开发-大众：windows环境，VC++，C#，java，C++，Qt
+特定环境：Object-C（苹果），Android
+
+游戏开发：C#（unity3D），C++，Object-C（苹果），js，Android，java，
+
+通用语言-小众：clojure，scala，groovy，erlang，go
+
+通用：算法，安全，交互设计，数学，架构设计，软件工程，it视野
+通用-工具：Linux，sql数据库，nosql，开发工具
+
+====================================================
+工具实践-编程语言-C++
+
+
+----
+187，D程序设计语言
+[美]Andrei Alexandrescu (作者), 张雪平 谭丽娜 (译者)
+330页，52.40(7.6折)，47.60(69折)，44.90(65折)，41.40(6折)
+设计思想，相比C++有何改进，
+改进不如go显著，也没有大公司推动，难成主流，不实用。
+
+----
+182，C++标准库:自学教程与参考手册(第2版)(英文版)(套装共2册)
+91.30(7.1折)，89.60(7折)，英文，暂时不买
+
+----
+183，Linux多线程服务端编程:使用muduo C++网络库
+陈硕 (2013-01)
+62.30，C++实践，想买。
+
+----
+86，编程原本(STL之父Alexander Stepanov力作,裘宗燕老师倾情献译)
+http://product.dangdang.com/product.aspx?product_id=22577577
+44.30(75折)，28.90(49折)，C++库设计，暂缓，是否有必要？
+
+
+----
+108，Advanced C++
+http://product.china-pub.com/16697
+
+----
+109，Modern C++ Design: Applied Generic and Design Patterns
+《C++设计新思维——泛型编程与设计模式之应用》
+曾荣获2001年最佳C++图书称号，书中所开发的Loki已经成为最负盛名的C++程序库之一。
+作者被认为是新一代C++的代表人物，因为对Template技术的精湛运用，震撼了整个C++社群。
+http://product.china-pub.com/9700
+http://www.amazon.cn/Modern-C-Design-Applied-Generic-and-Design-Patterns-Alexandrescu-Andrei/dp/0201704315/ref=sr_1_1?s=books&ie=UTF8&qid=1347035699&sr=1-1
+不买，有清晰的中文版电子书
+
+----
+110，泛型编程与STL
+http://product.china-pub.com/9864
+作者: Matthew H. Austern 译者: 侯捷 中国电力出版社2003-1
+本书阐述了泛型编程的中心思想：concepts、modeling、refinement，
+并为你展示这些思想如何导出STL的基础概念：iterators、containers、function Objects。
+循此路线，你可以把STL想像为一个由concepts(而非明确之functions或classes)组成的程序库。
+你将学习其正式结构并因此获得其潜在威力所带采的完整优势。
+已缺货，观望，暂缓
+
+----
+111，深入探索C++对象模型
+http://product.china-pub.com/3290
+http://www.amazon.cn/%E6%B7%B1%E5%BA%A6%E6%8E%A2%E7%B4%A2C-%E5%AF%B9%E8%B1%A1%E6%A8%A1%E5%9E%8B-%E4%BC%A0%E4%B8%96%E7%BB%8F%E5%85%B8%E4%B9%A6%E4%B8%9B-%E6%96%AF%E5%9D%A6%E5%88%A9%E2%80%A2B-%E6%9D%8E%E6%99%AE%E6%9B%BC/dp/B006QXQXTM/ref=pd_rhf_se_s_cp_4
+
+----
+170，深入理解C++11:C++11新特性解析与应用
+41.40 (6折)
+
+----
+184，提高C++性能的编程技术
+布尔卡(Dov Bulka)、梅休(David Mayhew)、左飞、 薛佟佟 (2011-03)
+41.00
+
+----
+104，Think in C++
+http://product.china-pub.com/4801
+http://www.amazon.cn/C-%E7%BC%96%E7%A8%8B%E6%80%9D%E6%83%B3-%E5%9F%83%E5%85%8B%E5%B0%94/dp/B005CFUQR0/ref=pd_rhf_se_s_cp_9
+中文翻译得不好
+
+----
+102，Effective C++:改善程序与设计的55个具体做法:第3版
+http://product.china-pub.com/197414
+http://www.amazon.cn/Effective-C-%E6%94%B9%E5%96%84%E7%A8%8B%E5%BA%8F%E4%B8%8E%E8%AE%BE%E8%AE%A1%E7%9A%8455%E4%B8%AA%E5%85%B7%E4%BD%93%E5%81%9A%E6%B3%95-%E6%A2%85%E8%80%B6/dp/B004G72P24/ref=pd_rhf_se_s_cp_2
+
+----
+103，More Effective C++:35个改善编程与设计的有效方法
+http://product.china-pub.com/197665
+http://www.amazon.cn/More-Effective-C-35%E4%B8%AA%E6%94%B9%E5%96%84%E7%BC%96%E7%A8%8B%E4%B8%8E%E8%AE%BE%E8%AE%A1%E7%9A%84%E6%9C%89%E6%95%88%E6%96%B9%E6%B3%95-%E6%A2%85%E8%80%B6/dp/B004IP8BD6/ref=pd_rhf_se_s_cp_1
+
+----
+106，Exceptional C++中文版：47个C++难题、编程问题和解决方案
+http://product.china-pub.com/33333
+http://www.amazon.cn/Exceptional-C-47%E4%B8%AAC-%E5%B7%A5%E7%A8%8B%E9%9A%BE%E9%A2%98-%E7%BC%96%E7%A8%8B%E9%97%AE%E9%A2%98%E5%92%8C%E8%A7%A3%E5%86%B3%E6%96%B9%E6%A1%88-%E8%90%A8%E7%89%B9/dp/B008CGKUBS/ref=pd_rhf_se_s_cp_18
+
+----
+107，More Exceptional C++中文版：40个新的工程难题、编程疑问及解决方法
+http://product.china-pub.com/197666
+http://www.amazon.cn/More-Exceptional-C-40%E4%B8%AA%E6%96%B0%E7%9A%84%E5%B7%A5%E7%A8%8B%E9%9A%BE%E9%A2%98-%E7%BC%96%E7%A8%8B%E7%96%91%E9%97%AE%E5%8F%8A%E8%A7%A3%E5%86%B3%E6%96%B9%E6%B3%95-%E8%88%92%E7%89%B9/dp/B004IUISIO/ref=pd_rhf_se_s_cp_3
+
+----
+101，C++程序设计语言
+http://product.china-pub.com/196448
+《The C++ Programming Language: Special Edition》，（美）Bjarne Stroustrup
+不买。不如《C++ Primer》？
+
+----
+211，C++ Primer Plus
+不买，不如《C++ Primer》，没有标准库的介绍。
+
+==============================================
+工具实践-编程环境-windows，系统核心优先
+
+======
+MFC，过时，暂缓
+
+----
+112，Windows程序设计(第5版.珍藏版)
+http://product.china-pub.com/52880
+http://www.amazon.cn/Windows%E7%A8%8B%E5%BA%8F%E8%AE%BE%E8%AE%A1-%E4%BD%A9%E6%8E%AA%E5%B0%94%E5%BE%B7/dp/B00426BTC6/ref=pd_sim_b_1
+http://www.amazon.cn/mn/detailApp/ref=sr_1_4?asin=157231995X
+《Programming Windows 5th edition》，1998.11
+96.80(7.5折)，63.20(49折)，中文版2010.9，原版1998年早已过时？MFC方面，非系统核心。
+
+----
+113，MFC Windows 程序设计（第2版）
+http://product.china-pub.com/3804
+http://www.amazon.cn/MFC-Windows%E7%A8%8B%E5%BA%8F%E8%AE%BE%E8%AE%A1-%E5%B8%95%E7%BD%97%E8%B5%9B%E6%96%AF/dp/B0011F3VMC/ref=pd_rhf_se_s_cp_49
+《Programming Windows with MFC Second Edition》，2001.9
+96.00(7.5折)，中文版2007.5
+
+----
+114，深入浅出MFC（第二版）
+http://product.china-pub.com/3565
+http://www.amazon.cn/%E6%B7%B1%E5%85%A5%E6%B5%85%E5%87%BAMFC-%E4%BE%AF%E4%BF%8A%E6%9D%B0/dp/B001175K4M/ref=pd_cp_b_2
+63.50(7.9折)，侯俊杰(侯捷)，2001.1
+
+
+======
+系统核心，优先
+
+----
+115，Windows核心编程(第5版)
+http://product.china-pub.com/209058
+http://www.amazon.cn/Windows%E6%A0%B8%E5%BF%83%E7%BC%96%E7%A8%8B-%E6%9D%B0%E5%A4%AB%E7%91%9E/dp/B001GS7918/ref=pd_rhf_se_s_cp_23
+http://www.amazon.cn/Windows-via-C-C-Jeffrey-M-Richter/dp/0735624240/ref=sr_1_2?s=books&ie=UTF8&qid=1347036696&sr=1-2
+《Windows via C/C++》，2007.12
+《Windows via C/C++,Fifth Edition》，2011.9.22
+http://www.amazon.com/Windows-via-C-softcover/dp/0735663777/ref=sr_1_1?s=books&ie=UTF8&qid=1347515954&sr=1-1&keywords=Windows+via+C%2FC%2B%2B
+74.00(7.5折)，49.50，中文版2008.9，不买
+
+
+----
+172，Windows系统编程(原书第4版)
+
+----
+173，Windows Sockets网络编程
+
+----
+174，Windows并发编程指南
+
+===========================================================
+工具实践-编程语言-C#
+
+----
+深入理解C#(第3版)
+斯基特 (Jon Skeet) (作者), 姚琪琳 (译者)
+76.10(7.7折)
+评价高
+
+----
+精通C#(第6版)
+Jolt大奖提名图书
+2013年7月1日
+《Pro C# and the .NET 4.5 Framework, Sixth Edition》
+
+----
+C#入门经典(第6版)
+56.80(58折)，有中文第5版电子书。
+
+===========================================================
+工具实践-服务器-linux，服务器搭建优先
+
+----
+Linux/UNIX系统编程手册(套装共2册)
+凯利斯克 (Michael Kerrisk) (作者), 孙剑 (译者), 许从年 (译者), 董健 (译者), 孙余强 (译者), 等 (译者)
+平装: 1176页，116.40(7.4折)
+
+----
+175，Linux系统架构和应用技巧
+中井 悦司 (作者) 　 李睿 (译者)
+http://www.ituring.com.cn/book/1097
+
+----
+176，Red Hat Linux指南：服务器设置与程序设计篇
+Mark G.Sobell (作者) 　 杨明军 (译者)
+http://www.ituring.com.cn/book/413
+2008-09
+
+----
+177，Red Hat Linux指南：基础与系统管理篇
+Mark G.Sobell (作者) 　 杨明军 张杰良 (译者)
+http://www.ituring.com.cn/book/411
+2008-09
+
+
+----
+91，国外计算机科学经典教材Unix & Linux大学教程
+78.40
+
+
+----
+78，Linux 系统编程（中文版）
+http://product.dangdang.com/product.aspx?product_id=20645962
+41.90 (75折)
+
+----
+30，构建嵌入式LINUX系统
+42.40(88折)
+
+----
+10，汇编语言（第2版）
+http://product.dangdang.com/product.aspx?product_id=20196660
+24.80，不买
+
+===========================================================
+工具实践-编程语言-c
+
+----
+210，C Primer Plus(中文版)(第5版)
+626页，2005年2月1日，40.20(6.7折)，39.90，不如《C语言程序设计：现代方法(第2版)》。
+
+----
+45，C程序设计语言(第2版新版)
+http://product.dangdang.com/product.aspx?product_id=8766529
+20.70(69折)，(2004.1)，（美）Brian W.Kernighan,Dennis M.Ritchie
+
+----
+70，C专家编程
+30.70 (68折)
+
+----
+71，C陷阱与缺陷
+25.10 (84折)，只适用老版本c？
+
+=======================================================
+工具实践-编程语言
+
+====
+java
+
+----
+11，Java编程思想（第4版）
+81.00，观望，有中文电子版
+
+-----
+36，并行性：状态模型与Java程序 Concurrency: State Models and Java Programs
+http://product.dangdang.com/product.aspx?product_id=20029732
+466.10，379.40
+
+----
+40，Java 实时编程
+36.80(75折)
+
+----
+24，深入理解Java虚拟机:JVM高级特性与最佳实践（第2版）
+46.20(67折)，59.90(76折)，54.50(69折)
+
+----
+47，深入Java虚拟机（原书第2版）附光盘---SUN公司核心技术丛书
+47.00，2003年
+
+----
+49，java深度历险
+23.00，2002年台湾
+
+----
+26，Java语言程序设计 进阶篇（原书第6版）
+46.20(68折)
+
+====
+Python
+
+----
+166，Python基础教程(第2版)
+赫特兰(Magnus Lie Hetland) (作者), 司维 (译者), 曾军崴 (译者), 谭颖华 (译者)
+34.50 (5折)，有中文电子版
+
+----
+213，Python标准库
+荷尔曼 (Doug Hellmann)
+77.80
+
+----
+214，Python Cookbook(第2版)中​文版
+马特利(Alex Martelli)
+79.20
+
+----
+222，Python核心编程(第2版) [平装]
+丘恩 (Wesley J.Chun) (作者), 宋吉广 (译者)
+72.00(81折)
+评价差，盗用社区成果，错别字多，不完整。不买。
+
+====
+Perl
+
+----
+217，Perl高效编程(第2版)
+霍尔 (平装)
+52.00
+
+----
+218，Perl语言编程(原书第3版)
+沃尔 (平装)
+96.80
+
+----
+219，Perl语言入门(中文版)(第​6版)
+施瓦茨
+42.50
+
+====
+----
+221，ruby元编程
+
+
+----
+201，Clojure编程乐趣
+福格斯 (Michael Fogus) (作者), 豪泽 (Chris Houser) (作者), 郑晔 (译者)
+40.70(69折)
+不买，值得一读，但部分内容过时。英文版已出第2版。优先电子版。
+
+----
+139，Clojure程序设计
+2013年3月20日
+Programming Clojure, Second Edition，The Pragmatic Programmers，2012年4月17日
+36.80 (7.5折)，33.80(69折)，24.00(49折)，不买。优先电子版。
+
+----
+208，Haskell函数式编程基础(第3版)
+汤普森 (Simon Thompson) (作者)，2013年7月1日，585页，中英？
+Haskell:the Craft of Functional Programming(third Edition)
+77.40(6折)，
+
+----
+Haskell函数式编程入门
+张淞
+
+
+
+================
+工具实践-框架，库，开发工具
+
+----
+92，Git权威指南
+53.40(60折)
+
+
+==================
+工具实践-数据库
+
+----
+144，SQL应用重构
+38.90(7.9折)，24.00(49折)，观望
+
+----
+158，SQL解惑(第2版)
+Joe Celko (作者)米全喜 (译者)
+缺货
+
+----
+94，PostgreSQL 数据库内核分析
+59.20 (75折)，54.50(69折)，38.70(49折)，观望
+
+----
+179，高可用MySQL：构建健壮的数据中心
+
+~ 查理斯·贝尔 (Bell.C.) (作者), 迈茨·肯德尔 (Kindahl.M.) (作者), 拉尔斯·塞尔曼 (Thalann.L.) (作者), 
+宁青 (译者), 唐李洋 (译者), 诸云萍 (译者) 
+73.90(7.5折)，56.80(5.8折)，47.80(4.9折)
+
+
+----
+225，深入浅出MySQL：数据库开发、优化与管理维护(第2版)
+
+
+
+=============================================================
+NoSql,云计算,大数据
+
+----
+133，深入NoSQL
+http://www.ituring.com.cn/book/845?q=%E6%B7%B1%E5%85%A5NoSQL
+
+----
+52，Hadoop实战
+40.70 (69折)
+
+----
+54，深入学习MongoDB
+24.00 (75折)，观望
+
+----
+55，MongoDB 权威指南
+29.20 (75折)
+
+----
+56，Cassandra实战
+44.20 (75折)
+
+----
+58，Cassandra权威指南
+44.20 (75折)
+
+----
+143，HBase权威指南(影印版)(英文版)
+53.60(74折)，英文不买
+
+----
+163，云端代码：Google App Engine编程指南
+Mark C. Chu-Carroll (作者), 刘姝 (译者), 管雪涛 (译者)
+22.50(5折)，
+
+----
+165，GAE编程指南
+桑德森(Dan Sanderson) (作者), 唐学韬 (译者), 何继业 (译者), 等 (译者)
+32.50 (5折)

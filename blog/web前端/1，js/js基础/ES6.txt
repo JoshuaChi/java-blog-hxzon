@@ -1,0 +1,17 @@
+﻿ES6
+
+
+----
+1，Eight Cool Features Coming in ES6
+http://feedproxy.google.com/~r/nettuts/~3/J0Qs8mM9yM4/
+
+
+----
+2，Use ECMAScript 6 Today
+http://feedproxy.google.com/~r/nettuts/~3/U00r_iCrOQM/
+net.tutsplus.comSayanee BasuMay 7th, 2013
+
+10种新特性：块变量，常量，类，默认参数，集合，数组解构/对象解构，剩余参数和离散操作符，迭代器，数组遍历语法糖，模块。
+
+----
+3，
