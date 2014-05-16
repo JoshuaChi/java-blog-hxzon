@@ -4,22 +4,33 @@
 http://ilanever.com/article/sitedetail.html;jsessionid=2961C1F211EC6475556C3D02C1E9F698?id=195
 
 C++标准定义了原始类型最小的大小，但允许不同编译器为这些类型提供不同的位数来进行存储。
+
+======
 目录
+
 原始类型分类
 原始类型大小
 代码示例
+
+====
 原始类型分类 
 
 C++ 的原始类型（Primitive Type）包含算数类型（Arithmetic Type）和空（void）。
 算数类型又分为整数类型（Integral Types）和浮点类型（Floating-point Types）。
 整数类型包含整型（Integer）、字符（Character）和布尔（Boolean）。
-原始类型的层次结构如下图所示：
 
+原始类型的层次结构如下图所示：
+（图）
+
+====
 原始类型大小 
 
-每种原始类型在不同的机器上显示出不同的大小（the number of bits）。C++标准定义了每种类型最小的大小（如下表所示），但允许编译器为这些类型提供更多的位数来进行存储。
+每种原始类型在不同的机器上显示出不同的大小（the number of bits）。
+C++标准定义了每种类型最小的大小（如下表所示），但允许编译器为这些类型提供更多的位数来进行存储。
+
 C++: Arithmetic Types
 Type	Meaning	Minimum Size
+
 bool	boolean	NA
 char	character	8 bits
 wchar_t	wide character	16 bits
@@ -32,9 +43,11 @@ long long	long integer	64 bits
 float	single-precision floating-point	6位有效数字
 double	double-precision floating-point	10位有效数字
 long double	extended-precision floating-point（扩充精度的浮点）	10位有效数字
+
 代码示例 
 
 通过代码来实际地看下两种不同的环境下输出的类型大小的结果：
+
 #include <iostream>
  
 using namespace std;
@@ -104,5 +117,6 @@ int main()
     primitive_types_size();
     return 0;
 }
+
 注意：wchar_t和long double的大小在两种环境下显示的不同。所以在考虑类型的大小时一定要谨慎。
 

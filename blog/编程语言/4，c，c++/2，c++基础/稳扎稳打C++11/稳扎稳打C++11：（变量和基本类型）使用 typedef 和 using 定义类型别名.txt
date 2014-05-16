@@ -3,10 +3,14 @@
 http://ilanever.com/article/sitedetail.html;jsessionid=2961C1F211EC6475556C3D02C1E9F698?id=223
 
 
-定义类型别名有两种方法：typedef 和 using。typedef 是定义类型别名的传统方式。using 是C++11新引入的方式。
-目录
-定义类型别名有两种方法：typedef 和 using。typedef 是定义类型别名的传统方式。using 是C++11新引入的方式。
+定义类型别名有两种方法：typedef 和 using。
+
+typedef 是定义类型别名的传统方式。
+
+using 是C++11新引入的方式。
+
 注意：typedef定义的类型别名在使用时不能进行简单的替换。
+
 #include <iostream>
 #include <typeinfo>
  
@@ -23,13 +27,13 @@ int main()
     cout << d2 << endl;
      
     typedef char *pchar;
-    const pchar pc = 0;
+    const pchar pc = 0;//hxzon：指向char的普通指针
     cout << typeid(pc).name() << endl;
      
-    char *const a = 0;
+    char *const a = 0;//hxzon：指向char的普通指针
     cout << typeid(a).name() << endl;
      
-    const char *b = 0;
+    const char *b = 0;//hxzon：指向char的常量指针
     cout << typeid(b).name() << endl;
      
     /*
@@ -46,5 +50,6 @@ int main()
      
     return 0;
 }
+
 以上代码中，pchar的类型与a的类型相同，因此pchar指的是自身为const的字符指针，而不是指针所指的对象是const。
 
