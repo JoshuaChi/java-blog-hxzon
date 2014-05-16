@@ -1,0 +1,53 @@
+﻿Haskell获得iOS支持，并做出多项语言和性能改进
+作者 Roopesh Shenoy ，译者 侯伯薇 发布于 2014年5月15日
+http://www.infoq.com/cn/news/2014/05/ghc-7-8-1
+
+GHC 7.8.1最近已经发布，为Haskell生态系统带来多项改善。
+Haskell现在可以针对iOS编译，
+并且增加了多项新特性，像闭合类型族、角色、重载列表、模式同义词等。
+
+Haskell可以通过clang编译成iOS可用的文件。
+这支持使用XCode 5的开发。
+由于在Haskell中缺少跨平台的GUI类库，所以现在你需要单独在objective-C中开发GUI，然后从GUI代码中调用Haskell函数。
+尽管这项支持已经在大概七个月之前就宣布了，但这是第一个包含了这项支持的GHC主要版本。
+
+但要注意的是，在iOS上Template Haskell暂时还不可用。
+
+跨平台编译也在总体上得到了改善。
+例如，动态连接得到了更好的支持。
+GHCi现在默认会使用系统动态连接器，以此取代内建的静态连接器。
+有了GHC，你可以使用新的编译标识“--dynamic-too”，从而同时生成静态和动态的对象文件。
+（默认情况下GHC还是会使用静态连接）。
+
+在这个版本中，还有一些特性：
+
+闭合类型族（Closed Type Families）——用于重载数据类型的类型族。
+闭合类型拥有在某处定义的所有等式，且不可扩展——这对于避免一些最初开发者不想得到的后果非常有用。
+
+角色——为了在使用GeneralizedNewTypeDeriving的时候消除类型不安全的定义
+
+重载列表（Overloaded Lists）——一种使用列表的语法糖，用于构建Set、Map、IntMap、Vector、Text以及Array等结构。
+
+模式同义词（Pattern Synonyms）
+
+Typeable现在是多类型的，这使得Typeable1、Typeable1等可以彼此独立。
+
+新的I/O管理器，会线性扩展到32个核上
+
+对Template Haskell的七项改善，像对角色的支持、注释语法、“有类型的Template Haskell表达式”等
+
+生成程序的并行模式
+
+针对类型本身的改善（性能提升）
+
+====
+在下一个版本（7.10）中可能会有突破性的改变，Applicative会成为Monad的超类。
+为了让这种转换更容易，GHC的当前版本会忽略以下警告：
+类型是Monad但不是Applicative、是MonadPlus但不是Alternative，以及当本地函数被声称是join、<*>。
+
+还有多项改变，你可以参考发布记录获得完整列表。
+
+你还会注意到Haskell平台——它把GHC和工具绑定在一起，从而更好地与Haskell协作——还没有更新使用最新版本的GHC。
+
+查看英文原文：Haskell Gets iOS Support, Several language and Performance Improvements
+
