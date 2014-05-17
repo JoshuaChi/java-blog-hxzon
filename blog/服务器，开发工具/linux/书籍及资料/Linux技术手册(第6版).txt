@@ -1,0 +1,121 @@
+﻿Linux技术手册(第6版)
+
+埃伦•斯沃尔 (Ellen Siever) (作者), 斯蒂芬•费金斯 (Stephen Figgins) (作者), 罗伯特•拉乌 (Robert Love) (作者), 阿诺德•罗宾斯 (Arnold Robbins) (作者), 秦云川 (译者)
+
+出版社: 中国电力出版社; 第1版 (2013年7月1日)
+外文书名: Linux in a Nutshell, 6E
+平装: 967页
+语种： 简体中文
+开本: 16
+
+====
+编辑推荐
+《Linux技术手册(第6版)》是活跃在Linux社区很多年的人编写的，包括编程工具、系统和网络管理工具、shell、编辑器和GRUB引导装载程序。
+
+作者简介
+
+作者：（美国）埃伦·斯沃尔（Ellen Siever） （美国）斯蒂芬·费金斯（StePhen Figgins） （美国）罗伯特·拉乌（Robert Love） （美国）阿诺德·罗宾斯（Arnold Robbins） 
+
+译者：秦云川 
+
+Ellen Siever，是位专注于Linux和开源主题领域的作家和编辑。她还合作出版了Perlin a Nutshell（O'Reilly）。 
+StePhen Figgins，在堪萨斯州的Lawrence，为Sunflower Broadband公司管理Linux服务器。 
+Robert Love，活跃于Linux内核和GNOME领域。他在Google公司服务于Android项目。 
+Arnold Robbins，是一位专业的程序员和技术作家。他从1980年开始使用Unix系统。
+
+====
+目录
+
+前言 
+第1章概述 
+
+第2章系统和网络管理概述 
+
+第3章Linux命令 
+第4章启动方法 
+第5章包管理 
+
+第6章Bashshell 
+
+第7章模式识别 
+
+第8章Emacs编辑器 
+第9章vi、ex和vim 
+第10章sed编辑器 
+第11章gawk编程语言 
+
+第12章源代码管理概述 
+第13章SubVersion版本控制系统 
+第14章Git版本控制系统 
+
+第15章虚拟化命令行工具
+
+====
+目录
+
+前言 
+
+第1章概述 
+Linux的优势 
+发行版和支持 
+Linux命令 
+本书内容 
+软件源和许可证 
+初学者指南 
+通信 
+比较 
+文件管理 
+媒体 
+打印 
+程序设计 
+程序维护 
+查找 
+shell编程 
+存储 
+系统状态 
+文本处理 
+杂项 
+
+第2章系统和网络管理概述 
+常用命令 
+时钟 
+守护进程 
+硬件 
+主机信息 
+安装 
+邮件 
+管理系统文件 
+管理内核 
+网络设计 
+输出 
+安全和系统完整性 
+启动和停止系统 
+系统活动和进程管理 
+用户 
+其他 
+网络设计概述 
+TCP/IP管理 
+NFS租NIS管理 
+TCP／IP概述 
+IP地址 
+通道和路由选择 
+名称服务 
+配置TCP/IP 
+排解TCP／IP故障 
+防火墙和伪装概述 
+
+第3章Linux命令 
+第4章启动方法 
+第5章包管理 
+第6章Bashshell 
+第7章模式识别 
+第8章Emacs编辑器 
+第9章vi、ex和vim 
+第10章sed编辑器 
+第11章gawk编程语言 
+第12章源代码管理概述 
+第13章SubVersion版本控制系统 
+第14章Git版本控制系统 
+第15章虚拟化命令行工具
+
+
