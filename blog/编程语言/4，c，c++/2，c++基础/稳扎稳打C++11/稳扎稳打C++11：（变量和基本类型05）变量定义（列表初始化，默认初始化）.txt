@@ -1,4 +1,4 @@
-﻿稳扎稳打C++11：（变量和基本类型）变量定义（列表初始化，默认初始化）
+﻿稳扎稳打C++11：（变量和基本类型05）变量定义（列表初始化，默认初始化）
 来源：ilanever.com | 作者：LanPei | 创建时间：2013-10-30 20:59:54
 http://ilanever.com/article/sitedetail.html;jsessionid=2961C1F211EC6475556C3D02C1E9F698?id=201
 

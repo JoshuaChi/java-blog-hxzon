@@ -1,4 +1,4 @@
-﻿稳扎稳打C++11：（变量和基本类型）复合类型之引用
+﻿稳扎稳打C++11：（变量和基本类型08）复合类型之引用
 来源：ilanever.com | 作者：LanPei | 创建时间：2013-12-20 21:00:45
 http://ilanever.com/article/sitedetail.html;jsessionid=2961C1F211EC6475556C3D02C1E9F698?id=218
 

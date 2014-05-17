@@ -1,4 +1,4 @@
-﻿稳扎稳打C++11：（变量和基本类型）使用 typedef 和 using 定义类型别名
+﻿稳扎稳打C++11：（变量和基本类型13）使用 typedef 和 using 定义类型别名
 来源：ilanever.com | 作者：LanPei | 创建时间：2013-12-27 23:57:48
 http://ilanever.com/article/sitedetail.html;jsessionid=2961C1F211EC6475556C3D02C1E9F698?id=223
 
@@ -10,6 +10,20 @@ typedef 是定义类型别名的传统方式。
 using 是C++11新引入的方式。
 
 注意：typedef定义的类型别名在使用时不能进行简单的替换。
+（hxzon：即不是简单的文本替换。
+
+typedef char *pstring; //char* 的别名
+const pstring cstr = 0; //指向char的常量指针
+const pstring *ps; //hxzon：指针的指针，底层指针指向char的常量指针
+
+上面两条声明语句的基本数据类型都是const pstring。
+
+const char *cstr = 0; //对const pstring cstr的错误理解
+声明语句中用到pstring时，其基本数据类型是指针。
+而用char*重写后，基本数据类型是char，*变成了声明符的一部分。
+这样改写的结果，const char成了基本数据类型。
+前者是指向char的常量指针，改写后成了指向char常量的指针。
+）
 
 #include <iostream>
 #include <typeinfo>

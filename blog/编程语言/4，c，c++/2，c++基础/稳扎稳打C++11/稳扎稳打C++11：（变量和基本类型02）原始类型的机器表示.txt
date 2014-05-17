@@ -1,4 +1,4 @@
-﻿稳扎稳打C++11：（变量和基本类型）原始类型的机器表示
+﻿稳扎稳打C++11：（变量和基本类型02）原始类型的机器表示
 
 来源：ilanever.com | 作者：LanPei | 创建时间：2013-9-29 19:56:24
 http://ilanever.com/article/sitedetail.html;jsessionid=2961C1F211EC6475556C3D02C1E9F698?id=196

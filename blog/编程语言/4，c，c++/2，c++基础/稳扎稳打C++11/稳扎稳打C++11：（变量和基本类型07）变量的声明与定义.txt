@@ -1,4 +1,4 @@
-﻿稳扎稳打C++11：（变量和基本类型）变量的声明与定义
+﻿稳扎稳打C++11：（变量和基本类型07）变量的声明与定义
 来源：ilanever.com | 作者：LanPei | 创建时间：2013-11-4 19:17:05
 http://ilanever.com/article/sitedetail.html;jsessionid=2961C1F211EC6475556C3D02C1E9F698?id=203
 

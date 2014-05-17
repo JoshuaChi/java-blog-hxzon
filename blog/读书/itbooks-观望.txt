@@ -69,6 +69,13 @@ David R. Hanson (作者), 郭旭 (译者)
 算法
 
 ----
+管理海量数据:压缩、索引和查询 [平装]
+艾伦 H.威顿 (Ian H.Witten) (作者), 亚里斯蒂尔·莫夫特 (Alistair Moffat) (作者), 贝尔 (Timothy C.Bell) (作者), 梁斌 (译者), 杨青 (译者)
+出版社: 电子工业出版社; 第2版 (2014年1月1日)
+外文书名: Managing Gigabytes：Compressing and Indexing Documents and Images，Second Edition
+平装: 514页，74.10(6.9折)
+
+----
 算法心得:高效算法的奥秘(第2版) [平装]
 Henry S. Warren (作者)
 63.90(7.2折)

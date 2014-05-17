@@ -1,4 +1,4 @@
-﻿稳扎稳打C++11：（变量和基本类型）原始类型的字面量
+﻿稳扎稳打C++11：（变量和基本类型06）原始类型的字面量
 来源：ilanever.com | 作者：LanPei | 创建时间：2013-11-1 16:18:52
 http://ilanever.com/article/sitedetail.html;jsessionid=2961C1F211EC6475556C3D02C1E9F698?id=217
 

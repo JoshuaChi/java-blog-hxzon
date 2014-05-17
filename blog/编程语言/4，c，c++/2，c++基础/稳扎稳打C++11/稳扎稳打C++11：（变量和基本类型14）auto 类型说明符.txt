@@ -1,4 +1,4 @@
-﻿稳扎稳打C++11：（变量和基本类型）auto 类型说明符
+﻿稳扎稳打C++11：（变量和基本类型14）auto 类型说明符
 来源：ilanever.com | 作者：LanPei | 创建时间：2013-12-29 10:33:44
 http://ilanever.com/article/sitedetail.html;jsessionid=2961C1F211EC6475556C3D02C1E9F698?id=224
 
@@ -15,14 +15,39 @@ http://ilanever.com/article/sitedetail.html;jsessionid=2961C1F211EC6475556C3D02C
 使用auto时，编译器获得的类型并不总是和初始化器的类型完全一样。
 
 首先，当我们使用引用时，编译器推测的类型结果将是引用所绑定对象的类型。
+（hxzon：重要。
+使用引用其实是使用引用的对象，特别是当引用被用作初始值时，真正参与初始化的其实是引用对象的值。
+所以编译器以引用对象的类型作为auto的类型。
+见下文示例。
+）
 
-其次，auto通常情况下会忽略top-level const。
+其次，auto通常情况下会忽略top-level const。（hxzon补充：底层const会保留下来。）
 如果我们要使推断的类型拥有top-level const，那么我们要显示地为声明添加const限定符。
+（hxzon补充：
+int i=0, &r=i;
+const int ci=i,&cr = ci;
+const auto f=ci;//ci的推断类型是int，f是const int
+）
+
 
 我们还可以声明一个绑定到auto推断类型的引用。
 正常的初始化规则依然适用。
-如果此时声明器中有top-level const的话，那么const不会被忽略。
+如果此时声明器中有top-level const的话，这个顶层const会保留。
+（hxzon补充：
+auto &g = ci; //g是一个整型常量引用，绑定到ci
+auto &h = 42; //错误，不能为非常量引用绑定字面值
+const auto &j = 42; //正确，可以为常量引用绑定字面值
+）
 
+（hxzon补充：
+要在一条语句中定义多个变量，必须都是同一种基本数据类型。
+切记&和*总是属于某个声明符的，而非基本数据类型的一部分。
+所以，初始值必须是同一种类型。
+auto sz=0, pi=3.14; //错误，sz和pi的类型不一致。
+auto k=ci, &l = i; //k是整型，l是整型的引用
+auto &m = ci, *p = &ci; //m是整型常量的引用，p是整型常量的指针
+auto &n = i, *p2 = &ci; //错误，i的类型是int，而 &ci的类型是const int
+）
 
 #include <iostream>
 #include <typeinfo>
@@ -36,7 +61,7 @@ int main()
      
     int i = 9, &ri = i;
 
-    auto ai = ri;//hxzon：是int类型
+    auto ai = ri;//hxzon：是int类型，不是引用类型
     cout << "i : " << typeid(i).name() << endl;
     cout << "ai : " << typeid(ai).name() << endl;
      
