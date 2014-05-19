@@ -1,4 +1,4 @@
-﻿稳扎稳打C++11：（字符串，向量，数组）库类型 string
+﻿稳扎稳打C++11：（字符串，向量，数组01）库类型 string
 来源：ilanever.com | 作者：LanPei | 创建时间：2014-1-5 12:31:40
 http://ilanever.com/article/sitedetail.html?id=227
 

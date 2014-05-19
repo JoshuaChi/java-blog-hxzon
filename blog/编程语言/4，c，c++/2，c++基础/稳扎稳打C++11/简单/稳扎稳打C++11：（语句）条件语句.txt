@@ -1,0 +1,42 @@
+﻿稳扎稳打C++11：（语句）条件语句
+
+来源：ilanever.com | 作者：LanPei | 创建时间：2014-3-24 22:42:55
+http://ilanever.com/article/sitedetail.html?id=256
+
+
+条件语句有：if和switch语句
+
+目录
+if 语句
+switch 语句
+稳扎稳打C++11：条件语句
+if 语句 
+
+if 语句的语法形式有如下两种：
+if(condition)
+    statement
+和
+if(condition)
+    statement
+else
+    statement2
+condition 可以是一个表达式也可以是一个初始化后的变量声明。无论是哪种，都必须能够转换成bool类型。
+if 语句里还可嵌套 if 语句。为了避免出现if else匹配错误，建议给if else 的语句块加上大括号。
+switch 语句 
+
+switch 语句的语法形式如下：
+switch(expression)
+{
+    case Label1 : 
+        statement1;
+        break;
+    case Label2 :
+        statement2:
+        break;
+    ...
+    default:
+        statement-default;
+        break;
+}
+switch在执行过程中，expression被转换成整型类型。case labels 必须是整型常量表达式。
+

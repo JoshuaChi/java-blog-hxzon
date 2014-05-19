@@ -1,0 +1,38 @@
+﻿稳扎稳打C++11：（表达式11）逗号运算符
+来源：ilanever.com | 作者：LanPei | 创建时间：2014-3-18 23:46:38
+http://ilanever.com/article/sitedetail.html?id=251
+
+左侧的操作数执行计算但结果被忽略，逗号运算符的结果是右侧操作数的计算结果。
+目录
+逗号运算符（,）采用两个操作数，从左到右计算操作数。逗号运算符保证了操作数的计算顺序。左侧的操作数执行计算但结果被忽略，逗号运算符的结果是右侧操作数的计算结果。如果右侧操作数是个左值，那么逗号运算符的结果也将是左值。
+逗号运算符经常应用于for循环中。
+#include <iostream>
+#include <vector>
+ 
+using namespace std;
+ 
+int main()
+{
+    vector<int> iv = {4,5,6};
+    vector<int>::size_type sz = iv.size();
+    for(vector<int>::size_type i = 0; i != iv.size(); ++i, --sz)
+    {
+        iv[i] = sz;
+    }
+    for(auto i : iv)
+    {
+        cout << i << endl;
+    }
+     
+    /*
+    Environment:
+    g++4.8(Linux64bit)
+ 
+    Output:
+    3
+    2
+    1
+    */
+ 
+    return 0;
+}

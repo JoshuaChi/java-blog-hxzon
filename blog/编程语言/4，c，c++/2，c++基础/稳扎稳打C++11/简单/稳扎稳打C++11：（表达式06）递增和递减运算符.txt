@@ -1,0 +1,72 @@
+﻿稳扎稳打C++11：（表达式06）递增和递减运算符
+来源：ilanever.com | 作者：LanPei | 创建时间：2014-1-25 0:08:31
+http://ilanever.com/article/sitedetail.html?id=241
+
+前置运算符递增（或递减）它的操作数，并返回改变后的对象；后置运算符递增（或递减）它的操作数，并返回对象的原始值的副本。
+目录
+在单独的表达式中组合解引用和递增
+大多数运算符并不保证操作数的计算顺序
+递增（increment）和递减（decrement）运算符有两种形式：前置（prefix）和后置（postfix）。前置运算符递增（或递减）它的操作数，并返回改变后的对象；后置运算符递增（或递减）它的操作数，并返回对象的原始值的副本。
+这些运算符都需要左值操作数。前置运算符返回对象自己作为左值。后置运算符返回对象原始值的副本作为右值。
+建议：只有在必要的情况下才使用后置运算符。
+#include <iostream>
+ 
+using namespace std;
+ 
+int main()
+{
+    int i1 = 0, i2 = 0;
+    int j = ++i1;
+    int k = i2++;
+    cout << j << endl;
+    cout << k << endl;
+     
+    /*
+    Environment:
+        g++4.8.1(32bit)
+    Output:
+        1
+        0
+    */
+     
+    return 0;
+}
+在单独的表达式中组合解引用和递增 
+
+在一个表达式中同时使用解引用和递增，这是一种常用的方式，C++程序员必须理解这种方式。请查看如下示例：
+#include <iostream>
+#include <vector>
+#include <string>
+ 
+using namespace std;
+ 
+int main()
+{
+    vector<string> svec = {"me","you","he"};
+    auto pbeg = svec.begin();
+    while(pbeg != svec.end())
+    {
+        cout << *pbeg++ << endl;
+    }
+     
+    /*
+    Environment:
+        g++4.8.1(32bit)
+    Output:
+        me
+        you
+        he
+    */
+     
+    return 0;
+}
+后置递增运算符的优先级高于解引用运算符，所以 *pbeg++ 等于 *(pbeg++)。
+大多数运算符并不保证操作数的计算顺序 
+
+大多数运算符并不保证操作数的计算顺序，这个情况一般不会有什么影响，但是当在一个表达式中，一个子表达式中使用操作数，另一个子表达式改变操作数的值时，就会出现问题了。例如以下用法就是错误的：
+vector<string> svec = {"me","you","he"};
+auto pbeg = svec.begin();
+while(pbeg != svec.end())
+{
+    *pbeg = toupper(*pbeg++);
+}

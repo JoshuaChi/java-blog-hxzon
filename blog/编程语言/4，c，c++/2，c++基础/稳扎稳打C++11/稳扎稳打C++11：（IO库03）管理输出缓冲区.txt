@@ -1,4 +1,4 @@
-﻿稳扎稳打C++11：（IO库）管理输出缓冲区
+﻿稳扎稳打C++11：（IO库03）管理输出缓冲区
 来源：ilanever.com | 作者：LanPei | 创建时间：2014-5-2 10:10:58
 http://ilanever.com/article/sitedetail.html?id=289
 

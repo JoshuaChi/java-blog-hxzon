@@ -1,4 +1,4 @@
-﻿稳扎稳打C++11：（IO库）条件状态（condition states）
+﻿稳扎稳打C++11：（IO库02）条件状态（condition states）
 来源：ilanever.com | 作者：LanPei | 创建时间：2014-4-29 23:35:47
 http://ilanever.com/article/sitedetail.html?id=288
 

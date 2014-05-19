@@ -1,4 +1,4 @@
-﻿稳扎稳打C++11：（字符串，向量，数组）如何与老式代码打交道
+﻿稳扎稳打C++11：（字符串，向量，数组07）如何与老式代码打交道
 来源：ilanever.com | 作者：LanPei | 创建时间：2014-1-17 0:14:26
 http://ilanever.com/article/sitedetail.html?id=233
 

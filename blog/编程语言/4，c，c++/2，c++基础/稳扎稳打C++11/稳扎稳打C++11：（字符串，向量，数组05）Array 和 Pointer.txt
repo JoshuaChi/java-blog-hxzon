@@ -1,4 +1,4 @@
-﻿稳扎稳打C++11：（字符串，向量，数组）Array 和 Pointer
+﻿稳扎稳打C++11：（字符串，向量，数组05）Array 和 Pointer
 
 来源：ilanever.com | 作者：LanPei | 创建时间：2014-1-17 0:04:04
 http://ilanever.com/article/sitedetail.html;jsessionid=2961C1F211EC6475556C3D02C1E9F698?id=231

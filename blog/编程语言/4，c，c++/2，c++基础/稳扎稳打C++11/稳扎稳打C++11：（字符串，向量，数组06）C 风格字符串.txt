@@ -1,4 +1,4 @@
-﻿稳扎稳打C++11：（字符串，向量，数组）C 风格字符串
+﻿稳扎稳打C++11：（字符串，向量，数组06）C 风格字符串
 来源：ilanever.com | 作者：LanPei | 创建时间：2014-1-17 0:12:12
 http://ilanever.com/article/sitedetail.html?id=232
 

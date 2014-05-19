@@ -1,4 +1,4 @@
-﻿稳扎稳打C++11：（表达式）sizeof 运算符
+﻿稳扎稳打C++11：（表达式10）sizeof 运算符
 
 来源：ilanever.com | 作者：LanPei | 创建时间：2014-3-18 22:38:24
 http://ilanever.com/article/sitedetail.html;jsessionid=2961C1F211EC6475556C3D02C1E9F698?id=250

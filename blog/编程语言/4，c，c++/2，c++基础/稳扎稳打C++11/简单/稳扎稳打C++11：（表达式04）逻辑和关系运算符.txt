@@ -1,0 +1,76 @@
+﻿稳扎稳打C++11：（表达式04）逻辑和关系运算符
+来源：ilanever.com | 作者：LanPei | 创建时间：2014-1-24 0:25:12
+http://ilanever.com/article/sitedetail.html?id=239
+
+如果我们想测试算术类型和指针对象的真值，最直接的方式就是将该值作为条件使用。
+目录
+逻辑和关系运算符包含以下运算符：!(logical NOT)、<(less than)、<=(less than or equal)、>(greater than)、>=(greater than or equal)、==(equality)、!=(inequality)、&&(logical AND)、||(logical OR)。
+这些运算符中，只有!运算符是右相关的，其他都是左相关的。这些运算符的操作数是右值，返回的结果也是右值。
+逻辑与和逻辑或运算符执行捷径计算（short-circuit evaluation）策略：当且只有当&&左侧的表达式为true时才执行右侧的表达式；当且只有当||左侧的表达式为false时才执行右侧的表达式。
+因为关系运算符返回bool值，所以串联使用这些运算符结果可能不是我们想要的。
+#include <iostream>
+ 
+using namespace std;
+ 
+int main()
+{
+    int i=-3, j=-2,k=-1;
+    if(i < j < k)
+    {
+        cout << "OK" << endl;
+    }
+    else
+    {
+        cout << "NO" << endl;
+    }
+     
+    /*
+    Environment:
+        g++4.8.1(32bit)
+    Output:
+        NO
+    */
+     
+    return 0;
+}
+以上代码中，if条件返回的结果是false。因为关系运算符返回的结果是布尔值，所以第1个小于号返回的结果是true。当用true和k去比较大小时，true会转换为整型值1，因此if条件返回false。
+如果我们想测试算术类型和指针对象的真值，最直接的方式就是将该值作为条件使用。例如如下方式：
+if(val){/*...*/}
+if(!val){/*...*/}
+而不推荐采用如下方式：
+if(val == true){/*...*/}
+后一种方式会产生两个问题：首先，后一种方式更长也不直接；其次，更重要的是，当val不是布尔值时，这样的比较不会像我们想象的那样工作。例如，val不是布尔值时，运算符右侧的true会转换成与val同样类型的值。
+#include <iostream>
+ 
+using namespace std;
+ 
+int main()
+{
+    int i=-3, j=-2,k=-1;
+    if(i)
+    {
+        cout << "true" << endl;
+    }
+    else
+    {
+        cout << "false" << endl;
+    }
+    if(i == true)
+    {
+        cout << "true" << endl;
+    }
+    else
+    {
+        cout << "false" << endl;
+    }
+     
+    /*
+    Environment:
+        g++4.8.1(32bit)
+    Output:
+        true
+        false
+    */
+     
+    return 0;
+}

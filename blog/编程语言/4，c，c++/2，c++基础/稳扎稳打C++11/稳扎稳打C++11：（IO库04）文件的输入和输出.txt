@@ -1,4 +1,4 @@
-﻿稳扎稳打C++11：（IO库）文件的输入和输出
+﻿稳扎稳打C++11：（IO库04）文件的输入和输出
 来源：ilanever.com | 作者：LanPei | 创建时间：2014-5-4 23:04:48
 http://ilanever.com/article/sitedetail.html?id=291
 
