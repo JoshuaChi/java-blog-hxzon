@@ -4,17 +4,21 @@ http://ilanever.com/article/sitedetail.html?id=258
 
 
 跳转语句：break, continue, goto, return
-目录
-break 语句
-continue 语句
-goto 语句
+
 C++提供了4种跳转语句：break, continue, goto, return。
+
+====
 break 语句 
 
 break 语句用于终止（terminate）最近的while, do while, for 或者 switch。
+
+====
 continue 语句 
 
 continue 语句用于终止（terminate）最近的for, while, do while循环的当前迭代并开始下个迭代。
+
+====
 goto 语句 
 
 goto 语句提供无条件地从goto语句调转到同一函数中的另一个语句。
+

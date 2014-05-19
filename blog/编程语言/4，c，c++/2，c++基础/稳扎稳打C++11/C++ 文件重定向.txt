@@ -1,0 +1,45 @@
+﻿C++ 文件重定向
+来源：ilanever.com | 作者：LanPei | 创建时间：2013-8-30 23:52:13
+http://ilanever.com/article/sitedetail.html?id=192
+
+Using File Redirection.
+hxzon：程序本身没有特殊之处，使用std.cin和std.cout，而执行命令时，利用linux的文件重定向。
+
+======
+在使用Terminal测试一些控制台程序时，重复地输入相同的参数值很让人头疼。
+这时可以采用文件重定向（File Redirection），将参数值保存在文件中，让程序（cin）获取文件中的参数值来执行程序。
+同时还可以将输出结果（cout、clog、cerr）保存到另一个文件中。
+
+文件重定向的命令如下：
+$ program <infile >outfile
+
+program是要执行的控制台程序。
+infile是输入文件地址。
+outfile是输出文件地址。
+
+代码示例 
+
+使用以下源代码：
+
+#include <iostream>
+ 
+int main()
+{
+    std::cout << "Enter two numbers:" << std::endl;
+    int v1,v2;
+    std::cin >> v1 >> v2;
+    std::cout << "The sum of " << v1 << " and " << v2 << " is " << v1 + v2 << std::endl;
+    return 0;
+}
+
+保存源代码，并编译生成可执行程序，假设名称为“sum”。
+
+新建两个文件：suminput和sumoutput。suminput用于存放输入参数值。
+sumoutput用于存放输出结果。suminput中只存在两个数字，如下所示：
+12 55
+
+执行以下命令：
+$ ./sum <suminput >sumoutput
+
+程序没有输入提示，直接在sumoutput中输出结果。
+

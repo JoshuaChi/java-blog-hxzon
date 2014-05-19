@@ -1,0 +1,120 @@
+﻿使用 typeid 获取对象类型名称
+来源：ilanever.com | 作者：LanPei | 创建时间：2013-12-30 23:50:21
+http://ilanever.com/article/sitedetail.html?id=226
+
+使用typeid查看对象类型名称，MSCL返回的名称是全称，G++返回的名称是缩写。
+而且对于二者返回的名称都忽略了引用类型和const类型。
+
+======
+示例中使用typeid来查看各个类型的名称。
+
+#include <iostream>
+#include <typeinfo>
+ 
+using std::cin;
+using std::cout;
+using std::endl;
+ 
+void typeid_result()
+{
+    /*Arithmetic Type*/
+    int i;
+    cout << "int i : \t\t" << typeid(i).name() << endl;
+ 
+    unsigned ui;
+    cout << "unsigned ui : \t\t" << typeid(ui).name() << endl;
+ 
+    short si;
+    cout << "short si : \t\t" << typeid(si).name() << endl;
+ 
+    long li;
+    cout << "long li : \t\t" << typeid(li).name() << endl;
+ 
+    long long lli;
+    cout << "long long lli : \t" << typeid(lli).name() << endl;
+ 
+    char c;
+    cout << "char c : \t\t" << typeid(c).name() << endl;
+ 
+    wchar_t wc;
+    cout << "wchar_t wc : \t\t" << typeid(wc).name() << endl;
+ 
+    bool b;
+    cout << "bool b : \t\t" << typeid(b).name() << endl;
+ 
+    float f;
+    cout << "float f : \t\t" << typeid(f).name() << endl;
+ 
+    double d;
+    cout << "double d : \t\t" << typeid(d).name() << endl;
+ 
+    long double ld;
+    cout << "long double ld : \t" << typeid(ld).name() << endl;
+ 
+    /*Compound Type*/
+    int &ri = i;
+    cout << "int &ri : \t\t" << typeid(ri).name() << endl;
+ 
+    int *pi = &i;
+    cout << "int *pi : \t\t" << typeid(pi).name() << endl;
+ 
+    const int ci = 0;
+    cout << "const int ci : \t\t" << typeid(ci).name() << endl;
+ 
+    int *const cpi = &i;
+    cout << "int *const cpi : \t" << typeid(cpi).name() << endl;
+     
+    /*
+    Environment:
+        g++4.8.1
+    Output:
+        int i :         i
+        unsigned ui :       j
+        short si :      s
+        long li :       l
+        long long lli :     x
+        char c :        c
+        wchar_t wc :        w
+        bool b :        b
+        float f :       f
+        double d :      d
+        long double ld :    e
+        int &ri :       i
+        int *pi :       Pi
+        const int ci :      i
+        int *const cpi :    Pi
+    */
+     
+    /*
+    Environment:
+        MSCL(VS2012)
+    Output:
+        int i :         int
+        unsigned ui :       unsigned int
+        short si :      short
+        long li :       long
+        long long lli :     __int64
+        char c :        char
+        wchar_t wc :        wchar_t
+        bool b :        bool
+        float f :       float
+        double d :      double
+        long double ld :    long double
+        int &ri :       int
+        int *pi :       int *
+        const int ci :      int
+        int *const cpi :    int *
+    */
+}
+ 
+int main()
+{
+    typeid_result();
+ 
+    return 0;
+}
+
+通过查看运行结果，我们可以发现，MSCL和G++返回的类型名称是不一样的。
+MSCL返回的名称是全称，G++返回的名称是缩写。
+而且对于二者返回的名称都忽略了引用类型和const类型。
+

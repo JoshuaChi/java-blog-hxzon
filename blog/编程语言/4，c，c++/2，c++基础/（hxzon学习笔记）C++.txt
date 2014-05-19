@@ -89,7 +89,20 @@ const double *pd = &d;//从右往左，pd首先是一个指针，然后指向dou
 double *const pd2 = &d2;//pd2本身是一个常量对象，然后是一个指针，所以是常量指针，然后指向double变量。
 
 ====
-4，
+4，range-for
 
+我们不能使用range-for向被迭代的序列中添加元素。
+在range-for中，end()的值是被缓存的。
+如果我们从序列中添加或删除元素，end()的值可能是无效的。
 
+5，左值和右值
+
+左值与右值另一个不同点是，（hxzon重要）
+当使用decltype时：当我们将decltype应用到一个表达式（除了变量）时，
+如果表达式产生一个左值，那么decltype的结果将是一个引用类型。
+例如：假设p是int*，解引用p产生一个左值，所以decltype(*p)的类型是int&；
+另一方面，对p求址产生一个右值，所以decltype(&p)的类型是int**。
+
+====
+6，
 

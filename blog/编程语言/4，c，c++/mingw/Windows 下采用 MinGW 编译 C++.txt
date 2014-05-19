@@ -1,0 +1,80 @@
+﻿Windows 下采用 MinGW 编译 C++
+来源：ilanever.com | 作者：LanPei | 创建时间：2013-8-6 11:20:02
+http://ilanever.com/article/sitedetail.html?id=173
+
+C++入门：MinGW的自动安装以及简单的编译示例
+
+====
+目录
+
+MinGW的安装
+使用CMD命令编译
+使用make编译
+
+====
+MinGW的安装 
+
+由于本人目前处于入门阶段，所以采用的是最简单的安装方式：自动安装。
+
+1.下载安装器
+去MinGW的官方网站www.mingw.org，点击Downloads链接，导航到MinGW在sourceforge的主页。选择Installer → mingw-get-inst → mingw-get-inst-20120426，点击mingw-get-inst-20120426.exe进行下载。这个文件只是个安装器，安装过程中需要联网。
+
+2.根据向导进行安装
+下载完毕后，双击打开installer，通过安装向导可以很容易地进行安装。
+注意：安装向导会要求设置安装路径，安装路径中一定不能包含空格。MinGW默认安装路径为C:\MinGW
+
+3.配置环境变量
+在环境变量的“PATH”项中添加MinGW的bin目录地址（我的是C:\MinGW\bin）。
+
+4.验证
+在CMD命令行中输入：
+gcc -v
+如果已成功安装MinGW，则会显示gcc的版本号。
+
+====
+使用CMD命令编译 
+
+1.编码
+文件名为HelloWorld.cpp
+
+#include <iostream>
+ 
+using namespace std;
+ 
+int main()
+{
+    cout << "Hello World!";
+    return 0;
+}
+
+2.编译
+在CMD命令行下导航到HelloWorld.cpp所在的文件夹，执行如下命令：
+g++ helloworld.cpp -o hiworld
+此时会在HelloWorld.cpp文件的同级目录下生成hiworld.exe。
+
+3.执行
+在CMD命令行下输入hiworld，控制台将输出“Hello World!”。
+
+====
+使用make编译 
+
+1.编码
+同上面的HelloWorld.cpp
+
+2.编写makefile文件
+在HelloWorld.cpp的同级目录下创建makefile文件。文件内容如下：
+hi:
+    g++ -o hiworld helloworld.cpp
+
+注意：g++前面不是空格，而是“TAB”。还有g++不要写成gcc。
+
+3.编译
+在makefile的所在目录执行以下CMD命令：
+mingw32-make
+
+如果程序编译成功的话，将会在makefile的同级目录生成hiworld.exe文件。
+
+4.执行
+执行以下CMD命令，用以执行hiworld.exe文件
+hiworld
+

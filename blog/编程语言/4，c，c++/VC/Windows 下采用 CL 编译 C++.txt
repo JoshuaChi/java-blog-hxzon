@@ -1,0 +1,55 @@
+﻿Windows 下采用 CL 编译 C++
+来源：ilanever.com | 作者：LanPei | 创建时间：2013-8-10 11:05:22
+http://ilanever.com/article/sitedetail.html?id=194
+
+使用cl.exe编译C++程序
+
+====
+目录
+
+环境配置
+编译示例
+
+====
+环境配置 
+
+微软官方的C++编译器名为cl.exe。
+一般情况下该文件放置在 Visual Studio 的安装目录下。
+例如，我安装的是Visual Studio 2012，cl.exe所在的文件夹是“C:\Program Files\Microsoft Visual Studio 11.0\VC\bin”。
+在使用cl之前，我们需要添加以下环境变量，以建立cl的编译环境。
+
+PATH=C:\Program Files\Microsoft Visual Studio 11.0\VC\bin;
+INCLUDE=C:\Program Files\Microsoft Visual Studio 11.0\VC\include;
+LIB=C:\Program Files\Microsoft Visual Studio 11.0\VC\lib;
+
+如果在运行cl程序时，提示找不到“mspdb***.dll”文件（如下图所示），
+则将Visual Studio 下的Common7/IDE中的以下四个文件拷贝到“C:\Program Files\Microsoft Visual Studio 11.0\VC\bin”目录下。
+
+msobj80.dll
+mspdb80.dll
+mspdbcore.dll
+mspdbsrv.exe
+
+如果在编译过程中，提示错误：LINK : fatal error LNK1104: 无法打开文件“uuid.lib”，
+则在C盘中搜索“uuid.lib”的位置，例如我的搜索位置是“C:\Program Files\Windows Kits\8.0\Lib\win8\um\x86”，然后将该位置添加到LIB环境变量中。
+
+====
+编译示例 
+
+编写测试源文件test.cpp
+
+#include <iostream>
+ 
+using namespace std;
+ 
+int main()
+{
+    cout << "Hello World!";
+    return 0;
+}
+
+执行以下编译命令：
+cl /EHsc test.cpp
+
+编译成功后将生成test.exe可执行程序。
+

@@ -3,30 +3,54 @@
 http://ilanever.com/article/sitedetail.html?id=257
 
 迭代语句有：while、for、range-for、do while。
+
+hxzon学习笔记：
+
+我们不能使用range-for向被迭代的序列中添加元素。
+在range-for中，end()的值是被缓存的。
+如果我们从序列中添加或删除元素，end()的值可能是无效的。
+
+=======
 目录
+
 while 语句
 传统 for 语句
 range-for 语句
 do while 语句
+
+====
 while 语句 
 
 while 语句的语法形式如下：
+
 while (condition)
     statement
+
 condition 可以是一个表达式也可以是一个初始化后的变量声明。
+
+====
 传统 for 语句 
 
 for 语句的语法形式如下：
+
 for(init-statement; condition; expression)
     statement
-init-statement 可以声明多个对象。for 语句可以忽略init-statement、conditon或expression中的任何一个或者全部。
+
+init-statement 可以声明多个对象。
+for 语句可以忽略init-statement、conditon或expression中的任何一个或者全部。
+
+====
 range-for 语句 
 
 C++11 中引入了范围for语句（Range for statement）。range-for语句的语法形式如下：
+
 for(declaration : expression)
     statement
+
 expression 用于表示一个序列，例如一个括号初始化列表，一个数组，一个拥有begin和end成员返回迭代器的类型的对象（vector、string等）。
+
 如果想要改变序列中的元素，循环变量必须声明为引用类型。
+
 #include <iostream>
 #include <string>
 #include <vector>
@@ -68,15 +92,25 @@ int main()
     range_for_test();
     return 0;
 }
+
+
 rang-for等价于如下的传统for循环：
+
 for(auto beg = v.begin(), end = v.end(); beg != end; ++beg)
     statement
-我们不能使用range-for向被迭代的序列中添加元素。在range-for中，end()的值是被缓存的。如果我们从序列中添加或删除元素，end()的值可能是无效的。
+
+我们不能使用range-for向被迭代的序列中添加元素。
+在range-for中，end()的值是被缓存的。
+如果我们从序列中添加或删除元素，end()的值可能是无效的。
+
+====
 do while 语句 
 
 do while语句的语法形式如下：
+
 do
     statement
 while(condition);
+
 do while 语句以分号结尾。
 

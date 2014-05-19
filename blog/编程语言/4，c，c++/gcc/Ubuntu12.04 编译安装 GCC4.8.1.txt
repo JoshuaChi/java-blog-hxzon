@@ -1,0 +1,213 @@
+﻿Ubuntu12.04 编译安装 GCC4.8.1
+来源：ilanever.com | 作者：LanPei | 创建时间：2013-8-23 21:36:40
+http://ilanever.com/article/sitedetail.html?id=185
+
+在Ubuntu12.04下编译安装GCC4.8.1的过程，以及遇到的问题。
+
+=======
+目录
+
+文件准备
+编译安装 M4
+编译安装 GMP
+编译安装 MPFR
+编译安装 MPC
+添加链接库
+编译安装 GCC
+添加GCC到环境变量
+测试GCC
+编译安装过程中遇到的问题
+
+====
+经过一次次的遇到问题解决问题的过程之后，终于可以在Ubuntu12.04中使用GCC4.8.1编译cpp程序了。
+在这个过程中，觉得Linux的Autoconf和Automake工具实在是强大啊。
+下面是我梳理好的操作步骤。
+
+====
+文件准备 
+
+在安装GCC4.8.1之前需要事先准备出如下5个文件：
+m4-1.4.16.tar.gz，Autoconf工具需要用到它，下载地址：http://www.gnu.org/software/m4/m4.html
+gmp-4.3.2.tar.bz2，下载地址：http://gcc.petsads.us/infrastructure/
+mpfr-2.4.2.tar.gz，下载地址同上
+mpc-0.8.1.tar.gz，下载地址同上
+gcc-4.8.1.tar.gz
+
+下载后的文件我都放在了“~/softwares/cpp”文件夹下。
+注意：系统中需要带有支持C++2003的编译器，可以通过如下命令来安装。
+$ sudo apt-get install g++
+
+====
+编译安装 M4 
+
+创建 M4 的安装文件夹
+$ sudo mkdir /usr/cpp/m4-1.4.16
+
+解压压缩包
+$ cd ~/softwares/cpp
+$ tar -xvf m4-1.4.16.tar.gz
+
+进入解压后的文件夹
+$ cd m4-1.4.16
+
+配置autoconf的参数，使用autoconf工具生成makefile文件
+$ ./configure --prefix=/usr/cpp/m4-1.4.16
+
+执行编译
+$ make
+
+执行编译检查
+$ make check
+
+将编译后的文件安装到/usr/cpp/m4-1.4.16
+$ sudo make install
+
+将M4的可执行程序添加到环境变量中
+$ sudo geidt /etc/environment
+
+在PATH变量的末尾添加“:/usr/cpp/m4-1.4.16/bin”，如下所示：
+PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/cpp/m4-1.4.16/bin"
+
+使环境变量在当前会话中立即生效
+$ source /etc/environment
+
+====
+编译安装 GMP 
+
+$ sudo mkdir /usr/cpp/gmp-4.3.2
+$ cd ~/softwares/cpp
+$ tar -xvf gmp-4.3.2.tar.bz2
+$ cd gmp-4.3.2
+$ ./configure --prefix=/usr/cpp/gmp-4.3.2
+$ make
+$ make check
+$ sudo make install
+
+====
+编译安装 MPFR 
+
+$ sudo mkdir /usr/cpp/mpfr-2.4.2
+$ cd ~/softwares/cpp
+$ tar -xvf mpfr-2.4.2.tar.gz
+$ cd mpfr-2.4.2
+$ ./configure --prefix=/usr/cpp/mpfr-2.4.2 --with-gmp=/usr/cpp/gmp-4.3.2
+$ make
+$ make check
+$ sudo make install
+
+====
+编译安装 MPC 
+
+$ sudo mkdir /usr/cpp/mpc-0.8.1
+$ cd ~/softwares/cpp
+$ tar -xvf mpc-0.8.1.tar.gz
+$ cd mpc-0.8.1
+$ ./configure --prefix=/usr/cpp/mpc-0.8.1 --with-gmp=/usr/cpp/gmp-4.3.2 --with-mpfr=/usr/cpp/mpfr-2.4.2
+$ make
+$ make check
+$ sudo make install
+
+====
+添加链接库 
+
+将GMP、MPFR、MPC的共享库加入到系统的搜索目录中。
+这样在编译GCC时，才能找到所需的库文件。
+
+$ sudo gedit /etc/ld.so.conf
+
+在ld.so.conf文件中添加以下lib目录
+/usr/cpp/gmp-4.3.2/lib
+/usr/cpp/mpfr-2.4.2/lib
+/usr/cpp/mpc-0.8.1/lib
+$ sudo ldconfig
+
+重启计算机
+
+====
+编译安装 GCC 
+
+计算机重启之后，这时候已是万事俱备，只欠东风了。
+与以上操作不同的是，gcc的文档要求编译的时候最好使用单独的文件夹，不要与gcc源码共用一个文件夹。
+gcc的配置也比上面的配置要多一点：指定了gcc的程序后缀和要使用的编程语言。
+
+$ sudo mkdir /usr/cpp/gcc-4.8.1
+$ cd ~/softwares/cpp
+$ tar-xvf gcc-4.8.1.tar.gz
+$ mkdir gccbuild
+$ cd gccbuild
+$ ../gcc-4.8.1/configure --prefix=/usr/cpp/gcc-4.8.1 --program-suffix=-4.8.1 --enable-languages=c,c++,java --with-gmp=/usr/cpp/gmp-4.3.2 --with-mpfr=/usr/cpp/mpfr-2.4.2 --with-mpc=/usr/cpp/mpc-0.8.1
+$ make
+$ sudo make install
+
+添加GCC到环境变量 
+
+$ sudo gedit /etc/environment
+
+将gcc-4.8.1的bin目录添加到PATH变量的末尾，如下面所示：
+PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/cpp/m4-1.4.16/bin:/usr/cpp/gcc-4.8.1/bin"
+
+配置完环境变量后，重新启动计算机以使环境变量生效。
+
+====
+测试GCC 
+
+通过查看gcc和g++的版本号来确定是否已正确安装。
+$ gcc-4.8.1 -v
+$ g++-4.8.1 -v
+
+====
+编译安装过程中遇到的问题 
+
+将安装过程中遇到的问题总结如下：
+
+1. checking for suitable m4... configure: error: No usable m4 in $PATH or /usr/5bin
+在使用autoconf生成gmp的makefile文件时，出现上述错误。原因是没有安装m4。
+
+2. libtool: link: cannot determine absolute directory name of `=/usr/cpp/gmp-4.3.2/lib'
+在使用make编译mpfr时，出现如下错误提示：
+/libtool: line 4998: cd: =/usr/cpp/gmp-4.3.2/lib: No such file or directory
+libtool: link: cannot determine absolute directory name of `=/usr/cpp/gmp-4.3.2/lib'
+make[1]: *** [libmpfr.la] Error 1
+make[1]: Leaving directory `/home/lipei/softwares/cpp/mpfr-2.4.2'
+make: *** [all-recursive] Error 1
+
+解决方法是：找到mpfr的makefile文件，到提示的行数（我这里是4998），将gmp文件夹变量替换为gmp文件夹的绝对地址。如下所示：
+absdir=`cd "/usr/cpp/gmp-4.3.2/lib" && pwd`
+
+3. configure: error: C++ compiler missing or inoperational
+从gcc-4.7.2（2012-09-20 released）版本开始，gcc使用c++作为其实现语言。
+所以我们需要事先在系统中安装低版本的g++。
+
+Ubuntu12.04系统中自带gcc-4.6.3，但不带有g++。
+可以使用apt-get命令来安装。
+
+GCC now uses C++ as its implementation language. This means that to build GCC from sources, you will need a C++ compiler that understands C++ 2003.
+Migrating GCC to C++ as implementation language:
+C++ is a standardized, well known, popular language.
+C++ is nearly a superset of C90 used in GCC.
+The C subset of C++ is just as efficient as C.
+C++ supports cleaner code in several significant cases.
+C++ makes it easier to write and enforce cleaner interfaces.
+C++ never requires uglier code.
+C++ is not a panacea but it is an improvement.
+
+4. configure: error: cannot compute suffix of object files: cannot compile
+在对gcc进行make编译的时候
+Configured with: ../gcc-4.8.1/configure --prefix=/usr/cpp/gcc-4.8.1 --with-gmp=/usr/cpp/gmp-4.3.2 --with-mpfr=/usr/cpp/mpfr-2.4.2 --with-mpc=/usr/cpp/mpc-0.8.1
+Thread model: posix
+gcc version 4.8.1 (GCC) 
+configure:3358: $? = 0
+configure:3347: /home/lipei/softwares/cpp/gccbuild/./gcc/xgcc -B/home/lipei/softwares/cpp/gccbuild/./gcc/ -B/usr/cpp/gcc-4.8.1/i686-pc-linux-gnu/bin/ -B/usr/cpp/gcc-4.8.1/i686-pc-linux-gnu/lib/ -isystem /usr/cpp/gcc-4.8.1/i686-pc-linux-gnu/include -isystem /usr/cpp/gcc-4.8.1/i686-pc-linux-gnu/sys-include    -V >&5
+xgcc: error: unrecognized command line option '-V'
+xgcc: fatal error: no input files
+compilation terminated.
+ 
+.....
+ 
+configure:3358: $? = 1
+configure:3374: /home/lipei/softwares/cpp/gccbuild/./gcc/xgcc -B/home/lipei/softwares/cpp/gccbuild/./gcc/ -B/usr/cpp/gcc-4.8.1/i686-pc-linux-gnu/bin/ -B/usr/cpp/gcc-4.8.1/i686-pc-linux-gnu/lib/ -isystem /usr/cpp/gcc-4.8.1/i686-pc-linux-gnu/include -isystem /usr/cpp/gcc-4.8.1/i686-pc-linux-gnu/sys-include    -o conftest -g -O2   conftest.c  >&5
+/home/lipei/softwares/cpp/gccbuild/./gcc/cc1: error while loading shared libraries: libmpfr.so.1: cannot open shared object file: No such file or directory
+
+这是因为编译gcc时未找到mpfr的库。
+此时我们需要将三个依赖库的路径放到ld.so.conf文件中，以使Linux能够找到这三个库。
+
