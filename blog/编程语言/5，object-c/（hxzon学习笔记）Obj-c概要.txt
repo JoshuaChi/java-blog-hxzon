@@ -1,0 +1,200 @@
+﻿（hxzon学习笔记）Obj-c概要
+
+by hxzon
+《Learn_Objective_C_On_The_Mac_2nd_Edition.pdf》
+======
+1，
+
+#import <Foundation/Foundation.h>
+int main (int argc, const char *argv[])
+{
+NSLog (@"Hello, Objective-C!");
+return (0);
+} // main
+
+#import 相当于 C中的 #include，但是保证只导入一次。
+也可以使用#include，建议使用 #import 。
+
+预编译头文件，所以包含头文件很快。
+
+NSLog 相当于 c中的 printf() 。
+
+@"strings" 表示是 NSString 。
+
+“NS” 表示 “Cocoa” 库，前身是 NextSTEP 。
+
+不能对NSLog 使用 C风格的字符串。
+
+====
+2，布尔类型 BOOL ，两个值：YES 和 NO
+
+注意：
+BOOLin Objective-C is actually just a type definition (typedef) for the signed character type 
+(signed char), which uses 8 bits of storage. YESis defined as 1 and NOas 0 (using #define).
+Objective-C doesn’t treat BOOLas a true Boolean type that can hold only YESor NOvalues. The compiler 
+considers BOOLto be an 8-bit number, and the values of YESand NOare just a convention. This causes a 
+subtle gotcha: if you inadvertently assign an integer value that’s more than 1 byte long, such as a shortor 
+an intvalue, to a BOOLvariable, only the lowest byte is used for the value of the BOOL. If that byte happens 
+to be zero (as with 8960, which in hexadecimal is 0x2300), the BOOLvalue will be zero, the NOvalue.
+
+示例：
+#import <Foundation/Foundation.h>
+// returns NO if the two integers have the same
+// value, YES otherwise
+BOOL areIntsDifferent (int thing1, int thing2)
+{
+if (thing1 == thing2) {
+return (NO);
+} else {
+return (YES);
+}
+} // areIntsDifferent
+// given a NO value, return the human-readable
+// string "NO". Otherwise return "YES"
+NSString *boolString (BOOL yesNo)
+{
+if (yesNo == NO) {
+return (@"NO");
+} else {
+return (@"YES");
+}
+} // boolString
+int main (int argc, const char *argv[])
+{
+BOOL areTheyDifferent;
+areTheyDifferent = areIntsDifferent (5, 5);
+NSLog (@"are %d and %d different? %@",
+5, 5, boolString(areTheyDifferent));
+areTheyDifferent = areIntsDifferent (23, 42);
+NSLog (@"are %d and %d different? %@",
+23, 42, boolString(areTheyDifferent));
+return (0);
+} // main
+
+====
+3，
+
+void drawShapes (id shapes[], int count)
+{
+for (int i = 0; i < count; i++) {
+id shape = shapes[i];
+[shape draw];
+}
+} // drawShapes
+
+id 相当于指针？
+
+====
+4，类声明部分
+
+@interface Circle : NSObject
+{
+@private
+ShapeColor fillColor;
+ShapeRect bounds;
+}
+
+- (void) setFillColor: (ShapeColor) fillColor;
+- (void) setBounds: (ShapeRect) bounds;
+- (void) draw;
+@end // Circle
+
+使用冒号表示继承。
+
+接着是成员变量。
+
+- 表示方法声明。（返回值）方法名，
+如果有参数，跟着冒号。（参数1类型） 参数1名 （参数2类型） 参数2名
+
+[circle setFillColor: kRedColor];
+只有一个参数，不必参数名。
+
+[textThing setStringValue: @"hello there" color: kBlueColor];
+有多个参数，显示指明参数名。
+
+====
+5，类实现部分
+
+@implementation Circle
+- (void) setFillColor: (ShapeColor) c
+{
+fillColor = c;
+} // setFillColor
+- (void) setBounds: (ShapeRect) b
+{
+bounds = b;
+} // setBounds
+- (void) draw
+{
+NSLog (@"drawing a circle at (%d %d %d %d) in %@",
+bounds.x, bounds.y,
+bounds.width, bounds.height,
+colorName(fillColor));
+} // draw
+@end //Circle
+
+
+====
+6，创建实例
+
+[Circle new]
+给类发送new消息。
+
+int main (int argc, const char * argv[])
+{
+id shapes[3];
+ShapeRect rect0 = { 0, 0, 10, 30 };
+shapes[0] = [Circle new];
+[shapes[0] setBounds: rect0];
+[shapes[0] setFillColor: kRedColor];
+ShapeRect rect1 = { 30, 40, 50, 60 };
+shapes[1] = [Rectangle new];
+[shapes[1] setBounds: rect1];
+[shapes[1] setFillColor: kGreenColor];
+ShapeRect rect2 = { 15, 19, 37, 29 };
+shapes[2] = [Egg new];
+[shapes[2] setBounds: rect2];
+[shapes[2] setFillColor: kBlueColor];
+drawShapes (shapes, 3);
+return (0);
+} // main
+
+====
+7，
+
+@interface Triangle : NSObject
+{
+ShapeColor fillColor;
+ShapeRect bounds;
+}
+- (void) setFillColor: (ShapeColor) fillColor;
+- (void) setBounds: (ShapeRect) bounds;
+- (void) draw;
+@end // Triangle
+@implementation Triangle
+- (void) setFillColor: (ShapeColor) c
+{
+fillColor = c;
+} // setFillColor
+- (void) setBounds: (ShapeRect) b
+{
+bounds = b;
+} // setBounds
+- (void) draw
+{
+NSLog (@"drawing a triangle at (%d %d %d %d) in %@",
+bounds.x, bounds.y,
+bounds.width, bounds.height,
+colorName(fillColor));
+} // draw
+@end // Triangle
+
+typedef struct {
+int x, y, width, height;
+} ShapeRect;
+
+ShapeRect rect3 = { 47, 32, 80, 50 };
+
+====
+8，
+
