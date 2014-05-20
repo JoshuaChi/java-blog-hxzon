@@ -3,22 +3,35 @@
 http://ilanever.com/article/sitedetail.html?id=237
 
 C++中所有运算符的优先级
-目录
+
 以下表格中的运算符的优先级由上到下依次降低，以双横线进行分组，每组运算符的优先级相同。
+
 运算符	相关性	作用	使用
+
+============================================================
+
 ::	L	global scope	::name
 ::	L	class scope	class::name
 ::	L	namespace scope	namespace::name
+
+============================================================
+
 .	L	member selectors	object.member
 ->	L	member selectors	pointer->member
 []	L	subscript	expr[expr]
 ()	L	function call	name(expr_list)
 ()	L	type construction	type(expr_list)
+
+============================================================
+
 ++	R	postfix increment	lvalue++
 --	R	postfix decrement	lvalue--
 typeid	R	type ID	typeid(type)
 typeid	R	run-time type ID	typeid(expr)
 explicit cast	R	type conversion	cast_name<type>(expr)
+
+============================================================
+
 ++	R	prefix increment	++lvalue
 --	R	prefix decrement	--lvalue
 ~	R	bitewise NOT	~expr
@@ -36,32 +49,77 @@ new[]	R	allocate array	new type[size]
 delete	R	deallocate object	delete expr
 delete[]	R	deallocate array	delete[] expr
 noexcept	R	can expr throw	noexcept(expr)
+
+============================================================
+
 ->*	L	ptr to member select	ptr->*ptr_to_member
 .*	L	ptr to member select	ptr.*ptr_to_member
+
+============================================================
+
 *	L	multiply	expr * expr
 /	L	divide	expr / expr
 %	L	modulo(remainder)	expr % expr
+
+============================================================
+
 +	L	add	expr + expr
 -	L	subtract	expr - expr
+
+============================================================
+
 <<	L	bitwise shift left	expr << expr
 >>	L	bitwise shift right	expr >> expr
+
+============================================================
+
 <	L	less than	expr < expr
 <=	L	less than or equal	expr <= expr
 >	L	greater than	expr >= expr
 >=	L	greater than or equal	expr >= expr
+
+============================================================
+
 ==	L	equality	expr == expr
 !=	L	inequality	expr != expr
+
+============================================================
+
 &	L	bitwise AND	expr & expr
+
+============================================================
+
 ^	L	bitwise XOR	expr ^ expr
+
+============================================================
+
 |	L	bitwise OR	expr | expr
+
+============================================================
+
 &&	L	logical AND	expr && expr
+
+============================================================
+
 ||	L	logical OR	expr || expr
+
+============================================================
+
 ?:	R	conditional	expr ? expr : expr
+
+============================================================
+
 =	R	assignment	lvalue = expr
 *=,/=,%=	R	compound assign	lvalue*=expr
 +=,-=	R		
 <<=,>>=	R		
 &=,|=,^=	R		
+
+============================================================
+
 throw	R	throw exception	throw expr
+
+============================================================
+
 ,	L	comma	expr, expr
 

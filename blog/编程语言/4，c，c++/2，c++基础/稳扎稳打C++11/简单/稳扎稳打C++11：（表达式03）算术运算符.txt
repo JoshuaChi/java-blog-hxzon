@@ -3,12 +3,19 @@
 http://ilanever.com/article/sitedetail.html?id=238
 
 在应用求模运算符时，如果 m%n 不为0，则结果的符号与m相同。
-目录
-算术运算符（Arithmetic Operators），包含+（unary plus）、-（unary minus）、*（multiplication）、/（division）、%（remainder）、+（addition）、-（subtraction）。
+
+算术运算符（Arithmetic Operators），包含+（unary plus）、-（unary minus）、*（multiplication）、
+/（division）、%（remainder）、+（addition）、-（subtraction）。
+
 算术运算符可以应用到任何算术类型或任何可以转换成算术类型的类型。这些运算符的操作数和结果都是右值。
+
 整数的除法返回一个整数。如果商中含有小数，那么小数将被截取掉。
+
 在应用除法运算符时，在商不为0的情况下，如果两个操作数的符号相同，则商为正值，否则为负值。
-在应用求模运算符时，如果 m % n 不为0，则结果的符号与m相同。当m和n都是整数，并且n非零时，(m / n) * n + m % n = m。
+
+在应用求模运算符时，如果 m % n 不为0，则结果的符号与m相同。
+当m和n都是整数，并且n非零时，(m / n) * n + m % n = m。
+
 #include <iostream>
  
 using namespace std;
@@ -49,3 +56,4 @@ int main()
      
     return 0;
 }
+

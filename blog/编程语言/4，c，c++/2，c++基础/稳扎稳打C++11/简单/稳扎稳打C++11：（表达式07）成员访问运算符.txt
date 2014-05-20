@@ -2,10 +2,13 @@
 来源：ilanever.com | 作者：LanPei | 创建时间：2014-1-25 23:01:56
 http://ilanever.com/article/sitedetail.html?id=242
 
-点运算符从一个类类型的对象获取成员。箭头运算符ptr->mem是(*ptr).mem的同义词。
-目录
-成员访问运算符有两个：点运算符（dot operator）和箭头运算符（arrow operator）。点运算符从一个类类型的对象获取成员。箭头运算符ptr->mem是(*ptr).mem的同义词。
-箭头操作符需要一个指针操作数并返回一个左值。如果对象是左值，那么点运算符返回的是左值，否则是右值。
+
+成员访问运算符有两个：点运算符（dot operator）和箭头运算符（arrow operator）。
+点运算符从一个类类型的对象获取成员。
+箭头运算符ptr->mem是(*ptr).mem的同义词。
+箭头操作符需要一个指针操作数并返回一个左值。
+如果对象是左值，那么点运算符返回的是左值，否则是右值。
+
 #include <iostream>
 #include <vector>
  
@@ -28,3 +31,4 @@ int main()
      
     return 0;
 }
+
