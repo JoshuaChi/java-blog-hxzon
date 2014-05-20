@@ -1,0 +1,123 @@
+﻿Facebook：MVC不适合大规模应用，改用Flux
+作者 Abel Avram ，译者 梅雪松 发布于 2014年5月19日
+http://www.infoq.com/cn/news/2014/05/facebook-mvc-flux
+
+Facebook认为MVC无法满足他们的扩展需求，因此他们决定使用另一种模式：Flux。
+
+在最近F8大会黑客之道：重新思考Facebook的Web应用开发，Facebook工程经理Tom Occhino说，由于他们“非常巨大”的代码库和庞大的组织，“MVC真的很快就变得非常复杂”，
+他们得出结论，认为MVC不适合于大规模应用。
+每次他们努力增加一项新特性时，系统的复杂性成级数增长，代码变得“脆弱和不可预测”。
+对于刚接触某个代码库的开发人员来说，这正成为一个严重的问题，因为他们害怕破坏什么东西，不敢动这些代码。
+其结果是Facebook的MVC正在土崩瓦解。
+
+解决这个问题需要“以某种方式使代码结构化，使其更加可预测”。
+这已经通过Flux和React完成。
+Flux是一个系统架构，用于推进应用中的数据单向流动。
+根据Occhino所述，React是一个JavaScript框架，用于构建“可预期的”和“声明式的”Web用户界面，它已经使Facebook更快地开发Web应用。
+
+Facebook软件工程师Jing Chen，补充说明MVC非常适合小型应用，但是当系统中有很多的模型与相应的视图时，其复杂性就迅速扩大，如下图所示：
+
+
+
+根据Chen的说法，这样的程序将会非常难以理解和调试，特别是模型与视图间可能存在的双向数据流动，因此提出了以下Flux设计：
+
+
+
+Store包含了应用的所有数据，Dispatcher替换了原来的Controller，当Action触发时，决定了Store如何更新。
+当Store变化后，View同时被更新，还可以生成一个由Dispatcher处理的Action。
+这确保了数据在系统组件间单向流动。
+当系统有多个Store和View时，仍可视为只有一个Store和一个View，
+因为数据只朝一个方向流动，并且不同的Store和View之间不会直接影响彼此。
+
+Facebook React在GitHub的页面详细说明了Flux、Dispatcher和Store：
+
+Dispatcher是中心枢纽，管理着Flux应用中的所有数据流。
+它本质上是Store的回调注册。
+每个Store注册它自己并提供一个回调函数。
+当Dispatcher响应Action时，通过已注册的回调函数，将Action提供的数据负载发送给应用中的所有Store。
+
+随着应用程序的增长，Dispatcher变得更加关键，因为它将管理Store之间的依赖，以特定的顺序调用注册的回调函数。
+Store可以声明等待其它Store完成更新后，再相应地更新自己⋯⋯
+
+Store包含应用程序的状态和逻辑。
+它们的角色某种程度上与传统MVC中的Model类似，但它们管理很多对象的状态，它们不是某个对象的实例，也不是Backbone集合。
+Store不只是简单地管理ORM风格的对象集合，它还为应用程序中的特定领域（Domain）管理应用状态。
+
+Chen说，更重要的是在任何其它Action触发之前，确保数据层完成视图的更新。
+当前一个动作还未处理完时，Dispatcher能够拒绝Action。
+对于有其它副作用的动作，例如更新其它视图，这个设计非常有用。
+它让代码变得更简洁，新开发人员更容易理解也更容易调试。
+Flux帮助Facebook消除了一个聊天Bug，该Bug提示用户有新消息，但实际上没有。
+
+在GitHub上可访问Flux TodoMVC教程及其源代码。
+
+Facebook可以使用任何他们觉得合适的设计，但这个问题依旧存在。
+MVC适合大规模应用吗？毕竟，有那么多大规模网站。
+
+更新 原文在英文站发布后，许多开发者在Reddit上评论Facebook的MVC。
+以下是一些评论，有些认为Facebook误用了MVC，而另一些则认为他们做了正确的事：
+
+giveupitscrazy：
+
+这毫无意义。
+
+其一，他们的MVC图形绝对是错的。
+他们描绘了一个单一控制器处理多个模型，你几乎可以肯定会基于它们交互的Model或者逻辑分区来分离控制器。
+
+很显然，他们所描述的这样一个程序无法工作，同时它也不是真正的MVC。
+
+如果你比较他们的Flux图形和真正的MVC图形，你就会得出清晰的结论，对Web应用来说MVC没有任何内在问题。
+
+balefrost：
+
+并且⋯⋯事情是这样的⋯⋯他们的Flux图与你的MVC图非常接近。
+
+他们重新发明了真正的MVC，然后决定给它一个新名字。哈哈！
+
+hackinthebochs：
+
+看起来这个架构将MVC变成了某种基于事件的东西。
+“Store”将它们自己注册到Dispatcher（可能是任何调用依赖关系），Dispatcher处理Action并确保正确的调用链。
+这样就将保证正确调用顺序的压力从Controller转移到Dispatcher和Store。
+这将减少改变行为所需的理解。
+
+runvnc：
+
+我刚扫了一眼，虽然我不认为自己对这个非常理解，但我理解和同意它的总体思路。
+
+Reddit用户jingc09，通过她的评论，好像是Jing Chen，增加了一些回复：
+
+jingc09：是啊，这是个复杂的幻灯片（那张有多个模型和视图并且双向数据流的片子），
+部分原因是因为MVC究竟是什么没有统一的认识，很多人对它有不同的观点。
+我们真正想讨论的是双向数据流，数据变化能向后循环并产生级联效应。
+
+她还试图澄清Flux的Dispatcher不是MVC Controller：
+
+我想澄清的一件事是，Dispatcher没有扮演Controller同样的角色。
+Dispatcher中没有业务逻辑，我们在多个应用中使用相同的Dispatcher代码。
+它只是一个中心枢纽，将事件分发给感兴趣的订阅者（通常是Store）。
+但在Flux中它是很重要的，因为它强制单向数据流⋯⋯
+
+Wikipedia关于MVC Controller解释：
+
+Controller能发送命令到Model去更新Model的状态（例如编辑文档）。
+它也能发送命令到相关的View去修改这个Model的View的展现（例如滚动文档）。
+
+对此，Chen评论道：
+
+Dispatcher不能做任何这些事，命令必须从其它地方（View、服务器响应和实时更新）传递到Dispatcher。https://github.com/facebook/react/blob/master/examples/todomvc-flux/js/dispatcher/Dispatcher.js 也许有助于说明这一点。
+
+根据Reddit上的这些评论，关于MVC是什么以及应该如何实现，似乎有些混乱。
+
+考虑到Facebook对MVC的处理，我们有两个观察：
+
+1）第一张幻灯片似乎真的画了太多的Model和View，让人怀疑现实生活中真的有类似的情况吗？
+Facebook使用Flux解决的问题是一个有3个View的聊天应用。
+
+2）在他们的MVC例子中，为何是View产生数据流，从而造成双向流动？
+同时，在Flux图中，为何是View产生Action？
+View不应该产生任何东西。View只是“视图”，没有别的。
+Facebook是在误用MVC吗？
+
+原文链接：Facebook: MVC Does Not Scale, Use Flux Instead
+
