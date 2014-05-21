@@ -1,0 +1,320 @@
+﻿Java 8的类型注解：工具和机会
+作者 Todd Schiller ，译者 梅雪松 发布于 2014年5月19日
+http://www.infoq.com/cn/articles/Type-Annotations-in-Java-8
+
+====
+在以前的Java版本中，开发者只能将注解（Annotation）写在声明中。
+对于Java 8，注解可以写在使用类型的任何地方，例如声明、泛型和强制类型转换等语句：
+
+@Encrypted String data;
+List<@NonNull String> strings;
+myGraph = (@Immutable Graph) tmpGraph;
+
+乍一看，类型注解并不是Java新版本最炫的特性。
+事实上，注解只是语法！
+工具决定了注解的的语义（即，它们的含义和行为）。
+本文介绍新的注解语法和实用工具，以提高生产力和构建更高质量的软件。
+
+在金融行业，我们的市场波动和监管环境决定了上市时间比以往任何时候都更加重要。
+但牺牲安全性或质量绝对不是一个可选项：简单的百分点和基点混乱就可能造成严重后果。
+这种情况同样存在于所有其它行业。
+
+作为一名Java程序员，也许你已经采用注解来提高软件质量。
+想想早在Java 1.5中引入的@Override注解。
+在具有复杂继承层次结构的大型项目中，要跟踪系统运行时会执行方法的哪一种实现是很困难的。
+如果你不小心修改了某个方法的声明，可能会导致子类方法没有被调用。
+这种方式取消了一个方法调用，将会引入缺陷或者安全漏洞。
+为此，Java引入了@Override注解，开发者可以用它来说明该方法覆盖了父类方法。
+如果程序没有匹配这种意图，Java编译器将使用这些注解来警告开发者。
+如此，注解扮演了机器检查文档的形式。
+
+开发者可以通过元编程（Metaprogramming）等技术提高生产率，注解在其中扮演了核心角色。
+其思想是通过注解够告诉工具如何生成新代码、转换代码或者决定运行期的行为。
+以Java Persistence API（JPA）为例，这也是Java 1.5引入的功能。
+它允许开发者以声明的方式如@Entity，指定Java对象与数据库实体之间的关系。
+然后Hibernate这类工具就可以使用这些注解，在运行期生成映射文件和SQL查询。
+
+在JPA和Hibernate的场景中，注解用于支持DRY（Don't Repeat Yourself）原则。
+有趣的是，无论你在哪寻找支持最佳实践的开发工具，都不难发现注解的存在。
+一些著名的例子包括使用依赖注入（Dependency Injection）降低耦合，
+使用面向切面编程（Aspect Oriented Programming）分离关注点。
+
+问题来了：如果注解已经被用于提升质量和提高生产率，为什么我们还需要类型注解？
+
+这个问题的简单回答是：类型注解提供更多的功能。
+它们帮助自动检测更多的缺陷，为你提供生产力工具的更多控制。
+
+====
+类型注解的语法
+
+在Java 8中，类型注解可以写在使用类型的任何地方，以下是一些例子：
+
+@Encrypted String data
+List<@NonNull String> strings
+MyGraph = (@Immutable Graph) tmpGraph;
+
+引入一个新的类型注解非常简单，只要定义一个注解，并且其target为ElementType.TYPE_PARAMETER或ElementType.TYPE_USE，或者两个都包含：
+
+@Target({ElementType.TYPE_PARAMETER, ElementType.TYPE_USE})
+public @interface Encrypted { }
+
+ElementType.TYPE_PARAMETER表示注解能写在类型变量的声明语句中（如：class MyClass {...}）。
+而ElementType.TYPE_USE表示注解能写在使用类型的任何语句中（例如声明语句、泛型和强制转换语句中的类型）。
+
+一旦源码中的类型有了注解，就像声明中的注解一样，
+它可以同时存在于类文件中并在运行时可以通过反射获取（定义注解时使用RetentionPolicy.CLASS或RetentionPolicy.RUNTIME策略）。
+
+类型注解与以前的注解有两个主要区别：
+首先，局域变量声明中的类型注解也可以保留在类文件中；
+其次，完整泛型被保留，并且在运行期可以访问。
+
+尽管注解可以保存在类文件中，但它不影响程序的常规运行。
+例如，开发人员可能在方法体中声明了两个File变量和一个Connection变量：
+
+File file = ...;
+@Encrypted File encryptedFile = ...;
+@Open Connection connection = ...;
+
+当程序运行时，传递其中任何一个文件给connection的send(...)方法，都会调用同一个方法实现。
+
+// 以下代码将调用同一个方法
+connection.send(file);
+connection.send(encryptedFile);
+
+正如你预期的那样，运行期没有区别，也就是说，
+尽管参数的类型是有注解的，但方法不会基于注解的类型进行重载：
+
+public class Connection{
+     void send(@Encrypted File file) { ... } 
+     // Impossible:
+     // void send( File file) { ... }
+     . . .
+}
+
+这个限制的背后，直觉告诉我们，编译器完全无法知道有注解的类型和无注解的类型之间的关系，也不知道有不同注解的类型之间的关系。
+
+但是，别急！
+变量encryptedFile的注解@Encrypted和方法声明中file参数的注解是相对应的；
+那么变量connection的注解@Open又与哪个方法声明中的注解对应呢？
+在调用connection.send(...)中，变量connection是方法的“接收者”。
+（术语“接收者, Receiver”来源于对象间传递消息的面向对象的经典比喻。）
+Java 8为方法声明引入了新的语法，因此类型注解可以写在方法接收者上：
+
+void send(@Open Connection this, @Encrypted File file)
+
+同样，由于注解对程序执行没有影响，因此以新的接收者参数语法声明的方法与使用传统语法声明的方法具有同样的行为。
+实际上，当前新语法的唯一用处是类型注解可以写在接收者的类型上。
+
+类型注解语法，包括多维数组语法的完整说明可以查看JSR (Java Specification Request) 308网站。
+
+====
+使用注解检测缺陷
+
+在代码中写注解可用来强调有缺陷代码中的错误：
+
+@Closed Connection connection = ...;
+File file = ...;
+…
+connection.send(file); // 错误！关闭的连接并且未加密！
+
+然而，上面的代码仍然能够编译、运行，然后崩溃，Java编译器并没有检查用户定义的注解。
+相反，Java平台公开了两个API，Java Compiler Plug-in和Pluggable Annotations Processing API，第三方开发商可以开发自己的分析器。
+
+在前面的例子中，实际上注解用于限制变量的值。
+我们可以用其它方式来限制File类型：
+@Open File, @Localized File, @NonNull File。
+我们也可以用这些注解来限制其它类型，例如@Encrypted String。
+因为类型注解独立于Java类型系统，注解的概念可重用于多种类型。
+
+但是这些注解如何能够自动检查呢？
+直观地说，有些注解是另一些注解的子类，使用它们将能够进行类型检查。
+考虑一下SQL注入攻击的问题，如何防止数据库执行用户提供的（污染的）输入。
+我们也许会把数据分为@Untainted或@MaybeTainted，对应于数据是否保证没有用户输入：
+
+@MaybeTainted String userInput; 
+@Untainted String dbQuery;
+
+
+注解@MaybeTainted可认为是注解@Untainted的父类。
+有两种方式可以用来思考这种关系。
+首先，可能污染的数据集一定是确定未污染数据的超集（确定未污染的数据可以是可能污染数据集的元素）。
+相反地，注解@Untainted提供了比@MaybeTainted更严格有力的保证。
+让我们看看在实际应用中子类是否有效：
+
+ 
+userInput = dbQuery; // OK 
+dbQuery = "SELECT FROM * WHERE " + userInput; // 类型错误!
+
+第一行检测通过，如果我们假定未污染的值也属于污染值，这应该没问题。
+在第二行，我们的子类规则发现了一个bug：我们尝试将父类赋值给更严格的子类。
+
+====
+Checker框架
+
+Checker框架是检查Java注解的框架。
+该框架首次发布于2007年，是一个活跃的开源项目，由JSR308标准的副主管Michael Ernst教授领导。
+Checker框架包含了大量的注解和检查器，能够检测空指针间接引用、计量单位不匹配和安全漏洞缺陷，以及线程/并发错误等等。
+因为检查器在引擎盖下使用类型检查，因此其结果都是声音。
+检查器不会漏掉任何潜在错误，而工具使用只是摸索威力。
+在编译期间，框架使用编译器API执行检查。
+作为一个框架，你能快速创建自己的注解检查器去检测特定应用的缺陷。
+
+该框架的目标是不需要写大量的注解就能检测缺陷。
+这主要依赖于两个特性：
+智能默认（smart default）和控制流敏感（control-flow sensitivity）。
+举例来说，检测空指针缺陷时，检查器默认假定参数不能为空。
+检查器也能使用条件语句决定间接引用表达式是安全的。
+
+void nullSafe(Object nonNullByDefault, @Nullable Object mightBeNull){
+     nonNullByDefault.hashCode(); // OK due to default
+     mightBeNull.hashCode(); // Warning!
+     if (mightBeNull != null){
+        mightBeBull.hashCode(); // OK due to check
+     }
+}
+
+实际上，默认和控制流敏感意味着你在方法体中几乎不用写注解，检查器能自动推断和检查注解。
+通过保持注解的语义与官方Java编译器分离，Java团队确保了第三方工具设计者与用户能够决定自己的设计。
+这样就可以定制错误检查来满足项目的个性化需求。
+
+自定义注解的这种能力，让你也许会考虑领域特定（Domain-specific）类型检查。
+例如在金融行业，利率使用百分比描述，而利率差额通常使用基点（1%的百分之一）描述。
+使用Checker框架的单位检查器（Unit Checker），你可以定义两个注解@Percent和@BasisPoints，确保你没有混淆两者：
+
+BigDecimal pct = returnsPct(...); // annotated to return @Percent 
+requiresBps(pct); // error: @BasisPoints is required
+
+这儿，因为Checker框架是控制流敏感的，
+当调用requiresBps(pct)时，它知道pct是@Percent BigDecimal，
+原因是：第一，returnsPct(...)的注解表明返回@Percent BigDecimal；
+其次，调用requiresBps(pct)前，pct没有被重新赋值。
+通常开发者使用命名规范来尽量避免这类缺陷。
+Checker框架为你确保不存在这些缺陷，即使代码不断增长和发生变化。
+
+Checker框架已经检查了数百万行代码，即使在经过良好测试的软件中，也暴露了数百个缺陷。
+也许这是我最喜欢的例子：
+当框架检查流行的Google Collections类库（现在叫Google Guava）时，它发现了一些空指针缺陷，
+这些甚至是大量测试和启发式的静态分析工具所没有发现的。
+
+要获得这类结果，并不需要打乱代码。
+实际上，使用Checker框架校验属性，每千行代码只需要2-3个注解！
+
+如果你在使用Java 6或者7，同样可以使用Checker框架来提高代码质量。
+框架支持类型注解写成注释（例如：/*@NotNull*/ String）。
+其历史原因是，从2006年开始，Checker框架与JSR 308（类型注解规范）一起共同开发。
+
+尽管Checker框架是能够利用错误检查新语法优势的最佳框架，但现在它不是唯一的一个。
+Eclipse与IntelliJ都已经支持类型注解。
+
+支持	 
+Checker框架	完全支持，包括注解写在注释中
+Eclipse	支持null指针错误
+IntelliJ IDEA	支持编写自定义检查器，没有空指针错误分析支持
+不支持	 
+PWD	 
+Coverity	 
+Check Style	不支持Java 8
+Find Bugs	不支持Java 8
+
+====
+使用类型注解提高生产率
+
+类型注解这个新特性背后的主要驱动是错误检查。
+也许并不惊讶，错误检查工具为注解提供了当前和计划中最好的支持。
+然而，生产力工具中同样有一些非常引人注目的应用支持类型注解。
+要明白其中原因，考虑一下这些使用注解的例子：
+
+面向切面编程	@Aspect，@Pointcut等
+依赖注入	@Autowired，@Inject等
+持久化	@Entity，@Id等
+
+注解是声明式的规范：
+（1）工具如何生成代码或辅助文件；
+（2）工具该如何影响程序的运行时行为。
+
+这种使用注解的方式被称为元编程。
+一些框架，如Lombok，使用注解进行元编程到了极致，导致代码都不再像Java了。
+
+让我们先看看面向切面编程（AOP）。
+AOP旨在分离关注，例如将日志和身份验证与程序的主业务逻辑分离。
+通过AOP，编译时工具基于规则集将额外代码加到你的程序中。
+例如，我们定义一个规则，基于类型注解自动加上身份验证：
+
+void showSecrets(@Authenticated User user){
+     // 使用AOP自动插入：
+     if (!AuthHelper.EnsureAuth(user)) throw . . .;
+}
+
+如前所述，注解限定了类型。
+然而，AOP框架不是用来在编译期间检查注解，而是用来在运行期自动执行校验。
+这个例子展示了类型注解如何为你提供更多的控制，决定AOP框架何时以及如何修改程序。
+
+Java 8还支持局域声明中使用类型注解，并且保存在类文件中。
+这开启了细粒度AOP的新机会。
+例如有规律地添加跟踪代码：
+
+// 跟踪ar对象的所有调用 
+@Trace AuthorizationRequest ar = . . .;
+
+同样，类型注解为使用AOP进行元编程提供了更多的控制。
+依赖注入也是同样的情形。
+使用Spring 4，你终于可以使用泛型作为限定词形式：
+
+@Autowired private Store<Product> s1; 
+@Autowired private Store<Service> s2;
+
+使用泛型消除了引入类，如ProductStore和ServiceStore，或者使用脆弱的命名为基础的注入规则的必要性。
+
+使用类型注解，不难想像（Spring中还未实现）使用注解进一步控制注入：
+
+@Autowired private Store<@Grocery Product> s3;
+
+这个例子演示了类型注解作为一个工具分离关注，使项目的类型层级保持整洁。
+这种分离是可行的，因为类型注解独立于Java类型系统。
+
+====
+前方的路
+
+我们已经看到新的类型注解如何用于检测/防止程序错误和提高生产力。
+然而，类型注解的真正潜能是结合错误检查和元编程，开辟新的开发模式。
+
+其基本思想是构建运行时和类库，利用注解自动使程序更高效、并行或者更安全，并且自动强制开发者正确地使用那些注解。
+
+这种方法的一个很好的例子是Adrian Sampson的EnerJ框架，
+该框架通过近似计算进行高能效计算。
+EnerJ基于监视，有时候，例如在移动设备上处理图像时，为了节约能源，权衡图像精度是有意义的。
+开发者使用EnerJ，对于非关键数据使用@Approx类型注解。
+基于这些注解，EnerJ运行时处理这些数据时会考虑各种捷径。
+例如，它可能使用低能耗的近似计算硬件来保存数据或执行计算。
+但是，通过程序移动近似数据是危险的，作为开发者，你不会希望控制流受到近似数据的影响。
+因此，EnerJ使用Checker框架强制近似数据不能用于控制流（例如，在if语句中）。
+
+这种方法的应用并不局限于移动设备。
+在金融领域，我们常常面对精度与速度之间的权衡。
+在这些情况下，可以留给运行时来控制蒙特卡洛路径或收敛标准的数目，
+或者基于当前的需求和可用的资源，甚至可能在专用硬件上运行计算。
+
+这种方法的巧妙之处在于，它将如何执行与核心业务逻辑描述的执行什么计算进行了分离。
+
+====
+总结
+
+在Java 8中，除了在声明中写注解，你还能在使用类型的任何地方写注解。
+注解本身对程序行为没有任何影响。
+然而，通过使用Checker框架这样的工具，你可以使用类型注解来自动检查和确认不存在软件缺陷，并使用元编程提高生产效率。
+尽管现有工具要完全利用类型注解的优势还需要一定的时间，但现在是时候开始探索类型注解如何能够提升你的软件质量和生产效率了。
+
+致谢
+
+我想感谢Michael Ernst、Werner Dietl和纽约市Java Meetup组，他们对演示文稿提出了反馈意见，那篇演示文稿是本文的基础。
+我还想感谢Scott Bressler、Yaroslav Dvinov和Will Leslie，他们审阅了本文的初稿。
+
+关于作者
+
+Todd Schiller是FinLingua公司的领导，这是一家财务软件开发和咨询公司。
+FinLingua的咨询实践帮助开发团队采用领域特定语言、元编程和程序分析技术。
+Todd是软件工程研究社区的活跃成员；他对规范和验证的研究已经发表于著名的国际会议，包括ICSE和OOPSLA。
+
+ 
+原文链接：Type Annotations in Java 8: Tools and Opportunities
+

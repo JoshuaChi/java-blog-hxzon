@@ -101,9 +101,9 @@ ShapeRect bounds;
 
 使用冒号表示继承。
 
-接着是成员变量。
+接着是成员变量。如果没有成员变量，则不需要花括号。
 
-- 表示方法声明。（返回值）方法名，
+- 表示开始方法的声明或定义。（返回值）方法名，
 如果有参数，跟着冒号。（参数1类型） 参数1名 （参数2类型） 参数2名
 
 [circle setFillColor: kRedColor];
@@ -111,6 +111,10 @@ ShapeRect bounds;
 
 [textThing setStringValue: @"hello there" color: kBlueColor];
 有多个参数，显示指明参数名。
+
+- (void) setTire: (Tire *) tire atIndex: (int) index;
+[car setTire: tire atIndex: 2];
+注意第2个参数，atIndex是参数名字（调用时使用），index是形参名（方法实现使用）。
 
 ====
 5，类实现部分
@@ -196,5 +200,216 @@ int x, y, width, height;
 ShapeRect rect3 = { 47, 32, 80, 50 };
 
 ====
-8，
+8，继承
+
+不支持多重继承。
+冒号跟着父类名。
+重写方法不需要什么关键字，在子类实现部分写同名方法即可。
+
+示例：
+@interface Shape : NSObject {
+ShapeColor fillColor;
+ShapeRect bounds;
+}
+- (void) setFillColor:(ShapeColor)fillColor;
+- (void) setBounds:(ShapeRect)bounds;
+- (void) draw;
+@end // Shape
+
+@implementation Shape
+- (void)setFillColor:(ShapeColor)c
+{
+fillColor = c;
+} // setFillColor
+- (void)setBounds:(ShapeRect)b
+{
+bounds = b;
+} // setBounds
+InherIt the One
+Chapter 4: Inheritance 58
+- (void) draw
+{
+} // draw
+@end // Shape
+
+@interface Circle : Shape
+@end // Circle
+
+@interface Rectangle : Shape
+@end // Rectangle
+
+@implementation Circle
+- (void) draw
+{
+NSLog(@"drawing a circle at (%d %d %d %d) in %@", bounds.x, bounds.y, bounds.width,É
+bounds.height, colorName(fillColor));
+} // draw
+@end // Circle
+
+使用super关键字调用父类方法。
+[super setFillColor: c];
+
+示例：
+@implementation Circle
+- (void)setFillColor:(ShapeColor)c
+{
+if (c == kRedColor)
+{
+c = kGreenColor;
+}
+[super setFillColor: c];
+} // setFillColor
+// and the rest of the Circle @implementation // is unchanged
+@end // Circle
+
+====
+9，组合
+
+@interface Tire : NSObject
+@end // Tire
+
+@implementation Tire
+- (NSString *) description {
+return (@"I am a tire. I last a while.");
+} // description
+@end // Tire
+
+description 方法会被NSLog 使用，类似于java的 toString() 。
+
+@interface Engine : NSObject
+@end // Engine
+
+@implementation Engine
+- (NSString *) description
+{
+return (@"I am an engine. Vrooom!");
+} // description
+@end // Engine
+
+组合：
+
+@interface Car : NSObject
+{
+Engine *engine;
+Tire *tires[4];
+}
+- (void) print;
+@end // Car
+
+@implementation Car
+- (id) init
+{
+if (self = [super init]) {
+engine = [Engine new];
+tires[0] = [Tire new];
+tires[1] = [Tire new];
+tires[2] = [Tire new];
+tires[3] = [Tire new];
+}
+return (self);
+} // init
+
+- (void) print
+{
+NSLog (@"%@", engine);
+NSLog (@"%@", tires[0]);
+NSLog (@"%@", tires[1]);
+NSLog (@"%@", tires[2]);
+NSLog (@"%@", tires[3]);
+} // print
+@end // Car
+
+init 初始化方法。
+self = [super init] 是obj-c的惯例写法。
+
+int main (int argc, const char * argv[])
+{
+Car *car;
+car = [Car new];
+[car print];
+return (0);
+} // main
+
+==
+存取方法：设置方法使用set前缀，读取方法不使用前缀。注意，get前缀在obj-c中有特别的含义。
+
+@interface Car : NSObject
+{
+Engine *engine;
+Tire *tires[4];
+}
+- (Engine *) engine;
+- (void) setEngine: (Engine *) newEngine;
+- (Tire *) tireAtIndex: (int) index;
+- (void) setTire: (Tire *) tire atIndex: (int) index;
+- (void) print;
+@end // Car
+
+- (void) setTire: (Tire *) tire atIndex: (int) index
+{
+if (index < 0 || index > 3) {
+NSLog (@"bad index (%d) in setTire:atIndex:",index);
+exit (1);
+}
+tires[index] = tire;
+} // setTire:atIndex:
+- (Tire *) tireAtIndex: (int) index
+{
+if (index < 0 || index > 3) {
+NSLog (@"bad index (%d) in "tireAtIndex:", index);
+exit (1);
+}
+return (tires[index]);
+} // tireAtIndex:
+
+Tire *tire = [Tire new];
+[car setTire: tire atIndex: 2];
+NSLog (@"tire number two is %@", [car tireAtIndex: 2]);
+
+====
+10，多个源文件
+
+.h 头文件
+.m 实现文件（m最初是message的意思）
+.mm Objective-C++ 实现文件，可以使用C++和obj-c 。
+
+示例：
+
+#import <Cocoa/Cocoa.h>
+@interface Tire : NSObject
+@end // Tire
+
+#import "Tire.h"
+@implementation Tire
+- (NSString *) description
+{
+return (@"I am a tire. I last a while");
+} // description
+@end // Tire
+
+对于头文件来说，并不需要知道某些类的定义细节，
+可以使用@class告诉编译器，这是一个类，从而不必导入头文件。
+
+#import <Cocoa/Cocoa.h>
+
+@class Tire;
+@class Engine;
+
+@interface Car : NSObject
+- (void) setEngine: (Engine *) newEngine;
+- (Engine *) engine;
+- (void) setTire: (Tire *) tire
+atIndex: (int) index;
+- (Tire *) tireAtIndex: (int) index;
+- (void) print;
+@end // Car
+
+对于继承，必须知道父类的成员细节，所以必须导入头文件。
+
+#import "Engine.h"
+@interface Slant6 : Engine
+@end // Slant6
+
+（2014.5.20）
+
 
