@@ -1,0 +1,372 @@
+﻿（hxzon学习笔记）Obj-c概要2
+
+by hxzon
+《Learn_Objective_C_On_The_Mac_2nd_Edition.pdf》
+=======
+Foundation Kit
+
+1，自动释放池
+
+#import <Foundation/Foundation.h>
+int main (int argc, const char * argv[])
+{
+@autoreleasepool
+{
+// insert code here…
+NSLog(@"Hello, World!");
+} return 0;
+}
+
+2，一些有用的结构体
+
+范围
+
+typedef struct _NSRange
+{
+unsigned int location;
+unsigned int length;
+} NSRange;
+
+NSRange range;
+range.location = 17;
+range.length = 4;
+
+NSRange range = { 17, 4 };
+
+NSRange range = NSMakeRange (17, 4);
+
+[anObject flarbulateWithRange:NSMakeRange (13, 15)];
+
+点
+struct CGPoint
+{
+float x;
+float y;
+};
+
+尺寸
+struct CGSize
+{
+float width;
+float height;
+};
+
+矩形
+struct CGRect
+{
+CGPoint origin;
+CGSize size;
+};
+
+CGPointMake(),CGSizeMake(), and CGRectMake()
+
+====
+3，字符串
+
++ (id) stringWithFormat: (NSString *) format, …;
+
+NSString *height;
+height = [NSString stringWithFormat:@"Your height is %d feet, %d inches", 5, 11];
+
+NSColor *haveTheBlues = [NSColor blueColor];
+
+UIColor *blueMan = [UIColor blueColor];
+
+- (NSUInteger) length;
+
+NSUInteger length = [height length];
+
+if ([height length] > 35)
+{
+NSLog (@"wow, you're really tall!");
+}
+
+比较字符串
+- (BOOL) isEqualToString: (NSString *) aString;
+
+- (NSComparisonResult) compare: (NSString *) aString;
+
+比较结果
+enum
+{
+NSOrderedAscending = -1,
+NSOrderedSame,
+NSOrderedDescending
+};
+typedef NSInteger NSComparisonResult;
+
+- (NSComparisonResult) compare: (NSString *) aString
+options: (NSStringCompareOptions) mask;
+
+比较的选项
+
+NSCaseInsensitiveSearch: Uppercase and lowercase characters are 
+considered the same.
+NSLiteralSearch: Perform an exact comparison, including case.
+NSNumericSearch: Numbers in strings are compared as numbers, rather than 
+their character values. Without this, “100” would sort before “99,” which 
+strikes most nonprogrammers as rather bizarre, or even wrong.
+
+if ([thing1 compare: thing2 options: NSCaseInsensitiveSearch | NSNumericSearch]
+== NSOrderedSame)
+{
+NSLog (@"They match!");
+}
+
+前缀，后缀，包含
+
+- (BOOL) hasPrefix: (NSString *) aString;
+- (BOOL) hasSuffix: (NSString *) aString;
+
+- (NSRange) rangeOfString: (NSString *) aString;
+
+NSRange range = [fileName rangeOfString: @"chapter"];
+
+====
+4，可变字符串
+
+NSStrings 是不可变的，它有个子类，NSMutableString，为可变版本。
+
+初始大小
++ (id) stringWithCapacity: (NSUInteger) capacity;
+
+- (void) appendString: (NSString *) aString;
+- (void) appendFormat: (NSString *) format, …;
+
+省略号表示不定参数。
+
+[string appendString: @"Hello there "];
+[string appendFormat: @"human %d!", 39];
+
+- (void) deleteCharactersInRange: (NSRange) aRange;
+
+NSMutableString *string = [NSMutableString stringWithFormat: @"jo%dy", 2];
+
+====
+5，数组
+
+NSArray 不可添加移除修改元素。不能存放nil。
+
+NSArray *array = [NSArray arrayWithObjects:@"one", @"two", @"three", nil];
+
+数组字面量
+NSArray *array2 = @[@"one", @"two", @"three"];
+
+- (NSUInteger)count;
+
+- (id)objectAtIndex:(NSUInteger)index;
+
+id *myObject = array1[1];
+
+字符串分割成数组元素
+NSString *string = @"oop:ack:bork:greeble:ponies"; 
+NSArray *chunks = [string componentsSeparatedByString: @":"];
+
+拼接数组元素
+string = [chunks componentsJoinedByString: @" :- ) "];
+
+====
+6，可变数组 NSMutableArray
+
++ (id) arrayWithCapacity: (NSUInteger) numItems;
+
+- (void) addObject: (id) anObject;
+
+- (void) removeObjectAtIndex: (NSUInteger) index;
+
+====
+7，枚举
+
+- (NSEnumerator *)objectEnumerator;
+
+NSEnumerator *enumerator = [array objectEnumerator];
+
+- (id) nextObject;
+
+NSEnumerator *enumerator = [array objectEnumerator];
+while (id thingie = [enumerator nextObject])
+{
+NSLog (@"I found %@", thingie);
+}
+
+快速枚举
+
+for (NSString *string in array)
+{
+NSLog (@"I found %@", string);
+}
+
+Like all the Objective-C 2.0 features, this is not available on Macs running very old system 
+software (pre-Mac OS X 10.5 Leopard). If you or your users need to run your programs on a 
+system that does not support Objective-C 2.0 or later, you can’t use this new syntax. Bummer – 
+but at this point, very unlikely too.
+使用快速枚举的程序无法在老版本苹果系统上运行。
+
+==
+代码块
+- (void)enumerateObjectsUsingBlock:(void (^)(id obj, NSUInteger idx, BOOL *stop))block
+
+[array enumerateObjectsUsingBlock:^(NSString *string, NSUInteger index, BOOL *stop) {
+NSLog (@"I found %@", string);
+}];
+
+可并发执行。
+
+====
+8，不可变字典 NSDictionary
+
+在一开始就得加上所有键值。
+
+
+
++ (id) dictionaryWithObjectsAndKeys: (id) firstObject, …;
+
+NSDictionary *tires = [NSDictionary dictionaryWithObjectsAndKeys: t1,
+@"front-left", t2, @"front-right", t3, @"back-left", t4, @"back-right", nil];
+
+字典字面量
+NSDictionary *tires = @{@"front-left" : ti, @"front-right" : t2, @"back-left" : t3,
+@"back-right" : t4};
+
+- (id) objectForKey: (id) aKey;
+
+可以使用下标语法访问
+tires[key];
+
+====
+9，可变字典 NSMutableDictionary
+
++ (id) dictionaryWithCapacity: (NSUInteger) numItems;
+
+- (void)setObject:(id)anObject forKey:(id)aKey;
+
+- (void) removeObjectForKey: (id) aKey;
+
+====
+10，
+
+数组，字典都只能存放对象，而不能存放原始类型，包括结构体。
+
+数字 NSInteger 和 NSUInteger
+
+数值 NSNumber
+
++ (NSNumber *) numberWithChar: (char) value;
++ (NSNumber *) numberWithInt: (int) value;
++ (NSNumber *) numberWithFloat: (float) value;
++ (NSNumber *) numberWithBool: (BOOL) value;
+
+NSNumber *number;
+number = @'X'; // char
+number = @12345; // integer
+number = @12345ul; // unsigned long
+number = @12345ll; // long long
+number = @123.45f; // float
+number = @123.45; // double
+number = @YES; // BOOL
+
+- (char) charValue;
+- (int) intValue;
+- (float) floatValue;
+- (BOOL) boolValue;
+- (NSString *)stringValue;
+
+obj-c不会自动装箱拆箱。
+
+====
+11，NSValue
+
+
++ (NSValue *) valueWithBytes: (const void *) value objCType: (const char *) type;
+
+==
+@encode() 指令，用来编码和解码对象。
+
+NSRect rect = NSMakeRect (1, 2, 30, 40);
+NSValue *value = [NSValue valueWithBytes:&rect objCType:@encode(NSRect)];
+[array addObject:value];
+
+==
+- (void)getValue:(void *)buffer;
+
+value = [array objectAtIndex: 0]; [value getValue: &rect];
+
+常用结构体的快捷方法
++ (NSValue *)valueWithPoint:(NSPoint)aPoint;
++ (NSValue *)valueWithSize:(NSSize)size;
++ (NSValue *)valueWithRect:(NSRect)rect;
+- (NSPoint)pointValue;
+- (NSSize)sizeValue;
+- (NSRect)rectValue;
+
+====
+12，NSNull
+
++ (NSNull *) null;
+
+总是返回同一个对象，可用==比较。
+
+====
+13，示例
+
+int main (int argc, const char * argv[])
+{
+@autoreleasepool
+{
+NSFileManager *manager;
+manager = [NSFileManager defaultManager];
+NSString *home;
+home = [@"~" stringByExpandingTildeInPath];
+NSDirectoryEnumerator *direnum;
+direnum = [manager enumeratorAtPath:home];
+NSMutableArray *files;
+files = [NSMutableArray arrayWithCapacity:42];
+NSString *filename;
+while (filename = [direnum nextObject])
+{
+if ([[filename pathExtension] isEqualTo: @"jpg"]) {
+[files addObject: filename];
+}
+}
+NSEnumerator *fileenum;
+fileenum = [files objectEnumerator];
+while (filename = [fileenum nextObject])
+{
+NSLog (@"%@", filename);
+}
+}
+return 0;
+} // main
+
+扩展成当前用户目录
+NSString *home = [@"~" stringByExpandingTildeInPath];
+
+使用快速枚举的版本
+
+int main (int argc, const char * argv[])
+{
+@autoreleasepool
+{
+NSFileManager *manager;
+manager = [NSFileManager defaultManager];
+NSString *home;
+home = [@"~" stringByExpandingTildeInPath];
+NSMutableArray *files;
+files = [NSMutableArray arrayWithCapacity: 42];
+for(NSString *filename in [manager enumeratorAtPath:home])
+{
+if([[filename pathExtension] isEqualTo:@"jpg"])
+{
+[files addObject:filename];
+}
+}
+Chapter 8: A Quick Tour of the Foundation Kit  144
+for(NSString *filename in files)
+{
+NSLog (@"%@", filename);
+}
+}
+return 0;
+} // main
+
+（2014.5.21）

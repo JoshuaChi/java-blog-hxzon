@@ -82,7 +82,7 @@ id shape = shapes[i];
 }
 } // drawShapes
 
-id 相当于指针？
+id 相当于void*指针 。
 
 ====
 4，类声明部分
@@ -103,7 +103,9 @@ ShapeRect bounds;
 
 接着是成员变量。如果没有成员变量，则不需要花括号。
 
-- 表示开始方法的声明或定义。（返回值）方法名，
+- 表示实例方法。
++ 表示静态方法。
+（返回值）方法名，
 如果有参数，跟着冒号。（参数1类型） 参数1名 （参数2类型） 参数2名
 
 [circle setFillColor: kRedColor];
@@ -115,6 +117,8 @@ ShapeRect bounds;
 - (void) setTire: (Tire *) tire atIndex: (int) index;
 [car setTire: tire atIndex: 2];
 注意第2个参数，atIndex是参数名字（调用时使用），index是形参名（方法实现使用）。
+
+必须按声明顺序传递参数。
 
 ====
 5，类实现部分

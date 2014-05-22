@@ -1,0 +1,115 @@
+﻿（hxzon学习笔记）Obj-c概要3
+
+by hxzon
+《Learn_Objective_C_On_The_Mac_2nd_Edition.pdf》
+===========
+1，类别
+
+可以给已有类扩展方法。
+一般放在独立的源文件中，命名类似 NSString+NumberConvenience 。
+
+在括号内写类别名。
+
+@interface NSString (NumberConvenience)
+- (NSNumber *) lengthAsNumber;
+@end // NumberConvenience
+
+@implementation NSString (NumberConvenience)
+- (NSNumber *) lengthAsNumber
+{
+NSUInteger length = [self length];
+return ([NSNumber numberWithUnsignedInt:length]);
+} // lengthAsNumber
+@end // NumberConvenience
+
+#import "NSString+NumberConvenience.h"
+
+类别的方法的优先级，比原有类的方法高。
+类别不能添加实例变量。
+可以修改属性的权限。
+
+@interface Things : NSObject
+@property (assign) NSInteger thing1;
+@property (readonly, assign) NSInteger thing2;
+- (void)resetAllValues;
+@end
+
+@interface Things ()
+{
+NSInteger thing4;
+}
+@property (readwrite, assign) NSInteger thing2;
+@property (assign) NSInteger thing3;
+@end
+
+====
+2，利用类别，可以将代码分散到多个源文件或者多个框架中。
+
+
+
+====
+3，利用类型，前向引用。
+
+在类别中声明私有方法（不必实现），从而阻止编译器告警。
+
+@interface Car (Private)
+- (void) moveTireFromPosition: (int) pos1 toPosition: (int) pos2;
+@end // Private
+
+====
+4，委托
+
+#import <Foundation/Foundation.h>
+@interface ITunesFinder : NSObject <NSNetServiceBrowserDelegate>
+@end // ITunesFinder
+
+在 NSObject 上添加的类别 称为 “非正式协议”。
+
+@interface NSObject (NSNetServiceBrowserDelegateMethods)
+- (void) netServiceBrowserWillSearch:(NSNetServiceBrowser *) browser;
+- (void) netServiceBrowser:(NSNetServiceBrowser *) aNetServiceBrowserÉ
+didFindService:(NSNetService *) service moreComing: (BOOL) moreComing;
+- (void) netServiceBrowserDidStopSearch:(NSNetServiceBrowser *) browser;
+- (void) netServiceBrowser:(NSNetServiceBrowser *) browser didRemoveService:É
+(NSNetService *) service moreComing: (BOOL) moreComing;
+@end
+
+选择器
+@selector(setEngine:)
+
+@selector(setTire:atIndex:)
+
+Car *car = [[Car alloc] init];
+if ([car respondsToSelector: @selector(setEngine:)])
+{
+NSLog (@"yowza!");
+}
+
+===============
+5，协议
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
