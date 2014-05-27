@@ -84,6 +84,10 @@ id shape = shapes[i];
 
 id 相当于void*指针 。
 
+MyClass *myObject1;  // Static typing
+id       myObject2;  // Dynamic typing，动态类型
+NSString *userName;  // From Your First iOS App (static typing)
+
 ====
 4，类声明部分
 

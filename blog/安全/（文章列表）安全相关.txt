@@ -1,0 +1,12 @@
+﻿（文章列表）安全相关
+
+by hxzon
+====
+1，OpenSSL的替代者：LibreSSL本月开发进度
+作者 Sergio De Simone ，译者 杨赛 发布于 2014年5月26日
+http://www.infoq.com/cn/news/2014/05/libre-ssl-first-30-days
+
+2，
+
+
+

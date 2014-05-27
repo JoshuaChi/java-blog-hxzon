@@ -88,28 +88,125 @@ NSLog (@"yowza!");
 ===============
 5，协议
 
+正式协议，必须实现所有方法。
+
+@protocol NSCopying
+- (id) copyWithZone: (NSZone *) zone;
+@end
+
+@protocol MySuperDuberProtocol <MyParentProtocol>
+@end
+
+实现多个协议
+@interface Car : NSObject <NSCopying, NSCoding>
+{
+// instance variables
+}
+// methods
+@end // Car
+
+示例：
+Engine
+implementation:
+- (id) copyWithZone: (NSZone *) zone
+{
+Engine *engineCopy;
+engineCopy = [[[self class]
+allocWithZone: zone] init];
+return (engineCopy);
+} // copyWithZone
+
+Tire
+- (id) copyWithZone: (NSZone *) zone
+{
+Tire *tireCopy;
+tireCopy = [[[self class] allocWithZone: zone] initWithPressure:
+pressure treadDepth: treadDepth];
+return (tireCopy);
+} // copyWithZone
+
+AllWeatherRadial
+- (id) copyWithZone: (NSZone *) zone
+{
+AllWeatherRadial *tireCopy;
+tireCopy = [super copyWithZone: zone];
+tireCopy.rainHandling = rainHandling;
+tireCopy.snowHandling = snowHandling;
+return (tireCopy);
+} // copyWithZone
+
+Car
+- (id) copyWithZone: (NSZone *) zone
+{
+Car *carCopy;
+carCopy = [[[self class] allocWithZone: zone] init];
+carCopy.name = self.name;
+Engine *engineCopy;
+engineCopy = [[engine copy] autorelease];
+carCopy.engine = engineCopy;
+for (int i = 0; i < 4; i++)
+{
+Tire *tireCopy;
+tireCopy = [[self tireAtIndex: i] copy];
+[tireCopy autorelease];
+[carCopy setTire: tireCopy atIndex: i];
+}
+return (carCopy);
+} // copyWithZone
 
 
+int main (int argc, const char * argv[]) {
+@autoreleasepool
+{
+Car *car = [[Car alloc] init];
+car.name = @"Herbie";
+for (int i = 0; i < 4; i++)
+{
+AllWeatherRadial *tire;
+tire = [[AllWeatherRadial alloc] init];
+[car setTire: tire atIndex: i];
+[tire release];
+}
+Slant6 *engine = [[Slant6 alloc] init];
+car.engine = engine; [engine release];
+[car print];
+Car *carCopy = [car copy];
+[carCopy print];
+[car release];
+[carCopy release];
+}
+return (0);
+} // main
 
+====
+6，协议和数据类型
 
+- (void) setObjectValue: (id<NSCopying>) object;
 
+====
+7，Objective-C 2.0
 
+@protocol BaseballPlayer
+- (void)drawHugeSalary;
+@optional
+- (void)slideHome;
+- (void)catchBall;
+- (void)throwBall;
+@required
+- (void)swingBat;
+@end // BaseballPlayer
 
+====
+8，委托
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+- (void)doWork
+{
+[delegate doSomeRequiredWork];
+if(YES == [delegate
+respondsToSelector:@selector(doSomeOptionalWork)])
+{
+[delegate doSomeOptionalWork];
+}
+[self myWork];
+}
 
