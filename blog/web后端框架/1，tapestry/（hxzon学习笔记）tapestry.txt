@@ -10,12 +10,63 @@ by hxzon
 ----
 2，tapestry5组件学习：
 
+----
+2.1，p:xx 用来给组件传递block参数。
+参见 AbstractConditional ， Tree 源码。
+
+@Parameter(name = "else", defaultPrefix = BindingConstants.LITERAL)
+private Block elseBlock;
+
+@Property
+@Parameter(value = "block:defaultRenderTreeNodeLabel")
+private RenderCommand label;
+渲染指令。
+
+----
+2.2，
+
 grid：加入BeforeGridInplaceUpdate事件，渲染前触发一次事件让page准备表格数据（例如分页时）
+
 submitNotifier：form提交时触发一次事件
-loop：
+
+loop：利用 @AfterRender 返回false，从而不断再次进入@BeginRender 。
+
 tree：dom原始事件-》组件事件-》ajax请求-》ajax更新
+tree源码：RenderCommand（渲染指令） ，RenderQueue（逆序渲染），CaptureResultCallback<Object> 的使用。
+
 zone：
 
+----
+FormSupport
+<T> void org.apache.tapestry5.services.FormSupport.store(T component, ComponentAction<T> action)
+存储表单提交时的动作。参见Loop源码。
+Stores an action for execution during a later request. 
+If the action contains any mutable state, 
+it should be in its final state before invoking this method 
+and its internal state should not be changed subsequently.
+
+--
+void org.apache.tapestry5.services.FormSupport.defer(Runnable command)
+
+Defers a command until the end of the form submission. 
+The command will be executed before the Form's validate notification, 
+but after all other submit actions for the form have been processed. 
+This is used, primarily, to coordinate validations or other operations that involve multiple components, 
+when the order of the components can not be determined. 
+During a form render, runnables are executed after the body of the form has rendered.
+表单提交处理的最后阶段执行。
+在表单验证事件之前，在所有表单提交动作之后。
+这经常用于跨组件的处理。
+在表单渲染期间，它在表单body渲染之后执行。
+
+--
+存储动作的执行
+void org.apache.tapestry5.corelib.components.Form.executeStoredActions()
+
+Pulls the stored actions out of the request, converts them from MIME stream back to object stream 
+and then objects, and executes them.
+
+按顺序执行？需和内部表单域渲染顺序一致？
 
 ----
 3，tree组件的后台加载原理。
@@ -36,9 +87,11 @@ zone：
 
 
 ----
-6，组件不允许自递归。
+6，组件不允许自递归（包括间接的递归）。
 
-The template for component org.hxzon.xx.web.components.Xx is recursive (contains another direct or indirect reference to component org.hxzon.xx.web.components.Xx). This is not supported (components may not contain themselves).
+The template for component org.hxzon.xx.web.components.Xx is recursive 
+(contains another direct or indirect reference to component org.hxzon.xx.web.components.Xx). 
+This is not supported (components may not contain themselves).
 
 ----
 7，tapestry的渲染器和表单提交期是完全分开的，而不像别的框架是连续的（数据容器放在会话中），
