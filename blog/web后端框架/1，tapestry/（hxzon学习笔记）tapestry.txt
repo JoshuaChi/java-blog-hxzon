@@ -66,7 +66,8 @@ void org.apache.tapestry5.corelib.components.Form.executeStoredActions()
 Pulls the stored actions out of the request, converts them from MIME stream back to object stream 
 and then objects, and executes them.
 
-按顺序执行？需和内部表单域渲染顺序一致？
+类似Loop循环的组件，"值重建动作"和表单域组件的动作穿插存储，
+”值重建动作“在表单域动作之前执行。
 
 ----
 3，tree组件的后台加载原理。
