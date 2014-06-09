@@ -10,7 +10,8 @@ hxzon学习笔记：
 
 2，改变创建对象的行为：
 Java 虚拟机常见的创建对象的方法有两种，
-一种是静态创建，直接 new 一个对象，一种是动态创建，通过反射的方法，创建对象。
+一种是静态创建，直接 new 一个对象，
+一种是动态创建，通过反射的方法，创建对象。
 由于已经在自定义加载器中更改了原有类的类型，把它从类改成了接口，所以这两种创建方法都无法成立。
 所以还是需要ASM修改class文件。
 
@@ -31,12 +32,13 @@ Java 虚拟机常见的创建对象的方法有两种，
 本文将探索如何在不破坏 Java 虚拟机现有行为的前提下，实现某个单一类的热部署，
 让系统无需重启就完成某个类的更新。
 
-
+====
 类加载的探索
 
 首先谈一下何为热部署（hotswap），热部署是在不重启 Java 虚拟机的前提下，能自动侦测到 class 文件的变化，更新运行时 class 的行为。
 Java 类是通过 Java 虚拟机加载的，某个类的 class 文件在被 classloader 加载后，
 会生成对应的 Class 对象，之后就可以创建该类的实例。
+
 默认的虚拟机行为只会在启动时加载类，
 如果后期有一个类需要更新的话，单纯替换编译的 class 文件，Java 虚拟机是不会更新正在运行的 class。
 如果要实现热部署，最根本的方式是修改虚拟机的源代码，改变 classloader 的加载行为，
@@ -46,37 +48,42 @@ Java 类是通过 Java 虚拟机加载的，某个类的 class 文件在被 clas
 
 本文将具体探索如何实现这个方案。
 首先需要了解一下 Java 虚拟机现有的加载机制。
-目前的加载机制，称为双亲委派，系统在使用一个 classloader 来加载类时，会先询问当前 classloader 的父类是否有能力加载，如果父类无法实现加载操作，才会将任务下放到该 classloader 来加载。
+目前的加载机制，称为双亲委派，系统在使用一个 classloader 来加载类时，
+会先询问当前 classloader 的父类是否有能力加载，如果父类无法实现加载操作，才会将任务下放到该 classloader 来加载。
 这种自上而下的加载方式的好处是，让每个 classloader 执行自己的加载任务，不会重复加载类。
 但是这种方式却使加载顺序非常难改变，让自定义 classloader 抢先加载需要监听改变的类成为了一个难题。
 
 不过我们可以换一个思路，虽然无法抢先加载该类，
 但是仍然可以用自定义 classloader 创建一个功能相同的类，让每次实例化的对象都指向这个新的类。
 当这个类的 class 文件发生改变的时候，再次创建一个更新的类，
-之后如果系统再次发出实例化请求，创建的对象讲指向这个全新的类。
+之后如果系统再次发出实例化请求，创建的对象将指向这个全新的类。
 
 下面来简单列举一下需要做的工作。
 创建自定义的 classloader，加载需要监听改变的类，在 class 文件发生改变的时候，重新加载该类。
 改变创建对象的行为，使他们在创建时使用自定义 classloader 加载的 class。
 
+====
 自定义加载器的实现
 
 自定义加载器仍然需要执行类加载的功能。
 这里却存在一个问题，同一个类加载器无法同时加载两个相同名称的类，
 由于不论类的结构如何发生变化，生成的类名不会变，
 而 classloader 只能在虚拟机停止前销毁已经加载的类，这样 classloader 就无法加载更新后的类了。
+
 这里有一个小技巧，让每次加载的类都保存成一个带有版本信息的 class，
 比如加载 Test.class 时，保存在内存中的类是 Test_v1.class，当类发生改变时，重新加载的类名是 Test_v2.class。
 但是真正执行加载 class 文件创建 class 的 defineClass 方法是一个 native 的方法，修改起来又变得很困难。
+
 所以面前还剩一条路，那就是直接修改编译生成的 class 文件。
 
-----
+====
 利用 ASM 修改 class 文件
 
 可以修改字节码的框架有很多，比如 ASM，CGLIB。本文使用的是 ASM。
 先来介绍一下 class 文件的结构，class 文件包含了以下几类信息，一个是类的基本信息，包含了访问权限信息，类名信息，父类信息，接口信息。
 第二个是类的变量信息。
 第三个是方法的信息。
+
 ASM 会先加载一个 class 文件，然后严格顺序读取类的各项信息，用户可以按照自己的意愿定义增强组件修改这些信息，
 最后输出成一个新的 class。
 
@@ -225,10 +232,11 @@ public void visitTypeInsn(int opcode, String type) {
 
 对于第二种创建方法，需要通过修改 Class.forName()和 ClassLoader.findClass()的行为，使他们通过自定义加载器加载类。
 
-----
+====
 使用 JavaAgent 拦截默认加载器的行为
 
-之前实现的类加载器已经解决了热部署所需要的功能，可是 JVM 启动时，并不会用自定义的加载器加载 classpath 下的所有 class 文件，取而代之的是通过应用加载器去加载。
+之前实现的类加载器已经解决了热部署所需要的功能，可是 JVM 启动时，
+并不会用自定义的加载器加载 classpath 下的所有 class 文件，取而代之的是通过应用加载器去加载。
 
 如果在其之后用自定义加载器重新加载已经加载的 class，有可能会出现 LinkageError 的 exception。
 
@@ -236,12 +244,14 @@ public void visitTypeInsn(int opcode, String type) {
 
 如果在 jdk1.4 之前，能使用的方法只有一种，改变 jdk 中 classloader 的加载行为，使它指向自定义加载器的加载行为。
 
-好在 jdk5.0 之后，我们有了另一种侵略性更小的办法，这就是 JavaAgent 方法，JavaAgent 可以在 JVM 启动之后，应用启动之前的短暂间隙，提供空间给用户做一些特殊行为。
+好在 jdk5.0 之后，我们有了另一种侵略性更小的办法，这就是 JavaAgent 方法，
+JavaAgent 可以在 JVM 启动之后，应用启动之前的短暂间隙，提供空间给用户做一些特殊行为。
 
 比较常见的应用，是利用 JavaAgent 做面向方面的编程，在方法间加入监控日志等。
 JavaAgent 的实现很容易，只要在一个类里面，定义一个 premain 的方法。
 
 清单 6. 一个简单的 JavaAgent
+
  public class ReloadAgent { 
     public static void premain(String agentArgs, Instrumentation inst){ 
         GeneralTransformer trans = new GeneralTransformer(); 
@@ -289,7 +299,7 @@ public byte [] transform(ClassLoader paramClassLoader, String paramString,
 
 图 2. Test 执行结果
 
-----
+====
 结束语
 
 解决 hotswap 是个困难的课题，本文解决的仅仅是让新实例化的对象使用新的逻辑，并不能改变已经实例化对象的行为，
@@ -299,14 +309,17 @@ hotswap 就会成为 Java 的一个闪亮新特性。
 官方的 JVM 一直没有解决热部署这个问题，可能也是由于无法完全克服其中的诸多难点，
 希望未来的 Jdk 能解决这个问题，让 Java 应用对于更新更友好，避免不断重启应用浪费的时间。
 
-----
+====
 参考资料
 学习
 
 The Java® Virtual Machine Specification：了解 Java 虚拟机标准。
 
 重温 Java 之 classloader 体系结构（含 hotswap）：介绍了 JVM classloader 的种类和工作方式。
+http://www.iteye.com/topic/136427
 
 实现增强的 java class hotswap（三）解决方案：作者提出了自己对于 Java class hotswap 的解决方案设想。
+http://argan.iteye.com/blog/443611
 
 Introduction to Java Agents：结合示例程序对 Java agent 进行了详细地讨论。
+http://www.javabeat.net/introduction-to-java-agents/

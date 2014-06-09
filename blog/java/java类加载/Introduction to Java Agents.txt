@@ -1,0 +1,377 @@
+﻿Introduction to Java Agents
+June 16, 2012 by Krishna Srinivasan
+http://www.javabeat.net/introduction-to-java-agents/
+- See more at: http://www.javabeat.net/introduction-to-java-agents/#sthash.r8piRB2W.dpuf
+
+
+====
+In this article we will discuss about Java Agents. Java Agents are software components that provide instrumentation capabilities to an application. In the context of agents, instrumentation provides the capability of re-defining the content of class that is loaded at run-time. We will discuss this in more detail in the further sections.
+Download Source Code: Java Agents (891)
+Writing the first agent
+This section details on writing the first java agent. The purpose of the agent will be get as simple as possible as the aim of this section is just to get a bit introduced to the the usage of java agents. Coding a agent requires writing a java class that has the premain() method. Please refer the below code.
+also read:
+New Features in Java 5.0
+Generics in Java 5.0
+Annotations in Java 5.0
+1
+package net.javabeat.articles.javaagent.test;
+2
+import java.lang.instrument.Instrumentation;
+3
+public class TestJavaAgent {
+4
+    public static void premain(String agentArgument,
+5
+                   Instrumentation instrumentation){
+6
+        System.out.println('Test Java Agent');
+7
+    }
+8
+}
+Note that it is mandatory for agents to have the above method with the exact signature. Note that the above agent does nothing another that printing sample content to the console.
+1
+Manifest-Version: 1.0
+2
+Premain-Class: net.javabeat.articles.javaagent.test.TestJavaAgent
+Agents are packaged as jar files and are made visible to the application using the option ‘javaagent’. Note that it is essential for the jar file to have the Premain-Class attribute that specifies the fully qualified name of the agent class containing the premain method. Now that we have written an agent, we have to make use of the agent. For making use of the agent, let us create a sample java class as follows. Note that nowhere in the code, we are invoking the agent. Instead while running the application, agents are specified as virtual machine arguments.
+1
+package net.javabeat.articles.javaagent.test;
+2
+ 
+3
+public class TestMain {
+4
+ 
+5
+    public static void main(String[] args) {
+6
+        System.out.println('Test Main Class');
+7
+    }
+8
+}
+Create a jar file called ‘test-agent.jar’ by packaging the class file ‘net.javabeat.articles.javaagent.test.TestJavaAgent’ and the manifest file ‘MANIFEST.MF’
+Make use of the command, to run the agent, java -javaagent:test-agent.jar net.javabeat.articles.javaagent.test.TestMain
+The above command will produce the below output,
+1
+Test Java Agent
+2
+Test Main Class
+Note that there are several things to be noted in the above section. First of all, the agent to be run is passed as virtual machine parameter to the application. This is done through the option ‘javaagent’, what follows after that is ‘:’ followed by the path to the jar file. Note that agent classes are invoked first before the above application classes, this can be seen from the output produced by the sample program.
+Writing a simple Agent
+Now that we have familiarized with the several aspects involved in writing a simple agent, let us start adding some more functionality to the agent in this section. Consider the below code snippet representing the agent,
+1
+package net.javabeat.articles.javaagent.simple;
+2
+import java.lang.instrument.Instrumentation;
+3
+public class SimpleAgent {
+4
+    public static void premain(String agentArguments,
+5
+                      Instrumentation instrumentation){
+6
+        System.out.println('Simple Agent');
+7
+        SimpleClassTransformer transformer =
+8
+                    new SimpleClassTransformer();
+9
+        instrumentation.addTransformer(transformer);
+10
+    }
+11
+}
+Note that the very purpose of having agent is to provide instrumentation capabilities to the application – i.e. the capability to re-define the signature of the class files during run-time. The method premain() is passed with Instrumentation object that serves its very purpose. Using Instrumentation object it is possible to adding transformer objects. Transformer object does the real job of transforming (or re-defining) the content of class files at run-time. The above code defines a transformer object, whose declaration is given below,
+1
+package net.javabeat.articles.javaagent.simple;
+2
+import java.lang.instrument.ClassFileTransformer;
+3
+import java.lang.instrument.IllegalClassFormatException;
+4
+import java.security.ProtectionDomain;
+5
+public class SimpleClassTransformer implements ClassFileTransformer{
+6
+    public byte[] transform(ClassLoader    loader,
+7
+            String              className,
+8
+            Class            classBeingRedefined,
+9
+            ProtectionDomain    protectionDomain,
+10
+            byte[]              classfileBuffer)
+11
+            throws IllegalClassFormatException {
+12
+ 
+13
+        System.out.println(className);
+14
+        return classfileBuffer;
+15
+    }
+16
+}
+Note that, a transformer object must implement the ClassFileTransformer interface and the abstract method transform needs to be overridden. This method will be called for every class that is loaded as part of the application. Note that the content of the class can be represented as byte array and this method can re-define the class content that returnss a different byte array (as denoted by the method signature). For simplicity, this method returns the original class byte array that is passed to it.
+1
+Manifest-Version: 1.0
+2
+Premain-Class: net.javabeat.articles.javaagent.simple.SimpleAgent
+Given above is the content of the manifest file for the agent. Note that for testing the agent, we need a sample application file which is given below. To illustrate the behavior of class loading, the application creates instances for Test classes.
+
+ 
+1
+package net.javabeat.articles.javaagent.simple;
+2
+public class SimpleMain {
+3
+    public static void main(String[] args) {
+4
+        Test1 one = new Test1();
+5
+        Test2 two = new Test2();
+6
+        System.out.println('Simple Main ' + one + two);
+7
+    }
+8
+}
+9
+class Test1{}
+10
+class Test2{}
+Running the above application along with the agent will produce the following output.
+1
+Simple Agent
+2
+net/javabeat/articles/javaagent/simple/SimpleMain
+3
+net/javabeat/articles/javaagent/simple/Test1
+4
+net/javabeat/articles/javaagent/simple/Test2
+5
+Simple Main net.javabeat.articles.javaagent.simple.
+6
+Test1@61de33net.javabeat.articles.javaagent.simple.Test2@14318bb
+Agents for collecting statistical data
+In the last section, we have seen how to make use of Instrumentation object. We also saw how to manipulate Instrumentation object by adding Transformer objects. In this final section, we will see the real capability of agents for providing some statistical information about the methods being loaded for a particular class. For the purpose of illustration, let us expand the scope of the sample by provide a business class having empty business methods. Let us also assume that because the methods are for external usage, all the methods have to be public.
+1
+package net.javabeat.articles.javaagent.statistics;
+2
+public class MyBusinessClass {
+3
+    public void bizMethod1(){
+4
+        System.out.println('Biz Method 1');
+5
+    }
+6
+    @SuppressWarnings('unused')
+7
+    private void bizMethod2(){
+8
+        System.out.println('Biz Method 2');
+9
+    }
+10
+}
+The above code has the definition of the business class. Deliberately, the modifier for the method bizMethod2() is given as private. The agent class is given below. Note that, as illustrated in the last section, this class makes use of Instrumentation object to add transformer objects to it.
+1
+package net.javabeat.articles.javaagent.statistics;
+2
+import java.lang.instrument.Instrumentation;
+3
+public class StatisticsAgent {
+4
+    public static void premain(String agentArguments,
+5
+                         Instrumentation instrumentation){
+6
+        StatisticsClassTransformer transformer =
+7
+                   new StatisticsClassTransformer();
+8
+        instrumentation.addTransformer(transformer);
+9
+    }
+10
+}
+The flavor of the Transformer class that has the functionality of providing statistical information is given below. At this point, note that by the time when the agent is invoked, the class is not loaded. It is only during the class loading time, the agent is invoked. Hence reflection related APIs cannot be used at this point. For querying the method information for a particular class, the implementation makes use of ASM (byte code analysis library).
+1
+package net.javabeat.articles.javaagent.statistics;
+2
+ 
+3
+import java.io.IOException;
+4
+import java.lang.instrument.ClassFileTransformer;
+5
+import java.lang.instrument.IllegalClassFormatException;
+6
+import java.lang.reflect.Method;
+7
+import java.lang.reflect.Modifier;
+8
+import java.security.ProtectionDomain;
+9
+import java.util.List;
+10
+ 
+11
+import org.objectweb.asm.ClassReader;
+12
+import org.objectweb.asm.tree.ClassNode;
+13
+import org.objectweb.asm.tree.MethodNode;
+14
+ 
+15
+public class StatisticsClassTransformer implements ClassFileTransformer{
+16
+ 
+17
+    public byte[] transform(ClassLoader    loader,
+18
+            String              className,
+19
+            Class            classBeingRedefined,
+20
+            ProtectionDomain    protectionDomain,
+21
+            byte[]              classfileBuffer)
+22
+            throws IllegalClassFormatException {
+23
+ 
+24
+        System.out.println();
+25
+        System.out.println('Processing class ' + className);
+26
+ 
+27
+        String normalizedClassName = className.replaceAll('/', '.');
+28
+ 
+29
+        ClassReader classReader = null;
+30
+        try {
+31
+            classReader = new ClassReader(normalizedClassName);
+32
+        } catch (IOException e1) {
+33
+            e1.printStackTrace();
+34
+        }
+35
+ 
+36
+        ClassNode classNode = new ClassNode();
+37
+        classReader.accept(classNode, ClassReader.SKIP_DEBUG);
+38
+ 
+39
+        @SuppressWarnings('unchecked')
+40
+        List allMethods = classNode.methods;
+41
+        for (MethodNode methodNode : allMethods){
+42
+            System.out.println(methodNode.name);
+43
+        }
+44
+        return classfileBuffer;
+45
+    }
+46
+ 
+47
+    private static void processBizMethods(Class classObject) {
+48
+        if (MyBusinessClass.class.equals(classObject)){
+49
+            Method[] allMethods = classObject.getDeclaredMethods();
+50
+            for (Method aMethod : allMethods){
+51
+                System.out.println(aMethod.getName());
+52
+                int modifiers = aMethod.getModifiers();
+53
+                if (Modifier.isPrivate(modifiers)){
+54
+                    System.out.println('Method ' +
+55
+                                        aMethod.getName() + ' is private');
+56
+                }
+57
+            }
+58
+        }
+59
+    }
+60
+ 
+61
+    public static void main(String[] args) {
+62
+        processBizMethods(MyBusinessClass.class);
+63
+    }
+64
+}
+The content of the manifest file for the above agent is given below.
+1
+Manifest-Version: 1.0
+2
+Premain-Class: net.javabeat.articles.javaagent.statistics.StatisticsAgent
+The content of the application that triggers the agent class is given below.
+1
+package net.javabeat.articles.javaagent.statistics;
+2
+public class StatisticsMain {
+3
+    public static void main(String[] args) {
+4
+        MyBusinessClass object = new MyBusinessClass();
+5
+        System.out.println('Biz Object ' + object);
+6
+    }
+7
+}
+The output of the application is given below,
+1
+Processing class net/javabeat/articles/javaagent/statistics/StatisticsMain
+2
+<init>
+3
+main
+4
+ 
+5
+Processing class net/javabeat/articles/javaagent/statistics/MyBusinessClass
+6
+<init>
+7
+bizMethod1
+8
+bizMethod2
+9
+Biz Object net.javabeat.articles.javaagent.statistics.MyBusinessClass@a59698
+Conclusion
+Download Source Code: Java Agents (891)
+This article provides introductory concepts about Java agents which are introduced from 5.0. It provides a good starter about the usage of agents by providing lot of examples. Hope the readers will be benefited after reading this article.
+- See more at: http://www.javabeat.net/introduction-to-java-agents/#sthash.r8piRB2W.dpuf
+
+
+
