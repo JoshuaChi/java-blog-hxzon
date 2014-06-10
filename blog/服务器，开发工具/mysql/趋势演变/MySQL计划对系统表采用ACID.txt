@@ -1,0 +1,42 @@
+﻿MySQL计划对系统表采用ACID
+作者 Jonathan Allen ，译者 丛一 发布于 2014年6月6日
+http://www.infoq.com/cn/news/2014/06/MySQL-System-Tables
+
+
+MySQL目前仍然用MyISAM而不是InnoDB存储其关键的系统表，这可能让许多开发者感到很惊讶。
+因为MyISAM并不是ACID（原子性、一致性、隔离性和持久性）兼容的，
+当修改像权限这样的系统对象时，可能会导致数据丢失或损坏。
+Morgan Tocker已经对外宣布MySQL团队计划使用InnoDB作为MySQL系统表的存储引擎。
+
+MyISAM是MySQL最初使用的存储引擎。它基于IBM的主机数据库技术——索引顺序存取方法（Indexed Sequential Access Method），即ISAM。
+由于MyISAM不支持事务，也就没有与之相关的开销，所以它往往要比其他的数据库存储引擎速度更快一些。
+这种引擎的缺点在于它不是ACID兼容的，所以很容易造成数据损坏，特别是在电力故障的情况下。
+
+MyIASM的首选替代方案就是由Innobase Oy公司开发的InnoDB。
+因为其可以提供ACID兼容的事务、外键约束及其他一些功能，
+Oracle在MySQL5.5就将InnoDB设定为默认的存储引擎。
+
+目前仍在积极开发的其他MySQL存储引擎包括：
+
+Oracle开发的Archive
+Monty Program公司的Aria
+Monty Program公司的CONNECT
+Oracle的CSV
+Oracle的NDB
+Calpont公司的InfiniDB
+TokuTek公司的TokuDB
+Percona公司的XtraDB
+Monty Program公司的FederatedX
+Monty Program公司的CassandraSE
+Monty Program公司的sequence
+Monty Program公司的mroonga
+
+尽管MySQL计划只支持InnoDB，它的分支MariaDB对存储引擎的选择仍保持完全不可知的状态。
+
+关于发布日期，Morgan表示：
+
+与包含明确功能的版本不同，开发里程碑版本（DMR）的‘发布列车’模型要求各个特性在合并之前必须已经处于稳定状态。
+所以我不想在这里提前透露还在开发初期的工作。只能说很快。:D
+
+查看英文原文：MySQL to Adopt ACID for System Tables
+

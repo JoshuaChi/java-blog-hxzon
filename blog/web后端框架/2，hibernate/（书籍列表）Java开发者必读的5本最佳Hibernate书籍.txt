@@ -1,0 +1,84 @@
+﻿（书籍列表）Java开发者必读的5本最佳Hibernate书籍
+  
+原文链接： javarevisited 翻译： ImportNew.com - will
+译文链接： http://www.importnew.com/11640.html
+
+本文由 ImportNew - will 翻译自 javarevisited。欢迎加入Java小组。转载请参见文章末尾的要求。
+
+=======
+Hibernate是最受欢迎的开源ORM（Object Relational Mapping 对象关系映射）框架之一，并且随着JPA的出现，它已成为开发Java企业级应用持久层的一个标准。
+我经常会收到这样一些反馈，如”哪本是学习hibernate最好的书籍”或”请推荐一些学习Spring和Hibernate好的书籍”。
+这促使我撰写这篇文章介绍一些市面上学习Hibernate最好的书籍。
+之前我分享过一些Java开发者必读的Spring框架书籍，这对于挑选一本书来学习Spring相当有帮助。
+和Spring框架相似，Hibernate开发经验在JavaEE开发角色中同样是最受捧的。
+如果你去看对Java开发角色的描述，你将经常会看到Spring和Hibernate而非Java。
+所有这些意味着，在你的简历中包含Hibernate的知识和经验是必须的。
+由于大部分招聘人员都使用FIX protocol、Tibco RV、Spring、Hibernate等关键词，在你的简历中包含它们会更容易让你被选中。
+因为大部分Java开发者熟悉JDBC，招聘人员经常趋于使用那些Hibernate提供而JDBC缺失的关键词，
+例如懒加载、缓存和管理对象之间的关联等。
+这些书将帮助你学习Hibernate，提高你现有的Hibernate知识水平，了解一些关于HIbernate和ORM的最佳实践。
+读完这些Hibernate书籍后，你还能回答Java开发者被问到的大部分Hibernate面试题。
+
+Java编程人员必读的5本Hibernate书籍
+
+按照我的经验，学习一门新技术一本书是绝对不够的，
+但同时，你又不得不从一本书开始。一旦你具备了一些Hibernate的知识，你便可以阅读更广泛的Hibernate书籍。
+由于这个原因，我这里将书籍按照初学者偏好进行排序，
+从第一本书开始，我认为它最适合Hibernate所有初学者或者正在学习Hiberate框架的Java开发人员。
+
+====
+1) Hibernate Made Easy
+
+由Cameron Wallace McKenzie, Kerri Sheehan撰写的《Hibernate Made Easy:通过Hibernate和JPA(Java 持久API)简化数据持久化》是一本适用于初学者的书籍。这本书的核心优点之一是它的简单、明了和简洁，它不是一部巨著。本书使用很多重要且简单的例子来阐述Hibernate不同的特性。我喜欢这本书的关键之一是这些例子使用了我最喜欢的MySQL数据库。你还能利用一个使用JAVA、JSP和Hibernate开发，运行在Apache Tomcat上的完整的Web应用。通过一个完整的项目比你使用很多例子将会学到更多东西。事实上，个别的特性当需要加深理解时，也能够通过类似应用的完整项目最好地被学习，这就是该书优秀的地方。如果你是Java开发者，并且很少或者几乎不了解Hibernate，使用该书来学习Hibernate框架吧。这本书唯一的缺点是它没有使用基于XML的映射，如果你的应用确实需要，可能你想要看看下一本书。
+
+2) Harnessing Hibernate
+
+James Elliott, Timothy M. O’Brien, Ryan Fowler撰写的《Harnessing Hiberante》是《Hiberate Made Easy》的理想伴侣。
+前者主要关注JPA注解，而本书是通过基于XML的Hibernate映射配置来教你Hibernate的概念。
+《Harnessing Hibernate》是另一本广受欢迎的书Hibernate：A Developer NoteBook的延续。
+我读了开发者笔记系列的两本书，包括Java 5 Tiger:Developer NoteBook，真的很享受这种方法。
+它并不全面，但它的轻量级和简洁使它成为学习Hibernate的一种好的选择。
+它还有两个应用项目，帮助你学习Hibernate开发，同时它也很好地介绍了Hibernate查询语言(HQL)，它不同于SQL。
+你还可以通过这本书建立起基于Java开发的完整Hibernate框架，包括Spring和Eclipse。
+
+3) Beginning Hibernate
+
+由Jeff Linwood, Dave Minte合著的《Beginning Hibernate第二版》是我要介绍给初学者的第三本书。
+它与之前两本没有太多区别，如果你阅读了前面的书籍，可能你并不需要这本。
+但假如你很难关联上面两本书籍的话，你可以尝试阅读这本书。
+这本hibernat书籍的好处之一是它涵盖了Hibernate 3.5版本。
+这本书的优点之一是它的案例分析，这些案例从头到尾讲解了关键的关系概念，包括一对多关系和多对多关系。
+总之如果你不能将《Hibernate Made easy》和《Harnessing Hibernate》关联起来，可以使用这本书，
+如果不需要，那么作为一个初学者你已经具备了足够的知识。
+
+====
+hxzon：以下两本，不错的书。
+
+4) Java Persistence With Hibernate
+
+至今为止，这是所有Hibernate开发者的必读之书。
+《Java Persistence With Hibernate》由Christian Bauer和Gavin Kin撰写，
+他们是Hibernate发展团队的成员，并涉及了EJB 3.0和JBoss。
+他们还是曼宁畅销书《Hibernate in Action》的联合作者。
+目前，这是关于Hibernate最全面的书，它不仅介绍了对象关系映射的基础、Hibernate框架，
+还包括Hibernate中使用的最通用的设计模式，例如数据访问对象(DAO)模式。
+这本书介绍了很多关于加载策略、缓存、事务和数据库设计与ORM技术的最佳实践方面的知识。
+我推荐任何级别的Java Hibernate开发者至少阅读一遍该书，以对Hibernate的整个蓝图有所了解。
+该书有超过800页，并不是很容易阅读，但作为以后的参考绝对值得一读。
+
+5) Hibernate Recipes:A Problem-Solution Approach By Gary Mak,Sriniva Guruzu
+
+我选择这本书是因为它的风格-一种问题解决的方法。
+类似于《Spring recipes : A Problem solution approach》这本书通过引出一个问题并解决它来教授你Hibernate。
+这种方法能够作用于很多开发者，如果你享受这个系列之前的书籍，你同样会喜欢这本书。
+每个单独的食谱都通过合适的代码样例和恰当的解释来描述。
+阅读这本书时我个人感觉它的一个优点是比较式学习。
+例如，如果你使用JDBC作为一种方式来解决，那么Hibernate是如何帮你解决的呢，它又提供了什么更多的东西呢等。
+虽然有时这种书读起来过于沉重了，基于话题的方式不适合持续性阅读，但作为一种改变的尝试，它还是很不错的。
+
+这就是我推荐的所有Java开发者的必读Hibernate书籍。
+除了这些书，我强烈推荐Hibernate文档，他们是最新信息的源头，并且都写得很好。
+由于一本书对于掌握任何新框架或技术永远是不够的，我通常选择2或3本。
+对于中级Java开发者，我推荐《Hibernate Made Easy》和《Java Persistence with Hibernatte》这两本
+作为学习Hibernate框架大部分知识的最佳书籍。
+

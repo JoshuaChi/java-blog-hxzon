@@ -1,0 +1,39 @@
+﻿HTTP1.1协议更新：RFC2616遭废弃
+
+HTTP/1.1协议更新：RFC2616遭废弃
+http://www.infoq.com/cn/news/2014/06/http-11-updated
+
+近日，IETF更新了HTTP/1.1协议，这是10多年来HTTP/1.1协议的首次重大更新。
+组织者将原来的RFC 2616拆分为六个单独的协议说明，并重点对原来语义模糊的部分进行了解释，
+新的协议说明更易懂、易读。
+
+新的协议说明包括以下六部分：
+
+RFC7230 - HTTP/1.1: Message Syntax and Routing - low-level message parsing and connection management
+RFC7231 - HTTP/1.1: Semantics and Content - methods, status codes and headers
+RFC7232 - HTTP/1.1: Conditional Requests - e.g., If-Modified-Since
+RFC7233 - HTTP/1.1: Range Requests - getting partial content
+RFC7234 - HTTP/1.1: Caching - browser and intermediary caches
+RFC7235 - HTTP/1.1: Authentication - a framework for HTTP authentication
+
+早在2007年，IETF内部就成立了名为HTTPbis的工作小组来完成对HTTP/1.1的修订，
+他们的目标是让HTTP/1.1协议规范更加清晰易读，而不是添加新特性或者升级协议。
+在整个协议的修订过程中，小组成员共发布了26个草稿版本，修改次数超过2600次，处理了550多个问题。
+在文档整理过程中，HTTPbis也对HTTP/1.1协议的一些不合理或者不安全的地方进行了改进，
+
+Evert在其博客上总结了此次更新中的一些重大变化：
+
+对如何处理不应该出现的空格进行了规定，将修复HTTP Response Splitting漏洞
+移除每个服务器两个连接的限制
+不再支持HTTP/0.9
+默认编码不再是ISO-8859-1
+服务器不再被强制要求处理所有Content-*请求头内容
+PUT请求头禁止使用Content-Range
+如果请求头中Referer不存在，建议使用about:blank，以便对“没有Referer”和“我不想发送Referer”加以区别
+状态码204, 404, 405, 414 和501现在可以缓存了（cachable）
+状态码301和302现在允许用户代理（user-agent）将请求方式从POST改为GET。虽然原标准不允许，但其实人们早就在这样做了，标准迎合现实，这就是个很好的例子。
+请求头的Location现在可以包含相对URI和片段标识符（fragment identifiers）
+Content-MD5被移除
+
+更多详细的改进内容请读者阅读RFC中的Changes from RFC 2616部分。
+

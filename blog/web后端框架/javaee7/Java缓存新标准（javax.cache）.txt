@@ -1,0 +1,281 @@
+﻿Java缓存新标准（javax.cache）
+
+
+原文链接： javacodegeeks 翻译： ImportNew.com - 陈 晓舜
+译文链接： http://www.importnew.com/11723.html
+本文由 ImportNew - 陈 晓舜 翻译自 javacodegeeks。欢迎加入Java小组。转载请参见文章末尾的要求。
+
+=======
+这篇文章探索Java缓存的新标准：javax.cache。
+
+怎么融入到Java生态系统（Java Ecosystem）
+
+这个标准由JSR107所提出，它的作者同样也是标准制定的领导者。
+JSR107由JSR342提出，已经被包含在Java EE 7中。
+Java EE7将会在2012年底定稿。
+但现在在Java SE6或更新的版本和Java EE 6环境中，甚至Spring和另外一些流行的开发环境中，javax.cache都可以正常使用。
+
+JSR107当前正处于起草阶段。
+我们当前最新的API发行版是0.3，同样也有它的参照实现和TCK。
+文章中的代码正是用的这个版本。
+
+使用
+
+专家团队中比较活跃或者有兴趣实现规范的厂商有：
+
+Terracotta – Ehcache
+Oracle – Coherence
+JBoss – Infinispan
+IBM – ExtemeScale
+SpringSource – Gemfire
+GridGain
+TMax
+Google App Engine Java
+
+Terracotta将会根据最终的草稿发布一个Ehcache组件，在需要的情况下会更新。
+
+====
+特性
+
+从设计的角度来看，基本的概念是一个CacheManager保存和控制一系列的缓存。
+缓存有很多条目（entries）。
+基本的API可以被当做是一个类似map并拥有下面一些特点的东西：
+
+原子操作，跟java.util.ConcurrentMap类似
+从缓存中读取
+写入缓存
+缓存事件监听器
+数据统计
+包含所有隔离（ioslation）级别的事务
+缓存注解（annotations）
+保存定义key和值类型的泛型缓存
+引用保存（只适用于堆缓存）和值保存定义
+
+====
+可选特性
+
+我们通过另外一种方法，而不是把规范拆分成针对如Java SE和Spring/EE不同用户群体的多个版本。
+
+首先，对Java SE方式的缓存，它是没有任何依赖的。
+而对于Spring/EE你想要使用注解（annotations）和/或者事务，依赖将由这些框架提供。
+
+其次，我们提供了一个ServiceProvider.isSupported(OpertionalFeature feature)功能API，
+所以你可以在运行时决定实现的功能是什么。
+
+可选的特性如下：
+
+storeByReference – 默认storeByValue
+事务性
+注解
+
+这使得各个API实现可以在不用实现所有特性的情况下支持规范，并且允许终端用户和框架去探索那些功能是什么，以便动态地配置合适的使用。
+
+====
+对单个和分布式的缓存的好处
+
+虽然规范中没有要求特别的分布式缓存结构，但实际上已经是默认缓存是分布的。
+我们有一个API可以覆盖这两种使用，但对分布式比较敏感。
+例如CacheEntryListener有一个它监听的事件的NotificationScope，因此事件可以被限制在本地的传递。
+我们没有高网络消耗的类似map的如keySet()和values()的方法。
+并且，我们通常更倾向于不使用或使用低消耗的返回类型。
+所以Map有一个V put(K key, V value)，javax.cache.Cache有一个void put(K key, V value)。
+
+====
+类加载
+
+缓存包含了供多个线程使用的数据，而这些线程又可能是运行在同一个JVM下的不同的容器应用或者OSGI组件，
+并且可能在一个集群中的多个JVM中。
+这使得类加载比较困难。
+
+我们设法解决了这个问题。在创建CacheManager时可以指定一个classloader。
+如果没有指定，实现方式将会提供一个默认的。
+当对象被反序列化时，会使用CacheManager的classloader。
+
+这相比其他缓存如Ehcache等采用的后备方案是一个很大的进步。
+线程的上下文classloader首先被使用，如果它加载失败，则会尝试其他的classloader。
+这在大多数情况下都可以正常工作，但这还是有命中的问题，并且不同的实现方式有相当大的区别。
+
+获取代码
+
+标准的规范在Maven中文仓库中。Maven的代码段如下：
+
+<dependency>
+     <groupId>javax.cache</groupId>
+     <artifactId>cache-api</artifactId>
+     <version>0.3</version>
+</dependency>
+
+====
+API快速入门
+
+创建一个CacheManager
+
+我们也支持Java 6 java.util.ServiceLoader创建方式。它会自动检测你的classpath中存在的缓存实现。
+接着，你可以创建通过下面的语句CacheManager：
+
+
+CacheManager cacheManager = Caching.getCacheManager();
+
+它返回一个被称做“default”单例CacheManager。在它之后的调用都会返回同一个CacheManager。
+
+CacheManagers can have names and classloaders configured in. e.g.
+ 
+    CacheManager cacheManager =
+     Caching.getCacheManager("app1", Thread.currentThread().getContextClassLoader());
+ 
+Implementations may also support direct creation with new for maximum flexibility:
+ 
+    CacheManager cacheManager =
+        new RICacheManager("app1", Thread.currentThread().getContextClassLoader());
+ 
+CacheManager可以通过下面的方式来配置名称和classloader：
+ 
+    CacheManager cacheManager =
+        new RICacheManager("app1", Thread.currentThread().getContextClassLoader());
+
+各个实现考虑到最好的灵活性也支持通过new进行直接的创建：
+
+CacheManager cacheManager =
+    new RICacheManager("app1", Thread.currentThread().getContextClassLoader());
+
+或者可以在不添加任何具体实现到编译时依赖的情况下完成同样的事情：
+
+String className = "javax.cache.implementation.RIServiceProvider";
+Class<ServiceProvider> clazz =
+(Class<ServiceProvider>)Class.forName(className);
+ServiceProvider provider = clazz.newInstance();
+return provider.createCacheManager(Thread.currentThread().getContextClassLoader(), "app1");
+
+我们希望各个实现都可以拥有它们各自的用于方便配置CacheManager的为人熟知的配置文件。
+CacheManager的名称可以用于区分各个配置文件。
+对于ehcache，这会是我们熟悉的位于classpath根目录的ehcache.xml，但会带上CacheManager的名称和连接符作为前缀。
+所以，默认的CacheManager将会是ehcache.xml，而“myCacheManager”将会是app1-ehcache.xml。
+
+====
+创建缓存
+
+API支持编程式的创建缓存。这个是作为通常留给厂商实现的声明式缓存的补充。
+
+编程式的配置一个名为“testCache”的只读缓存：
+
+cacheManager = getCacheManager();
+CacheConfiguration cacheConfiguration = cacheManager.createCacheConfiguration();
+cacheConfiguration.setReadThrough(true);
+Cache testCache = cacheManager.createCacheBuilder("testCache")
+ .setCacheConfiguration(cacheConfiguration).build();
+
+====
+获取缓存引用
+
+你需要从CacheManager中获取缓存。获取一个名为“testCache”的缓存：
+
+
+Cache<Integer, Date> cache = cacheManager.getCache("testCache");
+
+基本缓存操作
+
+把数据存入缓存：
+
+Cache<Integer, Date> cache = cacheManager.getCache(cacheName);
+Date value1 = new Date();
+Integer key = 1;
+cache.put(key, value1);
+
+从缓存中获取数据：
+
+Cache<Integer, Date> cache =
+ cacheManager.getCache(cacheName);
+Date value2 = cache.get(key);
+
+从缓存中删除：
+
+Cache<Integer, Date> cache =
+ cacheManager.getCache(cacheName);
+Integer key = 1;
+cache.remove(key);
+
+====
+注解
+
+JSR107引入一系列标准的缓存注解，这些注解用于在依赖注入（dependency injection）容器中对注解类进行方法级别上的缓存拦截。
+缓存注解从Ehcache提供给Spring的注解开始正在变得越来越流行，而Ehcache的注解还影响了Spring 3的缓存注解。
+
+JSR 107注解包含了最基本的缓存操作，包括有：
+
+@CacheResult – 使用缓存
+@CachePut – 保存缓存
+@CacheRemoveEntry – 从缓存中删除单条记录
+@CacheRemoveAll – 删除缓存中的所有记录
+
+但缓存名称，key和value是可选的输入，并不强制需要提供。
+具体可以查看JavaDoc。
+为了更好地控制，你可以指定这些元素或者作更多地限制。
+在下面的例子中，cacheName属性被指定为“domainCache”，index被指定为缓存key，而domain被指定为缓存value。
+
+public class DomainDao {
+     @CachePut(cacheName="domainCache")
+     public void updateDomain(String domainId, @CacheKeyParam int index,
+ @CacheValue Domain domain) {
+ ...
+     }
+}
+
+参照的实现包含了Spring和CDI的实现。
+CDI是在Java EE 6引入的标准化的注入容器。
+这个实现为了方便重用已经很好地模块化，它使用Apache license，因此我们希望其他的几个开源缓存可以重用它。
+虽然我们没有为Guice作一个实现，但这可以很容易地做到。
+
+注解示例
+
+这个例子展示怎么使用注解保持缓存和底层的数据结构进行同步，在这里就是Blog manager，还有展示了怎么通过@CacheResult使用缓存来加快响应。
+
+public class BlogManager {
+ 
+ @CacheResult(cacheName="blogManager")
+ public Blog getBlogEntry(String title) {...}
+  
+ @CacheRemoveEntry(cacheName="blogManager")
+ public void removeBlogEntry(String title) {...}
+  
+ @CacheRemoveAll(cacheName="blogManager")
+ public void removeAllBlogs() {...}
+ 
+ @CachePut(cacheName="blogManager")
+ public void createEntry(@CacheKeyParam String title, @CacheValue Blog blog) {...}
+  
+ @CacheResult(cacheName="blogManager")
+ public Blog getEntryCached(String randomArg, @CacheKeyParam String title){...}
+}
+
+====
+和Spring结合使用
+
+对于Spring，key就是下面这行配置，它为Spring上下文添加缓存注解拦截器（caching annotation interceptors）。
+
+<jcache-spring:annotation-driven proxy-target-class="true"/>
+
+完整的例子如下：
+
+<beans>
+ <context:annotation-config/>
+ <jcache-spring:annotation-driven proxy-target-class="true"/>
+ <bean id="cacheManager" factory-method="getCacheManager" />
+</beans>
+
+Spring有它自己的基于早期JSR107贡献者Eric Dalquist的相关工作的缓存注解。
+那些注解和JSR107可以非常好的共存。
+
+====
+和CDI结合使用
+
+首先创建一个javax.cache.annotation.BeanProvider的实现类，
+通过在classpath目录/META-INF/services定义名为javax.cache.annotation.BeanProvider的资源来告诉CDI应该去哪里找它。
+
+想要看如何跟CDI结合使用的例子，可以参考我们CDI测试用例中的CdiBeanProvider。
+
+====
+深入阅读
+
+更深入的阅读请访问JSRs在https://github.com/jsr107/jsr107spec的主页
+
+参考文档：JCG成员Greg Luck的博客javax.cache：Java新缓存标准
