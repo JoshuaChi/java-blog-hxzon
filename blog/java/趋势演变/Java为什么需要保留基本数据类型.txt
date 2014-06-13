@@ -1,0 +1,424 @@
+﻿Java为什么需要保留基本数据类型
+http://www.importnew.com/11915.html
+
+
+原文链接： javaworld 翻译： ImportNew.com - miracle1919
+
+====
+基本数据类型对以数值计算为主的应用程序来说是必不可少的。
+
+自从1996年Java发布以来，基本数据类型就是Java语言的一部分。
+John Moore通过对使用基本类型和不使用基本类型做java基准测试给Java中为什么要保留基本数据类型做了一个很有力的说明。
+然后，他还在特定类型的应用中把Java和Scala、C++和JavaScript的性能做了对比。
+在这些应用中，使用基本数据类型应用性能会有很显著的不同。
+
+问：影响买房最重要的三个因素是什么？
+答：位置!位置!还是位置!!
+
+这是个很古老但却经常被提及的谚语。
+意思是，当购买房产的时候，位置因素是绝对的主导因素。
+与此类似，考虑在Java中使用基本数据类型的3个最重要的因素，那就是性能！性能！还是性能！！
+房产与基本数据类型有两个不同之处。
+首先，位置主导几乎适用于所有买房的情况。
+但是使用基本类型带来的性能提升，对不同类型的应用程序来大不相同。
+其次，尽管其他的因素与位置相比在买房时都显得不太重要，但是也是应该被考虑的因素。
+而使用基本数据类型的原因却只有一个——那就是性能，并且只适用于那些使用后能提升性能的应用。
+
+基本数据类型对大多数业务相关或网络应用程序没有太大的用处，这些应用一般是采用客户端/服务器模式，后端有数据库。
+然而，使用基本数据类型对那种以数值计算为主的应用提升性能有很大好处。
+
+在Java语言中包含基本数据类型是最有争议的设计决定之一，关于这个决定讨论的文章和帖子比比皆是。
+2011年9月，Simon Ritter在JAX London上的演讲说，要认真考虑在Java未来的某个版本中删除基本数据类型。
+接下来，我会简要介绍基本数据类型和Java的双类型系统。
+通过示例代码和简单的基准测试说明为什么基本数据类型对于某些类型的应用程序是必须的。
+我也会对Java与Scala、C++和JavaScript性能做一些比较。
+
+====
+测量软件性能
+
+软件性能经常用时间和空间来衡量。时间可以是实际的运行时间，比如3.7分钟，或者是基于输入规模的时间复杂度，比如O(n2)。
+对于空间的衡量也是如此。
+经常用内存消耗来衡量，有时候也会扩大到磁盘的使用。
+改善性能经常要做时间和空间的折衷，缩短时间经常会对空间造成损害，反之亦然。
+时间复杂度取决于算法，把包装类型切换成基本数据类型对结果不会有任何改变，
+但是使用基本数据类型取代对象类型能改善时间和空间的性能。
+
+基本数据类型vs对象类型
+
+当你阅读这篇文章的时候，可能已经知道了Java是双类型的系统，也就是基本数据类型和对象类型，简称基本类型和对象。
+Java中有8个预定义的基本类型，它们的名字都是保留的关键字。
+常见的基本类型有int、double和boolean。
+Java中所有其他的类型包括用户自定义的类型，它们必然也是对象类型（我说”必然”是因为数组类型有点例外，与基本类型比数组更像是对象类型)。
+每一个基本类型都有一个对应的对象包装类，比如int的包装类是Integer，double的包装类是Double，boolean的包装类是Boolean。
+
+基本类型基于值，而对象类型则基于引用。
+与基本类型相关的争议都源于此。
+为了说明它们的不同，先来看一下两个声明语句。
+第一个语句使用的是基本类型，第二个使用的是包装类。
+
+
+int n1 = 100;
+Integer n2 = new Integer(100);
+
+使用新添加到JDK5的特性自动装箱以后，第二个声明可以简化成：
+
+
+Integer n2 = 100;
+
+但是，底层的语义并没有发生改变。
+自动装箱简化了包装类的使用，减少了程序员的编码量，但是对运行时并没有任何的改变。
+
+图1展示了基本类型n1和包装对象类型n2的区别。
+
+图1. 基本类型vs对象类型的内存结构
+图1. 基本类型vs对象类型的内存结构
+
+n1持有一个整数的值，但是n2持有的是对一个对象的引用，即那个对象持有整数的值。
+除此之外，n2引用的对象也包含了一个对Double对象的引用。
+
+====
+基本数据类型存在的问题
+
+在我试图说服你需要基本类型之前，首先我应该感谢不同意我观点的那些人。
+Sherman Alpert在”基本类型是有害的(Primitive types considered harmful)”这篇文章中说基本类型是有害的，因为“它们把函数式的语义混进了面向对象模型里面，让面向对象变得不纯。
+基本类型不是对象，但是它们却存在于以一流对象为根本的语言中”。
+基本类型和(包装类形式的)对象类型提供了两种处理逻辑上相似的类型的方式，
+但是在底层的语义上却有着非常大的不同。
+比如，两个实例如何来比较相等性？
+对于基本类型，使用==操作符，但是对于对象类型，更好的方式是调用equals()方法，而基本类型是没有这个操作的。
+相似的，在赋值和传参的语义上也是不同的。
+就连默认值也是不一样的，比如int的默认是值0，但是Integer的默认值是null。
+
+关于这个话题的更多的背景可以参考Eric Bruno的博客”关于基本类型的讨论(A modern primitive discussion)”，
+里面总结了关于基本类型的正反两方面的意见。
+Stack Overflow上也有很多关于基本类型的讨论，包括”为什么人们仍然在Java中使用基本类型?
+(Why do people still use primitive types in Java?)”，
+”有没有只使用对象不使用基本类型的理由?
+(Is there a reason to always use Objects instead of primitives?)”。
+Programmers Stack Exchange上也有一个类似的叫做”Java中什么时候应该使用基本类型和对象类型?
+(When to use primitive vs class in Java?)”的讨论。
+
+====
+内存的使用
+
+Java中的double总是占据内存的64个比特，但是引用类型的字节数取决于JVM。
+我的电脑运行64位Win7和64位JVM，因此在我的电脑上一个引用占用64个比特。
+根据图1，一个double比如n1要占用8个字节(64比特)，
+一个Double比如n2要占用24个字节——对象的引用占8个字节，对象中的double的值占8个字节，对象中对Double对象的引用占8个字节。
+此外，Java需要使用额外的内存来支持对象的垃圾回收，但是基本类型不需要。
+下面让我们来验证下。
+
+跟Glen McCluskey在”Java基本类型 VS 包装类型(Java primitive types vs. wrappers)”中使用的方式类似，
+列表1中的方法会测量一个n*n的double类型的矩阵(二维数组)所占的字节数。
+
+列表1. 计算double类型的内存使用
+
+public static long getBytesUsingPrimitives(int n)
+  {
+    System.gc();   // force garbage collection
+    long memStart = Runtime.getRuntime().freeMemory();
+    double[][] a = new double[n][n];
+ 
+    // put some random values in the matrix
+    for (int i = 0;  i < n;  ++i)
+      {
+        for (int j = 0; j < n;  ++j)
+            a[i][j] = Math.random();
+      }
+ 
+    long memEnd = Runtime.getRuntime().freeMemory();
+ 
+    return memStart - memEnd;
+  }
+
+修改列表1中的代码(没有列出来)，改变矩阵的元素类型，我们也可以测量一个nn的Double类型的矩阵所占的字节数。
+在我的电脑上用10001000的矩阵来测试这两个方法，我得到了表1的结果。
+就像之前说的那样，基本类型版本的double矩阵中每一个元素占8个多字节，跟我预期的差不多，
+但是，对象类型版本的Double矩阵中每一个元素占28个字节还要多一点。
+因此，在这个例子中，Double的内存使用是double的3倍还要多，
+这对那些明白上面图1说的内存布局的人来说，并不是一件让人很吃惊的事情。
+
+表1. double和Double的内存使用情况对比
+
+版本	总字节数	平均字节数
+使用double	8,380,768	8.381
+使用Double	28,166,072	28.166
+
+====
+运行时性能
+
+为了比较基本类型和对象类型的运行时性能，我们需要一个数值计算占主导的算法。
+本文中，我选择了矩阵相乘，然后计算1000*1000的矩阵相乘所需要的时间。
+我用一种很直观的方式来编码double类型的矩阵相乘，就像列表2中展示的那样。
+可能会有更快的方式来实现矩阵相乘(比如使用并发)，但那个与本文无关。
+我需要的仅仅是两个很简单的方法，一个使用基本类型的double，另一个使用包装类Double。
+Double类型的矩阵相乘的代码跟列表2非常相似，仅仅是改了类型。
+
+列表2. 两种类型的浮点数的矩阵相乘
+
+
+public static double[][] multiply(double[][] a, double[][] b)
+  {
+    if (!checkArgs(a, b))
+        throw new IllegalArgumentException("Matrices not compatible for multiplication");
+ 
+    int nRows = a.length;
+    int nCols = b[0].length;
+ 
+    double[][] result = new double[nRows][nCols];
+ 
+    for (int rowNum = 0;  rowNum < nRows;  ++rowNum)
+      {
+        for (int colNum = 0;  colNum < nCols;  ++colNum)
+          {
+                double sum = 0.0;
+ 
+                for (int i = 0;  i < a[0].length;  ++i)
+                    sum += a[rowNum][i]*b[i][colNum];
+ 
+                result[rowNum][colNum] = sum;
+          }
+      }
+ 
+    return result;
+  }
+
+在我的计算机上分别用两个方法对两个1000*1000的矩阵做多次乘法，测量执行时间。
+表2中列出了平均时间。
+可以看出来，在本例中，double的运行时性能是Double的四倍。这是一个不能忽略的很大的不同！
+
+版本	秒数
+使用double	11.31
+使用Double	48.48
+
+SciMark2.0基准测试
+
+迄今为止，我使用了一个简单的矩阵相乘的例子来说明基本类型比对象类型有更高的计算性能。
+为了让我的观点更站得住脚，我会用更科学的基准点(来做测试)。
+SciMark 2.0是NIST的用来测试科学和数值计算能力的Java基准工具。
+我下载了它的源码，创建了2个版本的基准测试，一个是使用基本类型，另一个使用包装类。
+第二个测试中我把int替换成了Integer，把double替换成了Double，这样来看包装类带来的影响。
+这两个版本在本文的源码中都可以找到。
+
+Java基准测试: 源码下载
+
+SciMark基准测试会测量许多种常见计算的性能，然后用大概的Mflops(每秒百万浮点运算数)给出一个综合的分数。
+因此，对这样的基准测试来说数据越大越好。
+表3给出了这个基准测试在我的计算机上对每个版本多次运行的平均综合分数。
+就像表中展示的那样，这两个版本的SciMark基准测试的运行时性能跟上面矩阵相乘的结果是一致的，基本类型的性能几乎比包装类型快了5倍。
+
+表3. SciMark基准测试的运行时性能
+
+SciMark版本	性能(Mflops)
+使用double	710.80
+使用Double	143.73
+
+你已经见过使用自己的基准测试和一个更科学的方式对Java程序做数值计算的一些方式，
+但是，Java和其他语言比起来会怎样呢？
+看下Java和其他三种编程语言Scala,C++,JavaScript的性能比较，然后我会做出结论。
+
+====
+Scala基准测试
+
+Scale是运行在JVM上的编程语言，貌似因此变得很流行。
+Scale有统一的类型系统，也就是说它不区分基本类型和对象类型。
+根据Erik Osheim在Scala的数值类型(第一部分)中说的，
+Scala在可能的情况下会使用基本类型，
+但是在必须的时候会使用对象类型(Scala uses primitive types when possible but will use objects if necessary)。
+与此相似，Martin Odersky对Scale数组的描述说：
+“Scala的Array[Int]数组对应Java当中的int[]，Array[Double]对应Java当中的double[]”。
+
+难道这意味着Scale的统一类型系统和Java的基本类型的运行时性能差不多？让我们来看一下。
+
+Scala性能改善
+
+当我两年前第一次使用Scala运行矩阵相乘的基准测试的时候，平均差不多要用超过33秒的时间，
+性能大概在Java基本类型和对象类型之间。
+最近我又用新版本的Scale重新编译一下，然后我被新版本的重大性能改善所震惊了。
+
+我用Scale不像用Java那样熟练，但是我尝试把Java版本的矩阵相乘的基准测试直接转化成Scale版本。
+结果如下面列表3所示。当我在我的计算机上执行Scale版本的基准测试的时候，平均花费12.30秒，
+这个跟Java使用基本类型时候的性能非常接近。
+结果比我预期的要好很多，这个也给Scale声明的对数值类型的处理做了很好的证明。
+
+Scala基准测试：源码下载
+
+列表3. Scala语言实现的矩阵相乘
+
+def multiply(a : Array[Array[Double]], b : Array[Array[Double]]) : Array[Array[Double]] =
+  {
+    if (!checkArgs(a, b))
+        throw new IllegalArgumentException("Matrices not compatible for multiplication");
+ 
+    val nRows : Int = a.length;
+    val nCols : Int = b(0).length;
+ 
+    var result = Array.ofDim[Double](nRows, nCols);
+ 
+    for (rowNum <- 0 until nRows)
+      {
+        for (colNum <- 0 until nCols)
+          {
+            val sum : Double = 0.0;
+ 
+            for (i <- 0  until a(0).length)
+                sum += a(rowNum)(i)*b(i)(colNum);
+ 
+            result(rowNum)(colNum) = sum;
+          }
+      }
+ 
+    return result;
+  }
+
+代码转化的风险
+
+就像James Roper指出的那样，当把一种语言直接转化成另一种语言的时候，总是存在风险的。
+因为缺少Scala的经验，使我意识到转换基准测试的代码有可能是可行的，
+这会强制Scala在运行时使用更高效的基本类型，同时还可以保留算法的基本特性。
+因为它用Java编写，所以折衷比较也是有意义的。
+
+====
+C++基准测试
+
+因为C++是直接运行在物理机而非虚拟机上，大家自然会认为C++的速度比Java快。
+此外，为了确保索引是在数组声明的边界之内，Java会检查数组的访问，这对性能也有轻微的损害，
+C++不会做这样的检查（这是C++的一个特性，它可以导致缓冲区溢出，这可能会被黑客利用）。
+我发现，C++在处理基本的二维数组的时候多少有点尴尬，
+幸运的是，可以把这种尴尬隐藏到类内部的私有部分。
+我创建了一个简单的C++版本的Matrix类，重载了*操作符，用来做矩阵相乘，
+基本的矩阵相乘的算法是用Java版本直接转化过来的。
+列表4列出了C++的源码：
+
+C++基准测试：源码下载
+
+列表4.C++语言实现的矩阵相乘
+
+Matrix operator*(const Matrix& m1, const Matrix& m2) throw(invalid_argument)
+  {
+    if (!Matrix::checkArgs(m1, m2))
+          throw invalid_argument("matrices not compatible for multiplication");
+ 
+    Matrix result(m1.nRows, m2.nCols);
+ 
+    for (int i = 0;  i < result.nRows;  ++i)
+      {
+        for (int j = 0;  j < result.nCols;  ++j)
+          {
+            double sum = 0.0;
+ 
+            for (int k = 0;  k < m1.nCols;  ++k)
+                sum += m1.p[i][k]*m2.p[k][j];
+ 
+            result.p[i][j] = sum;
+          }
+      }
+ 
+    return result;
+  }
+
+使用Eclipse CDT和MinGW C++编译器可以创建调试版和正式版的应用程序。
+为了测试C++的性能，我是多次运行正式版取平均值。
+正如预期的那样，在这个简单的测试中C++很明显要快得多，在我的计算机上平均是7.58秒。
+如果性能是选择一个编程语言的主要因素的话，那么C++是数值运算密集型应用的首选。
+
+====
+JavaScript基准测试
+
+好吧，这个测试的结果让我感到震惊。因为Javascript是一种动态语言，我本以为它的性能是最差的，
+甚至要比Java包装类的性能还要差。
+但是实际上，Javascript的性能跟Java使用基本类型的性能很接近。
+为了测试Javascript的性能，我安装了Node.js——它是一个以效率著称的Javascript引擎。
+测试的平均结果是15.91秒。
+列表5展示了运行在Node.js下Javascript版本的矩阵相乘基准测试：
+
+JavaScript基准测试：源码下载
+
+列表5. JavaScript语言实现的矩阵相乘
+
+function multiply(a, b)
+  {
+    if (!checkArgs(a, b))
+        throw ("Matrices not compatible for multiplication");
+ 
+    var nRows = a.length;
+    var nCols = b[0].length;
+ 
+    var result = Array(nRows);
+ 
+    for(var rowNum = 0;  rowNum < nRows; ++rowNum)
+      {
+        result[rowNum] = Array(nCols);
+ 
+        for(var colNum = 0;  colNum < nCols;  ++colNum)
+          {
+            var sum = 0;
+ 
+            for(var i = 0;  i < a[0].length;  ++i)
+                sum += a[rowNum][i]*b[i][colNum];
+ 
+            result[rowNum][colNum] = sum;
+          }
+      }
+ 
+    return result;
+  }
+
+====
+结论
+
+当18年前Java第一次登上历史舞台的时候，对于以数值计算为主的应用程序从性能的角度来说，它并不是最好的语言。
+但时过境迁，随着其他领域技术的发展，比如即时编译(aka自适应或动态编译)，
+当使用基本数据类型的时候，这类Java应用的性能已经可以匹敌编译成本地代码的那些语言。
+
+并且，基本数据类型不需要垃圾回收，因此比对象类型多了另一个性能优势。
+表4总结了矩阵相乘基准测试在我的计算机上的运行时性能。
+还有其他的诸如可维护性可移植性和开发者擅长等因素让Java成为许多这类应用的很好地选择。
+
+表4. 矩阵相乘基准测试的运行时性能
+
+结果(以秒计)
+
+C++	Java
+(double)	Scala	JavaScript	Java
+(Double)
+7.58	11.31	12.30	15.91	48.48
+
+就像前面讨论的那样，看上去Oracle似乎很严肃的考虑了是否在Java未来的版本中去掉基本数据类型。
+除非Java编译器能产生跟基本数据类型性能相当的代码，
+我认为把基本数据类型从Java中去掉会妨碍Java在某些类型应用中的使用，即那些以数值计算为主的应用。
+本文中，我对矩阵相乘做了基准测试，还用更科学的基准测试SciMark2.0来支持这一点。
+
+====
+附录
+
+在本文发表在JavaWorld上几周以后，作者收到了来自Brian Goetz的邮件。
+Brian Goetz是Oracle的Java语言架构师，他说从Java中移除基本数据类型不在考虑范围之内。
+移除基本数据类型的说法源自于对Java未来版本的愿景讨论的误解或者是不准确的解释。
+
+====
+关于作者
+
+John I. Moore, Jr.是Citadel的一位数学和计算机教授，他在工业领域和学术上都有很丰富的经验，
+在面向对象技术，软件工程和应用数学方面有独到的专长。
+在超过30年的时间里，他使用关系型数据库和很多高级语言来设计和开发软件，
+工作中广泛使用从1.1开始的Java的各个版本。
+他对计算机科学的很多高级话题都开设并教授了许多课程和研讨班。
+
+====
+了解更多：
+
+1.Paul Krill在“Oracle的Java长期目标”写到Oracle对Java的长期的一些计划(JavaWorld,2012年3月)。
+那篇文章和相关的评论促使我写了这篇支持基本类型的文章。
+
+Szymon Guz writes about his results in benchmarking primitive types and wrapper classes in “Primitives and objects benchmark in Java” 
+(SimonOnSoftware, January 2011).
+
+2.Szymon Guz在“Java中基本数据类型和对象类型的基准测试”(SimonOnSoftware，2011年1月)中写了对基本类型和包装类型做基准测试的结果。
+
+3.C++编程准则和实践(Addison-Wesley, 2009)的支持站点上，C++的作者Bjarne提供了一个比本文要完善很多的矩阵类的实现。
+
+4.John Rose,Brian Goetz和Guy Steele在“值的状态”一文中讨论了值的类型这个概念。
+值的类型可以被认为是没有标识的不变的用户自定义的类型集合，
+因此，可以把对象类型和基本类型的属性结合起来。
+值类型的好处是：像引用类型那样编码，像基本类型那样运行。
