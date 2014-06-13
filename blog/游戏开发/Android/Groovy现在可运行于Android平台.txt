@@ -1,0 +1,77 @@
+﻿Groovy现在可运行于Android平台
+作者 Abel Avram ，译者 梅雪松 发布于 2014年6月12日 |
+http://www.infoq.com/cn/news/2014/06/groovy-android
+
+====
+在最近的GR8Conf欧洲2014大会期间，SpringSource/Pivotal的Groovy高级软件工程师Cédric Champeau现场执行了一次Pull请求合并，
+带来了Android平台的Groovy支持。
+
+Groovy开发者为此已经等待了数年时间。
+由于Android Dalvik虚拟机使用不同的字节码格式以及Groovy代码的动态特性，该功能的实现一直被推迟。
+而Groovy V2.4将带来官方的Android支持。
+
+InfoQ采访了Champeau，了解更多详情以及Android平台上Groovy未来的发展。
+
+InfoQ：让Groovy在Android上工作，最难的部分是什么？
+
+CC：实际上有多个问题，这些问题合起来就变得有些困难。
+
+第一个问题是Groovy是动态语言，它在运行时生成类。
+问题是这些生成的类使用“标准”的JVM格式，而Android使用自己的类格式（用于Dalvik虚拟机）。
+Dalvik虚拟机在运行时并不创建类，这变得非常困难，
+因为每个使用标准JVM字节码的文件都要通过“dex”工具处理，以使其变得可加载。
+
+即使你成功地在设备上做到这点，在运行时加载类仍然是一种痛苦。
+例如，这需要在jar文件中写入一个类，然后加载这个jar。
+最后，我们决定这不是Groovy运行于Android上的主要关注点，
+我们宁愿用Groovy开发一个完整的应用，而不涉及在运行时创建任何类。
+这意味着会有一些限制，但它们对大多数用户应该是不可见的。
+最后，如果你使用@CompileStatic静态地编译Android上的Groovy，性能和内存消耗都接近于或者与Android原生应用相同。
+
+第二个问题实际上与构建系统相关。
+新的Android构建系统使用Gradle和自定义插件“android”，它绕过了通常的“java”和“groovy”插件，提供了类似应用变种的功能。
+我们如何在其中插入Groovy支持，这需要花一些工作量。
+令人欣慰的是，自从公布之后，一个用于Groovy和Android的Gradle插件已经发布，使得事情变得更简单了[1]。
+
+最后但同样重要的是，当我开发Groovy支持时，我学习了Android。
+这是件好事，我知道你将因为使用Groovy而获益，但它也确实花了我很多时间，比修改Groovy的时间更多！
+
+InfoQ：有没有可能将它扩展到iOS或者至少是Windows Phone，作为一个跨平台解决方案？
+
+CC：我当然乐意看到Groovy运行在iOS上，但我没有硬件用于测试;)
+虽然最近宣布的Swift语言看起来很接近Groovy，它也比Objective-C更有吸引力，大家可以使用它作为Groovy的替代品，
+但有件事必须考虑：Swift是供应商锁定的封闭软件。
+而Groovy是完全开源的，举例来说，如果能在iOS和Android上使用相同的代码，开发者很可能只需要重写应用的UI部分，
+它就变得更适合于通用的移动应用开发。
+至于Windows Phone，我不知道是否可行，实际上我对这个平台缺乏了解:)
+
+InfoQ：目前还有哪些不足？哪些还不能正常工作？
+
+CC：直到最近，只有@CompileStatic类才能运行于Android平台。
+而现在已经可以运行动态代码了，因此基本上全部都可以工作了，包括构建系统。
+需要注意的是，动态代码应该仅用于应用程序的非CPU密集部分，因为它涉及到反射。
+也就是说，目前的限制是它不太可能（很难）在运行时生成类，因此一些特定的构造，
+例如强制映射到类或者运行时特性将无法工作。
+幸运的是有变通方法解决这些问题。
+最后，方法描述符的数量仍然有问题。
+Android默认的方法总量限制为65536，这是个非常低的值。
+未进行优化（例如使用ProGuard）时，Groovy将消耗约8k。
+这意味着即使有办法解决此事（例如使用multidex选项），你仍将比普通Java应用更快达到这个限制。
+
+InfoQ：对Groovy/Android的未来有什么计划？
+
+CC：
+正式的Android支持并会在Groovy 2.4的第一个beta版本提供。
+目前，已经可以将其用于你自己的应用，正如第一个示例应用所展示[2]，它实际上已经处于产品状态。
+只是它是基于Groovy的Snapshot版本。
+但我真的想看到使用Groovy开发的新类库或框架，促进Android应用开发。
+Android开发非常繁琐，而Groovy能让开发变得更简单。
+为此，我们能依赖广泛的开发者社区，他们已经为Java开发了大量这样的类库，因此这只是时间问题。
+我相信一旦开发者尝试了Android上的Groovy，他们就不太可能再切换回Java了;)
+
+[1] https://github.com/melix/groovy-android-gradle-plugin
+
+[2] https://play.google.com/store/apps/details?id=me.champeau.gr8confagenda.app
+
+查看英文原文：Groovy Now Runs on Android
+

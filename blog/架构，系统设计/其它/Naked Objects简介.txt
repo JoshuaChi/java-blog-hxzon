@@ -1,0 +1,418 @@
+﻿Naked Objects简介
+By Hejiani
+
+原文链接： java 翻译： ImportNew.com - 
+译文链接： http://www.importnew.com/11912.html
+
+===========
+拉开拉链！解开扣子！啊！我们的业务对象是裸露（Naked）的。抛开复杂的UI应用，让用户直接访问业务对象吧。这个思想很简单：构建行为完整的业务模型对象，使用通用的视图和控制器。如果一个业务模型对象支持某个公共行为，那么用户可以访问它。为什么我们需要裸对象（Naked Object）呢？
+
+可能你一直在努力真正地理解MVC(模型-视图-控制器，Model-View-Controller)模式。它的思想很简单，不是吗？模型包含了核心业务逻辑；视图负责展示给定模型的数据；控制器控制模型和视图之间的交互，通常通过事件通知实现。当然，Swing开发人员都知道视图和控制器被结合在相同的组件上。比如，JTable存储了模型对象，但它同时也是视图和控制器。业务逻辑也可以在所有这三个层次上终止，这违背了DRY原则(不要重复你自己)。
+
+简单的Naked Objects项目
+
+使用Naked Objects框架构建一个简单的地址簿应用。它遵循了裸对象的哲学，运行良好且易于理解。点击这里可以下载示例应用。
+
+我们的第一个需求是地址簿可能包含0或多个人。裸对象Person类的初始代码实现如下：
+
+package com.briancoyner.naked.addressbook;
+
+import org.nakedobjects.object.AbstractNakedObject;
+
+public class Person extends AbstractNakedObject {
+
+   // You must implement this method, which comes from the base class, before
+   // the class compiles. We'll talk more about this in a bit.
+
+   public Title title() {
+      return null;
+   }
+}
+
+Naked Objects框架要求所有的裸对象实现NakedObject接口。更简单的方法是继承AbstractNakedObject类。AbstractNakedObject提供了裸对象的基本功能，这样我们就可以集中精力解决业务问题，即创建一个简单地址簿。
+
+任何“裸”对象可以对用户可见。稍后将介绍如何把对象暴露给应用层。既然Person是裸对象，就需要添加属性，并提供修改它们的方法。实现这些需要遵循严格的命名惯例和运用具体的Naked Objects框架类。我们添加了几个属性：first name、last name和birthdate。
+
+package com.briancoyner.naked.addressbook;
+
+import org.nakedobjects.object.AbstractNakedObject;
+import org.nakedobjects.object.value.Date;
+import org.nakedobjects.object.value.TextString;
+
+public class Person extends AbstractNakedObject {
+
+   private final TextString firstName;
+   private final TextString lastName;
+   private final Date birthdate;
+
+   public Person() {
+      firstName = new TextString();
+      lastName = new TextString();
+      birthdate = new Date();
+   }
+
+   public final TextString getFirstName() {
+      return firstName;
+   }
+
+   public final TextString getLastName() {
+      return lastName;
+   }
+
+   public final Date getBirthdate() {
+      return birthdate;
+   }
+
+   public Title title() {
+      return null;
+   }
+}
+
+裸对象属性
+
+现在Person对象有first name、last name和birthdate属性。你应该已经意识到我们没有使用java.lang.String或StringBuffer，而是使用了org.nakedobjects.object.value.TextString。TextStrings是Naked Objects框架使用的可变对象，用来操纵字符串的值以及通知框架为视图创建文本框。同样属性倾向于完全不变时，使用final标记它。
+
+裸对象方法
+
+每个可变属性需要提供关联的”getter”方法。框架运用反射定位所有的”getter”方法，并且基于返回类型创建正确的UI组件。first name和last name是简单的文本框，birthdate是具有日期解析行为的文本框。标签也可以自动生成，去掉每个”getter”方法的”get”，字符中大小写不同时之间加入空格。可能你已经意识到Person中没有”setter”方法。理由很简单：TextStrings是可变的，所以不需要改变实例。也有要用到”setter”的情况。比如人一次只能穿一双鞋，可能这天穿网球鞋，下一天穿凉鞋。这时就需要”setter”来改变鞋子。除了”getter”和”setter”，框架运用反射来查找大量的方法。本文稍后会测试一些关键方法。
+
+裸对象展示
+
+图1 裸对象Person
+我们没有编写任何特定的GUI代码。创建了简单业务对象，Naked Objects框架运用反射创建了Person视图。请记住：如果对象支持某个行为，用户便可以访问它。
+
+图2展示了一些内置的Naked Object类型的视图。示例中这些类型的细节请参考Naked Objects文档。
+
+
+图2 类型示例
+Naked Objects单元测试
+
+创建了简单的裸对象，现在我们来进行单元测试。Naked Objects框架提供了对对象单元测试灵活的方法。test fixture的初始代码如下：
+
+package com.briancoyner.naked.addressbook;
+
+import org.nakedobjects.object.NakedClass;
+import org.nakedobjects.testing.View;
+import org.nakedobjects.testing.NakedTestCase;
+
+import java.util.Calendar;
+
+public class TestPerson extends NakedTestCase {
+
+   /**
+   * Yes, you must supply a constructor. Hopefully the next version of the
+   * Naked Objects framework will use JUnit 3.8.1.
+   */
+   public TestPerson(String name) {
+      super(name);
+   }
+
+   protected void setUp() throws Exception {
+
+      // initialize an object store, otherwise a null pointer exception
+      // is thrown when trying to create a new View instance.
+      init();
+      registerClass(Person.class);
+   }
+}
+如果使用过JUnit的话，这段代码就看起来很熟悉。唯一不同点在于Naked Objects的test fixture继承NakedTestCase。它是继承自junit.framework.TestCase的基类，提供了注册对象和创建对象存储的若干简便方法。稍后将介绍对象的存储。现在我们来测试Person属性的get和set方法。
+
+测试该对象
+public void testPersonAttributes() {
+   Person person = new Person();
+   person.getFirstName().setValue("Brian");
+   person.getLastName().setValue("Coyner");
+
+   // Note that the Naked Object Date starts with 1 (1 = Jan, 12 = Dec).
+   // This is different than java.util.Calendar.
+   person.getBirthdate().setValue(1900, 9, 22);
+
+   assertEquals("First Name.", "Brian", person.getFirstName().stringValue());
+   assertEquals("Last Name.", "Coyner", person.getLastName().stringValue());
+   Calendar calendar = Calendar.getInstance();
+   calendar.set(1900, Calendar.SEPTEMBER, 22, 0, 0, 0);
+   calendar.set(Calendar.MILLISECOND, 0);
+
+   assertEquals("Birthdate.", calendar.getTime(), person.getBirthdate().dateValue());
+}
+同样，如果对写测试很熟悉的话，这些测试代码是非常明确的。在继续之前，有些事项需要注意。首先，person不包括任何”setter”方法。Naked Objects框架仅仅在对象实例改变时才需要”setter”方法。TextString对象是可变的，我们只是简单地获取到TextString改变它的值。这与常用的很多API多少有些不同。这里简单地检索包含first name的TextString对象的引用，并改变它的值。
+
+person.getFirstName().setValue("Brian");
+看一下这个调用链的具体细节。
+
+TextString firstName = person.getFirstName();
+firstName.setValue("Brian");
+其次，Naked Objects的Date表示月份时使用了稍微不同的值。Naked Objects的Date的月份以1(1=Jan., 12=Dec.)开始，而java.util.Calendar以0(0=Jan., 11=Dec.)开始。
+
+测试视图
+Naked Objects框架最亮眼和强大的特性就是Views的使用。视图是对象的“图形化”等价表达，但对象在屏幕上不可见。这样我们就可以测试对象以及它们的交互而不需要特定的脚本或复杂的GUI测试框架。测试代码如下：
+
+public void testPersonView() {
+   String viewName = NakedClass.getNakedClass(Person.class).getPluralName();
+   View person = getClassView(viewName).newInstance();
+
+   person.fieldEntry("First Name", "Brian");
+   person.fieldEntry("Last Name", "Coyner");
+   person.fieldEntry("Birthdate", "1/12/1999");
+
+   person.assertFieldContains("First Name", "Brian");
+   person.assertFieldContains("Last Name", "Coyner");
+
+   // The Naked Object's Date object converts the date to this format
+   person.assertFieldContains("Birthdate", "Jan 12, 1999");
+}
+测试视图需要了解框架如何定位对象(视图)和它们的字段。前几行检索person的视图。使用复数名称来检索。如果打印出Person的复数名称，可以看到”Persons”。显然，我们希望复数名称是”People”。本文末尾将看到如何实现。
+
+设置字段名称，必须把”getter”方法分开。比如getFirstName()变为”First Name”。删除”get”并且把不同大小写字符之间添加空格。View还提供各种assert方法。断言验证了给定字段包含正确的值。
+
+最后的特性
+每个裸对象必须实现返回值为Title的方法。这个方法来自于AbstractNakedObject基类：
+
+public abstract Title title();
+实现如下：
+
+public Title title() {
+
+   String title = "";
+
+   // stringValue() returns null if the value is not specified.
+   if (!firstName.isEmpty()) {
+      title += firstName.stringValue();
+   }
+
+   if (!lastName.isEmpty()) {
+      title += (title.length() > 0) ? " " + lastName.stringValue() :
+       lastName.stringValue();
+   }
+
+   return new Title(title);
+
+}
+标题出现在每个对象的窗口顶部(图标的旁边)。标题可以设置为任何你喜欢的。只要确保该描述能让用户足够理解这个对象。
+
+
+图3 添加Person的标题
+添加地址
+
+现在已经看到了简单的裸对象。下一步是为person添加一个或者多个地址。
+
+package com.briancoyner.naked.addressbook;
+
+. . .
+
+import org.nakedobjects.object.collection.InternalCollection;
+
+public class Person extends AbstractNakedObject {
+
+   . . .
+
+   private InternalCollection addresses;
+
+   public Person() {
+
+      . . .
+
+      addresses = new InternalCollection(Address.class, this);
+   }
+
+   public InternalCollection getAddresses() {
+      resolve(addresses);
+      return addresses;
+   }
+
+   . . .
+
+}
+Naked Objects框架提供InternalCollection对象存储给定类型的对象。我们存储了Address对象。必须为该集合提供所有者来创建一对多关系。”getter”方法中引入了新的方法：resolve(NakedObject)。resolve方法是AbstractNakedObject的静态方法，用来确保给定对象存在且形式完整，在使用之前被加载到内存中。这意味着我们创建了Person和第一次调用getAddresses()时懒加载的address。稍后将讨论对象持久化。
+
+
+图4 Person添加address
+Address类：
+
+package com.briancoyner.naked.addressbook;
+
+import org.nakedobjects.object.AbstractNakedObject;
+import org.nakedobjects.object.Title;
+import org.nakedobjects.object.value.TextString;
+
+public class Address extends AbstractNakedObject {
+
+   private final TextString description;
+   private final TextString street;
+   private final TextString city;
+   private final TextString state;
+   private final TextString zip;
+
+   public Address() {
+      description = new TextString();
+      street = new TextString();
+      city = new TextString();
+      state = new TextString();
+      zip = new TextString();
+   }
+
+   /**
+   * Indicate primary location, lake house, etc.
+   */
+   public final TextString getDescription() {
+      return description;
+   }
+
+   public final TextString getStreet() {
+      return street;
+   }
+
+   public final TextString getCity() {
+      return city;
+   }
+
+   public final TextString getState() {
+      return state;
+   }
+
+   public final TextString getZip() {
+      return zip;
+   }
+
+   public Title title() {
+      String title = street.isEmpty() ? "" : street.stringValue();
+
+      if (!description.isEmpty()) {
+         title += (title.length() == 0 ? "(" : " (") +
+            description.stringValue() + ")";
+      }
+
+      return new Title(title);
+   }
+}
+
+图5 地址信息
+Address类中并没有新内容，测试也很简单，尤其是视图的使用。当然，Person与多个address的集成值得细讲。
+
+Person添加Address
+创建新的Address对象
+将Address对象拖拽到Person的”Addresses”字段。可以看到该字段变绿，预示着可以放置对象。框架会校验对象是否可以放置。(提示：InternalCollection对象。)如果字段变红则不允许放置对象。
+
+图6 person
+从Person视图查看所有属性，双击”Addresses”字段。
+
+
+图7 Address详细信息
+删除地址，右键Person的”Addresses”字段，选择”Remove reference”。
+
+
+图8 删除地址
+测试一对多关联关系
+我们已经知道如何测试简单的裸对象以及通过拖拽关联对象。现在来看一下对此如何测试。
+
+protected void setUp() throws Exception {
+   init();
+   registerClass(Person.class);
+
+   // Don't forget to register the class registerClass(Address.class);
+}
+
+public void testAddAddressToPerson() {
+   String viewName = NakedClass.getNakedClass(Person.class).getPluralName();
+   View person = getClassView(viewName).newInstance();
+
+   viewName = NakedClass.getNakedClass(Address.class).getPluralName();
+   View address = getClassView(viewName).newInstance();
+
+   person.drop("Addresses", address.drag());
+   person.assertFieldContains("Addresses", address);
+}
+创建可运行的应用
+
+目前为止我们知道了如何创建和测试裸对象。现在来学习Naked Objects应用的创建。
+
+package com.briancoyner.naked.addressbook;
+
+import org.nakedobjects.Exploration;
+import org.nakedobjects.object.NakedClassList;
+import org.nakedobjects.object.NakedObjectStore;
+import org.nakedobjects.object.TransientObjectStore;
+
+public class AddressBookApp extends Exploration {
+
+   public void classSet(NakedClassList classes) {
+      classes.addClass(Person.class);
+      classes.addClass(Address.class);
+   }
+
+   public static void main(String[] args) {
+      new AddressBookApp();
+   }
+}
+开发Naked objects应用时要继承Exploration类，它是原型模板。Exploration包含了大量的默认配置。但是我们必须提供需要展示的对象，这通过实现抽象方法classSet(NakedClassList)来完成。这个方法通知框架哪些对象是用户可见的。一旦应用程序稳定，可能要将应用的配置从Exploration对象移动到配置文件中，实现了无需重新编译的完全自定义。
+
+用户可见类展示：
+
+
+图9 该应用暴露的类
+创建新person，Person类右击，选择”New Person…”
+
+
+图10 创建新person
+对象存储
+
+框架支持对象的多种存储类型。对象存储类型列表：
+
+XML 对象存储
+每个裸对象实例保存在单独的XML文件中。这种方式只适用于处理数量较小的对象。XML文件位于当前的工作目录：~/xml/*.xml。
+
+序列化对象存储
+使用序列化将每个裸对象实例保存在单独的文件中。也只适用于处理数量较小的对象。通常比使用XML文件更快。
+
+SQL对象存储
+使用JDBC将裸对象持久化到数据库(MySQL, Oracle等等)。
+
+EJB对象存储
+裸对象可以使用EJB。
+
+瞬时对象存储
+默认对象存储方式，所有的对象保存在内存中，应用退出时对象丢失。
+
+为快速实现原型，框架默认使用瞬时存储。随着应用稳定，将对象持久化存储更加合适，比如XML和数据库。AddressBookApp中覆盖installObjectStore()方法改变对象的存储。
+
+使用基于XML文件的对象存储：
+
+protected NakedObjectStore installObjectStore() {
+   return new XmlObjectStore();
+}
+当要处理的持久化能力更加复杂时，Naked Objects应用的复杂度也增加。关于创建鲁棒性好的，对持久化很关注的应用，参考Naked Objects文档。
+
+其它
+
+从整篇文章可以看到，Naked Objects框架非常依赖于反射。但是不要担心，有很多文档可以帮助你入门。也可以阅读在线书籍，下面列出了一些很难从书中找到的小技巧。
+
+改变复数名称
+默认情况下，框架在类名后添加”s”作为复数名称。不规则名词实现这个方法来变化：
+
+public static String pluralName();
+将”Persons”改为”People”
+
+public static String pluralName() {
+   return "People";
+}
+对象顺序
+对象的顺序取决于具体类加载器如何解析.class文件。因此，我们需要一种方法来指定对象在屏幕上的顺序。当然，解决方法很简单。为裸对象增加这个方法：
+
+public static String fieldOrder();
+对象的顺序：
+
+public static String fieldOrder() {
+   return "First Name, Last Name, Birthdate, Addresses";
+}
+更改图标
+应用增加图标也很简单。在CLASSPATH下创建images目录，包含所有的图片。
+
+当然，要遵循一些命名惯例。每个对象需要2张图片(16和32像素)。32像素图片用在类视图，16像素用于实例视图。比如，Person需要的图片：
+
+images/Person16.gif
+images/Person32.gif
+总结
+
+裸对象提供了一种思考软件开发的有趣方式。本文章使用开源框架Naked Objects创建和测试了简单应用。
+
+总体而言，该框架为GUI应用程序开发提供了很强的灵活性和结构，我们仅仅在表面了解了这个框架可以做什么。它最强大的功能是视图的使用，可以模仿终端用户的使用行为来测试对象以及它们的交互。最后，即使从未构建过Naked Object系统，希望你在创建行为完整的对象方面开始有所思考。
