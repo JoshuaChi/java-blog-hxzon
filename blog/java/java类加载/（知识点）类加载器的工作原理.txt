@@ -1,4 +1,4 @@
-类加载器的工作原理
+（知识点）类加载器的工作原理
 http://www.importnew.com/6581.html
 
 本文由 ImportNew - 唐小娟 翻译自 Javarevisited。如需转载本文，请先参见文章末尾处的转载要求。

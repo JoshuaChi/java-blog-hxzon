@@ -1,0 +1,492 @@
+﻿使用动态代理API-给抽象数据类型提供强类型
+ 
+原文链接： javaworld 翻译： ImportNew.com - miracle1919
+译文链接： http://www.importnew.com/11412.html
+
+====
+Java1.3引入了动态代理API，这对Java平台是一个非常巨大但是很容易被忽视的改进。
+动态代理的使用经常不容易理解。
+本文中，我希望首先介绍下代理模式，然后介绍下java.lang.reflect.Proxy类和java.lang.reflect.InvocationHandler接口，它们组成了动态代理的核心。
+
+本文讲述的内容主要是把Java1.3的动态代理和抽象数据类型结合起来给这些抽象类型提供强类型。
+我也会通过介绍视图的概念来讲述在Java编程中动态代理的强大功能。
+最后，我会介绍一种非常强大的给java对象添加访问控制的方式，当然了，还是使用动态代理。
+
+====
+代理的概念
+
+代理强制对象方法的调用要间接的通过代理对象，代理对象就扮演了底层实际被代理对象的代理人的角色。
+代理对象跟普通对象的声明方式一样，因此，客户端对象根本觉察不到它们有代理对象实例。
+
+有一些常见的代理，比如：访问代理，门面(facade)，远程代理和虚拟代理。
+访问代理用来给服务或者数据对象的访问添加安全策略。
+门面是给底层的多个对象提供一个单一的上层接口。
+远程代理让客户端对象感觉不到底层数据实际是在远程。
+虚拟代理用来给实际对象做延迟或者是及时(just-in-time)初始化。
+
+在编程中，代理是一个很常用的基本的设计模式。
+但是，它的一个缺点是跟被代理对象之间是强耦合。
+看下图1中代理模式的UML，可以看出来为了让代理对象有用并且对被代理对象透明，代理对象通常要实现接口或者是继承已知的超类(facade情况除外)。
+
+图1. 代理模式的UML图
+图1. 代理模式的UML图
+
+====
+动态代理
+
+Java1.3中，Sun公司引入了动态代理API。
+为了让动态代理能正常工作，首先要有个代理接口。
+代理类需要实现这个代理接口。
+然后，需要有一个代理类的实例。
+
+有意思的是，一个代理类可以实现多个代理接口。
+但是，对于要实现的接口是有一些限制的。
+当创建动态代理的时候，时刻牢记这些限制条件是非常重要的：
+
+1.代理接口必须是一个接口，换句话说，它不能是一个类(抽象类也不行)或者是基本数据类型。
+
+2.传递到代理类构造函数中的接口数组中不能包含同样的重复的接口。
+Sun指出，不应该同时两次实现同一个接口。
+比如说：数组{IPerson.class, IPerson.class}是非法的，但是{IPerson.class, IEmployee.class}是合法的。
+构造函数的代码应该检查这种情况，并能做重复接口的过滤。
+
+3.在构造函数执行的时候，所有的接口对指定的类加载器都必须是可见的。
+这是必须的，因为类加载器必须能够载入代理的接口。
+
+4.所有的非public的接口必须是来自和代理类相同的包(package)。
+你不能把private的接口放在com.xyz包而把代理类放在com.abc包。
+如果你想一下，这跟普通的Java类编程的方式其实是一样的。
+在普通的java编程中，你也不能从一个包中实现另一个包中的非public的接口。
+
+5.代理接口不能包含相互冲突的方法。
+你不能让两个方法接收相同的参数但是却返回不同的数据类型。
+比如说：public void foo()方法和public String foo()方法不能在同一个类中定义，
+因为它们有相同的签名但是返回类型却不同(参考：Java语言规范)。这对普通的类也一样。
+
+6.生成的代理类不能超过虚拟机的限制，比如：可以实现的接口的数量。
+
+要创建一个动态代理类，所有要做的工作就是实现java.lang.reflect.InvocationHandler接口：
+
+public Class MyDynamicProxyClass implements
+java.lang.reflect.InvocationHandler
+{
+  Object obj;
+  public MyDynamicProxyClass(Object obj)
+  { this.obj = obj; }
+  public Object invoke(Object proxy, Method m, Object[] args) throws
+Throwable
+  {
+    try {
+      // do something
+    } catch (InvocationTargetException e) {
+      throw e.getTargetException();
+    } catch (Exception e) {
+      throw e;
+    }
+    // return something
+  }
+}
+
+就这么简单！真的！我没有骗你！当然你要有实际的代理接口：
+
+public interface MyProxyInterface
+{
+  public Object MyMethod();
+}
+
+然后使用那个动态代理，代码如下：
+
+MyProxyInterface foo = (MyProxyInterface)
+java.lang.reflect.Proxy.newProxyInstance(obj.getClass().getClassLoader(),
+                                         Class[] { MyProxyInterface.class },
+                                         new MyDynamicProxyClass(obj));
+
+要知道上面的代码是非常简陋的，我会用一些工厂方法做一些隐藏。
+我会在MyDynamicProxyClass类中添加一些方法而不是在客户端的代码中添加那些看上去乱糟糟的代码。
+
+static public Object newInstance(Object obj, Class[] interfaces)
+{
+  return
+java.lang.reflect.Proxy.newProxyInstance(obj.getClass().getClassLoader(),
+                                                  interfaces,
+                                                  new
+MyDynamicProxyClass(obj));
+}
+
+客户端的代码就可以这样来使用了：
+
+MyProxyInterface foo = (MyProxyInterface)
+  MyDynamicProxyClass.newInstance(obj, new Class[]
+{ MyProxyInterface.class });
+
+代码这样就很干净了。
+要是将来有一个工厂类把代码对客户端完全的隐藏掉就太好了，客户端的代码看上去将会是这样的：
+
+MyProxyInterface foo = Builder.newProxyInterface();
+
+总体来说，实现一个动态代理是很简单的。
+但是，简单的背后却蕴含巨大的能力。
+这种能力来源于动态代理可以实现任意的接口或者是任意一组接口。我会在下面的章节对这个做介绍。
+
+====
+抽象数据
+
+抽象数据最好的例子就在java集合类中，比如：java.util.ArrayList，java.util.HashMap或者java.util.Vector。
+这些集合类可以容纳任意的java对象。
+它们在java中是无价之宝。
+抽象数据类型的概念非常强大，这些类把集合的力量带给了所有的数据类型。
+
+把两种类型绑定到一块
+
+把动态代理的概念和抽象数据类型绑定到一起，可以同时得到抽象数据类型和强数据类型的所有的好处。
+除此之外还可以用代理类实现访问控制，虚拟代理或者是其他有用的代理类型。
+通过把实际的创建和使用代理类屏蔽到客户端代码之外，就可以在不影响客户端代码的情况下，对底层的代理类做一些修改。
+
+视图的概念
+
+在java程序的架构中，不可避免的会遇见一个类要向客户端代码展示多个不同接口的设计问题，以图2为例：
+
+图2. Person的类图
+
+public class Person {
+  private String name;
+  private String address;
+  private String phoneNumber;
+  public String getName() { return name; }
+  public String getAddress() { return address; }
+  public String getPhoneNumber() { return phoneNumber; }
+  public void setName(String name) { this.name = name; }
+  public void setAddress(String address) { this.address = address; }
+  public void setPhoneNumber(String phoneNumber) { this.phoneNumber =
+phoneNumber; }
+}
+
+public class Employee extends Person {
+  private String SSN;
+  private String department;
+  private float salary;
+  public String getSSN() { return ssn; }
+  public String getDepartment() { return department; }
+  public float getSalary() { return salary; }
+  public void setSSN(String ssn) { this.ssn = ssn; }
+  public void setDepartment(String department) { this.department =
+department; }
+  public void setSalary(float salary) { this.salary = salary; }
+}
+
+public class Manager extends Employee {
+  String title;
+  String[] departments;
+  public String getTitle() { return title; }
+  public String[] getDepartments() { return departments; }
+  public void setTitle(String title) { this.title = title; }
+  public void setDepartments(String[] departments) { this.departments =
+departments; }
+}
+
+在这个例子中，Person类包含了Name，Address和PhoneNumber属性。
+然后有一个Employee类，它是Person的子类，它包含了额外的SSN，Department和Salary属性。
+从Employee类继承得到Manager类，它添加了Title和Manager负责的一个或者多个Departments的属性。
+
+当上面的设计完成以后，你应该回过头来想想如何来使用这个结构。
+在你的设计中，转型可能是一种你想要实现的方式。
+如何把person对象转换成employee对象，还有如何把employee对象转换成manager对象。
+反过来要怎么样？对某个仅需要person对象的客户端来说，暴漏manager对象可能是不必要的。
+
+一个实际的例子可能是一辆汽车。一辆汽车有自己典型的接口，比如：一个踏板用来加速，另一个踏板用来刹车，一个方向盘用来左转或者右转，等等。
+但是，当你考虑汽车中的机械的工作的时候，就会出现另一个接口。
+它有跟汽车完全不同的接口，比如：启动引擎或者改变油量。
+在这种情况下，让汽车的驾驶员知道汽车的机械接口是不合适的。
+同样，机械也不需要知道驾驶接口，虽然我也想让它知道如何来驾驶。
+这就是说，有相同驾驶接口的任意的汽车都是可以很容易的互操作的，汽车驾驶员不需要改变或者是学习任何新的东西(就可以驾驶)。
+
+当然了，在java中经常会使用接口这个概念。
+有人会问，动态代理是如何绑定到接口的使用的？
+简单的说，动态代理允许你把任意的对象当成是任意的接口。
+底层的对象跟接口不能完全匹配的时候需要做映射，但是总体上来说，这个概念是非常强大的。
+
+跟上面的汽车的例子相似，你可以有一个Bus的接口，同时还有一个不同的但是相似的BusDriver的接口。
+大多数知道如何驾驶汽车的人都知道驾驶汽车所需要的东西。
+或者你可以有一个相似的BoatDriver接口，不用踏板而是用油门，不用刹车而是用相反的油门。
+
+在BusDriver接口的情况下，你可能会直接使用Driver接口的map来对应底层的Bus对象，这仍然可以能够驾驶汽车。
+BoatDriver接口很可能会把对加速和刹车方法的调用映射到底层Boat对象的油门方法上去。
+
+通过使用抽象数据类型来表示底层的对象，你可以简单的把一个Person接口放到数据类型上，填充person的字段，
+然后，当person被雇佣了以后，在同一个底层对象上使用Employee接口。类图看起来就是图3那样：
+
+图3. 使用了接口的抽象数据类型的Person类图
+
+public interface IPerson {
+  public String getName();
+  public String getAddress();
+  public String getPhoneNumber();
+  public void setName(String name);
+  public void setAddress(String address);
+  public void setPhoneNumber(String phoneNumber);
+}
+
+public interface IEmployee extends IPerson {
+  public String getSSN();
+  public String getDepartment();
+  public Float getSalary();
+  public void setSSN(String ssn);
+  public void setDepartment(String department);
+  public void setSalary(String salary);
+}
+
+public interface IManager extends IEmployee {
+  public String getTitle();
+  public String[] getDepartments();
+  public void setTitle(String title);
+  public void setDepartments(String[] departments);
+}
+
+public class ViewProxy implements InvocationHandler
+{
+  private Map map;
+  public static Object newInstance(Map map, Class[] interfaces)
+  {
+    return Proxy.newProxyInstance(map.getClass().getClassLoader(),
+                                  interfaces,
+                                  new ViewProxy(map));
+  }
+  public ViewProxy(Map map)
+  {
+    this.map = map;
+  }
+  public Object invoke(Object proxy, Method m, Object[] args) throws
+Throwable
+  {
+    Object result;
+    String methodName = m.getName();
+    if (methodName.startsWith("get"))
+    {
+      String name = methodName.substring(methodName.indexOf("get")+3);
+      return map.get(name);
+    }
+    else if (methodName.startsWith("set"))
+    {
+      String name = methodName.substring(methodName.indexOf("set")+3);
+      map.put(name, args[0]);
+      return null;
+    }
+    else if (methodName.startsWith("is"))
+    {
+      String name = methodName.substring(methodName.indexOf("is")+2);
+      return(map.get(name));
+    }
+    return null;
+  }
+}
+
+在上面例子中，接口的第一行只是为了实现上面描述的Person/Employee/Manager对象的继承体系，真正的魔法在于ViewProxy类的invoke()方法。
+
+ViewProxy实现了java.lang.reflect.InvocationHandler接口，java.lang.reflect.Proxy类会使用这个接口提供实际的代理实现。
+ViewProxy提供了一个构建者方法newProxyInstance()，它会创建在整个代理实现中所必需的java.lang.reflect.Proxy和ViewProxy对象。
+
+要完成前面说的功能，你可能要编写下面的代码：
+
+HashMap identity = new HashMap();
+IPerson person = (IPerson)ViewProxy.newInstance(identity, new Class[]
+ IPerson.class });
+person.setName("Bob Jones");
+
+然后可以很简单的把identity转化成employee：
+
+IEmployee employee = (IEmployee)ViewProxy.newInstance(identity, new Class[]
+{ IEmployee.class });
+employee.setSSN("111-11-1111");
+
+随后就可以在IEmployee对象上调用IPerson的方法：
+
+
+System.out.println(employee.getName())
+
+会打印：
+
+Bob Jones
+
+很显然，创建代理实例的代码不是很优雅，所以使用一些工厂来创建实际的对象(让代理的创建跟客户端代码透明)可能是一个很好的方法。
+这样做以后，未来就可以简单的添加或者是改变接口，而不需要对其他代码做改动。
+
+让我们对ViewProxy类做一点小的改动。
+存在这样的情况，有一个对象的一些方法跟接口的方法是一样的，但是对象并没有实现接口。
+比如：我有一个非抽象的Person类，我希望把它当成是IPerson接口来使用，因为Person对象恰好有IPerson的所有的方法。
+要把Person类转化成IPerson接口，ViewProxy可能要这样做：
+
+public class ViewProxy implements InvocationHandler
+{
+  private Map map;
+  private Object obj;
+  public static Object newInstance(Map map, Object obj, Class[] interfaces)
+  {
+    return Proxy.newProxyInstance(map.getClass().getClassLoader(),
+                                  interfaces,
+                                  new ViewProxy(new map, obj));
+  }
+  public ViewProxy(Map map, Object obj)
+  {
+    this.map = map;
+    this.obj = obj;
+  }
+  public Object invoke(Object proxy, Method m, Object[] args) throws
+Throwable
+  {
+    try {
+      return m.invoke(obj, args);
+    } catch (NoSuchMethodException e)
+    { // ignore }
+    Object result;
+    String methodName = m.getName();
+    if (methodName.startsWith("get"))
+    {
+      String name = methodName.substring(methodName.indexOf("get")+3);
+      return map.get(name);
+    }
+    else if (methodName.startsWith("set"))
+    {
+      String name = methodName.substring(methodName.indexOf("set")+3);
+      map.put(name, args[0]);
+      return null;
+    }
+    else if (methodName.startsWith("is"))
+    {
+      String name = methodName.substring(methodName.indexOf("is")+2);
+      return(map.get(name));
+    }
+    return null;
+  }
+}
+
+在修改后的代码中，添加了一个try-catch块，它会尝试在传递进来的底层对象上调用方法，如果调用失败，会切换到普通的HashMap的方法。
+现在，要把Person类转化成IPerson类的时候，代码需要这么写：
+
+Person person;
+HashMap map;
+IPerson ip = (IPerson)ViewProxy.newInstance(map,
+                                            person,
+                                            new Class[] { IPerson.class });
+
+现在你可以把person对象当成是IPerson对象，底层的person会相应的做改变。
+相似的，也可以把Person对象当成是IEmployee对象：
+
+Person person;
+HashMap map;
+IEmployee ie = (IEmployee)ViewProxy.newInstance(map,
+                                                person,
+                                                new Class[]
+ IEmployee.class});
+
+当你调用IPerson的方法的时候，底层的person对象会被改变。
+但是，对IEmployee的调用会改变ViewProxy的HashMap。
+或者这会有一点点危险，但是这对我驾驶汽车来说是一样的。
+
+====
+授权实现
+
+访问控制通常很难实现，尤其是当代码已经写完并且上线以后再添加的时候。
+因为访问控制的问题，让我有很多晚上睡不着觉。
+但是，使用动态代理，可以很简单的实现访问控制。
+
+访问控制经常会以粗粒度访问控制和细粒度访问控制的方式被讨论，对于粗粒度的访问控制，允许对整个对象或者是对象组的级别上的访问。
+细粒度的访问控制通常处理方法或者是属性级别。
+比如：允许对文件只读访问是粗粒度访问控制。
+允许写到文件的某几行是细粒度访问控制。
+一个好的访问控制的实现要同时允许粗粒度和细粒度的访问控制。
+使用动态代理，这两种粒度的访问控制很容就能实现。
+
+要实现粗粒度访问控制，不过是给实现提供只读的接口这么简单：
+
+
+public interface IpersonRO {
+  public String getName();
+  public String getAddress();
+  public String getPhoneNumber();
+}
+public interface IemployeeRO extends IPersonRO {
+  public String getSSN();
+  public String getDepartment();
+  public Float getSalary();
+}
+public interface IManagerRO extends IEmployeeRO {
+  public String getTitle();
+  public String[] getDepartments();
+}
+
+这可以限制客户端的代码，让它明确的知道它得到的是一个只读的对象。
+更好的处理方式或许是通过InvocationHandler，它可以使用java.lang.security.acl包让开发者授予访问或者拒绝访问，并且能实现细粒度的访问控制：
+
+
+public class ViewProxy implements InvocationHandler
+{
+  public static final Permission READ= new PermissionImpl("READ");
+  public static final Permission WRITE = new PermissionImpl("WRITE");
+  private Map map;
+  public static Object newInstance(Map map, Class[] interfaces)
+  {
+    return Proxy.newProxyInstance(map.getClass().getClassLoader(),
+                                  interfaces,
+                                 new ViewProxy(map));
+  }
+  public ViewProxy(Map map)
+  {
+    this.map = map;
+  }
+  public Object invoke(Object proxy, Method m, Object[] args) throws
+Throwable
+  {
+    Object result;
+    String methodName = m.getName();
+    if (methodName.startsWith("get"))
+    {
+      if (!acl.checkPermission(p1, read)) return null;
+      String name = methodName.substring(methodName.indexOf("get")+3);
+      return map.get(name);
+    }
+    else if (methodName.startsWith("set"))
+    {
+      if (!acl.checkPermission(p1, write)) return null;
+      String name = methodName.substring(methodName.indexOf("set")+3);
+      map.put(name, args[0]);
+      return null;
+    }
+    else if (methodName.startsWith("is"))
+    {
+      if (!acl.checkPermission(p1, read)) return null;
+      String name = methodName.substring(methodName.indexOf("is")+2);
+      return(map.get(name));
+    }
+    return null;
+  }
+}
+
+====
+结论
+
+通过使用Java1.3引入的动态代理API，给你带来了无限的可能性。
+不光是在典型的使用动态代理的场景，比如代码调试或者是写Swing的事件处理器，
+同时在抽象数据类型的基本原理下可以把一种对象映射成另一种对象。
+
+动态代理还有跟多其他的本文中我没有提到的用途，
+比如：虚拟代理，它是说实际的类只有当真正需要的时候才会被载入进来。
+你也可以把它和远程代理结合起来，它会把对象实际上是位于远程网络上这件事给屏蔽掉。
+发挥你的想象力，一切皆有可能。
+
+Jeremy Blosser有5年的Java编程经验，他也写了一篇“98个Java窍门：访问者模式中应用反射”。
+Jeremy在XTRA在线www.mytrip.com工作。
+在他的职业生涯中，Jeremy写过客户端和服务端的框架，包括一个JMS的实现，基于Java的数据库，专利翻译器和很多高级的体系结构。
+他的个人网站 www.blosser.org包含了他写的很多代码。
+
+学习更多关于这个话题的东西可以参考：
+
+动态代理类(java.sun.com)
+使用动态代理给现存的代码添加新功能层(java.sun.com Tech Tips)
+一种创新的在AWT和JFC中处理事件的方式
+模式的主页
+Java语言规范
+可重用的面向对象软件的设计模式，, Erich Gamma, et al. (Addison-Wesley, 1995)
+Java中的模式，卷1，Mark Grand (John Wiley & Sons, 1998)
+Java中的模式，卷2，Mark Grand (John Wiley & Sons, 1999)
+
+98个Java窍门：访问者模式中应用反射” ,Jeremy Blosser (JavaWorld)

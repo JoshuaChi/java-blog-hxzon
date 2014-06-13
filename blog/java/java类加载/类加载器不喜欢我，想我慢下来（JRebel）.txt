@@ -2,6 +2,7 @@
   
 原文链接： zeroturnaround 翻译： ImportNew.com - wudy
 译文链接： http://www.importnew.com/11622.html
+另一个翻译版本：关于类加载器内存泄露的分析（JRebel）
 
 （后续内容：Java 1.4中引入的HotSwap类重载框架和JRebe的解决方法）
 ====
@@ -133,7 +134,7 @@ EAR类加载器将委派请求发给容器类加载器，但是它不会像WAR�
 
 这就是存在的技术问题。
 为了更新我们在运行时的代码，我们通常需要建立,打包,重新部署,甚至重启容器看到更新的代码。
-接下来,我们将看看针对Java中这一核心问题的解决方法，包括在Java 1.4中引入的HotSwap类重载框架和JRebe的解决方法。
+接下来,我们将看看针对Java中这一核心问题的解决方法，包括在Java 1.4中引入的HotSwap类重载框架和JRebel的解决方法。
 
 ====
 关于作者（SIMON MAPLE）：
