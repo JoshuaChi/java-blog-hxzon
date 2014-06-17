@@ -1,0 +1,280 @@
+﻿Classworking 工具箱：ASM classworking
+http://www.ibm.com/developerworks/cn/java/j-cwt05125/index.html
+
+Dennis M. Sosnoski (dms@sosnoski.com), Java 和 XML 顾问, Sosnoski Software Solutions, Inc.
+2005 年 6 月 01 日
+
+====
+ASM classworking 库声称自己又小又快是否名符其实？用 ASM 2.0 测试一下就知道。
+在这一期的 Classworking 工具箱中，咨询顾问 Dennis Sosnoski 把 ASM 字节码操作框架
+与他以前在 Java 编程动态性系列中讨论过的字节码工程库（Byte Code Engineering Library，BCEL）以及 Javassist 框架进行比较。
+ASM 声称自己又小又快 —— 但将它与其他框架进行比较的情况如何样呢？ 
+Dennis 将采用他在以前系列文章中使用的示例对 ASM 的可用性和性能进行评估。
+
+====
+目前已经开发了若干个处理字节码和类文件的 Java 库，其中包括我在以前的 Java 编程动态性系列中介绍的 Javassist 和 BCEL 库（参阅 参考资料）。
+ASM 是这种类型的另一个更新的库。与其他库不同，ASM 被设计和实现为尽可能小而快。
+在本月的这一期文章中，我将深入研究 ASM 在这一点上做得到底如何，将它与其他两个用作本系列中的示例的库进行比较。
+
+在上一期文章中，我演示了如何用运行时字节码生成来代替反射。
+那次，我使用了 1.4.1 的 JVM 进行测试，结果发现，生成的代码运行起来可能要比它替换的反射代码更快。
+除了在 ASM 上采用同样的手段进行测试之外，
+在这一期中，我还更新了结果，用 1.5.0 的 JVM 进行测试，看看 1.5.0 中实现的性能增强是否会改变结果。
+
+====
+代替反射
+
+示例应用程序的目的是用运行时生成的代码代替反射。在我的 Java 编程动态性系列中，我已经深入介绍过这个主题。在这一期的文章中，我将对以前的材料做一个快速的背景总结，然后看看在使用 ASM 代替 Javassist 和 BCEL 框架时，与这两者相比，ASM 的性能和可用性如何。
+设置阶段
+反射为在运行时访问对象和元数据提供了非常强大的机制（正如我在“Java 编程动态性，第 2 部分”中讨论过的）。使用反射使构建应用程序更加灵活，可以在运行时用外部信息把各个片断挂接（hook）在一起，形成一个工作配置。但是利用反射来实际访问对象通常比直接执行相同的操作慢得多。使用基于反射的方法构建应用程序，而后发现需要改进性能，这样会带来真正的问题，因为反射支持的灵活性很难以其他方式做到。
+Classworking 技术提供了一种方法。它没有使用反射来访问对象的属性，例如，可以在运行时构建一个类来做同样的事 —— 但这样做会快许多。“Java 编程动态性，第 8 部分”演示了如何用 Javassist 和 BCEL 这两个 classworking 框架来实现这种类型的反射替代。这篇文章采用的基本原则很简单：首先创建一个接口（该接口定义所需的函数），然后在运行时构建一个类（该类实现前面的接口，并把函数挂接到目标对象上）。
+清单 1 演示了这种方法。在这里，HolderBean类包含一对属性，通过使用反射来调用 get和 set方法，可以在运行时访问这一对属性。IAccess接口抽象化了通过 get和 set方法访问 int值属性的概念，而 AccessValue1类则特别针对 HolderBean类的“value1”属性给出了这个接口的实现。
+清单 1. 反射替代接口和实现
+ public class HolderBean 
+ { 
+    private int m_value1; 
+    private int m_value2; 
+    
+    public int getValue1( { 
+        return m_value1; 
+    } 
+    public void setValue1(int value) { 
+        m_value1 = value; 
+    } 
+    
+    public int getValue2() { 
+        return m_value2; 
+    } 
+    public void setValue2(int value) { 
+        m_value2 = value; 
+    } 
+ } 
+ public interface IAccess 
+ { 
+    public void setTarget(Object target); 
+    public int getValue(); 
+    public void setValue(int value); 
+ } 
+ public class AccessValue1 implements IAccess 
+ { 
+    private HolderBean m_target; 
+    
+    public void setTarget(Object target) { 
+        m_target = (HolderBean)target; 
+    } 
+    public int getValue() { 
+        return m_target.getValue1(); 
+    } 
+    public void setValue(int value) { 
+        m_target.setValue1(value); 
+    } 
+ }
+如果不得不手工编码诸如清单 1 中的 AccessValue1那样的每个实现类，那么整个方法可能都不是很有用。但是 AccessValue1中的代码非常简单，这使它成为运行时类生成的理想目标。可以使用 AccessValue1字节码作为模板，以生成特定于具体目标对象类型和 get/set方法对的类，只要用这些目标替换掉 AccessValue1中使用的那些目标即可。这是我在以前的文章中使用的方法，也是我在这一期中用在 ASM 上的方法。
+回页首
+使用 ASM
+我在前面的文章中介绍的两个 classworking 框架采用了截然不同的两种方法来处理字节码。Javassist 使用 Java 源代码的简化版本，然后再把代码编译成字节码。这让 Javassist 很容易使用，但是这也把字节码的使用范围限制在了 Javassist 源代码的限制使用范围中。另一方面，BCEL 直接处理字节码。BCEL 提供了操纵字节码指令的结构和技术，把它从单纯二进制值的级别提高了一步，但是使用它要比使用 Javassist 难得多。
+从操作级别上看，ASM 更靠近 BCEL 而不是 Javassist，但是 ASM 采用了一种比 BCEL 更整洁的接口。原因之一在于 ASM 的基本设计。ASM 并不直接操纵字节码指令，而是采用 visitor 模式把类数据（包括指令序列 ) 当成事件流来处理。在解码现有类的时候，ASM 会为您生成事件流，并调用处理事件的方法。在生成新类的时候，这种处理方式就反过来了 —— 您调用 ASM 类，它根据调用所表示的事件流构建新类。也可以使用双向方法，截住由现有类生成的事件流，做一些修改，并把修改后的事件流送回生成新类的事件流。
+用 ASM 修改类
+BCEL 和 ASM 都配备了能够生成 Java 源代码以编写类的工具。这些工具背后的思路是：可以将现有的类用作生成运行时类的模板。生成的源代码包含重新生成模板类的二进制形式所必需的所有调用，所以从理论上讲，可以把这个代码合并到应用程序代码中，并修改它来满足需要（例如，以参数的形式替换那些需要在运行时修改的值）。
+而在实践中，我发现这种类编写程序的 BCEL 版本（org.apache.bcel.util.BCELifier）使用起来有一些限制。用于操纵指令列表的 BCEL 代码很复杂，对我来说，BCELifier生成的源代码太难看，无法使用。ASM 的类编写程序也会产生一些难看的代码，但是只需稍做整理，它看起来就有用了。清单 2 显示了在 清单 1的 gen.AccessValue1类上运行该程序（org.objectweb.asm.util.ASMifierClassVisitor）所产生的结果。
+清单 2. 从 gen.AccessValue1 生成的 ASM 代码
+ package asm.gen; 
+import org.objectweb.asm.*; 
+
+public class AccessValue1Dump implements Opcodes { 
+    public static byte[] dump () throws Exception { 
+    ClassWriter cw = new ClassWriter(false); 
+    FieldVisitor fv; 
+    MethodVisitor mv; 
+    AnnotationVisitor av0; 
+
+    cw.visit(V1_2, ACC_PUBLIC + ACC_SUPER, "gen/AccessValue1", 
+        null, "java/lang/Object", new String[]
+    { "gen/IAccess" }); 
+
+    cw.visitSource("AccessValue1.java", null); 
+    { 
+        fv = cw.visitField(0, "m_bean", "Lgen/HolderBean;", null, null); 
+        fv.visitEnd(); 
+    } 
+
+    { 
+        mv = cw.visitMethod(ACC_PUBLIC, "<init>", "()V", null, null); 
+        mv.visitCode(); 
+        mv.visitVarInsn(ALOAD, 0); 
+        mv.visitMethodInsn(INVOKESPECIAL, "java/lang/Object", "<init>", "()V");
+        mv.visitInsn(RETURN); 
+        mv.visitMaxs(1, 1); 
+        mv.visitEnd(); 
+    } 
+    { 
+        mv = cw.visitMethod(ACC_PUBLIC, "setTarget", 
+	    "(Ljava/lang/Object;)V", null, null);
+        mv.visitCode(); 
+        mv.visitVarInsn(ALOAD, 0); 
+        mv.visitVarInsn(ALOAD, 1); 
+        mv.visitTypeInsn(CHECKCAST, "gen/HolderBean"); 
+        mv.visitFieldInsn(PUTFIELD, "gen/AccessValue1", "m_bean", "Lgen/HolderBean;");
+        mv.visitInsn(RETURN); 
+        mv.visitMaxs(2, 2); 
+        mv.visitEnd(); 
+    } 
+    { 
+        mv = cw.visitMethod(ACC_PUBLIC, "getValue", "()I", null, null); 
+        mv.visitCode(); 
+        mv.visitVarInsn(ALOAD, 0); 
+        mv.visitFieldInsn(GETFIELD, "gen/AccessValue1", "m_bean", "Lgen/HolderBean;");
+        mv.visitMethodInsn(INVOKEVIRTUAL, "gen/HolderBean", "getValue1", "()I"); 
+        mv.visitInsn(IRETURN); 
+        mv.visitMaxs(1, 1); 
+        mv.visitEnd(); 
+    } 
+    { 
+        mv = cw.visitMethod(ACC_PUBLIC, "setValue", "(I)V", null, null); 
+        mv.visitCode(); 
+        mv.visitVarInsn(ALOAD, 0); 
+        mv.visitFieldInsn(GETFIELD, "gen/AccessValue1", "m_bean", "Lgen/HolderBean;");
+        mv.visitVarInsn(ILOAD, 1); 
+        mv.visitMethodInsn(INVOKEVIRTUAL, "gen/HolderBean", "setValue1", "(I)V"); 
+        mv.visitInsn(RETURN); 
+        mv.visitMaxs(2, 2); 
+        mv.visitEnd(); 
+    } 
+    cw.visitEnd(); 
+    return cw.toByteArray(); 
+    } 
+}
+重新格式化之后，清单 2 的代码就成为了我们下面要查看的反射替代代码的基础。
+回页首
+用 ASM 代替反射
+“Java 编程动态性，第 8 部分” 采用了一个基类，对代码生成代替反射的不同实现进行测试，其中每个 classworking 库都用独立的子类来扩展基类。我将采用同样的方法来测试 ASM。
+清单 3 给出了 ASM 实现的子类。反射替代类的构造是通过 createAccess()方法完成的，该方法基于 清单 2中 ASM 生成的代码。清单 3 中的代码与清单 2 中代码的主要区别是：我对清单 3 的格式和结构稍加了重新调整，而且还调整了目标类的参数，属性的 get和 set方法，以及生成的类名称，以便这个 ASM 版本的 createAccess()方法与以前文章中使用的 Javassist 和 BCEL 版本兼容。
+清单 3. ASM 测试类
+ public class ASMCalls extends TimeCalls 
+ { 
+    protected byte[] createAccess(Class tclas, Method gmeth, Method smeth, 
+        String cname) throws Exception { 
+        
+        // initialize writer for new class 
+        String ciname = cname.replace('.', '/'); 
+        ClassWriter cw = new ClassWriter(false); 
+        cw.visit(Opcodes.V1_2, Opcodes.ACC_PUBLIC + Opcodes.ACC_SUPER, 
+            cname, null, "java/lang/Object", new String[] { "gen/IAccess" }); 
+        
+        // add field definition for reference to target class instance 
+        String tiname = Type.getInternalName(tclas); 
+        String ttype = "L" + tiname + ";"; 
+        cw.visitField(0, "m_bean", ttype, null, null).visitEnd(); 
+        
+        // generate the default constructor 
+        MethodVisitor mv = 
+            cw.visitMethod(Opcodes.ACC_PUBLIC, "<init>", "()V", null, null); 
+        mv.visitCode(); 
+        mv.visitVarInsn(Opcodes.ALOAD, 0); 
+        mv.visitMethodInsn(Opcodes.INVOKESPECIAL, "java/lang/Object", 
+            "<init>", "()V"); 
+        mv.visitInsn(Opcodes.RETURN); 
+        mv.visitMaxs(1, 1); 
+        mv.visitEnd(); 
+        
+        // generate the setTarget method 
+        mv = cw.visitMethod(Opcodes.ACC_PUBLIC, "setTarget", 
+            "(Ljava/lang/Object;)V", null, null); 
+        mv.visitCode(); 
+        mv.visitVarInsn(Opcodes.ALOAD, 0); 
+        mv.visitVarInsn(Opcodes.ALOAD, 1); 
+        mv.visitTypeInsn(Opcodes.CHECKCAST, tiname); 
+        mv.visitFieldInsn(Opcodes.PUTFIELD, ciname, "m_bean", ttype); 
+        mv.visitInsn(Opcodes.RETURN); 
+        mv.visitMaxs(2, 2); 
+        mv.visitEnd(); 
+        
+        // generate the getValue method 
+        mv = cw.visitMethod(Opcodes.ACC_PUBLIC, "getValue", "()I", null, null); 
+        mv.visitCode(); 
+        mv.visitVarInsn(Opcodes.ALOAD, 0); 
+        mv.visitFieldInsn(Opcodes.GETFIELD, ciname, "m_bean", ttype); 
+        mv.visitMethodInsn(Opcodes.INVOKEVIRTUAL, tiname, 
+            gmeth.getName(), "()I"); 
+        mv.visitInsn(Opcodes.IRETURN); 
+        mv.visitMaxs(1, 1); 
+        mv.visitEnd(); 
+        
+        // generate the setValue method 
+        mv = cw.visitMethod(Opcodes.ACC_PUBLIC, "setValue", "(I)V", null, null); 
+        mv.visitCode(); 
+        mv.visitVarInsn(Opcodes.ALOAD, 0); 
+        mv.visitFieldInsn(Opcodes.GETFIELD, ciname, "m_bean", ttype); 
+        mv.visitVarInsn(Opcodes.ILOAD, 1); 
+        mv.visitMethodInsn(Opcodes.INVOKEVIRTUAL, tiname, 
+            smeth.getName(), "(I)V"); 
+        mv.visitInsn(Opcodes.RETURN); 
+        mv.visitMaxs(2, 2); 
+        mv.visitEnd(); 
+        
+        // complete the class generation 
+        cw.visitEnd(); 
+        return cw.toByteArray(); 
+    } 
+    
+    public static void main(String[] args) throws Exception { 
+        if (args.length == 1) { 
+            ASMCalls inst = new ASMCalls(); 
+            inst.test(args[0]); 
+        } else { 
+            System.out.println("Usage: ASMCalls loop-count"); 
+        } 
+    } 
+ }
+清单 3 的 createAccess()代码演示了使用 ASM 的基本原则。我从创建 org.objectweb.asm.ClassWriter开始，org.objectweb.asm.ClassWriter接受类事件流（以方法调用的形式）并生成二进制类表示的输出。我调用编写器的 visitField()方法向构建的类添加一个字段，这将返回该字段的一个 visitor。返回的字段 visitor 可以用来为字段添加注释或者特殊的属性信息，但是在这个例子中，我不需要做什么特殊的事情，可以只是立即调用字段 visitor 的 visitEnd()方法。
+在添加字段之后，我为构建的类添加了 4 个必要方法。清单 1中的模板类源代码是类的默认构造函数，第一个方法没有出现在其中。这个构造函数没有参数，只是调用父类的构造函数，是在没有指定类的构造函数时，由 Java 编译器自动生成的。因为我自己正在构建一个类，所以我需要显式地创建默认构造函数。其余三个方法与 清单 1源代码中显示的方法相同。
+在添加字段时，调用类编写器的 visitMethod()方法将为添加的方法返回一个 visitor。这个方法 visitor（org.objectweb.asm.MethodVisitor接口的实例）可以用于为方法添加注释或特殊属性，但是也为生成构成方法主体的实际字节码指令序列提供了接口。清单 1的代码演示了如何通过调用方法 visitor 来添加指令。在添加完所有指令后，就可以用最后一对调用来完成方法生成。第一个调用是 visitMaxs()，它用于设置方法的最大堆栈大小和本地变量计数（这些值也可以由 ASM 自动计算，并通过在调用中把 true参数传递给 ClassWriter构造函数对其进行配置）。最后一对调用中的第二个调用是 visitEnd()，它只完成方法的构建过程。
+一旦添加了字段和方法，获得完成后的类的二进制代码就很容易。对类编写器调用 visitEnd()表明类编写过程已经完成，而 toByteArray()调用实际上返回的是二进制类映像。
+
+====
+检测结果
+
+在“Java 编程动态性，第 8 部分”中，我展示了用 Javassist 和 BCEL 在运行时生成反射替代类所花费时间的计时结果，以及用反射和替代类执行不同数量的访问所花费时间的计时结果。在这一期中，我将展示同样类型的结果，但稍有变化。首先，我要把 ASM 包含在生成时间的比较中。我还要转换到 JDK 1.5 中进行测试，以便能够使用 java.lang.System.nanoTime()方法获得更精确的计时结果。
+图 1 显示了从 2k 到 51k 的循环中，使用反射方法调用和生成类的时间的比较（测试是在一台 1GHz 的 PIIIm 笔记本上进行的，运行的是 Mandrake Linux 10.0 系统，使用 Sun 的 1.5.0 JVM）。这些时间对于所有框架都是相同的。使用生成代码的性能优势看起来并不像我在以前的测试中用 1.4.2 JVM 那么好，但是它们仍然很有意义，因为生成代码运行起来要比反射快 10 到 14 倍。
+图 1. 反射和生成代码速度对比（以毫秒为单位）
+反射和生成代码速度对比
+图 1 的结果很有趣，但是它们并不是本期的重点。关系更密切的是表 1 显示的结果，它给出了使用每个框架来构建生成类所花费的时间。在这里，我为每个框架提供了两个独立的时间。第一个时间值是构建第一个反射替代类所花费的时间，这个时间包括装载和初始化框架代码中的类的时间。后一个时间值是构建另外三个反射替代类（针对其他属性）的平均值。
+表 1. 类的构建时间
+框架	第一个时间	第二个时间
+Javassist	257	5.2
+BCEL	473	5.5
+ASM	62.4	1.1
+表 1 的结果表明，ASM 的确比其他框架快，而且这一优势不仅适用于启动时，还适用于重复使用的时候。
+
+====
+结束语
+
+将 ASM 与其他 classworking 框架进行对比，结果显示，它比其他框架快若干倍（至少对于这个相当典型的测试用例是这样的）。
+ASM 在结构上更加紧凑，使用的运行时 JAR 大小仅为 33k（对比之下，Javassist 的大小为 310K，BCEL 的大小更为惊人，为 504K）。
+ASM 是否易于使用还很难说，但是它的接口看起来明显比 BCEL 的接口更整齐，
+同时也提供了同样程度的灵活性（只是缺少一些 BCEL 独有的特性，例如成段而非逐行构建代码的能力）。
+由于其类似 Java 的源代码接口，因而 ASM 不像 Javassist 那么容易使用，
+但是如果想在字节码级别上工作，我还是推荐您考虑采用 ASM。
+
+在下一期文章中，在讨论将原来围绕 BCEL 设计的一个主要 classworking 应用程序转换成采用 ASM 时，
+我还会回到使用 ASM 进行 classworking 的问题上来。
+下一个月，我将研究如何把 ASM 应用到另一个领域，还将考察 J2SE 5.0 添加到 Java 平台上的注释支持，
+并展示 ASM 如何处理 J2SE 5.0 注释，通过一些很有用的方法来增强这一支持。
+届时请回到这里学习有关这个强大的 classworking 框架的更多内容。
+
+====
+Source code	j-cwt05125code.zip	912 KB
+
+参考资料
+您可以参阅本文在 developerWorks 全球站点上的 英文原文。
+单击本文顶部或底部的 代码图标（或参阅 下载） 下载本文讨论的源代码。
+请务必阅读 Dennis Sosnoski 撰写的 Classworking 工具箱系列中的每一期文章。
+获得 ASM这个快速而灵活的 Java 字节码操纵框架的所有详细资料。
+从 Peter Haggar 撰写的文章“Java bytecode: Understanding bytecode makes you a better programmer”（developerWorks，2001 年 7 月）中学习更多有关 Java 字节码设计的内容。
+要想得到 JVM 架构和指令集的一些好的参考资料，请参阅 Bill Venners 编写的 Inside the Java Virtual Machine（Artima Software，Inc.，2004），也可以通过 view some sample chapters online 在购买该书之前查看它。
+您可以从 purchase or view the official Java Virtual Machine Specification online中得到 JVM 操作的所有方面的详细说明。
+请搜集全套的 Java 编程动态性系列，作者是 Dennis Sosnoski，他将带您遍历 Java 类结构、反射和 classworking 等。
+如果打算尝试 classworking，但又不想直接处理 Java JVM，那么 Javassist 可能正是您要寻找的。Javassist 允许您处理源代码，并把源代码编译成 Java 字节码。它目前是开源的 JBoss应用服务器项目的一部分，在该项目中，它是新添加的面向方面编程特性的基础。
+可以在 Apache project page上获得流行的开源 BCEL 的所有细节。
+开源的 Jikes Project为 Java 编程语言提供了 非常迅速、高度符合规范的编译器。通过它可以使用一些老式方法生成字节码 —— 从 Java 源代码生成字节码。
+
