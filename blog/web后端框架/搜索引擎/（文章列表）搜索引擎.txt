@@ -2,7 +2,14 @@
 
 by hxzon
 ==========
-1，Next-generation search and analytics with Apache Lucene and Solr 4
+1，使用 Apache Lucene 和 Solr 4 实现下一代搜索和分析
+使用搜索引擎计数构建快速、高效和可扩展的数据驱动应用程序
+http://www.ibm.com/developerworks/cn/java/j-solr-lucene/
+
+Grant Ingersoll, 资深技术人员, Lucid Imagination
+2013 年 12 月 05 日
+
+Next-generation search and analytics with Apache Lucene and Solr 4
 Use search engine technology to build fast, efficient, and scalable data-driven applications
 
 http://www.ibm.com/developerworks/opensource/library/j-solr-lucene/index.html
