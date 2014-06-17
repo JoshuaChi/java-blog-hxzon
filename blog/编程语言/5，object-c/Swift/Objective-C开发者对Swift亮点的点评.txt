@@ -1,0 +1,222 @@
+﻿Objective-C开发者对Swift亮点的点评
+原文链接： raywenderlich   翻译： 伯乐在线 - shinancao
+译文链接： http://blog.jobbole.com/71250/
+
+2014/06/16
+
+====
+如果这周一你像我一样，正在享受着keynote，很兴奋地要去开始尝试所有新的优美的API。然后当听到讲一门新的语言：Swift时，耳朵都竖起来了！Swift不是对Objective-C的扩展，而是一门全新的语言，这突然震撼到了你。也许你很激动？也许你很开心？也许你没什么想法。
+
+Swift确实已经改变了未来我们开发iOS和Mac上的应用的方式。这篇文章中，我概括了Swift语言的一些亮点，把他们和Objective-C中对应的功能进行了比较。
+
+请注意这并不是一篇Swift入门指南。苹果已经发布了一本讲解Swift的很棒的书，我强烈建议你去阅读一下。取而代之地是，这是一篇对一些值得关注和使用的特别酷的功能的讨论。
+
+类型
+
+Swift给出的第一件重大的事情是类型推断。使用类型推断的语言，程序员不需要使用类型信息给变量作注释。编译器可以从给变量赋的值推断出该变量的类型。例如，编译器可以自动把下面这个值设置为String类型：
+
+
+// automatically inferred
+var name1 = "Matt"
+// explicit typing (optional in this case)
+var name2:String = "Matt"
+连同类型推断一起，Swift还给出了类型安全。在Swift中，编译器（除了少数特殊情况）知道一个对象的完整类型。这使得它能决定怎样来编译代码，因为它有更多的信息随手可用。
+
+这与Objective-C存在明显的不同，Objective-C本质上是非常动态的。在Objective-C中，编译期间不会真正知道对象的类型。部分原因是你可以在运行时给已有的类添加方法，添加一个全新的类，甚至改变一个实例的类型。
+
+让我们来更详细地看一下，考虑到下面的Objective-C语句：
+
+Person *matt = [[Person alloc] initWithName:@"Matt Galloway"];
+[matt sayHello];
+当编译器看见调用sayHello时，它会检查在头文件中是否声明了这个方法，它会发现类型Person调用了sayHello。如果没有一个Person对象，就会发生错误，但是这就是编译器所能做的全部了。通常这就足以来捕捉到你引入的bug的第一行了。它会捕捉到输入错误。但是因为动态的特性，编译器不知道sayHello是否将会在运行时改变或者一定会改变。例如，它可以是在协议中的一个可选方法。（还记得这些都可以用respondsToSelector:来检查吗？）。
+
+因为缺乏强类型，所以当在Objective-C中调用方法时编译器基本上不会太多的事来进行优化。处理动态派发的方法叫做objc_msgSend。我相信你在许多的回溯中已经看见了！在该函数中，会查找选择器的实现，然后再跳转。你不能不承认这增加了开销和复杂性。
+
+现在看一下在Swift中相同功能的代码实现：
+
+var matt = Person(name:"Matt Galloway")
+matt.sayHello()
+
+在Swift中，编译器知道更多关于类型的信息，这在任何的方法调用中都会起到作用。编译器确切地知道sayHello()在何处被定义。正因如此，通过直接地跳转到实现处而不是必须经过动态派发，编译器可以优化调用的地址。在其他情况下，编译器可以使用虚拟函数表风格派发，这也远低于Objective-C中动态派发的开销。这种类型的派发就是C++中使用的虚函数。
+
+在Swift中编译器更加的有用。它将帮助阻止不确定的类型导致的bug进入你的代码库。通过智能的优化，还能够使你的代码运行的更加快速。
+
+泛型
+
+Swift另一个重大的特性是泛型。如果你熟悉C++，你会想起像模板这样的东西。因为Swift是明确类型的，所以你必须在声明一个函数时传递确定的类型。但是有时一些功能对于多个不同的类型是一样的。这种情况的例子就是是经常用到的一对数值构成的一个结构体类型。在Swift中对于整数可以像下面这么实现：
+
+struct IntPair {
+    let a: Int!
+    let b: Int!
+ 
+    init(a: Int, b: Int) {
+        self.a = a
+        self.b = b
+    }
+ 
+    func equal() -> Bool {
+        return a == b
+    }
+}
+ 
+let intPair = IntPair(a: 5, b: 10)
+intPair.a // 5
+intPair.b // 10
+intPair.equal() // false
+
+稍微有用。但是现在你想让这个类对于浮点数也适用。你可以定义FloatPair类，但是它会和上面的类非常相似。因此泛型出现了。无需再声明一个全新的类，你只要简单的像下面这样做即可：
+
+struct Pair<T: Equatable> {
+    let a: T!
+    let b: T!
+ 
+    init(a: T, b: T) {
+        self.a = a
+        self.b = b
+    }
+ 
+    func equal() -> Bool {
+        return a == b
+    }
+}
+ 
+let pair = Pair(a: 5, b: 10)
+pair.a // 5
+pair.b // 10
+pair.equal() // false
+ 
+let floatPair = Pair(a: 3.14159, b: 2.0)
+floatPair.a // 3.14159
+floatPair.b // 2.0
+floatPair.equal() // false
+
+相当的有用！为什么你这次会想到这个特性似乎并不清楚，但是相信我：机会是无穷无尽的。你会很快开始明白在自己的代码里何处会用到这些。
+
+容器
+
+你已经知道并爱上了NSArray,NSDictionary和与它们对应的类。那么，你现在将了解Swift中与其相对应的类。幸运地是，他们非常相似。下面是如何定义数组和字典：
+
+let array = [1, 2, 3, 4]
+let dictionary = ["dog": 1, "elephant": 2]
+这对于你来说应该相当熟悉了。然而还是有一点不同。在Objective-C中，数组和字典可以包含任意你想要的类型。但是在Swift中，数组和字典是类型化的。并且是通过使用我们上面的朋友—泛型来类型化的！
+
+上面两个变量可以使用明确的类型重写（不过请记住你实际上不需要这么做），如下：
+
+let array: Array<Int> = [1, 2, 3, 4]
+let dictionary: Dictionary<String, Int> = ["dog": 1, "elephant": 2]
+请注意是如何用泛型来定义存储在容器中的东西的。对于数组来说还有一种简短的形式来表示，这种形式的可阅读性更强一些，但是本质上还是一样的东西：
+
+
+let array: Int[] = [1, 2, 3, 4]
+现在请注意你不能向该数组里添加非Int类型的东西。这听起来是一件糟糕的事情，但是它却极其有用。你的API再也不用写文档来说明，一个方法返回的数组或者一个数组属性存储的是什么东西了。你可以给编译器提供明确的信息，以便它能更智能进行错误检查和之前提到的优化。
+
+可变性
+
+关于Swift中集合的一件比较有趣的事是它们的可变性。没有与Array和Dictionary对应的“可变的”类型。取而代之地是，使用标准的let和var。对于那些还没有阅读这本书，或者根本没有探索Swift的人们（我建议你去做，尽快!），let用于声明一个常量，var用于声明一个变量，是的，变量！let类似于在C/C++/Objective-C中使用const。如果集合用let来声明就表示它的长度是不可变的。也就是说，不能再向其中添加，或者从其中移除。如果你试一下，你会得到下面的错误：
+
+let array = [1, 2, 3]
+array.append(4)
+// error: immutable value of type 'Array<Int>' only has mutating members named 'append'
+这同样适用于字典。基于此，编译器能推断出集合是否为可变的，然后做适当的优化。例如，如果大小不能改变，那么存储值的存储器不必再分配空间给新值。因此对于不会改变的集合总是使用let修饰是一个好习惯。
+
+字符串
+
+Objective-C中的字符串众所周知处理起来很让人烦躁，即使像拼接多个不同值这样简单的事情都很枯燥乏味。例如下面：
+
+Person *person = ...;
+ 
+NSMutableString *description = [[NSMutableString alloc] init];
+[description appendFormat:@"%@ is %i years old.", person.name, person.age];
+if (person.employer) {
+  [description appendFormat:@" They work for %@.", person.employer];
+} else {
+  [description appendString:@" They are unemployed."];
+}
+这相当的枯燥乏味，并且包含了许多与数据处理无关的字符。同样的事情在Swift中像下面这样处理：
+
+var description = ""
+description += "\(person.name) is \(person.age) years old."
+if person.employer {
+    description += " They work for \(person.employer)."
+} else {
+    description += " They are unemployed."
+}
+
+更加整洁！请注意这种用一个格式创建一个字符串更加整洁的方式，现在你可以使用+=创建字符串。不再需要可变的和不可变的字符串。
+
+Swift的另一个非常棒的扩展是字符串比较。你很清楚在Objective-C中使用==来比较字符串是不正确的。取而代之地，你应该使用isEqualToString:方法。因为前者是指针比较。Swift移除了这个间接的标准，相反地让你能够直接使用==比较字符串。这也意味着字符串可以用于switch语句。下面一段内容会更加详细的介绍。
+
+最后一个好消息是Swift支持全部Unicode字符集。你可以在字符串中使用任何Unicode码位，甚至是函数和变量的名字！如果你想要，现在你可以定义一个叫QQ图片20140616210300（一堆屎！）的函数！
+
+另一个有价值的消息是目前有一个内置的方法来计算一个字符串的真实长度。当考虑到Unicode的全部类型时，字符串的长度很难计算。你不能说它的长度是以UTF8存储的字节个数，因为一些字符超过了一个字节。在Objective-C中，NSString通过计算UTF16的个数来计算长度，UTF16用两个字节存储字符串。但是严格来说这是不正确的，因为一些Unicode码位占用4个字节。
+
+幸运地是，Swift有一个好用的方法来计算字符串中码位的个数。它使用这个叫countElements()的高级函数。你可以像这样用：
+
+Unnamed QQ Screenshot20140616223107
+
+这个方法并不适用于所有情况。它只是计算码位的个数。它并没有考虑改变其他字符的特殊码位。例如，你可以在先前的字符上放一个元音变音符。这种情况下，countElements()将返回2，尽管看起来只是1个字符。代码如下：
+
+var eUmlaut = "e\u0308" // ë
+countElements(eUmlaut) // 2
+所有这一切表明，我想你会赞同Swift中的字符串非常地棒！
+
+Switch语句
+
+最后一件在这篇对Swift的简要介绍中要谈论的是switch语句。与Objective-C中这部分内容相比，在Swift中switch得到了极大的改善。这是一件非常有趣的事，因为这还是没有添加到Objective-C中，还是没有打破Objective-C是C的超集的事实。
+
+第一件令人兴奋的地方是可以对字符串转换。这也许正是你之前想要做，却不能做的事。在Objective-C中如果要对字符串用“switch”，你必须要使用多个if语句，同时要用isEqualToString:，像下面这样：
+
+if ([person.name isEqualToString:@"Matt Galloway"]) {
+  NSLog(@"Author of an interesting Swift article");
+} else if ([person.name isEqualToString:@"Ray Wenderlich"]) {
+  NSLog(@"Has a great website");
+} else if ([person.name isEqualToString:@"Tim Cook"]) {
+  NSLog(@"CEO of Apple Inc.");
+} else {
+  NSLog(@"Someone else);
+}
+
+这样可阅读性不强，也要打很多字。同样的功能在Swift中实现如下：
+
+switch person.name {
+  case "Matt Galloway":
+    println("Author of an interesting Swift article")
+  case "Ray Wenderlich":
+    println("Has a great website")
+  case "Tim Cook":
+    println("CEO of Apple Inc.")
+  default:
+    println("Someone else")
+}
+
+除了对字符串可以使用switch之外，请注意这里一些有趣的事情。没有看见break。因为在switch中一个case语句执行完成后就不再向下执行。不会再偶然地出现bug！
+
+下面的switch语句可能会扰乱你的思路，所以准备好了！
+
+switch i {
+case 0, 1, 2:
+    println("Small")
+case 3...7:
+    println("Medium")
+case 8..10:
+    println("Large")
+case _ where i % 2 == 0:
+    println("Even")
+case _ where i % 2 == 1:
+    println("Odd")
+default:
+    break
+}
+
+首先，这出现了一个break。因为switch必须要全面而彻底，它们需要处理所有的情况。在这种情况下，我们想要default时不做任何事，所以放置了一个break来表明此处不应该发生任何事。
+
+接下来有趣的事情是你在上面看到的…和..，这些是新的操作符，用于来定义范围。前者用来定义范围包括右边的数字，后者定义的范围不包括右边的数字。它们真是超乎想象地有用。
+
+最后一件事是可以把case定义成对输入值的计算。在上面这种情况下，如果这个值不匹配从0到10，如果是偶数打印“Even”，是奇数打印“Odd”。太神奇了！
+
+接下来该怎么做？
+
+希望这篇文章给了你一次对Swift语言的体验，并让你了解了Swift中的精彩部分。但是还远远不够。我鼓励你去阅读官方书籍，和其他一些将有助于你学习这门新语言的其他官方文档。你迟早都要这样做！
+
+我们也想听一听到目前为止你对Swift语言的想法，或者是否有令你兴奋的亮点。请在下面留下你的想法。
+

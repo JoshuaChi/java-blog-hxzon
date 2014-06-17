@@ -97,6 +97,7 @@ http://www.ibm.com/developerworks/cn/java/j-jn7/index.html
 ----------
 Java 下一代: 混入和特征
 将新行为混合到 Groovy 和 Scala 类中
+
 Neal Ford, 软件架构师, ThoughtWorks Inc.
 2013 年 11 月 28 日
 http://www.ibm.com/developerworks/cn/java/j-jn8/index.html
@@ -104,6 +105,7 @@ http://www.ibm.com/developerworks/cn/java/j-jn8/index.html
 ----------
 Java 下一代: 局部套用和部分应用
 为函数调度添加功能和间接引用
+
 Neal Ford, 软件架构师, ThoughtWorks Inc.
 2014 年 1 月 09 日
 http://www.ibm.com/developerworks/cn/java/j-jn9/index.html
@@ -125,8 +127,35 @@ Java.next: Functional coding styles
 http://www.ibm.com/developerworks/java/library/j-jn10/index.html
 
 ----------
+Java 下一代: 克服同义词干扰
 
+上一期 Java 下一代文章（“函数式编码风格”）对比和比较了 Scala、Groovy 和 Clojure 中的函数式编码风格。
+在本文中，系列作家 Neal Ford 将会更深入地剖析 Java 下一代语言中的过滤、映射和缩减（reduce）功能。
+文中提供的一系列简短的编码示例可帮助您整理这 3 种语言在命名这些重要的函数结构的方式上的比较容易混淆的区别。
+http://www.ibm.com/developerworks/cn/java/j-jn11/index.html
 
+----------
+Java 下一代: 内存化和函数式协同
 
+Scala 和 Clojure 都是函数式语言，而 Groovy 通过库包含了许多函数特性。
+这一期的 Java 下一代文章将探讨如何在 Java 下一代语言中实现内存化，以及如何使用函数组合特性来实现简洁性。
+http://www.ibm.com/developerworks/cn/java/j-jn12/index.html
 
+----------
+Java 下一代: 对比并发性
+
+或许 Java 下一代语言之间的最明显的区别在于线程、并发性和并行性。
+本文将介绍让 Scala、Groovy 和 Clojure 中现有的函数代码并行化的一些简单方法，
+然后还会分析 Scala 中的 actor 并发模型。
+http://www.ibm.com/developerworks/cn/java/j-jn13/index.html
+
+----------
+Java 下一代：Clojure 中的并发性
+Clojure 如何抽象并发性和共享状态
+
+Neal Ford, Director / Software Architect / Meme Wrangler, ThoughtWorks Inc.
+2014 年 6 月 16 日
+http://www.ibm.com/developerworks/cn/java/j-jn14/index.html
+见《clojure并发》。
+----------
 
