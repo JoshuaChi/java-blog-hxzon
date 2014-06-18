@@ -29,6 +29,9 @@ hxzon：本地私服的配置问题。
     </configuration>
 </plugin>
 
+编译的一些常见配置：
+http://maven.apache.org/plugins/maven-compiler-plugin/compile-mojo.html
+
 4，使用不同的jdk来编译源码。
 http://maven.apache.org/plugins/maven-compiler-plugin/examples/compile-using-different-jdk.html
 
