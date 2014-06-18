@@ -130,134 +130,249 @@ cc.writeFile();                             // convert to a class file.
 
 The CtClass object cc is not pruned. Thus it can be defrost after writeFile() is called.
 
-Note: While debugging, you might want to temporarily stop pruning and freezing and write a modified class file to a disk drive. debugWriteFile() is a convenient method for that purpose. It stops pruning, writes a class file, defrosts it, and turns pruning on again (if it was initially on).
-Class search path
+Note: While debugging, you might want to temporarily stop pruning and freezing 
+and write a modified class file to a disk drive. 
+debugWriteFile() is a convenient method for that purpose. 
+It stops pruning, writes a class file, defrosts it, and turns pruning on again (if it was initially on).
 
-The default ClassPool returned by a static method ClassPool.getDefault() searches the same path that the underlying JVM (Java virtual machine) has. If a program is running on a web application server such as JBoss and Tomcat, the ClassPool object may not be able to find user classes since such a web application server uses multiple class loaders as well as the system class loader. In that case, an additional class path must be registered to the ClassPool. Suppose that pool refers to a ClassPool object:
+====
+Class search path
+类搜索路径
+
+The default ClassPool returned by a static method ClassPool.getDefault() searches 
+the same path that the underlying JVM (Java virtual machine) has. 
+If a program is running on a web application server such as JBoss and Tomcat, 
+the ClassPool object may not be able to find user classes since such a web application server 
+uses multiple class loaders as well as the system class loader. 
+In that case, an additional class path must be registered to the ClassPool. 
+Suppose that pool refers to a ClassPool object:
+类池默认使用jvm的类搜索路径。
+但当运行于web容器时，如果容器使用额外的多个搜索路径，就需要手动把这些路径加入到类池。
 
 pool.insertClassPath(new ClassClassPath(this.getClass()));
-This statement registers the class path that was used for loading the class of the object that this refers to. You can use any Class object as an argument instead of this.getClass(). The class path used for loading the class represented by that Class object is registered.
 
-You can register a directory name as the class search path. For example, the following code adds a directory /usr/local/javalib to the search path:
+This statement registers the class path that was used for loading the class of the object that this refers to. 
+You can use any Class object as an argument instead of this.getClass(). 
+The class path used for loading the class represented by that Class object is registered.
+
+You can register a directory name as the class search path. 
+For example, the following code adds a directory /usr/local/javalib to the search path:
 
 ClassPool pool = ClassPool.getDefault();
 pool.insertClassPath("/usr/local/javalib");
+
 The search path that the users can add is not only a directory but also a URL:
+可以插入网络地址。
 
 ClassPool pool = ClassPool.getDefault();
 ClassPath cp = new URLClassPath("www.javassist.org", 80, "/java/", "org.javassist.");
 pool.insertClassPath(cp);
-This program adds "http://www.javassist.org:80/java/" to the class search path. This URL is used only for searching classes belonging to a package org.javassist. For example, to load a class org.javassist.test.Main, its class file will be obtained from:
+
+This program adds "http://www.javassist.org:80/java/" to the class search path. 
+This URL is used only for searching classes belonging to a package org.javassist. 
+For example, to load a class org.javassist.test.Main, its class file will be obtained from:
 
 http://www.javassist.org:80/java/org/javassist/test/Main.class
-Furthermore, you can directly give a byte array to a ClassPool object and construct a CtClass object from that array. To do this, use ByteArrayClassPath. For example,
+
+Furthermore, you can directly give a byte array to a ClassPool object and construct a CtClass object from that array. 
+To do this, use ByteArrayClassPath. 
+For example,
 
 ClassPool cp = ClassPool.getDefault();
 byte[] b = a byte array;
 String name = class name;
 cp.insertClassPath(new ByteArrayClassPath(name, b));
 CtClass cc = cp.get(name);
-The obtained CtClass object represents a class defined by the class file specified by b. The ClassPool reads a class file from the given ByteArrayClassPath if get() is called and the class name given to get() is equal to one specified by name.
+
+The obtained CtClass object represents a class defined by the class file specified by b. 
+The ClassPool reads a class file from the given ByteArrayClassPath if get() is called 
+and the class name given to get() is equal to one specified by name.
 
 If you do not know the fully-qualified name of the class, then you can use makeClass() in ClassPool:
+如果你不知道类的完全限定名，可以使用makeClass()方法。
 
 ClassPool cp = ClassPool.getDefault();
 InputStream ins = an input stream for reading a class file;
 CtClass cc = cp.makeClass(ins);
-makeClass() returns the CtClass object constructed from the given input stream. You can use makeClass() for eagerly feeding class files to the ClassPool object. This might improve performance if the search path includes a large jar file. Since a ClassPool object reads a class file on demand, it might repeatedly search the whole jar file for every class file. makeClass() can be used for optimizing this search. The CtClass constructed by makeClass() is kept in the ClassPool object and the class file is never read again.
 
-The users can extend the class search path. They can define a new class implementing ClassPath interface and give an instance of that class to insertClassPath() in ClassPool. This allows a non-standard resource to be included in the search path.
+makeClass() returns the CtClass object constructed from the given input stream. 
+You can use makeClass() for eagerly feeding class files to the ClassPool object. 
+This might improve performance if the search path includes a large jar file. 
+Since a ClassPool object reads a class file on demand, 
+it might repeatedly search the whole jar file for every class file. 
+makeClass() can be used for optimizing this search. 
+The CtClass constructed by makeClass() is kept in the ClassPool object and the class file is never read again.
+
+使用makeClass()可以优化搜索。
+
+
+The users can extend the class search path. 
+They can define a new class implementing ClassPath interface and give an instance of that class to insertClassPath() in ClassPool. 
+This allows a non-standard resource to be included in the search path.
 
 
 ====
 2. ClassPool
+类池
 
-A ClassPool object is a container of CtClass objects. Once a CtClass object is created, it is recorded in a ClassPool for ever. This is because a compiler may need to access the CtClass object later when it compiles source code that refers to the class represented by that CtClass.
+A ClassPool object is a container of CtClass objects. 
+Once a CtClass object is created, it is recorded in a ClassPool for ever. 
+This is because a compiler may need to access the CtClass object later 
+when it compiles source code that refers to the class represented by that CtClass.
 
-For example, suppose that a new method getter() is added to a CtClass object representing Point class. Later, the program attempts to compile source code including a method call to getter() in Point and use the compiled code as the body of a method, which will be added to another class Line. If the CtClass object representing Point is lost, the compiler cannot compile the method call to getter(). Note that the original class definition does not include getter(). Therefore, to correctly compile such a method call, the ClassPool must contain all the instances of CtClass all the time of program execution.
+For example, suppose that a new method getter() is added to a CtClass object representing Point class. 
+Later, the program attempts to compile source code including a method call to getter() in Point 
+and use the compiled code as the body of a method, which will be added to another class Line. 
+If the CtClass object representing Point is lost, the compiler cannot compile the method call to getter(). 
+Note that the original class definition does not include getter(). 
+Therefore, to correctly compile such a method call, 
+the ClassPool must contain all the instances of CtClass all the time of program execution.
 
 Avoid out of memory
+避免内存不足
 
-This specification of ClassPool may cause huge memory consumption if the number of CtClass objects becomes amazingly large (this rarely happens since Javassist tries to reduce memory consumption in various ways). To avoid this problem, you can explicitly remove an unnecessary CtClass object from the ClassPool. If you call detach() on a CtClass object, then that CtClass object is removed from the ClassPool. For example,
+This specification of ClassPool may cause huge memory consumption 
+if the number of CtClass objects becomes amazingly large 
+(this rarely happens since Javassist tries to reduce memory consumption in various ways). 
+To avoid this problem, you can explicitly remove an unnecessary CtClass object from the ClassPool. 
+If you call detach() on a CtClass object, then that CtClass object is removed from the ClassPool. For example,
+可以显示的移除不再使用的 CtClass 。
 
 CtClass cc = ... ;
 cc.writeFile();
 cc.detach();
 
-You must not call any method on that CtClass object after detach() is called. However, you can call get() on ClassPool to make a new instance of CtClass representing the same class. If you call get(), the ClassPool reads a class file again and newly creates a CtClass object, which is returned by get().
+You must not call any method on that CtClass object after detach() is called. 
+However, you can call get() on ClassPool to make a new instance of CtClass representing the same class. 
+If you call get(), the ClassPool reads a class file again and newly creates a CtClass object, which is returned by get().
 
-Another idea is to occasionally replace a ClassPool with a new one and discard the old one. If an old ClassPool is garbage collected, the CtClass objects included in that ClassPool are also garbage collected. To create a new instance of ClassPool, execute the following code snippet:
+Another idea is to occasionally replace a ClassPool with a new one and discard the old one. 
+If an old ClassPool is garbage collected, the CtClass objects included in that ClassPool are also garbage collected. 
+To create a new instance of ClassPool, execute the following code snippet:
 
 ClassPool cp = new ClassPool(true);
 // if needed, append an extra search path by appendClassPath()
-This creates a ClassPool object that behaves as the default ClassPool returned by ClassPool.getDefault() does. Note that ClassPool.getDefault() is a singleton factory method provided for convenience. It creates a ClassPool object in the same way shown above although it keeps a single instance of ClassPool and reuses it. A ClassPool object returned by getDefault() does not have a special role. getDefault() is a convenience method.
 
-Note that new ClassPool(true) is a convenient constructor, which constructs a ClassPool object and appends the system search path to it. Calling that constructor is equivalent to the following code:
+This creates a ClassPool object that behaves as the default ClassPool returned by ClassPool.getDefault() does. 
+Note that ClassPool.getDefault() is a singleton factory method provided for convenience. 
+It creates a ClassPool object in the same way shown above although it keeps a single instance of ClassPool and reuses it. 
+A ClassPool object returned by getDefault() does not have a special role. 
+getDefault() is a convenience method.
+
+Note that new ClassPool(true) is a convenient constructor, which constructs a ClassPool object and appends the system search path to it. 
+Calling that constructor is equivalent to the following code:
 
 ClassPool cp = new ClassPool();
 cp.appendSystemPath();  // or append another path by appendClassPath()
+
+====
 Cascaded ClassPools
 
-If a program is running on a web application server, creating multiple instances of ClassPool might be necessary; an instance of ClassPool should be created for each class loader (i.e. container). The program should create a ClassPool object by not calling getDefault() but a constructor of ClassPool.
+If a program is running on a web application server, creating multiple instances of ClassPool might be necessary;
+创建多个类池。 
+an instance of ClassPool should be created for each class loader (i.e. container). 
+The program should create a ClassPool object by not calling getDefault() but a constructor of ClassPool.
 
 Multiple ClassPool objects can be cascaded like java.lang.ClassLoader. For example,
 
 ClassPool parent = ClassPool.getDefault();
 ClassPool child = new ClassPool(parent);
 child.insertClassPath("./classes");
-If child.get() is called, the child ClassPool first delegates to the parent ClassPool. If the parent ClassPool fails to find a class file, then the child ClassPool attempts to find a class file under the ./classes directory.
 
-If child.childFirstLookup is true, the child ClassPool attempts to find a class file before delegating to the parent ClassPool. For example,
+If child.get() is called, the child ClassPool first delegates to the parent ClassPool. 
+If the parent ClassPool fails to find a class file, then the child ClassPool attempts to find a class file under the ./classes directory.
+类池之间有类似ClassLoader之间的委托关系。
+默认，会先委托父亲查找类文件。
+
+If child.childFirstLookup is true, the child ClassPool attempts to find a class file 
+before delegating to the parent ClassPool. 
+For example,
 
 ClassPool parent = ClassPool.getDefault();
 ClassPool child = new ClassPool(parent);
 child.appendSystemPath();         // the same class path as the default one.
 child.childFirstLookup = true;    // changes the behavior of the child.
 
+====
 Changing a class name for defining a new class
+通过修改类名，来创建新类
 
-A new class can be defined as a copy of an existing class. The program below does that:
+A new class can be defined as a copy of an existing class. 
+The program below does that:
+直接更改类名即可。
 
 ClassPool pool = ClassPool.getDefault();
 CtClass cc = pool.get("Point");
 cc.setName("Pair");
 
-This program first obtains the CtClass object for class Point. Then it calls setName() to give a new name Pair to that CtClass object. After this call, all occurrences of the class name in the class definition represented by that CtClass object are changed from Point to Pair. The other part of the class definition does not change.
+This program first obtains the CtClass object for class Point. 
+Then it calls setName() to give a new name Pair to that CtClass object. 
+After this call, all occurrences of the class name in the class definition represented by that CtClass object are changed from Point to Pair. 
+The other part of the class definition does not change.
+改了类名后，CtClass对象表示新类的定义。
 
-Note that setName() in CtClass changes a record in the ClassPool object. From the implementation viewpoint, a ClassPool object is a hash table of CtClass objects. setName() changes the key associated to the CtClass object in the hash table. The key is changed from the original class name to the new class name.
+Note that setName() in CtClass changes a record in the ClassPool object. 
+From the implementation viewpoint, a ClassPool object is a hash table of CtClass objects. 
+setName() changes the key associated to the CtClass object in the hash table. 
+The key is changed from the original class name to the new class name.
 
-Therefore, if get("Point") is later called on the ClassPool object again, then it never returns the CtClass object that the variable cc refers to. The ClassPool object reads a class file Point.class again and it constructs a new CtClass object for class Point. This is because the CtClass object associated with the name Point does not exist any more. See the followings:
+Therefore, if get("Point") is later called on the ClassPool object again, 
+then it never returns the CtClass object that the variable cc refers to. 
+The ClassPool object reads a class file Point.class again and it constructs a new CtClass object for class Point. 
+This is because the CtClass object associated with the name Point does not exist any more. 
+See the followings:
 
 ClassPool pool = ClassPool.getDefault();
 CtClass cc = pool.get("Point");
 CtClass cc1 = pool.get("Point");   // cc1 is identical to cc.
+
 cc.setName("Pair");
 CtClass cc2 = pool.get("Pair");    // cc2 is identical to cc.
 CtClass cc3 = pool.get("Point");   // cc3 is not identical to cc.
-cc1 and cc2 refer to the same instance of CtClass that cc does whereas cc3 does not. Note that, after cc.setName("Pair") is executed, the CtClass object that cc and cc1 refer to represents the Pair class.
 
-The ClassPool object is used to maintain one-to-one mapping between classes and CtClass objects. Javassist never allows two distinct CtClass objects to represent the same class unless two independent ClassPool are created. This is a significant feature for consistent program transformation.
+cc1 and cc2 refer to the same instance of CtClass that cc does whereas cc3 does not. 
+Note that, after cc.setName("Pair") is executed, the CtClass object that cc and cc1 refer to represents the Pair class.
+注意，改名后的CtClass对象的同一性。
 
-To create another copy of the default instance of ClassPool, which is returned by ClassPool.getDefault(), execute the following code snippet (this code was already shown above):
+The ClassPool object is used to maintain one-to-one mapping between classes and CtClass objects. 
+Javassist never allows two distinct CtClass objects to represent the same class unless two independent ClassPool are created. 
+This is a significant feature for consistent program transformation.
+同一个类池不允许有两个相同的类的CtClass对象。
+
+To create another copy of the default instance of ClassPool, which is returned by ClassPool.getDefault(), 
+execute the following code snippet (this code was already shown above):
 
 ClassPool cp = new ClassPool(true);
-If you have two ClassPool objects, then you can obtain, from each ClassPool, a distinct CtClass object representing the same class file. You can differently modify these CtClass objects to generate different versions of the class.
 
+If you have two ClassPool objects, then you can obtain, from each ClassPool, a distinct CtClass object representing the same class file. 
+You can differently modify these CtClass objects to generate different versions of the class.
+
+====
 Renaming a frozen class for defining a new class
+重命名一个冻结的类，来定义新类。
 
-Once a CtClass object is converted into a class file by writeFile() or toBytecode(), Javassist rejects further modifications of that CtClass object. Hence, after the CtClass object representing Point class is converted into a class file, you cannot define Pair class as a copy of Point since executing setName() on Point is rejected. The following code snippet is wrong:
+Once a CtClass object is converted into a class file by writeFile() or toBytecode(), 
+Javassist rejects further modifications of that CtClass object. 
+Hence, after the CtClass object representing Point class is converted into a class file, 
+you cannot define Pair class as a copy of Point since executing setName() on Point is rejected. 
+The following code snippet is wrong:
 
 ClassPool pool = ClassPool.getDefault();
 CtClass cc = pool.get("Point");
 cc.writeFile();
 cc.setName("Pair");    // wrong since writeFile() has been called.
-To avoid this restriction, you should call getAndRename() in ClassPool. For example,
+
+To avoid this restriction, you should call getAndRename() in ClassPool. 
+For example,
 
 ClassPool pool = ClassPool.getDefault();
 CtClass cc = pool.get("Point");
 cc.writeFile();
 CtClass cc2 = pool.getAndRename("Point", "Pair");
-If getAndRename() is called, the ClassPool first reads Point.class for creating a new CtClass object representing Point class. However, it renames that CtClass object from Point to Pair before it records that CtClass object in a hash table. Thus getAndRename() can be executed after writeFile() or toBytecode() is called on the the CtClass object representing Point class.
+
+If getAndRename() is called, the ClassPool first reads Point.class for creating a new CtClass object representing Point class. 
+However, it renames that CtClass object from Point to Pair before it records that CtClass object in a hash table. 
+Thus getAndRename() can be executed after writeFile() or toBytecode() is called on the the CtClass object representing Point class.
 
 
 ====
@@ -276,7 +391,7 @@ Javassist can be used with a class loader so that bytecode can be modified at lo
 The users of Javassist can define their own version of class loader but they can also use a class loader provided by Javassist.
 
 
-
+====
 3.1 The toClass method in CtClass
 
 The CtClass provides a convenience method toClass(), which requests the context class loader for the current thread 
@@ -341,11 +456,25 @@ If you need more complex functionality, you should write your own class loader.
 
 ====
 3.2 Class loading in Java
+java的类加载机制
 
-In Java, multiple class loaders can coexist and each class loader creates its own name space. Different class loaders can load different class files with the same class name. The loaded two classes are regarded as different ones. This feature enables us to run multiple application programs on a single JVM even if these programs include different classes with the same name.
+In Java, multiple class loaders can coexist and each class loader creates its own name space. 
+Different class loaders can load different class files with the same class name. 
+The loaded two classes are regarded as different ones. 
+This feature enables us to run multiple application programs on a single JVM 
+even if these programs include different classes with the same name.
 
-Note: The JVM does not allow dynamically reloading a class. Once a class loader loads a class, it cannot reload a modified version of that class during runtime. Thus, you cannot alter the definition of a class after the JVM loads it. However, the JPDA (Java Platform Debugger Architecture) provides limited ability for reloading a class. See Section 3.6.
-If the same class file is loaded by two distinct class loaders, the JVM makes two distinct classes with the same name and definition. The two classes are regarded as different ones. Since the two classes are not identical, an instance of one class is not assignable to a variable of the other class. The cast operation between the two classes fails and throws a ClassCastException.
+Note: The JVM does not allow dynamically reloading a class. 
+Once a class loader loads a class, it cannot reload a modified version of that class during runtime. 
+Thus, you cannot alter the definition of a class after the JVM loads it. 
+
+However, the JPDA (Java Platform Debugger Architecture) provides limited ability for reloading a class. See Section 3.6.
+java平台调试体系，允许重新加载一个类，但对类的修改有限制。
+
+If the same class file is loaded by two distinct class loaders, the JVM makes two distinct classes with the same name and definition. 
+The two classes are regarded as different ones. 
+Since the two classes are not identical, an instance of one class is not assignable to a variable of the other class. 
+The cast operation between the two classes fails and throws a ClassCastException.
 
 For example, the following code snippet throws an exception:
 
@@ -353,11 +482,31 @@ MyClassLoader myLoader = new MyClassLoader();
 Class clazz = myLoader.loadClass("Box");
 Object obj = clazz.newInstance();
 Box b = (Box)obj;    // this always throws ClassCastException.
-The Box class is loaded by two class loaders. Suppose that a class loader CL loads a class including this code snippet. Since this code snippet refers to MyClassLoader, Class, Object, and Box, CL also loads these classes (unless it delegates to another class loader). Hence the type of the variable b is the Box class loaded by CL. On the other hand, myLoader also loads the Box class. The object obj is an instance of the Box class loaded by myLoader. Therefore, the last statement always throws a ClassCastException since the class of obj is a different verison of the Box class from one used as the type of the variable b.
 
-Multiple class loaders form a tree structure. Each class loader except the bootstrap loader has a parent class loader, which has normally loaded the class of that child class loader. Since the request to load a class can be delegated along this hierarchy of class loaders, a class may be loaded by a class loader that you do not request the class loading. Therefore, the class loader that has been requested to load a class C may be different from the loader that actually loads the class C. For distinction, we call the former loader the initiator of C and we call the latter loader the real loader of C.
+The Box class is loaded by two class loaders. 
+Suppose that a class loader CL loads a class including this code snippet. 
+Since this code snippet refers to MyClassLoader, Class, Object, and Box, 
+CL also loads these classes (unless it delegates to another class loader). 
+Hence the type of the variable b is the Box class loaded by CL. 
+On the other hand, myLoader also loads the Box class. 
+The object obj is an instance of the Box class loaded by myLoader. 
+Therefore, the last statement always throws a ClassCastException 
+since the class of obj is a different verison of the Box class from one used as the type of the variable b.
 
-Furthermore, if a class loader CL requested to load a class C (the initiator of C) delegates to the parent class loader PL, then the class loader CL is never requested to load any classes referred to in the definition of the class C. CL is not the initiator of those classes. Instead, the parent class loader PL becomes their initiators and it is requested to load them. The classes that the definition of a class C referes to are loaded by the real loader of C.
+Multiple class loaders form a tree structure. 
+Each class loader except the bootstrap loader has a parent class loader, 
+which has normally loaded the class of that child class loader. 
+Since the request to load a class can be delegated along this hierarchy of class loaders, 
+a class may be loaded by a class loader that you do not request the class loading. 
+Therefore, the class loader that has been requested to load a class C 
+may be different from the loader that actually loads the class C. 
+For distinction, we call the former loader the initiator of C and we call the latter loader the real loader of C.
+
+Furthermore, if a class loader CL requested to load a class C (the initiator of C) delegates to the parent class loader PL, 
+then the class loader CL is never requested to load any classes referred to in the definition of the class C. 
+CL is not the initiator of those classes. 
+Instead, the parent class loader PL becomes their initiators and it is requested to load them. 
+The classes that the definition of a class C referes to are loaded by the real loader of C.
 
 To understand this behavior, let's consider the following example.
 
@@ -377,7 +526,14 @@ public class Window {    // loaded by a class loader L
     private Box box;
     public int getBaseX() { return box.getBaseX(); }
 }
-Suppose that a class Window is loaded by a class loader L. Both the initiator and the real loader of Window are L. Since the definition of Window refers to Box, the JVM will request L to load Box. Here, suppose that L delegates this task to the parent class loader PL. The initiator of Box is L but the real loader is PL. In this case, the initiator of Point is not L but PL since it is the same as the real loader of Box. Thus L is never requested to load Point.
+
+Suppose that a class Window is loaded by a class loader L. 
+Both the initiator and the real loader of Window are L. 
+Since the definition of Window refers to Box, the JVM will request L to load Box. 
+Here, suppose that L delegates this task to the parent class loader PL. 
+The initiator of Box is L but the real loader is PL. 
+In this case, the initiator of Point is not L but PL since it is the same as the real loader of Box. 
+Thus L is never requested to load Point.
 
 Next, let's consider a slightly modified example.
 
@@ -400,20 +556,33 @@ public class Window {    // loaded by a class loader L
         return w == p.getX();
     }
 }
-Now, the definition of Window also refers to Point. In this case, the class loader L must also delegate to PL if it is requested to load Point. You must avoid having two class loaders doubly load the same class. One of the two loaders must delegate to the other.
 
-If L does not delegate to PL when Point is loaded, widthIs() would throw a ClassCastException. Since the real loader of Box is PL, Point referred to in Box is also loaded by PL. Therefore, the resulting value of getSize() is an instance of Point loaded by PL whereas the type of the variable p in widthIs() is Point loaded by L. The JVM regards them as distinct types and thus it throws an exception because of type mismatch.
+Now, the definition of Window also refers to Point. 
+In this case, the class loader L must also delegate to PL if it is requested to load Point. 
+You must avoid having two class loaders doubly load the same class. 
+One of the two loaders must delegate to the other.
 
-This behavior is somewhat inconvenient but necessary. If the following statement:
+If L does not delegate to PL when Point is loaded, widthIs() would throw a ClassCastException. 
+Since the real loader of Box is PL, Point referred to in Box is also loaded by PL. 
+Therefore, the resulting value of getSize() is an instance of Point loaded by PL 
+whereas the type of the variable p in widthIs() is Point loaded by L. 
+The JVM regards them as distinct types and thus it throws an exception because of type mismatch.
+
+This behavior is somewhat inconvenient but necessary. 
+If the following statement:
 
 Point p = box.getSize();
-did not throw an exception, then the programmer of Window could break the encapsulation of Point objects. For example, the field x is private in Point loaded by PL. However, the Window class could directly access the value of x if L loads Point with the following definition:
+
+did not throw an exception, then the programmer of Window could break the encapsulation of Point objects. 
+For example, the field x is private in Point loaded by PL. 
+However, the Window class could directly access the value of x if L loads Point with the following definition:
 
 public class Point {
     public int x, y;    // not private
     public int getX() { return x; }
         :
 }
+
 For more details of class loaders in Java, the following paper would be helpful:
 
 Sheng Liang and Gilad Bracha, "Dynamic Class Loading in the Java Virtual Machine", 
@@ -421,10 +590,13 @@ ACM OOPSLA'98, pp.36-44, 1998.
 
 ====
 3.3 Using javassist.Loader
+javassist提供的类加载器
 
-Javassist provides a class loader javassist.Loader. This class loader uses a javassist.ClassPool object for reading a class file.
+Javassist provides a class loader javassist.Loader. 
+This class loader uses a javassist.ClassPool object for reading a class file.
 
 For example, javassist.Loader can be used for loading a particular class modified with Javassist.
+Loader可以加载被javassist修改过的类。
 
 import javassist.*;
 import test.Rectangle;
@@ -442,9 +614,15 @@ public class Main {
          :
   }
 }
-This program modifies a class test.Rectangle. The superclass of test.Rectangle is set to a test.Point class. Then this program loads the modified class, and creates a new instance of the test.Rectangle class.
 
-If the users want to modify a class on demand when it is loaded, the users can add an event listener to a javassist.Loader. The added event listener is notified when the class loader loads a class. The event-listener class must implement the following interface:
+This program modifies a class test.Rectangle. 
+The superclass of test.Rectangle is set to a test.Point class. 
+Then this program loads the modified class, and creates a new instance of the test.Rectangle class.
+
+If the users want to modify a class on demand when it is loaded, the users can add an event listener to a javassist.Loader. 
+The added event listener is notified when the class loader loads a class. 
+The event-listener class must implement the following interface:
+添加监听器，使得类在加载时被修改。
 
 public interface Translator {
     public void start(ClassPool pool)
@@ -452,7 +630,12 @@ public interface Translator {
     public void onLoad(ClassPool pool, String classname)
         throws NotFoundException, CannotCompileException;
 }
-The method start() is called when this event listener is added to a javassist.Loader object by addTranslator() in javassist.Loader. The method onLoad() is called before javassist.Loader loads a class. onLoad() can modify the definition of the loaded class.
+
+The method start() is called when this event listener is added to a javassist.Loader object by addTranslator() in javassist.Loader. 
+The method onLoad() is called before javassist.Loader loads a class. 
+onLoad() can modify the definition of the loaded class.
+
+在onLoad()是修改类定义。
 
 For example, the following event listener changes all classes to public classes just before they are loaded.
 
@@ -466,6 +649,7 @@ public class MyTranslator implements Translator {
         cc.setModifiers(Modifier.PUBLIC);
     }
 }
+
 Note that onLoad() does not have to call toBytecode() or writeFile() since javassist.Loader calls these methods to obtain a class file.
 
 To run an application class MyApp with a MyTranslator object, write a main class as following:
@@ -481,18 +665,38 @@ public class Main2 {
      cl.run("MyApp", args);
   }
 }
+
 To run this program, do:
 
 % java Main2 arg1 arg2...
+
 The class MyApp and the other application classes are translated by MyTranslator.
 
-Note that application classes like MyApp cannot access the loader classes such as Main2, MyTranslator, and ClassPool because they are loaded by different loaders. The application classes are loaded by javassist.Loader whereas the loader classes such as Main2 are by the default Java class loader.
+Note that application classes like MyApp cannot access the loader classes 
+such as Main2, MyTranslator, and ClassPool because they are loaded by different loaders. 
+The application classes are loaded by javassist.Loader whereas the loader classes such as Main2 are by the default Java class loader.
 
-javassist.Loader searches for classes in a different order from java.lang.ClassLoader. ClassLoader first delegates the loading operations to the parent class loader and then attempts to load the classes only if the parent class loader cannot find them. On the other hand, javassist.Loader attempts to load the classes before delegating to the parent class loader. It delegates only if:
+注意，Main2如法访问这些类，因为它们是用不同的加载器加载的。
+
+javassist.Loader searches for classes in a different order from java.lang.ClassLoader. 
+ClassLoader first delegates the loading operations to the parent class loader 
+and then attempts to load the classes only if the parent class loader cannot find them. 
+On the other hand, javassist.Loader attempts to load the classes before delegating to the parent class loader. 
+
+Loader的加载顺序是先自己加载类，然后再委托父亲。
+
+It delegates only if:
 
 the classes are not found by calling get() on a ClassPool object, or
 the classes have been specified by using delegateLoadingOf() to be loaded by the parent class loader.
-This search order allows loading modified classes by Javassist. However, it delegates to the parent class loader if it fails to find modified classes for some reason. Once a class is loaded by the parent class loader, the other classes referred to in that class will be also loaded by the parent class loader and thus they are never modified. Recall that all the classes referred to in a class C are loaded by the real loader of C. If your program fails to load a modified class, you should make sure whether all the classes using that class have been loaded by javassist.Loader.
+This search order allows loading modified classes by Javassist. 
+However, it delegates to the parent class loader if it fails to find modified classes for some reason. 
+Once a class is loaded by the parent class loader, 
+the other classes referred to in that class will be also loaded by the parent class loader 
+and thus they are never modified. 
+Recall that all the classes referred to in a class C are loaded by the real loader of C. 
+If your program fails to load a modified class, you should make sure whether all the classes using that class 
+have been loaded by javassist.Loader.
 
 ====
 3.4 Writing a class loader

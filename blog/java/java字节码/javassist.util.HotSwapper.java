@@ -1,4 +1,5 @@
 ﻿//javassist.util.HotSwapper.java
+//注释 by hxzon
 
 /*
  * Javassist, a Java-bytecode translator toolkit.
@@ -38,9 +39,11 @@ class Trigger {
  * the same set of methods and fields as the original definition.  The
  * schema change between the original and new definitions is not allowed
  * by the JPDA. 
+ * 注意：新旧定义之间，必须拥有相同的方法和字段集合。
  *
  * <p>To use this class, the JVM must be launched with the following
  * command line options:
+ * 要使用此类，jvm必须以debug参数启动。
  *
  * <ul>
  * <p>For Java 1.4,<br>
@@ -58,11 +61,12 @@ class Trigger {
  * in the class path.
  *
  * <p>Using <code>HotSwapper</code> is easy.  See the following example:
+ * 使用示例：
  *
  * <ul><pre>
  * CtClass clazz = ...
  * byte[] classFile = clazz.toBytecode();
- * HotSwapper hs = new HostSwapper(8000);  // 8000 is a port number.
+ * HotSwapper hs = new HotSwapper(8000);  // 8000 is a port number.
  * hs.reload("Test", classFile);
  * </pre></ul>
  *

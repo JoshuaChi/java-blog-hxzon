@@ -29,5 +29,114 @@ hxzon：本地私服的配置问题。
     </configuration>
 </plugin>
 
-4，
+4，使用不同的jdk来编译源码。
+http://maven.apache.org/plugins/maven-compiler-plugin/examples/compile-using-different-jdk.html
+
+Compiling Sources Using A Different JDK
+
+The compilerVersion parameter can be used to specify the version of the compiler that the plugin will use. 
+However, you also need to set fork to true for this to work. For example:
+
+<project>
+  [...]
+  <build>
+    [...]
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.1</version>
+        <configuration>
+          <verbose>true</verbose>
+          <fork>true</fork>
+          <executable><!-- path-to-javac --></executable>
+          <compilerVersion>1.3</compilerVersion>
+        </configuration>
+      </plugin>
+    </plugins>
+    [...]
+  </build>
+  [...]
+</project>
+
+To avoid hard-coding a filesystem path for the executable, you can use a property. For example:
+
+          <executable>${JAVA_1_4_HOME}/bin/javac</executable>
+
+Each developer then defines this property in settings.xml, or sets an environment variable, so that the build remains portable.
+
+<settings>
+  [...]
+  <profiles>
+    [...]
+    <profile>
+      <id>compiler</id>
+        <properties>
+          <JAVA_1_4_HOME>C:\Program Files\Java\j2sdk1.4.2_09</JAVA_1_4_HOME>
+        </properties>
+    </profile>
+  </profiles>
+  [...]
+  <activeProfiles>
+    <activeProfile>compiler</activeProfile>
+  </activeProfiles>
+</settings>
+
+====
+5，给编译器传递参数
+http://maven.apache.org/plugins/maven-compiler-plugin/examples/pass-compiler-arguments.html
+
+Pass Compiler Arguments
+
+Sometimes, you need to pass other compiler arguments that are not handled by the Compiler Plugin itself 
+but is supported by the compilerId selected. For such arguments, the Compiler Plugin's compilerArguments will be used. 
+The following example passes compiler arguments to the javac compiler:
+
+<project>
+  [...]
+  <build>
+    [...]
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.1</version>
+        <configuration>
+          <compilerArgument>-verbose -bootclasspath ${java.home}\lib\rt.jar</compilerArgument>
+        </configuration>
+      </plugin>
+    </plugins>
+    [...]
+  </build>
+  [...]
+</project>
+
+Or you can also use the Map version:
+也可以使用map形式：
+
+<project>
+  [...]
+  <build>
+    [...]
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.1</version>
+        <configuration>
+          <compilerArguments>
+            <verbose />
+            <bootclasspath>${java.home}\lib\rt.jar</bootclasspath>
+          </compilerArguments>
+        </configuration>
+      </plugin>
+    </plugins>
+    [...]
+  </build>
+  [...]
+</project>
+
+
+
+
 
