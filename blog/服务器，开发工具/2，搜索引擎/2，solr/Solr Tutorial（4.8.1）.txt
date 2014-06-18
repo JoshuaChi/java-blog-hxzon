@@ -26,9 +26,12 @@ user:~solr$ ls
 solr-nightly.zip
 user:~solr$ unzip -q solr-nightly.zip
 user:~solr$ cd solr-nightly/example/
+
 Solr can run in any Java Servlet Container of your choice, but to simplify this tutorial, the example index includes a small installation of Jetty.
+本示例使用jetty服务器。
 
 To launch Jetty with the Solr WAR, and the example configs, just run the start.jar ...
+启动。
 
 user:~/solr/example$ java -jar start.jar
 2012-06-06 15:25:59.815:INFO:oejs.Server:jetty-8.1.2.v20120308
@@ -37,17 +40,28 @@ user:~/solr/example$ java -jar start.jar
 ...
 Jun 6, 2012 3:26:03 PM org.apache.solr.core.SolrCore registerSearcher
 INFO: [collection1] Registered new searcher Searcher@7527e2ee main{StandardDirectoryReader(segments_1:1)}
+
 This will start up the Jetty application server on port 8983, and use your terminal to display the logging information from Solr.
 
-You can see that the Solr is running by loading http://localhost:8983/solr/ in your web browser. This is the main starting point for Administering Solr.
+You can see that the Solr is running by loading http://localhost:8983/solr/ in your web browser. 
+This is the main starting point for Administering Solr.
+使用浏览器访问。
 
+====
 Indexing Data
+添加数据。
 
-Your Solr server is up and running, but it doesn't contain any data. You can modify a Solr index by POSTing commands to Solr to add (or update) documents, delete documents, and commit pending adds and deletes. These commands can be in a variety of formats.
+Your Solr server is up and running, but it doesn't contain any data. 
+You can modify a Solr index by POSTing commands to Solr to add (or update) documents, delete documents, and commit pending adds and deletes. 
+These commands can be in a variety of formats.
 
-The exampledocs directory contains sample files showing of the types of commands Solr accepts, as well as a java utility for posting them from the command line (a post.sh shell script is also available, but for this tutorial we'll use the cross-platform Java client. Run java -jar post.jar -h so see it's various options).
+The exampledocs directory contains sample files showing of the types of commands Solr accepts, 
+as well as a java utility for posting them from the command line (a post.sh shell script is also available, 
+but for this tutorial we'll use the cross-platform Java client. 
+Run java -jar post.jar -h so see it's various options).
 
-To try this, open a new terminal window, enter the exampledocs directory, and run "java -jar post.jar" on some of the XML files in that directory.
+To try this, open a new terminal window, enter the exampledocs directory, 
+and run "java -jar post.jar" on some of the XML files in that directory.
 
 user:~/solr/example/exampledocs$ java -jar post.jar solr.xml monitor.xml
 SimplePostTool: version 1.4
@@ -55,7 +69,10 @@ SimplePostTool: POSTing files to http://localhost:8983/solr/update..
 SimplePostTool: POSTing file solr.xml
 SimplePostTool: POSTing file monitor.xml
 SimplePostTool: COMMITting Solr index changes..
-You have now indexed two documents in Solr, and committed these changes. You can now search for "solr" by loading the "Query" tab in the Admin interface, and entering "solr" in the "q" text box. Clicking the "Execute Query" button should display the following URL containing one result...
+
+You have now indexed two documents in Solr, and committed these changes. 
+You can now search for "solr" by loading the "Query" tab in the Admin interface, and entering "solr" in the "q" text box. 
+Clicking the "Execute Query" button should display the following URL containing one result...
 
 http://localhost:8983/solr/collection1/select?q=solr&wt=xml
 
@@ -73,150 +90,276 @@ SimplePostTool: POSTing file solr.xml
 SimplePostTool: POSTing file utf8-example.xml
 SimplePostTool: POSTing file vidcard.xml
 SimplePostTool: COMMITting Solr index changes..
+
 ...and now you can search for all sorts of things using the default Solr Query Syntax (a superset of the Lucene query syntax)...
+默认的solr查询语法。
 
 video
 name:video
 +video +price:[* TO 400]
+
 There are many other different ways to import your data into Solr... one can
+有多种方式可导入数据。
 
 Import records from a database using the Data Import Handler (DIH).
 Load a CSV file (comma separated values), including those exported by Excel or MySQL.
 POST JSON documents
 Index binary documents such as Word and PDF with Solr Cell (ExtractingRequestHandler).
 Use SolrJ for Java or other Solr clients to programatically create documents to send to Solr.
-Updating Data
 
-You may have noticed that even though the file solr.xml has now been POSTed to the server twice, you still only get 1 result when searching for "solr". This is because the example schema.xml specifies a "uniqueKey" field called "id". Whenever you POST commands to Solr to add a document with the same value for the uniqueKey as an existing document, it automatically replaces it for you. You can see that that has happened by looking at the values for numDocs and maxDoc in the "CORE"/searcher section of the statistics page...
+====
+Updating Data
+更新数据
+
+You may have noticed that even though the file solr.xml has now been POSTed to the server twice, 
+you still only get 1 result when searching for "solr". 
+This is because the example schema.xml specifies a "uniqueKey" field called "id". 
+提交了两次solr.xml，但是只有一份数据，因为它们的唯一键的值相同，所以是更新，而不会重复添加。
+Whenever you POST commands to Solr to add a document with the same value for the uniqueKey as an existing document, 
+it automatically replaces it for you. 
+You can see that that has happened by looking at the values for numDocs and maxDoc in the "CORE"/searcher section of the statistics page...
 
 http://localhost:8983/solr/#/collection1/plugins/core?entry=searcher
 
-numDocs represents the number of searchable documents in the index (and will be larger than the number of XML files since some files contained more than one <doc>). maxDoc may be larger as the maxDoc count includes logically deleted documents that have not yet been removed from the index. You can re-post the sample XML files over and over again as much as you want and numDocs will never increase, because the new documents will constantly be replacing the old.
+numDocs represents the number of searchable documents in the index 
+(and will be larger than the number of XML files since some files contained more than one <doc>). 
+maxDoc may be larger as the maxDoc count includes logically deleted documents that have not yet been removed from the index. 
+You can re-post the sample XML files over and over again as much as you want and numDocs will never increase, 
+because the new documents will constantly be replacing the old.
 
-Go ahead and edit the existing XML files to change some of the data, and re-run the java -jar post.jar command, you'll see your changes reflected in subsequent searches.
+numDocs表示可搜索到的文档数，maxDocs则包括标记为删除但还未删除的。
 
+Go ahead and edit the existing XML files to change some of the data, and re-run the java -jar post.jar command, 
+you'll see your changes reflected in subsequent searches.
+
+====
 Deleting Data
+删除数据
 
-You can delete data by POSTing a delete command to the update URL and specifying the value of the document's unique key field, or a query that matches multiple documents (be careful with that one!). Since these commands are smaller, we will specify them right on the command line rather than reference an XML file.
+You can delete data by POSTing a delete command to the update URL and specifying the value of the document's unique key field, 
+or a query that matches multiple documents (be careful with that one!). 
+Since these commands are smaller, we will specify them right on the command line rather than reference an XML file.
 
 Execute the following command to delete a specific document
 
 java -Ddata=args -Dcommit=false -jar post.jar "<delete><id>SP2514N</id></delete>"
-Because we have specified "commit=false", a search for id:SP2514N we still find the document we have deleted. Since the example configuration uses Solr's "autoCommit" feature Solr will still automatically persist this change to the index, but it will not affect search results until an "openSearcher" commit is explicitly executed.
 
-Using the statistics page for the updateHandler you can observe this delete propogate to disk by watching the deletesById value drop to 0 as the cumulative_deletesById and autocommit values increase.
+Because we have specified "commit=false", a search for id:SP2514N we still find the document we have deleted. 
+Since the example configuration uses Solr's "autoCommit" feature Solr will still automatically persist this change to the index, 
+but it will not affect search results until an "openSearcher" commit is explicitly executed.
+
+Using the statistics page for the updateHandler you can observe this delete propogate to disk by watching the deletesById value drop to 0 
+as the cumulative_deletesById and autocommit values increase.
 
 Here is an example of using delete-by-query to delete anything with DDR in the name:
 
 java -Dcommit=false -Ddata=args -jar post.jar "<delete><query>name:DDR</query></delete>"
+
 You can force a new searcher to be opened to reflect these changes by sending an explicit commit command to Solr:
 
 java -jar post.jar -
-Now re-execute the previous search and verify that no matching documents are found. You can also revisit the statistics page and observe the changes to both the number of commits in the updateHandler and the numDocs in the searcher.
 
-Commits that open a new searcher can be expensive operations so it's best to make many changes to an index in a batch and then send the commit command at the end. There is also an optimize command that does the same things as commit, but also forces all index segments to be merged into a single segment -- this can be very resource intensive, but may be worthwhile for improving search speed if your index changes very infrequently.
+Now re-execute the previous search and verify that no matching documents are found. 
+You can also revisit the statistics page and observe the changes to both the number of commits in the updateHandler and the numDocs in the searcher.
+
+Commits that open a new searcher can be expensive operations so it's best to make many changes to an index in a batch 
+and then send the commit command at the end. 
+为了性能最优，最好是批量提交。
+There is also an optimize command that does the same things as commit, 
+but also forces all index segments to be merged into a single segment 
+-- this can be very resource intensive, but may be worthwhile for improving search speed if your index changes very infrequently.
 
 All of the update commands can be specified using either XML or JSON.
 
 To continue with the tutorial, re-add any documents you may have deleted by going to the exampledocs directory and executing
 
 java -jar post.jar *.xml
+
+===================
 Querying Data
+查询数据
 
-Searches are done via HTTP GET on the select URL with the query string in the q parameter. You can pass a number of optional request parameters to the request handler to control what information is returned. For example, you can use the "fl" parameter to control what stored fields are returned, and if the relevancy score is returned:
+Searches are done via HTTP GET on the select URL with the query string in the q parameter. 
+You can pass a number of optional request parameters to the request handler to control what information is returned. 
+For example, you can use the "fl" parameter to control what stored fields are returned, and if the relevancy score is returned:
 
-q=video&fl=name,id (return only name and id fields)
-q=video&fl=name,id,score (return relevancy score as well)
-q=video&fl=*,score (return all stored fields, as well as relevancy score)
-q=video&sort=price desc&fl=name,id,price (add sort specification: sort by price descending)
-q=video&wt=json (return response in JSON format)
+参数q指定查询关键字。
+可以使用fl参数，指定返回哪些域。
+
+q=video&fl=name,id 
+(return only name and id fields)
+
+q=video&fl=name,id,score 
+(return relevancy score as well)
+
+q=video&fl=*,score 
+(return all stored fields, as well as relevancy score)
+
+q=video&sort=price desc&fl=name,id,price 
+(add sort specification: sort by price descending)
+按照价格排序。
+
+q=video&wt=json 
+(return response in JSON format)
+返回json格式。
+
 The query form provided in the web admin interface allows setting various request parameters and is useful when testing or debugging queries.
 
+====
 Sorting
+排序
 
-Solr provides a simple method to sort on one or more indexed fields. Use the "sort' parameter to specify "field direction" pairs, separated by commas if there's more than one sort field:
+Solr provides a simple method to sort on one or more indexed fields. 
+Use the "sort' parameter to specify "field direction" pairs, separated by commas if there's more than one sort field:
 
 q=video&sort=price desc
+
 q=video&sort=price asc
+
 q=video&sort=inStock asc, price desc
+
 "score" can also be used as a field name when specifying a sort:
+可以用“得分”来排序。
 
 q=video&sort=score desc
+
 q=video&sort=inStock asc, score desc
+
 Complex functions may also be used to sort results:
 
 q=video&sort=div(popularity,add(price,1)) desc
+
 If no sort is specified, the default is score desc to return the matches having the highest relevancy.
+不指定顺序，则以相关度排序。
 
+====
 Highlighting
+高亮
 
-Hit highlighting returns relevant snippets of each returned document, and highlights terms from the query within those context snippets.
+Hit highlighting returns relevant snippets of each returned document, 
+and highlights terms from the query within those context snippets.
 
-The following example searches for video card and requests highlighting on the fields name,features. This causes a highlighting section to be added to the response with the words to highlight surrounded with <em> (for emphasis) tags.
+The following example searches for video card and requests highlighting on the fields name,features. 
+This causes a highlighting section to be added to the response with the words to highlight surrounded with <em> (for emphasis) tags.
 
 ...&q=video card&fl=name,id&hl=true&hl.fl=name,features
 
+“h1=true”以使用高亮。
+
 More request parameters related to controlling highlighting may be found here.
+http://wiki.apache.org/solr/HighlightingParameters
+更多的高亮参数。
 
+===
 Faceted Search
+分面查询
 
-Faceted search takes the documents matched by a query and generates counts for various properties or categories. Links are usually provided that allows users to "drill down" or refine their search results based on the returned categories.
+Faceted search takes the documents matched by a query and generates counts for various properties or categories. 
+Links are usually provided that allows users to "drill down" or refine their search results based on the returned categories.
+
+分面生成一定数量的文档属性，为用户提供一种缩小其搜索结果的轻松方式，无需他们猜测要向查询中添加哪些关键词。
+例如，如果有人在一个购物网站上搜索电视，那么分面功能会告诉他们哪些制造商生产了多少种电视型号。
+分面也常常用于增强基于搜索的业务分析和报告工具。
+通过使用更高级的分面功能，您为用户提供了以有趣方式对分面进行切片和切块的能力。
 
 The following example searches for all documents (*:*) and requests counts by the category field cat.
 
 ...&q=*:*&facet=true&facet.field=cat
 
-Notice that although only the first 10 documents are returned in the results list, the facet counts generated are for the complete set of documents that match the query.
+返回该分类的统计数。
 
-We can facet multiple ways at the same time. The following example adds a facet on the boolean inStock field:
+Notice that although only the first 10 documents are returned in the results list, 
+the facet counts generated are for the complete set of documents that match the query.
+
+We can facet multiple ways at the same time. 
+The following example adds a facet on the boolean inStock field:
 
 ...&q=*:*&facet=true&facet.field=cat&facet.field=inStock
 
-Solr can also generate counts for arbitrary queries. The following example queries for ipod and shows prices below and above 100 by using range queries on the price field.
+Solr can also generate counts for arbitrary queries. 
+The following example queries for ipod and shows prices below and above 100 by using range queries on the price field.
 
 ...&q=ipod&facet=true&facet.query=price:[0 TO 100]&facet.query=price:[100 TO *]
 
-Solr can even facet by numeric ranges (including dates). This example requests counts for the manufacture date (manufacturedate_dt field) for each year between 2004 and 2010.
+区段统计。
+
+Solr can even facet by numeric ranges (including dates). 
+This example requests counts for the manufacture date (manufacturedate_dt field) for each year between 2004 and 2010.
 
 ...&q=*:*&facet=true&facet.range=manufacturedate_dt&facet.range.start=2004-01-01T00:00:00Z&facet.range.end=2010-01-01T00:00:00Z&facet.range.gap=+1YEAR
 
 More information on faceted search may be found on the faceting overview and faceting parameters pages.
+http://wiki.apache.org/solr/SolrFacetingOverview
+http://wiki.apache.org/solr/SimpleFacetParameters
+更多的分面信息。
 
+====
 Search UI
 
-Solr includes an example search interface built with velocity templating that demonstrates many features, including searching, faceting, highlighting, autocomplete, and geospatial searching.
+Solr includes an example search interface built with velocity templating that demonstrates many features, 
+including searching, faceting, highlighting, autocomplete, and geospatial searching.
 
 Try it out at http://localhost:8983/solr/collection1/browse
 
+====
 Text Analysis
+文本解析
 
-Text fields are typically indexed by breaking the text into words and applying various transformations such as lowercasing, removing plurals, or stemming to increase relevancy. The same text transformations are normally applied to any queries in order to match what is indexed.
+Text fields are typically indexed by breaking the text into words and applying various transformations such as lowercasing, 
+removing plurals, or stemming to increase relevancy. 
+The same text transformations are normally applied to any queries in order to match what is indexed.
 
-The schema defines the fields in the index and what type of analysis is applied to them. The current schema your collection is using may be viewed directly via the Schema tab in the Admin UI, or explored dynamically using the Schema Browser tab.
+The schema defines the fields in the index and what type of analysis is applied to them. 
+The current schema your collection is using may be viewed directly via the Schema tab in the Admin UI, 
+or explored dynamically using the Schema Browser tab.
 
-The best analysis components (tokenization and filtering) for your textual content depends heavily on language. As you can see in the Schema Browser, many of the fields in the example schema are using a fieldType named text_general, which has defaults appropriate for most languages.
+The best analysis components (tokenization and filtering) for your textual content depends heavily on language. 
+As you can see in the Schema Browser, many of the fields in the example schema are using a fieldType named text_general, 
+which has defaults appropriate for most languages.
 
-If you know your textual content is English, as is the case for the example documents in this tutorial, and you'd like to apply English-specific stemming and stop word removal, as well as split compound words, you can use the text_en_splitting fieldType instead. Go ahead and edit the schema.xml in the solr/example/solr/collection1/conf directory, to use the text_en_splitting fieldType for the text and features fields like so:
+If you know your textual content is English, as is the case for the example documents in this tutorial, 
+and you'd like to apply English-specific stemming and stop word removal, 
+as well as split compound words, you can use the text_en_splitting fieldType instead. 
+Go ahead and edit the schema.xml in the solr/example/solr/collection1/conf directory, 
+to use the text_en_splitting fieldType for the text and features fields like so:
 
    <field name="features" type="text_en_splitting" indexed="true" stored="true" multiValued="true"/>
    ...
    <field name="text" type="text_en_splitting" indexed="true" stored="false" multiValued="true"/>
-Stop and restart Solr after making these changes and then re-post all of the example documents using java -jar post.jar *.xml. Now queries like the ones listed below will demonstrate English-specific transformations:
+
+指定使用“英语”文本解析。
+
+Stop and restart Solr after making these changes and then re-post all of the example documents using java -jar post.jar *.xml. 
+Now queries like the ones listed below will demonstrate English-specific transformations:
 
 A search for power-shot can match PowerShot, and adata can match A-DATA by using the WordDelimiterFilter and LowerCaseFilter.
+
 A search for features:recharging can match Rechargeable using the stemming features of PorterStemFilter.
+
 A search for "1 gigabyte" can match 1GB, and the commonly misspelled pixima can matches Pixma using the SynonymFilter.
+
 A full description of the analysis components, Analyzers, Tokenizers, and TokenFilters available for use is here.
+http://wiki.apache.org/solr/AnalyzersTokenizersTokenFilters
+更多文本解析内容。
 
+====
 Analysis Debugging
+调试文本解析。
 
-There is a handy Analysis tab where you can see how a text value is broken down into words by both Index time nad Query time analysis chains for a field or field type. This page shows the resulting tokens after they pass through each filter in the chains.
+There is a handy Analysis tab where you can see how a text value is broken down into words 
+by both Index time nad Query time analysis chains for a field or field type. 
+This page shows the resulting tokens after they pass through each filter in the chains.
 
-This url shows the tokens created from "Canon Power-Shot SD500" using the text_en_splitting type. Each section of the table shows the resulting tokens after having passed through the next TokenFilter in the (Index) analyzer. Notice how both powershot and power, shot are indexed, using tokens that have the same "position". (Compare the previous output with The tokens produced using the text_general field type.)
+This url shows the tokens created from "Canon Power-Shot SD500" using the text_en_splitting type. 
+Each section of the table shows the resulting tokens after having passed through the next TokenFilter in the (Index) analyzer. 
+Notice how both powershot and power, shot are indexed, using tokens that have the same "position". 
+(Compare the previous output with The tokens produced using the text_general field type.)
 
-Mousing over the section label to the left of the section will display the full name of the analyzer component at that stage of the chain. Toggling the "Verbose Output" checkbox will show/hide the detailed token attributes.
+Mousing over the section label to the left of the section will display the full name of the analyzer component at that stage of the chain. 
+Toggling the "Verbose Output" checkbox will show/hide the detailed token attributes.
 
-When both Index and Query values are provided, two tables will be displayed side by side showing the results of each chain. Terms in the Index chain results that are equivalent to the final terms produced by the Query chain will be highlighted.
+When both Index and Query values are provided, two tables will be displayed side by side showing the results of each chain. 
+Terms in the Index chain results that are equivalent to the final terms produced by the Query chain will be highlighted.
 
 Other interesting examples:
 
@@ -224,17 +367,34 @@ English stemming and stop-words using the text_en field type
 Half-width katakana normalization with bi-graming using the text_cjk field type
 Japanese morphological decomposition with part-of-speech filtering using the text_ja field type
 Arabic stop-words, normalization, and stemming using the text_ar field type
-Conclusion
 
-Congratulations! You successfully ran a small Solr instance, added some documents, and made changes to the index and schema. You learned about queries, text analysis, and the Solr admin interface. You're ready to start using Solr on your own project! Continue on with the following steps:
+====
+Conclusion
+总结
+
+Congratulations! 
+You successfully ran a small Solr instance, added some documents, and made changes to the index and schema. 
+You learned about queries, text analysis, and the Solr admin interface. 
+You're ready to start using Solr on your own project! 
+Continue on with the following steps:
 
 Subscribe to the Solr mailing lists!
 Make a copy of the Solr example directory as a template for your project.
 Customize the schema and other config in solr/collection1/conf/ to meet your needs.
-Solr has a ton of other features that we haven't touched on here, including distributed search to handle huge document collections, function queries, numeric field statistics, and search results clustering. Explore the Solr Wiki to find more details about Solr's many features.
+
+Solr has a ton of other features that we haven't touched on here, 
+including distributed search to handle huge document collections, 
+function queries, numeric field statistics, and search results clustering. 
+Explore the Solr Wiki to find more details about Solr's many features.
+还有更多内容，例如分布式查询等。
+http://wiki.apache.org/solr/DistributedSearch
+http://wiki.apache.org/solr/FunctionQuery
+http://wiki.apache.org/solr/StatsComponent
+http://wiki.apache.org/solr/ClusteringComponent
+http://lucene.apache.org/solr/features.html
+
 
 Have Fun, and we'll see you on the Solr mailing lists!
 
- 
 Copyright © 2012 The Apache Software Foundation.
 
