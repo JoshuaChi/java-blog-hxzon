@@ -1,4 +1,4 @@
-﻿Apache软件基金会发布SpamAssassin 3.4.0
+﻿Apache软件基金会发布SpamAssassin 3.4.0（邮件过滤）
 http://www.infoq.com/cn/news/2014/02/SpamAssassin-3.4-Release
 作者 张龙 发布于 二月 15, 2014
 
