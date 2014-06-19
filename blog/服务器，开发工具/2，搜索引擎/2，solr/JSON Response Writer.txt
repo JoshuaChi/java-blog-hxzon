@@ -9,18 +9,22 @@ Indexing documents with JSON
 JSON Query Response Format
 JSON specific parameters
 Using Solr's JSON output for AJAX
- 
+
+==== 
 Indexing documents with JSON
 
 See UpdateJSON
 
+====
 JSON Query Response Format
 
-Solr can return the result of a query in JSON rather than the default XML format. This is enabled via the request parameter wt=json
+Solr can return the result of a query in JSON rather than the default XML format. 
+This is enabled via the request parameter wt=json
 
 Variations of the JSON format are supported for Python and Ruby.
 
-Example JSON output: http://localhost:8983/solr/select/?q=video&indent=on&hl=true&hl.fl=name,features&facet=true&facet.field=cat&facet.mincount=1&wt=json
+Example JSON output: 
+http://localhost:8983/solr/select/?q=video&indent=on&hl=true&hl.fl=name,features&facet=true&facet.field=cat&facet.mincount=1&wt=json
 
 {
  "responseHeader":{
@@ -113,22 +117,49 @@ Example JSON output: http://localhost:8983/solr/select/?q=video&indent=on&hl=tru
   "100-435805":{
         "name":["ATI Radeon X1900 XTX 512 MB PCIE <em>Video</em> Card"]}}
 }
+
+====
 JSON specific parameters
+json特殊参数
 
 wt=json - choose JSON output for the response
-json.nl - This parameter controls the output format of NamedLists, where order is more important than access by name. NamedList is currently used for field faceting data.
-json.nl=flat - the default. NamedList is represented as a flat array, alternating names and values: [name1,val1, name2,val2]
-json.nl=map - NamedList is represented as a JSON object. Although this is the simplest mapping, a NamedList can have optional keys, repeated keys, and preserves order. Using a JSON object (essentially a map or hash) for a NamedList results in the loss of some information.
-json.nl=arrarr - represent a NamedList as an array of two element arrays [[name1,val1], [name2, val2], [name3,val3]]
+
+--
+json.nl - This parameter controls the output format of NamedLists, where order is more important than access by name. 
+NamedList is currently used for field faceting data.
+控制名字列表的输出格式。
+
+json.nl=flat 
+- the default. 
+NamedList is represented as a flat array, alternating names and values: [name1,val1, name2,val2]
+名字列表使用平面格式。
+
+json.nl=map 
+- NamedList is represented as a JSON object. 
+Although this is the simplest mapping, a NamedList can have optional keys, repeated keys, and preserves order. 
+Using a JSON object (essentially a map or hash) for a NamedList results in the loss of some information.
+
+json.nl=arrarr 
+- represent a NamedList as an array of two element arrays [[name1,val1], [name2, val2], [name3,val3]]
+使用两元素的数组。
+
 Note: json.nl also works for the Python and Ruby output formats.
-json.wrf=function - adds a wrapper-function around the JSON response, useful in AJAX with dynamic script tags for specifying a JavaScript callback function.
+
+--
+json.wrf=function 
+- adds a wrapper-function around the JSON response, 
+useful in AJAX with dynamic script tags for specifying a JavaScript callback function.
+
 http://www.xml.com/pub/a/2005/12/21/json-dynamic-script-tag.html
 http://www.theurer.cc/blog/2005/12/15/web-services-json-dump-your-proxy/
+
+====
 Using Solr's JSON output for AJAX
 
 Note: also see Solr Client Libraries for higher level JavaScript clients for Solr.
 
-Solr's JSON output makes parsing the response in JavaScript simple. Since JSON is a subset of JavaScript, one can use the built-in JavaScript parser to parse a JSON message.
+Solr's JSON output makes parsing the response in JavaScript simple. 
+Since JSON is a subset of JavaScript, one can use the built-in JavaScript parser to parse a JSON message.
 
  var rsp = eval("("+jsonResponseString+")"); 
 
@@ -208,23 +239,29 @@ function updatepage(str){
 </form>
 </body>
 </html>
+
 <!> Potential UTF-8 encoding issue
 
-This is a small note: In some environment, the default javascript escape() may fail to encoded non-ASCII character into the utf-8 encoded string, which will make the search failed.
+This is a small note: 
+In some environment, the default javascript escape() may fail to encoded non-ASCII character into the utf-8 encoded string, 
+which will make the search failed.
 
-To solve the problem universally, please refer the utf-8 encoding package by webtoolkit.info to write your own encoding function: http://www.webtoolkit.info/javascript-url-decode-encode.html
+To solve the problem universally, please refer the utf-8 encoding package by webtoolkit.info to write your own encoding function: 
+http://www.webtoolkit.info/javascript-url-decode-encode.html
 
-*For Javascript 1.5, you can use encodeURIComponent() insteads of escape(): http://www.dangrossman.info/2007/05/25/handling-utf-8-in-javascript-php-and-non-utf8-databases/
+*For Javascript 1.5, you can use encodeURIComponent() insteads of escape(): 
+http://www.dangrossman.info/2007/05/25/handling-utf-8-in-javascript-php-and-non-utf8-databases/
 
 To apply the correct encode function, just replace the escape(query) in function getquerystring()
 
 qstr = 'q=' + escape(query);
+
 into your own escape function (e.g. my_escape())
 
 qstr = 'q=' + my_escape(query);
+
 More about javascript escape function: http://xkr.us/articles/javascript/encode-compare/
 
 CategoryQueryResponseWriter
-
 SolJSON (last edited 2011-03-16 20:04:02 by YonikSeeley)
 

@@ -1,17 +1,24 @@
 ﻿SolrConfigXml
 
 http://wiki.apache.org/solr/SolrConfigXml
+注释by hxzon
+
+====
 solrconfig.xml
 
 solrconfig.xml is the file that contains most of the parameters for configuring Solr itself.
 
-<!> Solr4.7 Solrconfig.xml, schema.xml and all the files that are in the Solr conf directory are editable through the admin UI screen. See Editing configuration files in the admin UI
+<!> Solr4.7 Solrconfig.xml, schema.xml and all the files that are in the Solr conf directory are editable through the admin UI screen. 
+See Editing configuration files in the admin UI
+从4.7版本开始，所有的配置文件都能在管理界面上编辑。
 
 TODO: Document /get - see [RealTimeGet]
 
 A sample solrconfig.xml with comments can be found in the Source Repository.
 
 Contents
+目录：
+
 solrconfig.xml
 lib
 dataDir parameter
@@ -36,38 +43,59 @@ System property substitution
 Enable/disable components
 XInclude
 Includes via Document Entities
- 
+
+==== 
 lib
 
-<lib> directives can be specified in your solrconfig.xml to specify where Solr should look to load SolrPlugins. The example solrconfig.xml contains main examples of the syntax.
+<lib> directives can be specified in your solrconfig.xml to specify where Solr should look to load SolrPlugins. 
+The example solrconfig.xml contains main examples of the syntax.
+用于加载插件。
 
+--
 dataDir parameter
 
-Used to specify an alternate directory to hold all index data other than the default ./data under the Solr home. If replication is in use, this should match the replication configuration. If this directory is not absolute, then it is relative to the directory you're in when you start SOLR.
-
+Used to specify an alternate directory to hold all index data other than the default ./data under the Solr home. 
+If replication is in use, this should match the replication configuration. 
+If this directory is not absolute, then it is relative to the directory you're in when you start SOLR.
+数据存储路径。
 
   <dataDir>/var/data/solr</dataDir>
+
 <!> NOTE: begining with Solr4.0 attempting to change the <dataDir> and then RELOAD the core will not work because it is a Live Reload.
 
+--
 codecFactory
 
-<!> Solr4.0 Codec factories allow your schema to use custom codecs. For example, if you want to define per-field postings and/or DocValues formats, you can use the built-in SchemaCodecFactory:
+<!> Solr4.0 Codec factories allow your schema to use custom codecs. 
+For example, if you want to define per-field postings and/or DocValues formats, you can use the built-in SchemaCodecFactory:
 
 
   <codecFactory name="CodecFactory" class="solr.SchemaCodecFactory" />
-Please note that there are some limitations and core reloading might not work as expected when custom codec factories are defined (SOLR-3610). For detailed instructions on how to configure SimpleTextCodec, see: SimpleTextCodec Example
 
+Please note that there are some limitations and core reloading might not work as expected when custom codec factories are defined (SOLR-3610). 
+For detailed instructions on how to configure SimpleTextCodec, see: SimpleTextCodec Example
+
+--
 indexConfig Section
 
-<!> Solr3.6 These settings control low-level behavior of indexing. Please see comments in the example solrconfig.xml for details.
+<!> Solr3.6 These settings control low-level behavior of indexing. 
+Please see comments in the example solrconfig.xml for details.
 
-<!> NOTE: begining with Solr4.0 attempting to change Index Writer related settings in <indexConfig> and then RELOAD the core will not work because it is a Live Reload.
+<!> NOTE: begining with Solr4.0 attempting to change Index Writer related settings in <indexConfig> 
+and then RELOAD the core will not work because it is a Live Reload.
 
-Note: In versions prior to 3.6, there were two different sections named <indexDefaults> and <mainIndex>, which are now replaced with this one <indexConfig> section. You can still use the old config as is in 3.6 and 4.x, but need to migrate when bumping luceneMatchVersion. Easiest way to migrate is to start with the example <indexConfig> section which has everything commented out, using the defaults, and then customize if necessary.
+Note: In versions prior to 3.6, there were two different sections named <indexDefaults> and <mainIndex>, 
+which are now replaced with this one <indexConfig> section. 
+You can still use the old config as is in 3.6 and 4.x, but need to migrate when bumping luceneMatchVersion. 
+Easiest way to migrate is to start with the example <indexConfig> section which has everything commented out, 
+using the defaults, and then customize if necessary.
 
+====
 Update Handler Section
+“更新”处理器
 
-The Update Handler section mostly relates to low level information about how updates are handled internally (do not confuse with higher level configuration of "Request Handlers" for dealing with updates sent by clients)
+The Update Handler section mostly relates to low level information about how updates are handled internally 
+(do not confuse with higher level configuration of "Request Handlers" for dealing with updates sent by clients)
 
 
 <updateHandler class="solr.DirectUpdateHandler2">
@@ -113,9 +141,13 @@ The Update Handler section mostly relates to low level information about how upd
      </autoSoftCommit>
 
     ...
-"Update" Related Event Listeners
 
-Within the Update Handler Section, you can define listeners for particular "update" related events: "postCommit" and "postOptimize". Listeners can be used to fire-off any special code; they are typically used to exec snapshooter.
+==
+"Update" Related Event Listeners
+“更新”相关的事件监听器
+
+Within the Update Handler Section, you can define listeners for particular "update" related events: "postCommit" and "postOptimize". 
+Listeners can be used to fire-off any special code; they are typically used to exec snapshooter.
 
 
     ...
@@ -140,7 +172,10 @@ Within the Update Handler Section, you can define listeners for particular "upda
         -->
     </listener>
   </updateHandler>
+
+====
 The Query Section
+查询
 
 Controls everything query-related.
 
@@ -151,9 +186,13 @@ Controls everything query-related.
          An exception is thrown if exceeded.
     -->
     <maxBooleanClauses>1024</maxBooleanClauses>
-Caching Section
 
-You can change these caching parameters as your index grows and changes. See the SolrCaching page for details on configuring the caches.
+====
+Caching Section
+缓存
+
+You can change these caching parameters as your index grows and changes. 
+See the SolrCaching page for details on configuring the caches.
 
 
     <!-- Cache used by SolrIndexSearcher for filters (DocSets),
@@ -243,13 +282,19 @@ You can change these caching parameters as your index grows and changes. See the
          requested.  Enabling should be faster if you aren't retrieving all stored fields.
     -->
     <enableLazyFieldLoading>false</enableLazyFieldLoading>
-"Query" Related Event Listeners
 
-Withing the Query section, you can define listeners for particular "query" related events — listeners can be used to fire-off special code — such as invoking some common queries to warm-up caches.
+==
+"Query" Related Event Listeners
+“查询”相关的事件监听器
+
+Withing the Query section, you can define listeners for particular "query" related events 
+— listeners can be used to fire-off special code — such as invoking some common queries to warm-up caches.
 
 newSearcher
 
-A New Searcher is opened when a (current) Searcher already exists. In the example below, the listener is of the class, QuerySenderListener, which takes lists of queries and sends them to the new searcher being opened, thereby warming it.
+A New Searcher is opened when a (current) Searcher already exists. 
+In the example below, the listener is of the class, QuerySenderListener, 
+which takes lists of queries and sends them to the new searcher being opened, thereby warming it.
 
 
     <!-- a newSearcher event is fired whenever a new searcher is being
@@ -272,9 +317,14 @@ A New Searcher is opened when a (current) Searcher already exists. In the exampl
         </lst>
       </arr>
     -->
+
 firstSearcher
 
-A First Searcher is opened when there is _no_ existing (current) Searcher. In the example below, the listener is of the class, QuerySenderListener, which takes lists of queries and sends them to the new searcher being opened, thereby warming it. (If there is no Searcher, you cannot use auto-warming because auto-warming requires an existing Searcher.)
+A First Searcher is opened when there is _no_ existing (current) Searcher. 
+In the example below, the listener is of the class, QuerySenderListener, 
+which takes lists of queries and sends them to the new searcher being opened, 
+thereby warming it. 
+(If there is no Searcher, you cannot use auto-warming because auto-warming requires an existing Searcher.)
 
 
     <!-- a firstSearcher event is fired whenever a new searcher is being
@@ -292,9 +342,15 @@ A First Searcher is opened when there is _no_ existing (current) Searcher. In th
     </listener>
     -->
   </query>
-Request Dispatcher
 
-The Request Dispatcher section is the only section of the solrconfig.xml to be used directly by Solr's HTTP RequestDispatcher to configure how it should deal with various aspects of HTTP requests, including wether it should handle "/select" urls (for Solr 1.1 compatibility); HTTP Request Parsing; remote streaming support; max multipart file upload size, etc...
+====
+Request Dispatcher
+请求分派
+
+The Request Dispatcher section is the only section of the solrconfig.xml to be used directly by Solr's HTTP RequestDispatcher 
+to configure how it should deal with various aspects of HTTP requests, 
+including wether it should handle "/select" urls (for Solr 1.1 compatibility); 
+HTTP Request Parsing; remote streaming support; max multipart file upload size, etc...
 
 
   <!--
@@ -308,11 +364,16 @@ The Request Dispatcher section is the only section of the solrconfig.xml to be u
 
   ...
 
+==
 HTTP Caching
+http缓存
 
 <!> Solr1.3
 
-Within the main Request Dipatcher section, the HTTP Caching subsection contains configuration options for controlling how the Solr Request Dispatcher responds to HTTP Requests that include cache validation headers, and what kinds of responses Solr will generate. More information can be found in SolrAndHTTPCaches
+Within the main Request Dipatcher section, the HTTP Caching subsection contains configuration options for controlling 
+how the Solr Request Dispatcher responds to HTTP Requests that include cache validation headers, 
+and what kinds of responses Solr will generate. 
+More information can be found in SolrAndHTTPCaches
 
 
    ...
@@ -352,9 +413,16 @@ Within the main Request Dipatcher section, the HTTP Caching subsection contains 
        <!-- <cacheControl>max-age=30, public</cacheControl> -->
     </httpCaching>
   </requestDispatcher>
-The value for max-age should be set based on how often your index changes and how long your application can live with an outdated cached response. To force a shared (or browser) cache to recheck that the cached response is still valid you can add the parameter must-revalidate to the Cache-Control header. According to the W3C specification max-age should not be higher than 31536000 (1 year).
 
+The value for max-age should be set based on how often your index changes 
+and how long your application can live with an outdated cached response. 
+To force a shared (or browser) cache to recheck that the cached response 
+is still valid you can add the parameter must-revalidate to the Cache-Control header. 
+According to the W3C specification max-age should not be higher than 31536000 (1 year).
+
+====
 Request Handler Plug-in Section
+“请求处理”插件
 
 /!\ :TODO: /!\ Add details on supplying init parameters.
 
@@ -368,9 +436,12 @@ This is where multiple request handlers can be registered.
   -->
   <requestHandler name="standard" class="solr.StandardRequestHandler" />
   <requestHandler name="custom" class="your.package.CustomRequestHandler" />
-Configuration of Shard Handlers for Distributed searches
 
-Inside requestHandlers it is possible to configure and specify the shard handler used for distributed search, it is possible to plug in custom shard handlers as well as configure the provided solr version.
+Configuration of Shard Handlers for Distributed searches
+分布式搜索
+
+Inside requestHandlers it is possible to configure and specify the shard handler used for distributed search, 
+it is possible to plug in custom shard handlers as well as configure the provided solr version.
 
 To configure the standard handler one needs to provide configuration like so
 
@@ -382,19 +453,32 @@ To configure the standard handler one needs to provide configuration like so
         <int name="connTimeOut">5000</int>
       </shardHandlerFactory>
   </requestHandler>
+
 The parameters that can be specified are as follows:
 
 socketTimeout. default: 0 (use OS default) - The amount of time in ms that a socket is allowed to wait for
-connTimeout. default: 0 (use OS default) - The amount of time in ms that is accepted for binding / connection a socket
-maxConnectionsPerHost. default: 20 - The maximum number of connections that is made to each individual shard in a distributed search
-corePoolSize. default: 0 - The retained lowest limit on the number of threads used in coordinating distributed search
-maximumPoolSize. default: Integer.MAX_VALUE - The maximum number of threads used for coordinating distributed search
-maxThreadIdleTime. default: 5 seconds - The amount of time to wait for before threads are scaled back in response to a reduction in load
-sizeOfQueue. default: -1 - If specified the thread pool will use a backing queue instead of a direct handoff buffer. This may seem difficult to grasp, essentially high throughput systems will want to configure this to be a direct hand off (with -1). Systems that desire better latency will want to configure a reasonable size of queue to handle variations in requests.
-fairnessPolicy. default: false - Chooses in the JVM specifics dealing with fair policy queuing, if enabled distributed searches will be handled in a First in First out fashion at a cost to throughput. If disabled throughput will be favoured over latency.
-UpdateRequestProcessorChain section
 
-This allows you to configure a processing chain that processes a document before indexing. The chain consists of UpdateRequestProcessors, each doing some processing on the document. You can define multiple chains to use in different update request handlers.
+connTimeout. default: 0 (use OS default) - The amount of time in ms that is accepted for binding / connection a socket
+
+maxConnectionsPerHost. default: 20 - The maximum number of connections that is made to each individual shard in a distributed search
+
+corePoolSize. default: 0 - The retained lowest limit on the number of threads used in coordinating distributed search
+
+maximumPoolSize. default: Integer.MAX_VALUE - The maximum number of threads used for coordinating distributed search
+
+maxThreadIdleTime. default: 5 seconds - The amount of time to wait for before threads are scaled back in response to a reduction in load
+
+sizeOfQueue. default: -1 - If specified the thread pool will use a backing queue instead of a direct handoff buffer. This may seem difficult to grasp, essentially high throughput systems will want to configure this to be a direct hand off (with -1). Systems that desire better latency will want to configure a reasonable size of queue to handle variations in requests.
+
+fairnessPolicy. default: false - Chooses in the JVM specifics dealing with fair policy queuing, if enabled distributed searches will be handled in a First in First out fashion at a cost to throughput. If disabled throughput will be favoured over latency.
+
+====
+UpdateRequestProcessorChain section
+“更新”请求处理链
+
+This allows you to configure a processing chain that processes a document before indexing. 
+The chain consists of UpdateRequestProcessors, each doing some processing on the document. 
+You can define multiple chains to use in different update request handlers.
 
 Example chain, commented out in solrconfig.xml:
 
@@ -410,6 +494,7 @@ Example chain, commented out in solrconfig.xml:
     <processor class="solr.LogUpdateProcessorFactory" />
     <processor class="solr.RunUpdateProcessorFactory" />
   </updateRequestProcessorChain
+
 The chain is then referenced from your UpdateRequestHandler:
 
 
@@ -418,11 +503,16 @@ The chain is then referenced from your UpdateRequestHandler:
       <str name="update.chain">dedupe</str>
     </lst>
   </requestHandler>
+
 <!> Solr3.1 NOTE: Prior to Solr3.1 you need to use update.processor instead of update.chain
 
+====
 The Highlighter plugin configuration section
+“高亮”插件配置
 
-You can configure custom fragmenters and formatters for use in highlighting. Each may be configured with its own set of highlighting parameter defaults. See also HighlightingParameters.
+You can configure custom fragmenters and formatters for use in highlighting. 
+Each may be configured with its own set of highlighting parameter defaults. 
+See also HighlightingParameters.
 
 
   <highlighting>
@@ -454,21 +544,36 @@ You can configure custom fragmenters and formatters for use in highlighting. Eac
     </lst>
    </formatter>
   </highlighting>
+
+==
 Providing a Custom Highlighter
 
 <!> Solr1.3
 
-Since Solr 1.3, applications can provide their own highlighting code. To take advantage of this, configure the HighlightComponent as above, but, in the <highlighting declaration, pass in fully qualified Java class name, as in class="com.me.MyHighlighter". The implementing class must extend the SolrHighlighter class.
+Since Solr 1.3, applications can provide their own highlighting code. 
+To take advantage of this, configure the HighlightComponent as above, 
+but, in the <highlighting declaration, pass in fully qualified Java class name, as in class="com.me.MyHighlighter". 
+The implementing class must extend the SolrHighlighter class.
 
+====
 The Admin/GUI Section
+管理界面的配置
 
 This section handles the administration web page.
 
-Defines “Gettable” files — allows the defined files to be accessed through the web interface. Also specifies the default search to be filed in on the admin form.
+Defines “Gettable” files — allows the defined files to be accessed through the web interface. 
+Also specifies the default search to be filed in on the admin form.
 
-The <pingQuery> defines what the "ping" query should be for monitoring the health of the Solr server. The URL of the "ping" query is /admin/ping. It can be used by a load balancer in front of a set of Solr servers to check response time of all the Solr servers in order to do response time based load balancing.
+The <pingQuery> defines what the "ping" query should be for monitoring the health of the Solr server. 
+The URL of the "ping" query is /admin/ping. 
+It can be used by a load balancer in front of a set of Solr servers to check response time of all the Solr servers 
+in order to do response time based load balancing.
 
-Including the optional <healthcheck type="file"> will add a ENABLE/DISABLE link on the administration web page which can be used to create/remove a file at the path defined by the value of <healthcheck>. When the file is removed then the "ping" query will automatically fail. A load balancer in front of a set of Solr servers can then determine when it should keep/add/remove a server from rotation by pinging the server.
+Including the optional <healthcheck type="file"> will add a ENABLE/DISABLE link on the administration web page 
+which can be used to create/remove a file at the path defined by the value of <healthcheck>. 
+When the file is removed then the "ping" query will automatically fail. 
+A load balancer in front of a set of Solr servers can then determine 
+when it should keep/add/remove a server from rotation by pinging the server.
 
 
 <admin>
@@ -483,28 +588,43 @@ Including the optional <healthcheck type="file"> will add a ENABLE/DISABLE link 
       -->
     <healthcheck type="file">server-enabled</healthcheck>
   </admin>
-System property substitution
 
-Solr supports system property substitution, allowing the launching JVM to specify string substitutions within either of Solr's configuration files. The syntax ${property[:default value]}. Substitutions are valid in any element or attribute text. Here's an example of allowing the runtime to dictate the data directory:
+====
+System property substitution
+系统属性
+
+Solr supports system property substitution, allowing the launching JVM 
+to specify string substitutions within either of Solr's configuration files. 
+The syntax ${property[:default value]}. 
+Substitutions are valid in any element or attribute text. 
+Here's an example of allowing the runtime to dictate the data directory:
 
 
    <dataDir>${solr.data.dir:./solr/data}</dataDir>
+
 And using the example application, Solr could be launched in this manner:
 
 
 java -Dsolr.data.dir=/data/dir -jar start.jar
-If no default value is provided, the system property MUST be specified otherwise a Solr startup failure occurs indicating what property has no value.
 
-<!> Solr1.4 All the properties which need to be substituted can be put into a properties file and can be put into the <solr.home>/conf/solrcore.properties. example :
+If no default value is provided, the system property MUST be specified 
+otherwise a Solr startup failure occurs indicating what property has no value.
+
+<!> Solr1.4 All the properties which need to be substituted can be put into a properties file 
+and can be put into the <solr.home>/conf/solrcore.properties. example :
 
 
 #solrcore.properties
 data.dir=/data/solrindex
+
 and in the solrconfig.xml it can be used as follows
 
 
    <dataDir>${data.dir}</dataDir>
+
+====
 Enable/disable components
+禁用或启用组件
 
 <!> Solr1.4
 
@@ -516,17 +636,25 @@ example:
 <requestHandler name="/replication" class="solr.ReplicationHandler" enable="{enable.replication:true}">
 
 </requestHandler>
+
 here the value of 'enable.replication' can be provided from outside and it can be enabled/disabled at runtime
 
+====
 XInclude
+xml文件包含
 
 <!> Solr1.4
 
-Portions of the solrconfig.xml file can be externalized and included using a standard xml feature called XInclude. The easy to read specification for XInclude can be found at http://www.w3.org/TR/xinclude/
+Portions of the solrconfig.xml file can be externalized and included using a standard xml feature called XInclude. 
+The easy to read specification for XInclude can be found at http://www.w3.org/TR/xinclude/
 
-This might be useful in cases where there are a number of settings that only differ if the server is a master or a slave. These settings could be factored out into two separate files and then included as needed to avoid duplication of common portions of solrconfig.xml
+This might be useful in cases where there are a number of settings that only differ if the server is a master or a slave. 
+These settings could be factored out into two separate files 
+and then included as needed to avoid duplication of common portions of solrconfig.xml
 
-The following sample attempts to include solrconfig_master.xml. If it doesn't exist or can't be loaded, then solrconfig_slave.xml will be used instead. If solrconfig_slave.xml can't be loaded an XML parsing exception will result.
+The following sample attempts to include solrconfig_master.xml. 
+If it doesn't exist or can't be loaded, then solrconfig_slave.xml will be used instead. 
+If solrconfig_slave.xml can't be loaded an XML parsing exception will result.
 
 
     <xi:include href="solrconfig_master.xml" xmlns:xi="http://www.w3.org/2001/XInclude">
@@ -534,6 +662,7 @@ The following sample attempts to include solrconfig_master.xml. If it doesn't ex
         <xi:include href="solrconfig_slave.xml"/>
       </xi:fallback>
     </xi:include>
+
 solrconfig_master.xml might contain:
 
 
@@ -544,12 +673,22 @@ solrconfig_master.xml might contain:
       <str name="confFiles">schema.xml,stopwords.txt</str>
     </lst>
 </requestHandler>
+
 Notes:
 
 The included XML file must be valid self-contained XML with a single root node.
 Since the xinclude elements are handled by the XML parser and not by solr, properties expansion is not available.
-File paths in href attributes can be absolute or relative to the current file's directory (this changed since Solr 3.1: before, the XIncludes were not resolved using the base directory of the current XML file, so the CWD was used - if you upgrade to 3.1, you may need to change you XInclude hrefs). If you want to ensure absolute links, use file:-URIs (e.g., "file:/etc/solr/solrconfig.xml") to refer to those files. By default Solr 3.1 will use the SolrResourceLoader to search for the referenced files, so it behaves like loading stopword files in the schema. XIncludes can also be HTTP URLs to fetch resources from remote servers if desired.
-The Xerces parser, used by default in Solr, doesn't support the xpointer="xpointer()" scheme. http://xerces.apache.org/xerces2-j/faq-xinclude.html
+File paths in href attributes can be absolute or relative to the current file's directory (this changed since Solr 3.1: 
+before, the XIncludes were not resolved using the base directory of the current XML file, so the CWD was used 
+- if you upgrade to 3.1, you may need to change you XInclude hrefs). 
+If you want to ensure absolute links, use file:-URIs (e.g., "file:/etc/solr/solrconfig.xml") to refer to those files. 
+By default Solr 3.1 will use the SolrResourceLoader to search for the referenced files, 
+so it behaves like loading stopword files in the schema. 
+XIncludes can also be HTTP URLs to fetch resources from remote servers if desired.
+The Xerces parser, used by default in Solr, doesn't support the xpointer="xpointer()" scheme. 
+http://xerces.apache.org/xerces2-j/faq-xinclude.html
+
+----
 Includes via Document Entities
 
 An alternate way of doing includes is to use Document Entities.
@@ -561,7 +700,9 @@ At the top of solrconfig.xml:
 <!DOCTYPE config [
         <!ENTITY exampleinclude SYSTEM "example.xml">
 ]>
-Where example.xml contains the XML segment you want to import. To use it, just use &entityname; (eg. &exampleinclude;) wherever you like.
+
+Where example.xml contains the XML segment you want to import. 
+To use it, just use &entityname; (eg. &exampleinclude;) wherever you like.
 
 See: http://lucene.472066.n3.nabble.com/XInclude-Multiple-Elements-td3167658.html
 

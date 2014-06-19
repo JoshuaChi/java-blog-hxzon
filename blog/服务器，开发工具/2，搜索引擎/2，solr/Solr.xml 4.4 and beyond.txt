@@ -1,21 +1,40 @@
 ﻿Solr.xml 4.4 and beyond
 http://wiki.apache.org/solr/Solr.xml%204.4%20and%20beyond
+注释by hxzon
 
+====
 As of <!> Solr4.4 there is an alternate structure for the solr.xml config file which will become mandatory for 5.0.
+从4.4版本开始，结构有所调整。
 
-Optionally as of <!> Solr4.4 and mandatory for Solr5.0, the structure of the solr.xml file has changed. In a nutshell, <cores> and <core> have been replaced by auto-discovering cores. Whether to use old or new-style core definitions is determined by whether the <cores> tag is present in solr.xml. In 5.0, presence of the <cores> tag will generate an error on startup.
+Optionally as of <!> Solr4.4 and mandatory for Solr5.0, the structure of the solr.xml file has changed. 
+In a nutshell, <cores> and <core> have been replaced by auto-discovering cores. 
+Whether to use old or new-style core definitions is determined by whether the <cores> tag is present in solr.xml. 
+In 5.0, presence of the <cores> tag will generate an error on startup.
+
 An optional property coreRootDirectory can cause the discovery process to start at an arbitrary directory other than SOLR_HOME.
 We'll distribute a new-style solr.xml as the default in the example directory with Solr4.4
-The sharedLib attribute on the top-level <solr> element is replaced by a child str element (see below). In theory, the old mechanism should continue to support sharedLib, but SOLR-4791 documents the fact that it doesn't work in 4.3.0.
+
+The sharedLib attribute on the top-level <solr> element is replaced by a child str element (see below). 
+In theory, the old mechanism should continue to support sharedLib, but SOLR-4791 documents the fact that it doesn't work in 4.3.0.
 As of <!> Solr4.5, solr.xml may be stored on your ZooKeeper ensemble, see SOLR-4718.
 
+====
 Structure of the new-style solr.xml
 
-Basically, it's mostly a move from the older attributes to a flatter style, and removal of <cores> and <core> tags. Here's a sample file. Note that any of these values can have a system property defined by specifying -Dpropname=propvalue on JVM startup:
+Basically, it's mostly a move from the older attributes to a flatter style, and removal of <cores> and <core> tags. 
+Here's a sample file. 
+Note that any of these values can have a system property defined by specifying -Dpropname=propvalue on JVM startup:
 
-Any of these will honor system property substitution following the usual rules of ${propname:default_value}. Remember that a form ${sysprop:} will use the built-in defaults and can be omitted from the config, they're included here to document that they're available. Where it's straightforward to find in the code, the defaults are included. Note that the defaults are subject to change.
+Any of these will honor system property substitution following the usual rules of ${propname:default_value}. 
+Remember that a form ${sysprop:} will use the built-in defaults and can be omitted from the config, 
+they're included here to document that they're available. 
+Where it's straightforward to find in the code, the defaults are included. 
+Note that the defaults are subject to change.
 
-<!> This example has many options listed here for reference. You should not change them unless and until you have a need. Start with the solr.xml in the example directory in the distro (<solrHome>/example/solr/solr.xml) and only add in specific options as the need arises.
+<!> This example has many options listed here for reference. 
+You should not change them unless and until you have a need. 
+Start with the solr.xml in the example directory in the distro (<solrHome>/example/solr/solr.xml) 
+and only add in specific options as the need arises.
 
 
 <solr>
@@ -55,11 +74,21 @@ Any of these will honor system property substitution following the usual rules o
   </shardHandlerFactory>
 
 </solr>
+
+====
 Core discovery process
+内核发现
 
 See: Core Discovery (4.4 and beyond).
 
-Core discovery happens at startup. Exploration of the core tree terminates when a file named core.properties is encountered. Discovery of a file of that name is assumed to define the root of a core. There is no a-priori limit on the depth of the tree. That is, the directories under the core root are explored until a core.properties file is encountered, and that directory is assumed to be the instanceDir for that core. Subdirectories of any directory that has a core.properties file are NOT examined for additional cores. The core.properties file presently recognizes the following entries:
+Core discovery happens at startup. 
+Exploration of the core tree terminates when a file named core.properties is encountered. 
+Discovery of a file of that name is assumed to define the root of a core. 
+There is no a-priori limit on the depth of the tree. 
+That is, the directories under the core root are explored until a core.properties file is encountered, 
+and that directory is assumed to be the instanceDir for that core. 
+Subdirectories of any directory that has a core.properties file are NOT examined for additional cores. 
+The core.properties file presently recognizes the following entries:
 
 name - the name of the core. If not specified, the name comes from the containing directory.
 config - the configuration file. Defaults to solrconfig.xml
@@ -73,19 +102,28 @@ properties - properties file to override core definitions. TBD: This is probably
 loadOnStartup - [true|false] this core should be loaded and a searcher opened when Solr starts.
 transient - [true|false] this core may be unloaded if the core cache exceeds transientCacheSize (defined in solr.propreties)
 coreNodeName - SolrCloud core node name
+
 Minimal core.properties file
 
-Interestingly, the minimal core.properties file is empty. Say an empty core.properties file is discovered in /solr/home/core1. The name will default to "core1", the instanceDir to /solr/home/core1, the dataDir to /solr/home/core1/data etc.
+Interestingly, the minimal core.properties file is empty. 
+Say an empty core.properties file is discovered in /solr/home/core1. 
+The name will default to "core1", the instanceDir to /solr/home/core1, the dataDir to /solr/home/core1/data etc.
 
 Relation with CoreAdmin api
 
-The core discovery process happens only at startup. After startup, Solr does not monitor changes in the core root directory.
+The core discovery process happens only at startup. 
+After startup, Solr does not monitor changes in the core root directory.
 
-to add a new core, create an instanceDir in the core root directory for the core without a core.properties file, and use the CREATE CoreAdmin operation
+to add a new core, create an instanceDir in the core root directory for the core without a core.properties file, 
+and use the CREATE CoreAdmin operation
 to remove an existing core, use the UNLOAD CoreAdmin operation
-Ignoring cores
+添加或移除内核。
 
-It's not hard to imagine that people will want to have the core discovery process temporarily ignore one or more cores. The easiest way to accomplish this would be to rename the core.properties file, e.g. core.properties.bak.
+Ignoring cores
+忽略内核，只需重命名内核属性文件。
+
+It's not hard to imagine that people will want to have the core discovery process temporarily ignore one or more cores. 
+The easiest way to accomplish this would be to rename the core.properties file, e.g. core.properties.bak.
 
 Solr.xml 4.4 and beyond (last edited 2013-10-10 06:14:41 by JanVanBesien)
 
