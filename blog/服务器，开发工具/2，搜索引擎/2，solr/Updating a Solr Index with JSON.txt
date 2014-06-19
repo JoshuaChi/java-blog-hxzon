@@ -1,0 +1,234 @@
+﻿Updating a Solr Index with JSON
+http://wiki.apache.org/solr/UpdateJSON
+使用json提交数据。
+
+Solr accepts index updates in JSON format.
+
+<!> Solr3.1
+
+Contents
+目录：
+
+Updating a Solr Index with JSON
+Requirements
+Methods of sending JSON
+Example
+Update Commands
+Solr 3.1 Example
+Solr 4.0 Example
+Atomic Updates
+Atomic Updates with Optimistic Concurrency
+
+==== 
+Requirements
+
+<!> Solr3.1 is the first version with JSON support for updates.
+
+The JSON request handler needs to be configured in solrconfig.xml This should already be present in the example solrconfig.xml
+
+  <requestHandler name="/update/json" class="solr.JsonUpdateRequestHandler"/>
+
+<!> In Solr4.0, JSON support is included in the standard UpdateRequestHandler
+
+  <requestHandler name="/update" class="solr.UpdateRequestHandler"/>
+
+Note, requests need to include Content-type:application/json or Content-type:text/json
+
+====
+Methods of sending JSON
+
+JSON formatted update requests may be sent to Solr via the /solr/update/json URL. 
+All of the normal methods for uploading content are supported.
+
+Example
+
+There is a sample JSON file at example/exampledocs/books.json 
+that may be used to add documents to the solr example server.
+
+Example of using HTTP-POST to index the JSON:
+
+cd example/exampledocs
+curl 'http://localhost:8983/solr/update/json?commit=true' --data-binary @books.json -H 'Content-type:application/json'
+
+Note that we added "commit=true" to the URL so that the documents would be immediately searchable.
+
+数组。
+
+[
+  {
+    "id" : "978-0641723445",
+    "cat" : ["book","hardcover"],
+    "name" : "The Lightning Thief",
+    "author" : "Rick Riordan",
+    "series_t" : "Percy Jackson and the Olympians",
+    "sequence_i" : 1,
+    "genre_s" : "fantasy",
+    "inStock" : true,
+    "price" : 12.50,
+    "pages_i" : 384
+  }
+,
+  {
+    "id" : "978-1423103349",
+    "cat" : ["book","paperback"],
+    "name" : "The Sea of Monsters",
+    "author" : "Rick Riordan",
+    "series_t" : "Percy Jackson and the Olympians",
+    "sequence_i" : 2,
+    "genre_s" : "fantasy",
+    "inStock" : true,
+    "price" : 6.49,
+    "pages_i" : 304
+  }
+]
+
+
+You should now be able to query for the newly added documents: http://localhost:8983/solr/select?q=name:monsters&wt=json&indent=true
+查找name字段含有monsters的文档，使用json格式（wt）。
+
+{
+  "responseHeader":{
+    "status":0,
+    "QTime":2,
+    "params":{
+      "indent":"true",
+      "wt":"json",
+      "q":"title:monsters"}},
+  "response":{
+    "numFound":1,
+    "start":0,
+    "docs":[
+      {
+        "id":"978-1423103349",
+        "author":"Rick Riordan",
+        "series_t":"Percy Jackson and the Olympians",
+        "sequence_i":2,
+        "genre_s":"fantasy",
+        "inStock":true,
+        "price":6.49,
+        "pages_i":304,
+        "name":[
+          "The Sea of Monsters"],
+        "cat":["book","paperback"]}]
+  }}
+
+It's also easy to specify JSON documents from the command line for testing purposes and scripts (assumes a UNIX environment):
+
+URL=http://localhost:8983/solr/update/json
+curl $URL -H 'Content-type:application/json' -d '
+[
+  {
+    "id" : "MyTestDocument",
+    "title" : "This is just a test"
+  }
+]'
+curl "$URL?commit=true"
+
+Here's a simple example of adding more than one document at once:
+提交多份文档。
+
+curl http://localhost:8983/solr/update/json -H 'Content-type:application/json' -d '
+[
+ {"id" : "TestDoc1", "title" : "test1"},
+ {"id" : "TestDoc2", "title" : "another test"}
+]'
+
+====
+Update Commands
+
+The JSON update handler accepts all of the types of update commands that the XML update handler supports, 
+through a straightforward mapping. 
+所有的xml update操作都支持。
+Please see the documentation on XML updates for detailed descriptions of the commands.
+
+Multiple commands may be contained in one message. 
+Here is an example JSON update message demonstrating multiple update commands 
+(note: comments are not legal JSON, but duplicate names are legal)
+注意，下面的语句是合法的，虽然不是合法的json（因为含有重复的键名）。
+
+{ 
+"add": {
+  "doc": {
+    "id": "DOC1",
+    "my_boosted_field": {        /* use a map with boost/value for a boosted field */
+      "boost": 2.3,
+      "value": "test"
+    },
+    "my_multivalued_field": [ "aaa", "bbb" ]   /* use an array for a multi-valued field */
+  }
+},
+"add": {
+  "commitWithin": 5000,          /* commit this document within 5 seconds */
+  "overwrite": false,            /* don't check for existing documents with the same uniqueKey */
+  "boost": 3.45,                 /* a document boost */
+  "doc": {
+    "f1": "v1",
+    "f1": "v2"
+  }
+},
+
+"commit": {},
+"optimize": { "waitFlush":false, "waitSearcher":false },
+
+"delete": { "id":"ID" },                               /* delete by ID */
+"delete": { "query":"QUERY" }                          /* delete by query */
+"delete": { "query":"QUERY", 'commitWithin':'500' }    /* delete by query, commit within 500ms */
+}
+
+Just as in the other update handlers, parameters such as commit, commitWithin, optimize, 
+and overwrite may be specified in the URL instead of in the body of the message.
+上述参数，也可以在url中指定。
+
+====
+Solr 3.1 Example
+
+Solr 3.2 was the first version to support the array-of-JSONObject syntax, 
+so in Solr 3.1 one needs to use duplicate names (the "add" tag) to add more than one document at once. 
+It is legal in JSON to have duplicate names. Example:
+
+curl http://localhost:8983/solr/update/json -H 'Content-type:application/json' -d '
+{
+ "add": {"doc": {"id" : "TestDoc1", "title" : "test1"} },
+ "add": {"doc": {"id" : "TestDoc2", "title" : "another test"} }
+}'
+
+====
+Solr 4.0 Example
+
+Atomic Updates
+原子更新
+
+Solr 4.0 supports Atomic_Updates and allows you to add, set and inc (increment on numeric fields). Example:
+
+curl http://localhost:8983/solr/update -H 'Content-type:application/json' -d '
+[
+ {
+  "id"        : "TestDoc1",
+  "title"     : {"set":"test1"},
+  "revision"  : {"inc":3},
+  "publisher" : {"add":"TestPublisher"}
+ },
+ {
+  "id"        : "TestDoc2",
+  "publisher" : {"add":"TestPublisher"}
+ }
+]'
+
+Atomic Updates with Optimistic Concurrency
+
+Solr 4.0 supports comes with a build in _version_ field that is automatically added by Solr, 
+that allows you to perform Optimistic_Concurrency on Atomic Updates. Example:
+通过版本化，允许原子更新的并行优化。
+
+curl http://localhost:8983/solr/update -H 'Content-type:application/json' -d '
+[
+ {
+  "id"        : "TestDoc1",
+  "title"     : {"set":"test1"},
+  "revision"  : {"inc":3},
+  "publisher" : {"add":"TestPublisher"}
+  "_version_" : {12345}
+ }
+]'
+
+UpdateJSON (last edited 2013-02-22 18:27:44 by HossMan)

@@ -1,0 +1,230 @@
+﻿JSON Response Writer
+http://wiki.apache.org/solr/SolJSON
+
+Contents
+目录：
+
+JSON Response Writer
+Indexing documents with JSON
+JSON Query Response Format
+JSON specific parameters
+Using Solr's JSON output for AJAX
+ 
+Indexing documents with JSON
+
+See UpdateJSON
+
+JSON Query Response Format
+
+Solr can return the result of a query in JSON rather than the default XML format. This is enabled via the request parameter wt=json
+
+Variations of the JSON format are supported for Python and Ruby.
+
+Example JSON output: http://localhost:8983/solr/select/?q=video&indent=on&hl=true&hl.fl=name,features&facet=true&facet.field=cat&facet.mincount=1&wt=json
+
+{
+ "responseHeader":{
+  "status":0,
+  "QTime":10,
+  "params":{
+        "wt":"json",
+        "facet":"true",
+        "hl.fl":"name,features",
+        "facet.mincount":"1",
+        "facet.field":"cat",
+        "indent":"on",
+        "hl":"true",
+        "q":"video"}},
+ "response":{"numFound":3,"start":0,"docs":[
+        {
+         "id":"MA147LL/A",
+         "sku":"MA147LL/A",
+         "name":"Apple 60 GB iPod with Video Playback Black",
+         "manu":"Apple Computer Inc.",
+         "includes":"earbud headphones, USB cable",
+         "weight":5.5,
+         "price":399.0,
+         "popularity":10,
+         "inStock":true,
+         "timestamp":"2007-01-31T05:12:44.562Z",
+         "cat":[
+          "electronics",
+          "music"],
+         "features":[
+          "iTunes, Podcasts, Audiobooks",
+          "Stores up to 15,000 songs, 25,000 photos, or 150 hours of video",
+          "2.5-inch, 320x240 color TFT LCD display with LED backlight",
+          "Up to 20 hours of battery life",
+          "Plays AAC, MP3, WAV, AIFF, Audible, Apple Lossless, H.264 video",
+          "Notes, Calendar, Phone book, Hold button, Date display, Photo wallet, Built-in games, JPEG photo playback, Upgradeable firmware, USB 2.0 compatibility, Playback speed control, Rechargeable capability, Battery level indication"]},
+        {
+         "id":"EN7800GTX/2DHTV/256M",
+         "sku":"EN7800GTX/2DHTV/256M",
+         "name":"ASUS Extreme N7800GTX/2DHTV (256 MB)",
+         "manu":"ASUS Computer Inc.",
+         "weight":16.0,
+         "price":479.95,
+         "popularity":7,
+         "inStock":false,
+         "timestamp":"2007-01-31T05:12:45.187Z",
+         "cat":[
+          "electronics",
+          "graphics card"],
+         "features":[
+          "NVIDIA GeForce 7800 GTX GPU/VPU clocked at 486MHz",
+          "256MB GDDR3 Memory clocked at 1.35GHz",
+          "PCI Express x16",
+          "Dual DVI connectors, HDTV out, video input",
+          "OpenGL 2.0, DirectX 9.0"]},
+        {
+         "id":"100-435805",
+         "sku":"100-435805",
+         "name":"ATI Radeon X1900 XTX 512 MB PCIE Video Card",
+         "manu":"ATI Technologies",
+         "weight":48.0,
+         "price":649.99,
+         "popularity":7,
+         "inStock":false,
+         "timestamp":"2007-01-31T05:12:45.203Z",
+         "cat":[
+          "electronics",
+          "graphics card"],
+         "features":[
+          "ATI RADEON X1900 GPU/VPU clocked at 650MHz",
+          "512MB GDDR3 SDRAM clocked at 1.55GHz",
+          "PCI Express x16",
+          "dual DVI, HDTV, svideo, composite out",
+          "OpenGL 2.0, DirectX 9.0"]}]
+ },
+ "facet_counts":{
+  "facet_queries":{},
+  "facet_fields":{
+        "cat":[
+         "electronics",3,
+         "card",2,
+         "graphics",2,
+         "music",1]}},
+ "highlighting":{
+  "MA147LL/A":{
+        "name":["Apple 60 GB iPod with <em>Video</em> Playback Black"],
+        "features":["Stores up to 15,000 songs, 25,000 photos, or 150 hours of <em>video</em>"]},
+  "EN7800GTX/2DHTV/256M":{
+        "features":["Dual DVI connectors, HDTV out, <em>video</em> input"]},
+  "100-435805":{
+        "name":["ATI Radeon X1900 XTX 512 MB PCIE <em>Video</em> Card"]}}
+}
+JSON specific parameters
+
+wt=json - choose JSON output for the response
+json.nl - This parameter controls the output format of NamedLists, where order is more important than access by name. NamedList is currently used for field faceting data.
+json.nl=flat - the default. NamedList is represented as a flat array, alternating names and values: [name1,val1, name2,val2]
+json.nl=map - NamedList is represented as a JSON object. Although this is the simplest mapping, a NamedList can have optional keys, repeated keys, and preserves order. Using a JSON object (essentially a map or hash) for a NamedList results in the loss of some information.
+json.nl=arrarr - represent a NamedList as an array of two element arrays [[name1,val1], [name2, val2], [name3,val3]]
+Note: json.nl also works for the Python and Ruby output formats.
+json.wrf=function - adds a wrapper-function around the JSON response, useful in AJAX with dynamic script tags for specifying a JavaScript callback function.
+http://www.xml.com/pub/a/2005/12/21/json-dynamic-script-tag.html
+http://www.theurer.cc/blog/2005/12/15/web-services-json-dump-your-proxy/
+Using Solr's JSON output for AJAX
+
+Note: also see Solr Client Libraries for higher level JavaScript clients for Solr.
+
+Solr's JSON output makes parsing the response in JavaScript simple. Since JSON is a subset of JavaScript, one can use the built-in JavaScript parser to parse a JSON message.
+
+ var rsp = eval("("+jsonResponseString+")"); 
+
+Here is a simple functional example.
+
+To install it, place in somewhere accessible in the same server running Solr.
+
+For example jetty server, save the text below to webapps/ajax/ajax.html and browse to http://localhost:8983/ajax/ajax.html
+
+
+<html>
+<head>
+<title>Solr Ajax Example</title>
+<script language="Javascript">
+// derived from http://www.degraeve.com/reference/simple-ajax-example.php
+function xmlhttpPost(strURL) {
+    var xmlHttpReq = false;
+    var self = this;
+    if (window.XMLHttpRequest) { // Mozilla/Safari
+        self.xmlHttpReq = new XMLHttpRequest(); 
+    }
+    else if (window.ActiveXObject) { // IE
+        self.xmlHttpReq = new ActiveXObject("Microsoft.XMLHTTP");
+    }
+    self.xmlHttpReq.open('POST', strURL, true);
+    self.xmlHttpReq.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+    self.xmlHttpReq.onreadystatechange = function() {
+        if (self.xmlHttpReq.readyState == 4) {
+            updatepage(self.xmlHttpReq.responseText);
+        }
+    }
+
+    var params = getstandardargs().concat(getquerystring());
+    var strData = params.join('&');
+    self.xmlHttpReq.send(strData);
+}
+
+function getstandardargs() {
+    var params = [
+        'wt=json'
+        , 'indent=on'
+        , 'hl=true'
+        , 'hl.fl=name,features'
+        ];
+
+    return params;
+}
+function getquerystring() {
+  var form = document.forms['f1'];
+  var query = form.query.value;
+  qstr = 'q=' + escape(query);
+  return qstr;
+}
+
+// this function does all the work of parsing the solr response and updating the page.
+function updatepage(str){
+  document.getElementById("raw").innerHTML = str;
+  var rsp = eval("("+str+")"); // use eval to parse Solr's JSON response
+  var html= "<br>numFound=" + rsp.response.numFound;
+  var first = rsp.response.docs[0];
+  html += "<br>product name="+ first.name;
+  var hl=rsp.highlighting[first.id];
+  if (hl.name != null) { html += "<br>name highlighted: " + hl.name[0]; }
+  if (hl.features != null) { html += "<br>features highligted: " + hl.features[0]; }
+  document.getElementById("result").innerHTML = html;
+}
+</script>
+</head>
+<body>
+
+<form name="f1" onsubmit='xmlhttpPost("/solr/select"); return false;'>
+  <p>query: <input name="query" type="text">  
+  <input value="Go" type="submit"></p>
+  
+<div id="result"></div>
+<p/><pre>Raw JSON String: <div id="raw"></div></pre>
+</form>
+</body>
+</html>
+<!> Potential UTF-8 encoding issue
+
+This is a small note: In some environment, the default javascript escape() may fail to encoded non-ASCII character into the utf-8 encoded string, which will make the search failed.
+
+To solve the problem universally, please refer the utf-8 encoding package by webtoolkit.info to write your own encoding function: http://www.webtoolkit.info/javascript-url-decode-encode.html
+
+*For Javascript 1.5, you can use encodeURIComponent() insteads of escape(): http://www.dangrossman.info/2007/05/25/handling-utf-8-in-javascript-php-and-non-utf8-databases/
+
+To apply the correct encode function, just replace the escape(query) in function getquerystring()
+
+qstr = 'q=' + escape(query);
+into your own escape function (e.g. my_escape())
+
+qstr = 'q=' + my_escape(query);
+More about javascript escape function: http://xkr.us/articles/javascript/encode-compare/
+
+CategoryQueryResponseWriter
+
+SolJSON (last edited 2011-03-16 20:04:02 by YonikSeeley)
+
