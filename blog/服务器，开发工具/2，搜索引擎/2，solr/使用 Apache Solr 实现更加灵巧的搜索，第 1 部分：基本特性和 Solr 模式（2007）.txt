@@ -1,0 +1,572 @@
+﻿使用 Apache Solr 实现更加灵巧的搜索，第 1 部分：基本特性和 Solr 模式（2007）
+使用 Solr 进行索引、搜索和层面浏览
+http://www.ibm.com/developerworks/cn/java/j-solr1/index.html
+
+Grant Ingersoll, 高级软件工程师, Center for Natural Language Processing at Syracuse University
+2007 年 7 月 02 日
+
+====
+Solr 是一种可供企业使用的、基于 Lucene 的搜索服务器，它支持层面搜索、命中醒目显示和多种输出格式。
+在这篇分两部分的文章中，Lucene Java™ 的提交人 Grant Ingersoll 
+将介绍 Solr 并向您展示如何轻松地将其表现优异的全文本搜索功能加入到 Web 应用程序中。
+
+一旦用户需要某种信息，就可以立即搜索到这些信息，这种要求再也不是可有可无的了。
+随着 Google 和类似的复杂搜索引擎的出现，用户希望得到高质量的搜索结果，帮助他们快速、轻易地找到所需的信息。
+经理对您的在线购物站点同样抱有很高的期望，要求它能够提供一个可伸缩、高度可用且易于维护的搜索解决方案，并且安装这个解决方案不应太昂贵。
+对于您而言，只是希望事业进步，让老板和客户满意，以及保持头脑清醒。
+
+使用 Apache Solr 可以满足所有的这些要求，它是一种开放源码的、基于 Lucene Java 的搜索服务器，易于加入到 Web 应用程序中。
+Solr 提供了层面搜索、命中醒目显示并且支持多种输出格式（包括 XML/XSLT 和 JSON 格式）。
+它易于安装和配置，而且附带了一个基于 HTTP 的管理界面。
+您可以坚持使用 Solr 的表现优异的基本搜索功能，也可以对它进行扩展从而满足企业的需要。
+Solr 还拥有一个活跃的开发者群体，如有需要，您可以随时向他们寻求帮助。
+
+这篇分为两部分的文章将介绍 Solr，展示其特性并举例说明如何将其完全加入到 Web 应用程序中。 
+我们将首先提供一些 Solr 的基本介绍，包括安装和配置的说明。
+然后引入一个示例应用程序（博客界面），您可以通过该程序让自己熟悉一下 Solr 的各种特性。
+您将学习如何使用 Solr 来索引和搜索内容并探索 Solr 对层面浏览的支持。
+
+第 1 部分的最后将简要介绍一下 Solr 的模式并解释如何针对示例应用程序的索引结构配置模式。
+
+====
+Solr 的历史
+
+Solr 最初由 CNET Networks 开发，2006 年初，Apache Software Foundation 在 Lucene 顶级项目的支持下得到了 Solr。
+Solr 于 2007 年 1 月酝酿成熟，在整个项目孵化期间，Solr 稳步地积累各种特性并吸引了一个稳定的用户群体、贡献者和提交人。
+Solr 现在是 Lucene（Apache 的基于 Java 的全文本搜索引擎库）的一个子项目。
+
+====
+安装和配置
+
+要开始使用 Solr，需安装以下软件：
+Java 1.5 或更高版本。
+Ant 1.6.x 或更高版本。
+Web 浏览器，用来查看管理页面。建议使用 Firefox；相比之下使用 Internet Explorer 可能要复杂些。
+servlet 容器，如 Tomcat 5.5。
+本文中的示例假定您的 Tomcat 在 8080 端口上运行，这是 Tomcat 的默认设置。
+如果运行的是其他 servlet 容器或在其他的端口上运行，则可能要修改给出的 URL 才能访问示例应用程序和 Solr。
+我已经假定示例应用程序的各个部分都运行在 Tomcat 的本地主机上。
+另外还要注意 Solr 以打包的方式与 Jetty 一起提供。
+
+要下载和安装所有这些应用程序，请参阅 参考资料。
+
+----
+设置 Solr
+
+一旦搭建好运行环境，就可以从 Apache Mirrors Web 站点 下载 Solr 1.1 版。
+接下来，执行以下操作：
+停止 servlet 容器。
+在命令行选择希望在其中执行操作的目录，从中输入 mkdir dw-solr。
+输入 cd dw-solr。
+将 Solr 下载版本复制到当前目录中并解压缩。 
+即可得到 apache-solr-1.1.0-incubating 目录。
+不用注意 incubating 标记；Solr 早已孵化成熟。
+将 Solr WAR 文件复制到 servlet 容器的 webapps 目录中。
+下载示例应用程序，将其复制到当前目录，然后解压缩，即可在当前工作目录中得到一个 solr 目录。
+本文将一直把它用作 Solr 的主目录。
+
+可以通过以下三种方式之一设置 Solr 的主位置：
+设置 java 系统属性 solr.solr.home （没错，就是 solr.solr.home）。
+配置 java:comp/env/solr/home 的一个 JNDI 查找指向 solr 目录。
+在包含 solr 目录的目录中启动 servlet 容器。（默认的 Solr 主目录是当前工作目录下的 solr。）
+
+将示例 WAR 文件（位于 dw-solr/solr/dist/dw.war 中）复制到 servlet 容器的 webapps 目录中，方法与复制 Solr WAR 文件相同。
+WAR 文件的 Java 的代码位于 dw-solr/solr/src/java 中，而 JSP 和其他 Web 文件位于 dw-solr/solr/src/webapp 中。
+
+要验证所有程序都正常运行，请启动 servlet 容器并将浏览器指向 http://localhost:8080/solr/admin/。
+如果一切顺利，您应该看到类似图 1 所示的页面。
+如果没有出现管理页面，查看容器日志中的错误消息。
+另外，确保从 dw-solr 目录启动 servlet 容器，以便可以正确地设置 Solr 的主位置。
+
+图 1. 一个 Solr 管理屏幕示例
+一个 Solr 管理屏幕示例图像。
+
+关于 Lucene
+要了解 Solr 就必须熟悉 Lucene。 
+Lucene 是一个基于 Java 的高性能文本搜索引擎库，最初由 Doug Cutting 编写，后来被捐赠给 Apache Software Foundation。
+很多应用程序都利用 Lucene 来增强自身的搜索功能，因为 Lucene 高速、易用和具有活跃社区的特点。
+Solr 构建在这些功能之上，使 Lucene 可供企业使用，并具有最小的编程需求。
+有关 Lucene 的更多信息，请参见 参考资料。
+
+====
+Solr 基础
+
+因为 Solr 包装并扩展了 Lucene，所以它们使用很多相同的术语。
+更重要的是，Solr 创建的索引与 Lucene 搜索引擎库完全兼容。
+通过对 Solr 进行适当的配置，某些情况下可能需要进行编码，Solr 可以阅读和使用构建到其他 Lucene 应用程序中的索引。
+此外，很多 Lucene 工具（如 Luke）也可以使用 Solr 创建的索引。
+
+在 Solr 和 Lucene 中，使用一个或多个 Document 来构建索引。
+Document 包括一个或多个 Field。
+Field 包括名称、内容以及告诉 Solr 如何处理内容的元数据。
+例如，Field 可以包含字符串、数字、布尔值或者日期，也可以包含您想添加的任何类型。
+Field 可以使用大量的选项来描述，这些选项告诉 Solr 在索引和搜索期间如何处理内容。
+我将在本文中稍后详细讨论这些选项。
+现在，查看一下表 1 中列出的重要属性的子集：
+
+表 1. 字段属性
+属性名称	说明
+
+indexed	Indexed Field 
+可以进行搜索和排序。
+您还可以在 indexed Field 上运行 Solr 分析过程，此过程可修改内容以改进或更改结果。
+下一节提供了关于 Solr 的分析过程的更多信息。
+
+stored	stored Field 
+内容保存在索引中。
+这对于检索和醒目显示内容很有用，但对于实际搜索则不是必需的。
+例如，很多应用程序存储指向内容位置的指针而不是存储实际的文件内容。
+
+====
+Solr 的分析过程
+
+您可以在对应用程序内容索引之前运行 Solr 的分析过程来修改这些内容。
+
+在 Solr 和 Lucene 中，Analyzer 包括一个 Tokenizer 和一个或多个 TokenFilter。
+Tokenizer 负责 生成 Token，后者在多数情况下对应要索引的词。
+TokenFilter 从 Tokenizer 接受 Token 并且可以在索引之前修改或删除 Token。 
+例如，Solr 的 WhitespaceTokenizer 根据空白断词，而它的 StopFilter 从搜索结果中删除公共词。
+其他类型的分析包括词干提取、同义词扩展和大小写折叠。
+如果应用程序要求以某种特殊方式进行分析，则 Solr 所拥有的一个或多个断词工具和筛选器可以满足您的要求。
+
+您还可以在搜索操作期间对查询应用分析。
+一个总体规则是：应该对查询和要索引的文档运行相同的分析。
+不熟悉这些概念的用户常犯的一个错误就是：对文档标记进行词干提取，但不对查询标记进行词干提取，通常导致零搜索匹配。
+
+Solr 的 XML 配置使它可以轻易地使用简单声明创建 Analyzer，本文稍后会对此作出展示。
+
+有关 Solr 和 Lucene 的分析工具，以及索引结构和其他功能的更多信息，请参阅 参考资料。
+
+====
+示例应用程序
+
+以下各节将使用实际的示例应用程序向您介绍 Solr 的功能。
+该示例应用程序是一个基于 Web 的博客界面，您可以使用它来记录条目、给条目指派元数据，然后索引和搜索条目。
+在索引和搜索过程的每一步，您都可以选择显示发送到 Solr 的命令。
+
+要查看示例应用程序，请将浏览器指向 http://localhost:8080/dw/index.jsp。
+如果一切设置正确（如 “设置 Solr” 描述的那样），则您可以看到一个题为 “Sample Solr Blog Search” 的简单用户界面，在标题的正下方有一些菜单项。
+当您浏览本文的两个部分时，将会了解到菜单中的所有主题。
+
+=============
+索引操作
+
+在 Solr 中，通过向部署在 servlet 容器中的 Solr Web 应用程序发送 HTTP 请求来启动索引和搜索。
+Solr 接受请求，确定要使用的适当 SolrRequestHandler，然后处理请求。
+通过 HTTP 以同样的方式返回响应。
+
+默认配置返回 Solr 的标准 XML 响应。
+您也可以配置 Solr 的备用响应格式。
+我将在本文的第 2 部分向您展示如何定制请求和响应处理。
+
+索引就是接受输入（本例中是博客条目、关键字和其他元数据）并将它们传递给 Solr，从而在 HTTP Post XML 消息中进行索引的过程。
+您可以向 Solr 索引 servlet 传递四个不同的索引请求：
+
+add/update 允许您向 Solr 添加文档或更新文档。
+直到提交后才能搜索到这些添加和更新。
+
+commit 告诉 Solr，应该使上次提交以来所做的所有更改都可以搜索到。
+
+optimize 重构 Lucene 的文件以改进搜索性能。
+索引完成后执行一下优化通常比较好。
+如果更新比较频繁，则应该在使用率较低的时候安排优化。
+一个索引无需优化也可以正常地运行。
+优化是一个耗时较多的过程。
+
+delete 可以通过 id 或查询来指定。
+按 id 删除将删除具有指定 id 的文档；按查询删除将删除查询返回的所有文档。
+
+====
+一个索引示例
+
+浏览到 http://localhost:8080/dw/index.jsp 可以查看索引过程的更多细节。
+首先为表单中的每个字段填入适当的条目并按 Submit 按钮。
+示例应用程序接受条目、创建 Solr 请求并显示请求以便在下一个屏幕上查看。
+
+清单 1 包含了一个 add 命令的例子，当您按下 Submit 按钮时向 Solr 发送这个命令。
+清单 1. Solr add 命令样例
+
+<add>
+    <doc>
+        <field name="url">http://localhost/myBlog/solr-rocks.html</field>
+        <field name="title">Solr Search is Simply Great</field>
+        <field name="keywords">solr,lucene,enterprise,search</field>
+        <field name="creationDate">2007-01-06T05:04:00.000Z</field>
+        <field name="rating">10</field>
+        <field name="content">Solr is a really great open source search server. It scales,
+        it's easy to configure and the Solr community is really supportive.</field>
+        <field name="published">on</field>
+    </doc>
+</add>
+
+清单 1 的 <doc> 中的每个 field 条目告诉 Solr 应该将哪些 Field 添加到所创建文档的 Lucene 索引中。
+可以向 add 命令添加多个 <doc>。
+稍后我将解释 Solr 如何处理这些 field。
+现在，知道包含清单 1 中指定的七个 field 的文档将会被索引就足够了。
+
+当您在 “Solr XML Command” 页面提交命令时，结果将发往 Solr 进行处理。
+HTTP POST 将命令发往在 http://localhost:8080/solr/update 运行的 Solr Update Servlet。
+如果一切进展顺利，则会随 <result status="0"/> 返回一个 XML 文档。
+Solr 使用相同的 URL 自动更新文档（示例应用程序中的 URL 是 Solr 识别文档以前是否被添加过所使用的惟一 id）。
+
+实践索引
+
+现在再添加几个文档并提交这些文档，以便在下一节中有文档可供搜索。
+一旦您熟悉 add 命令的语法后，就可以取消选择 Index 按钮旁边的 “Display XML...” 复选框，跳过 “Solr XML Command” 页面。
+本文附带的 样例文件 包含了一个很多这些示例中使用的索引版本。
+
+您可以通过在 http://localhost:8080/dw/delete.jsp 页面输入文档的 URL、提交并查看命令，然后将命令提交到 Solr 来删除文档。
+有关索引和删除命令的更多信息，请参阅 参考资料 中的 “Solr Wiki” 参考。
+
+=========
+搜索命令
+
+添加文档后，就可以搜索这些文档了。
+Solr 接受 HTTP GET 和 HTTP POST 查询消息。
+收到的查询由相应的 SolrRequestHandler 进行处理。
+出于本文的讨论目的，我们将使用默认的 StandardRequestHandler。
+
+在本文的第 2 部分，我将向您展示如何为其他的 SolrRequestHandler 配置 Solr。
+
+要查看搜索运行，返回到示例应用程序并浏览到 http://localhost:8080/dw/searching.jsp。
+此屏幕应该与索引屏幕非常类似，只是增加了几个搜索相关的选项。
+与索引类似，可以向各种输入字段中输入值，选择搜索参数并将查询提交给示例应用程序。
+示例应用程序醒目显示了一些 Solr 中更常见的查询参数。
+
+这些参数如下所示：
+
+关于查询语法的一点注意
+
+用于 StandardRequestHandler 的 Solr 查询语法与 Lucene QueryParser 支持的查询语法相同，只是前者加入了一些排序支持。
+示例应用程序对输入的值几乎没有进行验证，而且没有演示如查询增强、短语、范围筛选等功能，所有这些功能在 Solr 和 Lucene 中都有效。
+有关 Lucene QueryParser 的更多信息，请参阅 参考资料。
+
+在本文的第 2 部分，我将介绍管理界面中的一些有助于调试查询语法和结果的工具。
+
+布尔运算符：
+默认情况下，用于合并搜索条目的布尔运算符是 OR。
+将它设为 AND 要求匹配的文档中出现所有的条目。
+
+结果数目：指定返回的最大结果数目。
+
+开始：结果集中开始的偏移量。此参数可用于分页。
+
+醒目显示：醒目显示匹配文档字段的条目。
+参考 清单 2 底部的 <lst> 节点。
+醒目显示的条目标记为 <em>。
+
+一旦输入和提交值后，博客应用程序就返回一个可以立即提交给 Solr 的查询字符串。
+提交字符串后，如果一切正常并且存在匹配文档，则 Solr 返回一个 XML 响应，其中包含了结果、醒目显示的信息和一些有关查询的元数据。
+
+清单 2 给出了一个示例搜索结果：
+清单 2. 搜索结果示例
+
+<response>
+    <lst name="responseHeader">
+        <int name="status">0</int>
+        <int name="QTime">6</int>
+        <lst name="params">
+            <str name="rows">10</str>
+            <str name="start">0</str>
+            <str name="fl">*,score</str>
+            <str name="hl">true</str>
+            <str name="q">content:"faceted browsing"</str>
+        </lst>
+    </lst>
+    <result name="response" numFound="1" start="0" maxScore="1.058217">
+        <doc>
+            <float name="score">1.058217</float>
+            <arr name="all">
+                <str>http://localhost/myBlog/solr-rocks-again.html</str>
+                <str>Solr is Great</str>
+                <str>solr,lucene,enterprise,search,greatness</str>
+                <str>Solr has some really great features, like faceted browsing
+                and replication</str>
+            </arr>
+            <arr name="content">
+                <str>Solr has some really great features, like faceted browsing
+                and replication</str>
+            </arr>
+            <date name="creationDate">2007-01-07T05:04:00.000Z</date>
+            <arr name="keywords">
+                <str>solr,lucene,enterprise,search,greatness</str>
+            </arr>
+            <int name="rating">8</int>
+            <str name="title">Solr is Great</str>
+            <str name="url">http://localhost/myBlog/solr-rocks-again.html</str>
+        </doc>
+    </result>
+    <lst name="highlighting">
+        <lst name="http://localhost/myBlog/solr-rocks-again.html">
+            <arr name="content">
+                <str>Solr has some really great features, like <em>faceted</em>
+                <em>browsing</em> and replication</str>
+            </arr>
+        </lst>
+    </lst>
+</response>
+
+一条查询消息可以包含大量的参数，表 2 中对醒目显示的那些参数进行了描述。
+参阅 参考资料 中的 “Solr Wiki” 参考可以查看参数的完整清单。
+
+----
+表 2. 醒目显示的查询参数
+参数	描述	示例
+
+q	
+Solr 中用来搜索的查询。
+有关该语法的完整描述，请参阅 参考资料 中的 “Lucene QueryParser Syntax”。
+可以通过追加一个分号和已索引且未进行断词的字段（下面会进行解释）的名称来包含排序信息。
+默认的排序是 score desc，指按记分降序排序。	
+q=myField:Java AND otherField:developerWorks; date asc
+此查询搜索指定的两个字段并根据一个日期字段对结果进行排序。
+
+start	
+将初始偏移量指定到结果集中。
+可用于对结果进行分页。默认值为 0。	
+start=15
+返回从第 15 个结果开始的结果。
+
+rows	
+返回文档的最大数目。默认值为 10。	
+rows=25
+
+fq	
+提供一个可选的筛选器查询。
+查询结果被限制为仅搜索筛选器查询返回的结果。
+筛选过的查询由 Solr 进行缓存。
+它们对提高复杂查询的速度非常有用。	
+任何可以用 q 参数传递的有效查询，排序信息除外。
+
+hl	
+当 hl=true 时，在查询响应中醒目显示片段。
+默认为 false。
+参看醒目显示参数上的 Solr Wiki 部分可以查看更多选项（见 参考资料）。	
+hl=true
+
+fl	
+作为逗号分隔的列表指定文档结果中应返回的 Field 集。
+默认为 “*”，指所有的字段。
+“score” 指还应返回记分。	
+*,score
+
+===========
+层面浏览
+
+最近，似乎所有流行的购物站点都添加了便利的条件列表，帮助用户根据制造商、价格和作者缩小搜索结果的范围。
+这些列表是层面浏览的结果，层面浏览是一种分类方式，用于对已经返回到有意义的、已证实存在的种类的结果进行分类。
+层面用于帮助用户缩小搜索结果的范围。
+
+通过浏览到 http://localhost:8080/dw/facets.jsp 可以查看层面的运行。
+在这个页面上，您需要关注两种输入形式：
+
+一个文本区域，您可以在其中输入查询，根据索引中的 all 字段发布此查询。
+将 all 字段看作一连串已索引的所有其他字段。（稍后将对此作详细介绍。）
+
+一个可以用于分层面的字段下拉列表。
+此处并未列出所有的已索引字段，其原因马上就会得到解释。
+
+输入一个查询并从下拉列表中选择一个层面字段，然后单击 Submit 与生成的查询一起传递给 Solr。
+博客应用程序解析结果并返回类似图 2 中的结果：
+
+图 2. 层面浏览结果示例
+层面浏览结果示例的屏幕截图。
+
+在图 2 中，您可以在顶部看见所有非零值的层面计数，底部则是匹配所提交查询的两个搜索结果。
+单击示例中的层面链接提交原始查询，另外将 Facet 关键字作为一个新关键字。
+如果原始查询是 q=Solr 而层面字段是 keywords，并且单击图 2 中的 replication 链接，则新查询将会是 q=Solr AND keywords:replication。
+
+运行层面不需要打开它或在 Solr 中进行配置，但是可能需要按照新的方式对应用程序内容进行索引。
+在已索引的字段中完成分层，层面对未进行断词的非小写词最为有效。
+（因此我并未包含 content 字段或 Facet Field 下拉列表中添加到文档的其他字段。）
+Facet 字段通常不需要存储，因为分层面的总体思想就是显示人类可读的值。
+另外还要注意 Solr 没有在层面中创建类别；
+必须由应用程序自身在索引期间进行添加，正如在索引应用程序时给文档指派关键字一样。
+如果存在层面字段，Solr 就提供了查明这些层面及其计数的逻辑。
+
+===========
+Solr 模式
+
+迄今为止，我已向您介绍了 Solr 的特性，但没有实际解释如何配置这些特性。
+本文的剩余部分主要介绍配置，首先介绍 Solr 模式（schema.xml）然后向您展示它如何与 Solr 的特性相关联。
+
+在编辑器中，最好是支持 XML 标记醒目显示的编辑器，打开位于 <INSTALL_DIR>/dw-solr/solr/conf 中的 schema.xml 文件。
+首先要注意的是大量的注释。
+如果您以前使用过开放源码的软件，您将会为模式文件中的文档及整个 Solr 中的文档欣喜不已。
+因为 schema.xml 的注释非常全面，所以我主要介绍文件的一些关键属性，具体细节可查阅文档。
+
+首先，注意 <schema> 标记中模式（dw-solr）的名称。
+Solr 为每个部署支持一个模式。
+将来它可能支持多个模式，但是目前只允许使用一个模式。
+（参阅 参考资料 中的 “Solr Wiki” 参考，了解如何简单地配置 Tomcat 和其他容器，以便为每个容器使用多个部署。）
+
+模式可以组织为三部分：
+类型
+字段
+其他声明
+
+<types> 部分是一些常见的可重用定义，定义了 Solr（和 Lucene）如何处理 Field。
+在示例模式中，有 13 个字段类型，按名称从 string 到 text。
+<types> 部分顶部声明的字段类型（如 sint 和 boolean）用于存储 Solr 中的原始类型。
+在很大程度上，Lucene 只处理字符串，因此需要对整型、浮点型、日期型和双精度型进行特殊处理才能用于搜索。
+使用这些字段类型会警告 Solr 使用适当的特殊处理索引内容，不需要人为干涉。
+
+类型
+本文前面的内容中，我简要介绍了 Solr 的分析过程的基础。
+仔细观察一下 text 字段类型声明，您可以看见 Solr 管理分析的细节。
+
+清单 3 给出了 text 字段类型声明：
+清单 3. 文本字段类型声明
+
+<fieldtype name="text" class="solr.TextField" positionIncrementGap="100">
+    <analyzer type="index">
+        <tokenizer class="solr.WhitespaceTokenizerFactory"/>
+        <filter class="solr.StopFilterFactory" ignoreCase="true" words="stopwords.txt"/>
+        <filter class="solr.WordDelimiterFilterFactory" generateWordParts="1"
+                generateNumberParts="1" catenateWords="1"
+                catenateNumbers="1" catenateAll="0"/>
+        <filter class="solr.LowerCaseFilterFactory"/>
+        <filter class="solr.EnglishPorterFilterFactory"
+                protected="protwords.txt"/>
+        <filter class="solr.RemoveDuplicatesTokenFilterFactory"/>
+    </analyzer>
+    <analyzer type="query">
+        <tokenizer class="solr.WhitespaceTokenizerFactory"/>
+        <filter class="solr.SynonymFilterFactory" synonyms="synonyms.txt"
+                ignoreCase="true" expand="true"/>
+        <filter class="solr.StopFilterFactory" ignoreCase="true" words="stopwords.txt"/>
+        <filter class="solr.WordDelimiterFilterFactory" generateWordParts="1"
+                generateNumberParts="1" catenateWords="0"
+                catenateNumbers="0" catenateAll="0"/>
+        <filter class="solr.LowerCaseFilterFactory"/>
+        <filter class="solr.EnglishPorterFilterFactory" protected="protwords.txt"/>
+        <filter class="solr.RemoveDuplicatesTokenFilterFactory"/>
+    </analyzer>
+</fieldtype>
+
+类属性
+
+在 Solr 模式中的很多实例中，类属性简化为类似 solr.TextField 的样子。 
+这是 org.apache.solr.schema.TextField 的简略表达形式。
+在本文的第 2 部分中您将看到，类路径中扩展 org.apache.solr.schema.FieldType 类的任何有效类都可能使用到。
+
+首先，注意我在清单 3 中声明了两个不同的 Analyzer。
+虽然 Analyzer 对于索引和搜索并非完全相同，但是它们只是在查询分析期间的同义词添加方面有所差别。
+词干提取、停止词删除以及相似的操作都被应用于标记，然后才进行索引和搜索，导致使用相同类型的标记。
+
+接下来，注意我首先声明断词工具，然后声明使用的筛选器。
+示例应用程序的 Solr 配置按以下步骤进行设置：
+
+根据空白进行断词，然后删除所有的公共词（StopFilterFactory）
+使用破折号处理特殊的大小写、大小写转换等等。（WordDelimiterFilterFactory）；将所有条目处理为小写（LowerCaseFilterFactory）
+使用 Porter Stemming 算法进行词干提取 （EnglishPorterFilterFactory）
+删除所有的副本（RemoveDuplicatesTokenFilterFactory）
+
+示例分析加入了很多用于改进搜索结果的常见方法，但不应被看作分析文本的惟一方式。
+每个应用程序都可能有一些自己的分析需求，这个示例或者甚至是 Solr 或 Lucene 中的任何现有 Analyzer 都可能没有涉及相应需求。
+请参阅 参考资料 中的 “More Info On Solr Analysis”，了解关于分析的更多选项以及如何使用其他 Analyzer 的信息。
+
+字段
+
+继续介绍模式的 <fields> 部分，查看 Solr 如何处理索引和搜索期间使用的 8 个（实际上是 7 个，外加一个 all）字段。
+
+清单 4 中重复了这些字段：
+清单 4. 博客应用程序的声明字段
+
+<field name="url" type="string" indexed="true" stored="true"/>
+<field name="title" type="text" indexed="true" stored="true"/>
+<field name="keywords" type="text_ws" indexed="true" stored="true"
+                multiValued="true" omitNorms="true"/>
+<field name="creationDate" type="date" indexed="true" stored="true"/>
+<field name="rating" type="sint" indexed="true" stored="true"/>
+
+<field name="published" type="boolean" indexed="true" stored="true"/>
+
+<field name="content" type="text" indexed="true" stored="true" />
+<!-- catchall field,
+containing many of the other searchable text fields
+                (implemented via copyField further on in this schema) -->
+<field name="all" type="text" indexed="true" stored="true" multiValued="true"/>
+
+理解字段类型后，您可以清晰地看见如何处理每个字段。
+例如，url 字段是一个经过索引、存储和未经分析的 string 字段。 
+同时，使用 清单 3 中声明的 Analyzer 来分析 text 字段。
+
+all 字段如何处理？
+all 字段是一个 text 字段，如 title 或 content 一样，但是它包含了连接在一起的几个字段的内容，便于使用备用搜索机制（记住层面搜索使用的是 all 字段）。
+
+对于字段的属性，在 表 1 中您已经了解了 indexed 和 stored 的意义。
+
+multiValued 属性是一个特殊的例子，指 Document 可以拥有一个相同名称添加了多次的 Field。
+比如在我们的示例中，可以多次添加 keywords。
+
+omitNorms 属性告诉 Solr（和 Lucene）不要存储规范。
+省略规范对于节省不影响记分的 Field 的内存非常有用，比如那些用于计算层面的字段。
+
+在结束 <fields> 部分之前，简要介绍一下字段声明下方的 <dynamicField> 声明。
+动态字段是一些特殊类型的字段，可以在任何时候将这些字段添加到任何文档中，由字段声明定义它们的属性。
+动态字段和普通字段之间的关键区别在于前者不需要在 schema.xml 中提前声明名称。
+Solr 将名称声明中的 glob-like 模式应用到所有尚未声明的引入的字段名称，并根据其 <dynamicField> 声明定义的语义来处理字段。
+例如，<dynamicField name="*_i" type="sint" indexed="true" stored="true"/> 
+指一个 myRating_i 字段被 Solr 处理为 sint，尽管并未将其声明为字段。
+这种处理比较方便，例如，当需要用户定义待搜索内容的时候。
+
+其他声明
+
+最后，schema.xml 文件的最后部分包含了字段和查询相关的各种声明。
+最重要的声明是 <uniqueKey>url</uniqueKey>。
+该声明用于告诉 Solr 先前声明的 url 字段是用于确定何时添加或更新文档的惟一标识符。
+
+defaultSearchField 是查询条目没有前缀任何字段时 Solr 在查询中使用的 Field。
+示例所使用的查询与 q=title:Solr 类似。
+如果您输入 q=Solr，则应用默认搜索字段。 
+最终结果与 q=all:Solr 相同，因为 all 是博客应用程序中的默认搜索字段。
+
+<copyField> 机制让您能够创建 all 字段而无需将文档的所有内容手工添加到单独的字段。
+复制字段是以多种方式索引相同内容的简便方法。
+例如，如果您希望提供区分大小写的精确匹配和忽略大小写的匹配，则可以使用一个复制字段自动分析收到的内容。
+然后严格按照收到的内容进行索引（所有的字母使用小写）。
+
+========
+下一步：用于企业的 Solr
+
+目前为止，您已经安装了 Solr 并学习了如何使用它在示例应用程序中索引和搜索文档。
+您也了解了 Solr 中层面浏览如何工作，并学习了如何使用 Solr 的 schema.xml 文件声明索引结构。
+本文附带的 示例应用程序 演示了这些功能和介绍了如何为 Solr 格式化命令。
+
+在文章的第 2 部分，我将会介绍一些特性，它们将 Solr 从一个简单的搜索界面扩展成一个可供企业使用的搜索解决方案。
+您将学习 Solr 的管理界面和高级配置选项，以及性能相关的特性（如缓存、复制和日志记录）。
+我还将简要讨论扩展 Solr 以满足企业需求的一些方法。
+同时，充分利用示例应用程序，帮助自己熟悉 Solr 的基本功能。
+
+=======
+Solr 样例应用程序	j-solr1.zip	500KB
+
+参考资料
+学习
+“用 Lucene 加速 Web 搜索应用程序的开发”（Deng Peng Zhou，developerWorks，2006 年 8 月）：
+了解关于 Lucene 搜索库的更多信息，该库用作 Solr 的基础库。
+
+“Parsing, indexing, and searching XML with Digester and Lucene”（Otis Gospodneti，developerWorks，2003 年 6 月）：Lucene 初探。
+
+Solr Wiki：查看 Wiki 获取关于 Solr 运作的众多文档。
+Solr 分析：了解关于 Solr 的分析器、断词工具和标记筛选器工作原理的更多信息。
+
+Lucene QueryParser Syntax：了解关于 Solr 和 Lucene 的查询解析器语法的更多信息。
+
+The Porter Stemming Algorithm：了解关于 Solr 使用的词干提取算法的更多信息。
+
+Public Websites using Solr：使用 Solr 功能的 Web 站点的清单。
+
+Lucene Java 主页：探索 Solr 的起源。
+
+Lucene In Action（Otis Gospodneti and Erik Hatcher；Manning，2004 年）：对 Lucene 有兴趣的人的必读之作。
+
+获得产品和技术
+
+获取 Luke：一种检查 Lucene 索引的便捷工具。对索引中的内容有所疑问或查询不能正常运行时请咨询 Luke。
+下载 curl：帮助从命令行提交 HTTP 请求。
+
+讨论
+Solr Mailing Lists：成为 Solr 社区的一员。
+
