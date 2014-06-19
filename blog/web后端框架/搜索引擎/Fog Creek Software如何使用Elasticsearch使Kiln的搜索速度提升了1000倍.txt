@@ -179,7 +179,8 @@ Elasticsearch为我们提供了如同Google一样快速的搜索能力，并包�
 
 关于作者
 
-Kevin Gessner是位于纽约的Fog Creek Software的一位开发者，他目前从事Kiln的研发工作，这是一个团队版本控制系统。在闲暇时，他喜欢动手烧烤，或者骑单车环绕布鲁克林区。
+Kevin Gessner是位于纽约的Fog Creek Software的一位开发者，他目前从事Kiln的研发工作，这是一个团队版本控制系统。
+在闲暇时，他喜欢动手烧烤，或者骑单车环绕布鲁克林区。
 
  
 查看英文原文：How Fog Creek Software Made Kiln's Search 1000x Faster with Elasticsearch
