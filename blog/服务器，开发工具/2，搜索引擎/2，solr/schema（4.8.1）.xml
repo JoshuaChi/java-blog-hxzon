@@ -393,15 +393,20 @@ version属性指示模式的语义和语法版本。
     <fieldtype name="binary" class="solr.BinaryField"/>
 
     <!-- The "RandomSortField" is not used to store or search any
+    不用于存储和搜索任何数据。
          data.  You can declare fields of this type it in your schema
+         声明此类型的字段，可用于文档的伪随机排序等。
          to generate pseudo-random orderings of your docs for sorting 
          or function purposes.  The ordering is generated based on the field
+         顺序依赖于字段的名字，和索引的版本号。
          name and the version of the index. As long as the index version
          remains unchanged, and the same field name is reused,
          the ordering of the docs will be consistent.  
+         因为版本号和字段名固定，所以文档的顺序也会保持稳定。
          If you want different psuedo-random orderings of documents,
          for the same version of the index, use a dynamicField and
          change the field name in the request.
+         如果希望每次文档伪随机排序不同，使用动态字段，且更改字段名。
      -->
     <fieldType name="random" class="solr.RandomSortField" indexed="true" />
 
@@ -412,20 +417,25 @@ version属性指示模式的语义和语法版本。
          The optional positionIncrementGap puts space between multiple fields of
          this type on the same document, with the purpose of preventing false phrase
          matching across fields.
+         “位置增量间隙”
 
          For more info on customizing your analyzer chain, please see
          http://wiki.apache.org/solr/AnalyzersTokenizersTokenFilters
+         自定义解析器链，查看上述地址。
      -->
 
     <!-- One can also specify an existing Analyzer class that has a
          default constructor via the class attribute on the analyzer element.
          Example:
+         可以给字段类型指定解析器实现类。
     <fieldType name="text_greek" class="solr.TextField">
       <analyzer class="org.apache.lucene.analysis.el.GreekAnalyzer"/>
     </fieldType>
     -->
 
-    <!-- A text field that only splits on whitespace for exact matching of words -->
+    <!-- A text field that only splits on whitespace for exact matching of words 
+    只按空白符分割，且精确匹配整个单词。
+    -->
     <fieldType name="text_ws" class="solr.TextField" positionIncrementGap="100">
       <analyzer>
         <tokenizer class="solr.WhitespaceTokenizerFactory"/>
@@ -436,7 +446,9 @@ version属性指示模式的语义和语法版本。
          cross-language defaults: it tokenizes with StandardTokenizer,
 	 removes stop words from case-insensitive "stopwords.txt"
 	 (empty by default), and down cases.  At query time only, it
-	 also applies synonyms. -->
+	 also applies synonyms. 
+	 标准的符号分割，小写化，移除常用词，应用同义词。
+	 -->
     <fieldType name="text_general" class="solr.TextField" positionIncrementGap="100" multiValued="true">
       <analyzer type="index">
         <tokenizer class="solr.StandardTokenizerFactory"/>
@@ -501,6 +513,7 @@ version属性指示模式的语义和语法版本。
 	 This field is just like text_en, except it adds
 	 WordDelimiterFilter to enable splitting and matching of
 	 words on case-change, alpha numeric boundaries, and
+	 分割：大小写变化，字母与数字分界，非字母字符。
 	 non-alphanumeric chars.  This means certain compound word
 	 cases will work, for example query "wi fi" will match
 	 document "WiFi" or "wi-fi".
@@ -537,7 +550,10 @@ version属性指示模式的语义和语法版本。
     </fieldType>
 
     <!-- Less flexible matching, but less false matches.  Probably not ideal for product names,
-         but may be good for SKUs.  Can insert dashes in the wrong place and still match. -->
+         but may be good for SKUs.  Can insert dashes in the wrong place and still match. 
+         允许下划线在错误的位置，而仍然匹配。
+         stock-keeping unit，库存单位。
+         -->
     <fieldType name="text_en_splitting_tight" class="solr.TextField" positionIncrementGap="100" autoGeneratePhraseQueries="true">
       <analyzer>
         <tokenizer class="solr.WhitespaceTokenizerFactory"/>
@@ -554,7 +570,9 @@ version属性指示模式的语义和语法版本。
     </fieldType>
 
     <!-- Just like text_general except it reverses the characters of
-	 each token, to enable more efficient leading wildcard queries. -->
+	 each token, to enable more efficient leading wildcard queries. 
+	 反转每个符号的字母顺序。为了更好的支持以通配符开始的查询。
+	 -->
     <fieldType name="text_general_rev" class="solr.TextField" positionIncrementGap="100">
       <analyzer type="index">
         <tokenizer class="solr.StandardTokenizerFactory"/>
@@ -584,6 +602,7 @@ version属性指示模式的语义和语法版本。
     <!-- This is an example of using the KeywordTokenizer along
          With various TokenFilterFactories to produce a sortable field
          that does not include some properties of the source text
+         基于关键字分割。
       -->
     <fieldType name="alphaOnlySort" class="solr.TextField" sortMissingLast="true" omitNorms="true">
       <analyzer>
@@ -628,6 +647,7 @@ version属性指示模式的语义和语法版本。
         The DelimitedPayloadTokenFilter can put payloads on tokens... for example,
         a token of "foo|1.4"  would be indexed as "foo" with a payload of 1.4f
         Attributes of the DelimitedPayloadTokenFilterFactory : 
+        可以给token添加属性值。
          "delimiter" - a one character delimiter. Default is | (pipe)
 	 "encoder" - how to encode the following value into a playload
 	    float -> org.apache.lucene.analysis.payloads.FloatEncoder,
@@ -639,7 +659,9 @@ version属性指示模式的语义和语法版本。
       </analyzer>
     </fieldtype>
 
-    <!-- lowercases the entire field value, keeping it as a single token.  -->
+    <!-- lowercases the entire field value, keeping it as a single token.  
+    小写化，不分割。
+    -->
     <fieldType name="lowercase" class="solr.TextField" positionIncrementGap="100">
       <analyzer>
         <tokenizer class="solr.KeywordTokenizerFactory"/>
@@ -650,6 +672,7 @@ version属性指示模式的语义和语法版本。
     <!-- 
       Example of using PathHierarchyTokenizerFactory at index time, so
       queries for paths match documents at that path, or in descendent paths
+      路径层级。
     -->
     <fieldType name="descendent_path" class="solr.TextField">
       <analyzer type="index">
@@ -662,6 +685,7 @@ version属性指示模式的语义和语法版本。
     <!-- 
       Example of using PathHierarchyTokenizerFactory at query time, so
       queries for paths match documents at that path, or in ancestor paths
+      匹配该路径，或该路径的父路径。
     -->
     <fieldType name="ancestor_path" class="solr.TextField">
       <analyzer type="index">
@@ -673,7 +697,9 @@ version属性指示模式的语义和语法版本。
     </fieldType>
 
     <!-- since fields of this type are by default not stored or indexed,
-         any data added to them will be ignored outright.  --> 
+         any data added to them will be ignored outright.  
+         忽略，不存储，也不索引。
+         --> 
     <fieldtype name="ignored" stored="false" indexed="false" multiValued="true" class="solr.StrField" />
 
     <!-- This point type indexes the coordinates as separate fields (subFields)
