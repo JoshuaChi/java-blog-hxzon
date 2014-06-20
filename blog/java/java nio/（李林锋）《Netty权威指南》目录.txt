@@ -1,4 +1,4 @@
-﻿《Netty权威指南》目录
+﻿（李林锋）《Netty权威指南》目录
 http://ifeve.com/netty-definitive-guide-contents/
 
 《Netty权威指南》是全球第二本、中国第一本Netty教材，
