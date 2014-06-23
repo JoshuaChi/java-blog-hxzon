@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
+<!-- 注释by hxzon -->
 <!--
  Licensed to the Apache Software Foundation (ASF) under one or more
  contributor license agreements.  See the NOTICE file distributed with
@@ -22,6 +23,7 @@
 -->
 <config>
   <!-- In all configuration below, a prefix of "solr." for class names
+  "solr"是内建的一个缩写别名。
        is an alias that causes solr to search appropriate packages,
        including org.apache.solr.(search|update|request|core|analysis)
 
@@ -38,18 +40,21 @@
   <luceneMatchVersion>4.8</luceneMatchVersion>
 
   <!-- <lib/> directives can be used to instruct Solr to load an Jars
+  lib目录。
        identified and use them to resolve any "plugins" specified in
        your solrconfig.xml or schema.xml (ie: Analyzers, Request
        Handlers, etc...).
 
        All directories and paths are resolved relative to the
        instanceDir.
+       所有路径都相对于 instanceDir 。
 
        Please note that <lib/> directives are processed in the order
        that they appear in your solrconfig.xml file, and are "stacked" 
        on top of each other when building a ClassLoader - so if you have 
        plugin jars with dependencies on other jars, the "lower level" 
        dependency jars should be loaded first.
+       较底层的jar需放在前面。
 
        If a "./lib" directory exists in your instanceDir, all files
        found in it are included as if you had used the following
@@ -93,22 +98,26 @@
   -->
 
   <!-- Data Directory
+  索引的存储目录。
 
        Used to specify an alternate directory to hold all index data
        other than the default ./data under the Solr home.  If
        replication is in use, this should match the replication
        configuration.
+       如果启用了复制，需匹配复制的配置。
     -->
   <dataDir>${solr.data.dir:}</dataDir>
 
 
   <!-- The DirectoryFactory to use for indexes.
-       
+       索引存储目录工厂。
        solr.StandardDirectoryFactory is filesystem
        based and tries to pick the best implementation for the current
-       JVM and platform.  solr.NRTCachingDirectoryFactory, the default,
+       JVM and platform.  
+       solr.NRTCachingDirectoryFactory, the default,
        wraps solr.StandardDirectoryFactory and caches small files in memory
        for better NRT performance.
+       会在内存中缓存小文件。
 
        One can force a particular implementation via solr.MMapDirectoryFactory,
        solr.NIOFSDirectoryFactory, or solr.SimpleFSDirectoryFactory.
@@ -120,10 +129,12 @@
                     class="${solr.directoryFactory:solr.NRTCachingDirectoryFactory}"/>
 
   <!-- The CodecFactory for defining the format of the inverted index.
+  倒排索引的格式工厂。
        The default implementation is SchemaCodecFactory, which is the official Lucene
        index format, but hooks into the schema to provide per-field customization of
        the postings lists and per-document values in the fieldType element
-       (postingsFormat/docValuesFormat). Note that most of the alternative implementations
+       (postingsFormat/docValuesFormat). 
+       Note that most of the alternative implementations
        are experimental, so if you choose to customize the index format, its a good
        idea to convert back to the official format e.g. via IndexWriter.addIndexes(IndexReader)
        before upgrading to a newer version to avoid unnecessary reindexing.
@@ -154,31 +165,39 @@
 
   <!-- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
        Index Config - These settings control low-level behavior of indexing
+       索引配置。
        Most example settings here show the default value, but are commented
        out, to more easily see where customizations have been made.
        
        Note: This replaces <indexDefaults> and <mainIndex> from older versions
+       取代了旧版本的 <indexDefaults> 和 <mainIndex> 。
        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ -->
   <indexConfig>
     <!-- maxFieldLength was removed in 4.0. To get similar behavior, include a 
+    maxFieldLength 已被移除，使用下面的工厂替代。
          LimitTokenCountFilterFactory in your fieldType definition. E.g. 
      <filter class="solr.LimitTokenCountFilterFactory" maxTokenCount="10000"/>
     -->
-    <!-- Maximum time to wait for a write lock (ms) for an IndexWriter. Default: 1000 -->
+    <!-- Maximum time to wait for a write lock (ms) for an IndexWriter. Default: 1000 
+    获取写锁的最大等待时间。
+    -->
     <!-- <writeLockTimeout>1000</writeLockTimeout>  -->
 
     <!-- The maximum number of simultaneous threads that may be
+    索引的最大线程数量。
          indexing documents at once in IndexWriter; if more than this
          many threads arrive they will wait for others to finish.
          Default in Solr/Lucene is 8. -->
     <!-- <maxIndexingThreads>8</maxIndexingThreads>  -->
 
     <!-- Expert: Enabling compound file will use less files for the index, 
+    启用复合文件。
          using fewer file descriptors on the expense of performance decrease. 
          Default in Lucene is "true". Default in Solr is "false" (since 3.6) -->
     <!-- <useCompoundFile>false</useCompoundFile> -->
 
     <!-- ramBufferSizeMB sets the amount of RAM that may be used by Lucene
+    索引的内存缓存大小。
          indexing for buffering added documents and deletions before they are
          flushed to the Directory.
          maxBufferedDocs sets a limit on the number of documents buffered
@@ -189,6 +208,7 @@
     <!-- <maxBufferedDocs>1000</maxBufferedDocs> -->
 
     <!-- Expert: Merge Policy 
+    合并段的策略。
          The Merge Policy in Lucene controls how merging of segments is done.
          The default since Solr/Lucene 3.3 is TieredMergePolicy.
          The default since Lucene 2.3 was the LogByteSizeMergePolicy,
@@ -202,6 +222,7 @@
       -->
 
     <!-- Merge Factor
+    合并因子。一次合并多少段。
          The merge factor controls how many segments will get merged at a time.
          For TieredMergePolicy, mergeFactor is a convenience parameter which
          will set both MaxMergeAtOnce and SegmentsPerTier at once.
@@ -214,6 +235,7 @@
       -->
 
     <!-- Expert: Merge Scheduler
+    合并的调度器。
          The Merge Scheduler in Lucene controls how merges are
          performed.  The ConcurrentMergeScheduler (Lucene 2.3 default)
          can perform merges in the background using separate threads.
@@ -224,7 +246,7 @@
        -->
 
     <!-- LockFactory 
-
+	锁工厂。
          This option specifies which Lucene LockFactory implementation
          to use.
       
@@ -247,6 +269,7 @@
     <!-- Unlock On Startup
 
          If true, unlock any held write or commit locks on startup.
+         在启动时解锁。
          This defeats the locking mechanism that allows multiple
          processes to safely access a lucene index, and should be used
          with care. Default is "false".
@@ -258,11 +281,13 @@
       -->
 
     <!-- Expert: Controls how often Lucene loads terms into memory
+    加载项到内存的时间间隔。
          Default is 128 and is likely good for most everyone.
       -->
     <!-- <termIndexInterval>128</termIndexInterval> -->
 
     <!-- If true, IndexReaders will be opened/reopened from the IndexWriter
+    是否启用实时模式。
          instead of from the Directory. Hosts in a master/slave setup
          should have this set to false while those in a SolrCloud
          cluster need to be set to true. Default: true
@@ -272,6 +297,7 @@
       -->
 
     <!-- Commit Deletion Policy
+    删除提交时的处理策略。
          Custom deletion policies can be specified here. The class must
          implement org.apache.lucene.index.IndexDeletionPolicy.
 
@@ -302,7 +328,7 @@
     -->
 
     <!-- Lucene Infostream
-       
+       Lucene诊断信息。
          To aid in advanced debugging, Lucene provides an "InfoStream"
          of detailed information when indexing.
 
@@ -331,7 +357,9 @@
   <!-- <jmx serviceUrl="service:jmx:rmi:///jndi/rmi://localhost:9999/solr"/>
     -->
 
-  <!-- The default high-performance update handler -->
+  <!-- The default high-performance update handler 
+  “更新”处理器。
+  -->
   <updateHandler class="solr.DirectUpdateHandler2">
 
     <!-- Enables a transaction log, used for real-time get, durability, and
@@ -382,7 +410,7 @@
      -->
 
     <!-- Update Related Event Listeners
-         
+         “更新”相关的事件监听器。
          Various IndexWriter related events can trigger Listeners to
          take actions.
 
@@ -416,6 +444,7 @@
   </updateHandler>
 
   <!-- IndexReaderFactory
+  索引读取器工厂。
 
        Use the following format to specify a custom IndexReaderFactory,
        which allows for alternate IndexReader implementations.
@@ -457,6 +486,7 @@
        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ -->
   <query>
     <!-- Max Boolean Clauses
+    最大布尔子句数量。
 
          Maximum number of clauses in each BooleanQuery,  an exception
          is thrown if exceeded.
@@ -473,6 +503,7 @@
 
 
     <!-- Solr Internal Query Caches
+    内部查询缓存。
 
          There are two implementations of cache available for Solr,
          LRUCache, based on a synchronized LinkedHashMap, and
@@ -485,6 +516,7 @@
     -->
 
     <!-- Filter Cache
+    过滤器缓存。
 
          Cache used by SolrIndexSearcher for filters (DocSets),
          unordered sets of *all* documents that match a query.  When a
@@ -509,7 +541,7 @@
                  autowarmCount="0"/>
 
     <!-- Query Result Cache
-         
+         查询结果缓存。
          Caches results of searches - ordered lists of document ids
          (DocList) based on a query, a sort, and the range of documents requested.  
       -->
@@ -519,6 +551,7 @@
                       autowarmCount="0"/>
 
     <!-- Document Cache
+    文档缓存。
 
          Caches Lucene Document objects (the stored fields for each
          document).  Since Lucene internal document ids are transient,
@@ -530,7 +563,7 @@
                    autowarmCount="0"/>
 
     <!-- Field Value Cache
-         
+         字段值缓存。
          Cache used to hold field values that are quickly accessible
          by document id.  The fieldValueCache is created by default
          even if not configured here.
@@ -543,6 +576,7 @@
       -->
 
     <!-- Custom Cache
+    自定义缓存实现。
 
          Example of a generic cache.  These caches may be accessed by
          name through SolrIndexSearcher.getCache(),cacheLookup(), and
@@ -563,6 +597,7 @@
 
 
     <!-- Lazy Field Loading
+    是否启用字段懒加载。
 
          If true, stored fields that are not requested will be loaded
          lazily.  This can result in a significant speed improvement
@@ -573,6 +608,7 @@
     <enableLazyFieldLoading>true</enableLazyFieldLoading>
 
     <!-- Use Filter For Sorted Query
+    排序查询时，使用过滤器。
  
          A possible optimization that attempts to use a filter to
          satisfy a search.  If the requested sort does not include
@@ -590,6 +626,7 @@
       -->
 
     <!-- Result Window Size
+    结果窗口大小。
  
          An optimization for use with the queryResultCache.  When a search
          is requested, a superset of the requested number of document ids
@@ -606,6 +643,7 @@
     <queryResultMaxDocsCached>200</queryResultMaxDocsCached>
 
     <!-- Query Related Event Listeners
+    “查询”相关的事件监听器。
  
          Various IndexSearcher related events can trigger Listeners to
          take actions.
@@ -643,6 +681,7 @@
     </listener>
 
     <!-- Use Cold Searcher
+    使用冷搜索器（还未预热）。
 
          If a search request comes in and there is no current
          registered searcher, then immediately register the still
@@ -666,6 +705,7 @@
 
 
   <!-- Request Dispatcher
+  请求分派器。
 
        This section contains instructions for how the SolrDispatchFilter
        should behave when processing requests for this SolrCore.
@@ -676,6 +716,7 @@
        handleSelect="true" will cause the SolrDispatchFilter to process
        the request and dispatch the query to a handler specified by the 
        "qt" param, assuming "/select" isn't already registered.
+       “qt”参数。
 
        handleSelect="false" will cause the SolrDispatchFilter to
        ignore "/select" requests, resulting in a 404 unless a handler
@@ -683,9 +724,11 @@
 
        handleSelect="true" is not recommended for new users, but is the default
        for backwards compatibility
+       新用户不建议使用，只是为了向后兼容。
     -->
   <requestDispatcher handleSelect="false" >
     <!-- Request Parsing
+    请求解析。
 
          These settings indicate how Solr Requests may be parsed, and
          what restrictions may be placed on the ContentStreams from
@@ -775,7 +818,7 @@
       -->
   </requestDispatcher>
 
-  <!-- Request Handlers 
+  <!-- Request Handlers 请求处理器
 
        http://wiki.apache.org/solr/SolrRequestHandler
 
@@ -794,7 +837,7 @@
        not be initialized until the first request that uses it.
 
     -->
-  <!-- SearchHandler
+  <!-- SearchHandler 搜索处理器
 
        http://wiki.apache.org/solr/SearchHandler
 
@@ -987,7 +1030,7 @@
   </requestHandler>
 
 
-  <!-- Update Request Handler.  
+  <!-- Update Request Handler.  “更新”请求处理器。
        
        http://wiki.apache.org/solr/UpdateXmlMessages
 
@@ -1123,6 +1166,7 @@
      <requestHandler name="/admin/file"       class="solr.admin.ShowFileRequestHandler" >
     -->
   <!-- If you wish to hide files under ${solr.home}/conf, explicitly
+  如果希望隐藏某些配置文件。
        register the ShowFileRequestHandler using: 
     -->
   <!--
@@ -1159,10 +1203,11 @@
     </lst>
   </requestHandler>
 
-  <!-- Solr Replication
+  <!-- Solr Replication 复制。
 
        The SolrReplicationHandler supports replicating indexes from a
        "master" used for indexing and "slaves" used for queries.
+       主服务器用于索引，从服务器用于查询。
 
        http://wiki.apache.org/solr/SolrReplication 
 
@@ -1175,7 +1220,9 @@
   <requestHandler name="/replication" class="solr.ReplicationHandler" >
     <!--
        To enable simple master/slave replication, uncomment one of the 
+       启用简单的主从复制。
        sections below, depending on whether this solr instance should be
+       启用下边其中一项，以便作为主服务器，或从服务器。
        the "master" or a "slave".  If this instance is a "slave" you will 
        also need to fill in the masterUrl to point to a real machine.
     -->
@@ -1194,13 +1241,14 @@
     -->
   </requestHandler>
 
-  <!-- Search Components
+  <!-- Search Components 搜索组件。
 
        Search components are registered to SolrCore and used by 
        instances of SearchHandler (which can access them by name)
        
        By default, the following components are available:
-       
+       默认情况下，以下搜索组件可用。
+       查询，分面，相似性查询，高亮，统计，调试。
        <searchComponent name="query"     class="solr.QueryComponent" />
        <searchComponent name="facet"     class="solr.FacetComponent" />
        <searchComponent name="mlt"       class="solr.MoreLikeThisComponent" />
@@ -1221,8 +1269,10 @@
 
        If you register a searchComponent to one of the standard names, 
        that will be used instead of the default.
+       替换标准组件。
 
        To insert components before or after the 'standard' components, use:
+       在标准搜索组件之前，或之后插入组件：
     
        <arr name="first-components">
          <str>myFirstComponentName</str>
@@ -1234,10 +1284,11 @@
 
        NOTE: The component registered with the name "debug" will
        always be executed after the "last-components" 
+       注意，调试组件总是在最后执行。
        
      -->
 
-  <!-- Spell Check
+  <!-- Spell Check 拼写检查。
 
        The spell check component can return a list of alternative spelling
        suggestions.  
@@ -1362,7 +1413,7 @@
     </arr>
   </requestHandler>
 
-  <!-- Term Vector Component
+  <!-- Term Vector Component 项向量组件。
 
        http://wiki.apache.org/solr/TermVectorComponent
     -->
@@ -1385,14 +1436,17 @@
     </arr>
   </requestHandler>
 
-  <!-- Clustering Component. (Omitted here. See the default Solr example for a typical configuration.) -->
+  <!-- Clustering Component. (Omitted here. See the default Solr example for a typical configuration.) 
+  集群组件。
+  -->
 
-  <!-- Terms Component
+  <!-- Terms Component 项组件。
 
        http://wiki.apache.org/solr/TermsComponent
 
        A component to return terms and document frequency of those
        terms
+       返回项，及项的出现频率。
     -->
   <searchComponent name="terms" class="solr.TermsComponent"/>
 
@@ -1409,6 +1463,7 @@
 
 
   <!-- Query Elevation Component
+  Elevation，海拔。
 
        http://wiki.apache.org/solr/QueryElevationComponent
 
@@ -1433,7 +1488,7 @@
     </arr>
   </requestHandler>
 
-  <!-- Highlighting Component
+  <!-- Highlighting Component 高亮组件。
 
        http://wiki.apache.org/solr/HighlightingParameters
     -->
@@ -1539,7 +1594,7 @@
     </highlighting>
   </searchComponent>
 
-  <!-- Update Processors
+  <!-- Update Processors “更新”处理器。
 
        Chains of Update Processor Factories for dealing with Update
        Requests can be declared, and then used by name in Update
@@ -1560,7 +1615,7 @@
        declaring schemaFactory as ManagedIndexSchemaFactory, with
        mutable specified as true. 
        
-       See http://wiki.apache.org/solr/GuessingFieldTypes
+       See http://wiki.apache.org/solr/GuessingFieldTypes 字段类型自动猜测。
     -->
   <updateRequestProcessorChain name="add-unknown-fields-to-the-schema">
     <processor class="solr.RemoveBlankFieldUpdateProcessorFactory"/>
@@ -1612,7 +1667,7 @@
     <processor class="solr.RunUpdateProcessorFactory"/>
   </updateRequestProcessorChain>
 
-  <!-- Deduplication
+  <!-- Deduplication 重复数据删除。
 
        An example dedup update processor that creates the "id" field
        on the fly based on the hash code of some other fields.  This
@@ -1635,7 +1690,7 @@
      </updateRequestProcessorChain>
     -->
 
-  <!-- Language identification
+  <!-- Language identification 语言标识。
 
        This example update chain identifies the language of the incoming
        documents using the langid contrib. The detected language is
@@ -1657,7 +1712,7 @@
    </updateRequestProcessorChain>
   -->
 
-  <!-- Script update processor
+  <!-- Script update processor 脚本实现的更新处理器。
 
     This example hooks in an update processor implemented using JavaScript.
 
@@ -1675,7 +1730,7 @@
     </updateRequestProcessorChain>
   -->
 
-  <!-- Response Writers
+  <!-- Response Writers 响应书写器。
 
        http://wiki.apache.org/solr/QueryResponseWriter
 
@@ -1724,7 +1779,7 @@
     <int name="xsltCacheLifetimeSeconds">5</int>
   </queryResponseWriter>
 
-  <!-- Query Parsers
+  <!-- Query Parsers 查询解析器。
 
        http://wiki.apache.org/solr/SolrQuerySyntax
 
@@ -1737,7 +1792,7 @@
      <queryParser name="myparser" class="com.mycompany.MyQParserPlugin"/>
     -->
 
-  <!-- Function Parsers
+  <!-- Function Parsers 功能解析器。
 
        http://wiki.apache.org/solr/FunctionQuery
 
@@ -1751,7 +1806,7 @@
     -->
 
 
-  <!-- Document Transformers
+  <!-- Document Transformers 文档转换器。
        http://wiki.apache.org/solr/DocTransformers
     -->
   <!--
@@ -1776,7 +1831,9 @@
     -->
 
 
-  <!-- Legacy config for the admin interface -->
+  <!-- Legacy config for the admin interface 
+  遗留管理界面配置。
+  -->
   <admin>
     <defaultQuery>*:*</defaultQuery>
   </admin>
