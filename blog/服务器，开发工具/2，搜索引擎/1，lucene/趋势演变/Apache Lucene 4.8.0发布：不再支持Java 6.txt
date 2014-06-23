@@ -18,7 +18,7 @@ AnalyzingInfixSuggester 类提供了支持NRT（near-real-time）的自动建议
 
 分离了bulk scoring（基于批量处理的打分过程）和基于迭代的打分过程。
 
-建立索引的时的Hash term模块改为使用高效的MurmurHash3算法。
+建立索引时的 Hash term模块改为使用高效的MurmurHash3算法。
 
 IndexWriter开始支持更新二进制类型的字段。
 
@@ -128,7 +128,9 @@ Lucene 4.0 正式版亮点功能：
 正如Mysql支持多种存储引擎一样，现在Lucene也可以了。
 
 二、排序相关的算法与向量空间模型解耦(即Lucene中经典的经典的(TF/IDF)模型)。
-同时提供：最佳匹配 Okapi BM 25，随机分歧 (Divergence from Randomness )，语言模型和基于信息量的模型。 不同的算法模型可以组合串联起来使用，这等于完全解放了Lucene的生产力！。
+同时提供：
+最佳匹配 Okapi BM 25，随机分歧 (Divergence from Randomness )，语言模型和基于信息量的模型。 
+不同的算法模型可以组合串联起来使用，这等于完全解放了Lucene的生产力！。
 
 三、新的DocValues类型可以为每个文档提供存储额外的类型数据。
 类似：PayLoad, 可以在用这个特性自定义排序打分参数。
@@ -150,7 +152,8 @@ Lucene 4.0 正式版亮点功能：
 
 也就是说以下方法将会成为你的新朋友：
 
-TermsEnum.docFreq()，TermsEnum.totalTermFreq()，Fields.getUniqueTermCount()，Fields.getUniqueFieldCount()
+TermsEnum.docFreq()，TermsEnum.totalTermFreq()，
+Fields.getUniqueTermCount()，Fields.getUniqueFieldCount()
 
 七、索引term不再局限于UTF-16的字符格式，Lucene 4.0中 term 可以是任何二进制数值(java中的byte数组)。
 默认情况下文本类term是UTF-8字节方式存储。
@@ -165,13 +168,15 @@ A: 添加编码器codec：针对类 Hadoop DFS 的文件系统提供。
 
 B: 内存编码器codec：把所有的term和posting放到一个内存中的FST（有限状态机），针对内存型应用提升了搜索速度。
 
-C: 脉冲编码器codec:主要利用了 Zipf 定律，根据term的频率，把频率达到制定阈值的term以inline的方式存储。
+C: 脉冲编码器codec:主要利用了 Zipf 定律，根据term的频率，把频率达到指定阈值的term以inline的方式存储。
 
    了解c++ inline 函数的同学，应该知道inline对于提升函数调用速度的威力吧。
 
-D: 明文编码器codec: Lucene的索引结构为了提升效率，从来都是一个黑匣子。
+D: 明文编码器codec: 
+Lucene的索引结构为了提升效率，从来都是一个黑匣子。
 现在这个黑匣子可以以明文的方式存储了。
-很显然这个编码器主要是调试、演示用的。估计很多需要写论文的同学们很乐意使用这个功能。
+很显然这个编码器主要是调试、演示用的。
+估计很多需要写论文的同学们很乐意使用这个功能。
 
 E: Bloom编码器codec: 国内很多人把Bloom翻译为布隆，我还是喜欢直接用英文的Bloom。
 
@@ -271,7 +276,8 @@ Lucene 4.0 终于支持 concurrent flushing  了。
 
 支持Concurrent Flushing听起来很酷，具体到Lucene 4.0 里，是增加了一个类来完成这个功能的。
 
-先看以下类：DocConsumerPerThread ， DocFieldConsumerPerThread ， DocInverterPerThread ， InvertedDocConsumerPerThread 。
+先看以下类：DocConsumerPerThread ， DocFieldConsumerPerThread ， 
+DocInverterPerThread ， InvertedDocConsumerPerThread 。
 觉得少了什么吗？ 
 对，为什么没有 DocumentsWriterPerThread ，Lucene 4.0 的Concurrent Flushing 正是这个类来实现的。
 
@@ -290,7 +296,8 @@ FuzzyQuery 这类查询估计大家用的比较少。
 Lucene 4.0 使用 Levenshtein Automaton 的来衡量文字的"编辑距离" ，使用有限状态自动机来进行计算。
 以数百倍的效率提升了FuzzyQuery 的效率。
 
-Levenshtein 距离我现在还不是很清楚。用单纯的有限状态机知识能大概理解其中的原理，如下图：
+Levenshtein 距离我现在还不是很清楚。
+用单纯的有限状态机知识能大概理解其中的原理，如下图：
 
 综上所述的3点是Lucene 4.0 众多新特性中最重要的部分，很值得大家期待。
 

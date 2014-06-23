@@ -1,0 +1,21 @@
+﻿P6Spy 2.1.0 发布，SQL 语句拦截
+
+P6Spy 2.1.0 发布，此版本更新内容如下：
+
+P6ConnectionPoolDataSource 合并到 P6DataSource
+现在记录通过 CallableStatement 上的名字绑定变量集
+日志记录支持 setAppender()
+支持 Glassfish XADataSources 
+修复了重载时模块不能用的问题
+excludecategories 现在使用类类别而不是纯字符串
+其他各种改进
+P6Spy是一个可以用来在应用程序中拦截和修改数据操作语句的开源框架。 通过P6Spy我们可以对SQL语句进行拦截，相当于一个SQL语句的记录器，这样我们可以用它来作相关的分析，比如性能分析。
+
+P6SPY提供了如下几个功能：
+
+记录SQL语句的执行时间戳。 
+记录SQL语句类型 
+记录SQL填入参数的和没有填入参数的SQL语句 
+根据配置的时间控制SQL语句的执行时间，对超出时间的SQL语句输出到日志文件中
+
+
