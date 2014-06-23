@@ -54,19 +54,24 @@
   name属性仅用于展示。
        version="x.y" is Solr's version number for the schema syntax and 
        semantics.  It should not normally be changed by applications.
-version属性指示模式的语义和语法版本。
+       version属性指示本配置文件的语义和语法版本。
 
        1.0: multiValued attribute did not exist, all fields are multiValued 
             by nature
+            所有字段，根据惯例，支持或不支持“多值”。
        1.1: multiValued attribute introduced, false by default 
        1.2: omitTermFreqAndPositions attribute introduced, true by default 
             except for text fields.
+            除了文本字段，默认忽略项的频率和位置信息。
        1.3: removed optional field compress feature
+       移除可选的字段压缩功能。
        1.4: autoGeneratePhraseQueries attribute introduced to drive QueryParser
             behavior when a single string produces multiple tokens.  Defaults 
             to off for version >= 1.4
+            自动生成短语查询，1.4版之后，默认不开启。
        1.5: omitNorms defaults to true for primitive field types 
             (int, float, boolean, string...)
+            原始类型，默认忽略norms（加权基准）。
      -->
 
     <!-- Valid attributes for fields:
@@ -98,22 +103,27 @@ version属性指示模式的语义和语法版本。
      multiValued: true if this field may contain multiple values per document
      是否有多值。
      omitNorms: (expert) set to true to omit the norms associated with
+     忽略加权基准。
        this field (this disables length normalization and index-time
        boosting for the field, and saves some memory).  Only full-text
        fields or fields that need an index-time boost need norms.
+       boost，贡献。
        Norms are omitted for primitive (non-analyzed) types by default.
+       原始类型默认忽略加权基准。
      
      termVectors: [false] set to true to store the term vector for a
        given field.
+     是否存储项向量。
        When using MoreLikeThis, fields used for similarity should be
        stored for best performance.
-     是否存储条目向量。
+       用于加快相似性搜索。
      termPositions: Store position information with the term vector.  
        This will increase storage costs.
-     是否存储条目向量的位置。
+     是否存储项向量的位置。
      termOffsets: Store offset information with the term vector. This 
        will increase storage costs.
-     是否存储条目向量的偏移。
+     是否存储项向量的偏移。
+
      required: The field is required.  It will throw an error if the
        value does not exist
      是否必须。
@@ -291,7 +301,7 @@ version属性指示模式的语义和语法版本。
     -->
 
     <!-- The StrField type is not analyzed, but indexed/stored verbatim.
-    不解析，但是索引和存储。
+    不分析，但是索引和存储。
        It supports doc values but in that case the field needs to be
        single-valued and either required or have a default value.
        它支持文档值，但是必须是单值，且是必须的，或有默认值。
@@ -324,7 +334,7 @@ version属性指示模式的语义和语法版本。
 
     <!--
       Default numeric field types. For faster range queries, consider the tint/tfloat/tlong/tdouble types.
-    数值字段类型。为了更快的范围查询，请使用 tint 等类型。
+    数值字段类型。为了更快的范围查询，请使用 tint （特里结构）等类型。
       These fields support doc values, but they require the field to be
       single-valued and either be required or have a default value.
       支持文档值，但是必须为单值，而是必须的，或有默认值。
@@ -344,9 +354,9 @@ version属性指示模式的语义和语法版本。
      查看 NumericRangeQuery 类的实现，以了解细节。
 
      Smaller precisionStep values (specified in bits) will lead to more tokens
-     越小的“精度步长（比特位数）”会生成越多的索引符号。
+     越小的“精度步长（比特位数）”会生成越多的索引符号，
      indexed per value, slightly larger index size, and faster range queries.
-     越快的范围查询。
+     使得范围查询越快。
      A precisionStep of 0 disables indexing at different precision levels.
     -->
     <fieldType name="tint" class="solr.TrieIntField" precisionStep="8" positionIncrementGap="0"/>
@@ -360,14 +370,19 @@ version属性指示模式的语义和语法版本。
     <fieldType name="tdoubles" class="solr.TrieDoubleField" precisionStep="8" positionIncrementGap="0" multiValued="true"/>
 
     <!-- The format for this date field is of the form 1995-12-31T23:59:59Z, and
+    日期类型。日期格式。
          is a more restricted form of the canonical representation of dateTime
          http://www.w3.org/TR/xmlschema-2/#dateTime    
          The trailing "Z" designates UTC time and is mandatory.
+         末尾的Z表示utc时间，且是强制的。
          Optional fractional seconds are allowed: 1995-12-31T23:59:59.999Z
+         秒是可选的。
          All other components are mandatory.
+         其它部分都是必须的。
 
          Expressions can also be used to denote calculations that should be
          performed relative to "NOW" to determine the value, ie...
+         可以使用 “NOW”来计算时间。
 
                NOW/HOUR
                   ... Round to the start of the current hour
@@ -378,8 +393,10 @@ version属性指示模式的语义和语法版本。
                       the current day
                       
          Consult the DateField javadocs for more information.
+         参见 DateField 的api文档。
 
          Note: For faster range queries, consider the tdate type
+         为了支持更快的范围查询，请使用特里结构的日期类型。
       -->
     <fieldType name="date" class="solr.TrieDateField" precisionStep="0" positionIncrementGap="0"/>
 
@@ -389,11 +406,13 @@ version属性指示模式的语义和语法版本。
     <fieldType name="tdates" class="solr.TrieDateField" precisionStep="6" positionIncrementGap="0" multiValued="true"/>
 
 
-    <!--Binary data type. The data should be sent/retrieved in as Base64 encoded Strings -->
+    <!--Binary data type. The data should be sent/retrieved in as Base64 encoded Strings 
+    二进制类型。
+    -->
     <fieldtype name="binary" class="solr.BinaryField"/>
 
     <!-- The "RandomSortField" is not used to store or search any
-    不用于存储和搜索任何数据。
+    “随机排序”字段类型，不用于存储和搜索任何数据。
          data.  You can declare fields of this type it in your schema
          声明此类型的字段，可用于文档的伪随机排序等。
          to generate pseudo-random orderings of your docs for sorting 
@@ -417,17 +436,17 @@ version属性指示模式的语义和语法版本。
          The optional positionIncrementGap puts space between multiple fields of
          this type on the same document, with the purpose of preventing false phrase
          matching across fields.
-         “位置增量间隙”
+         “位置增量间隙”，在多个字段之间添加空格，用于阻止“跨多个字段”的“短语匹配”。
 
          For more info on customizing your analyzer chain, please see
          http://wiki.apache.org/solr/AnalyzersTokenizersTokenFilters
-         自定义解析器链，查看上述地址。
+         自定义解析器链，参见上述网址。
      -->
 
     <!-- One can also specify an existing Analyzer class that has a
          default constructor via the class attribute on the analyzer element.
          Example:
-         可以给字段类型指定解析器实现类。
+         可以给字段类型指定分析器实现类。
     <fieldType name="text_greek" class="solr.TextField">
       <analyzer class="org.apache.lucene.analysis.el.GreekAnalyzer"/>
     </fieldType>
@@ -447,7 +466,8 @@ version属性指示模式的语义和语法版本。
 	 removes stop words from case-insensitive "stopwords.txt"
 	 (empty by default), and down cases.  At query time only, it
 	 also applies synonyms. 
-	 标准的符号分割，小写化，移除常用词，应用同义词。
+	 标准的符号分割，小写化，移除常用词。
+	 在查询期间，还会应用近义词。
 	 -->
     <fieldType name="text_general" class="solr.TextField" positionIncrementGap="100" multiValued="true">
       <analyzer type="index">
@@ -467,10 +487,15 @@ version属性指示模式的语义和语法版本。
     </fieldType>
 
     <!-- A text field with defaults appropriate for English: it
+    英语。appropriate，适当的。
          tokenizes with StandardTokenizer, removes English stop words
+         标准分割，移除停用词，
          (lang/stopwords_en.txt), down cases, protects words from protwords.txt, and
+         小写化，保护词，
          finally applies Porter's stemming.  The query time analyzer
-         also applies synonyms from synonyms.txt. -->
+         波特词干。
+         also applies synonyms from synonyms.txt. 
+         近义词。 -->
     <fieldType name="text_en" class="solr.TextField" positionIncrementGap="100">
       <analyzer type="index">
         <tokenizer class="solr.StandardTokenizerFactory"/>
@@ -487,6 +512,7 @@ version属性指示模式的语义和语法版本。
         <filter class="solr.EnglishPossessiveFilterFactory"/>
         <filter class="solr.KeywordMarkerFilterFactory" protected="protwords.txt"/>
         <!-- Optionally you may want to use this less aggressive stemmer instead of PorterStemFilterFactory:
+        aggressive ，积极的。stemmer ，词干。波特词干过滤器。
         <filter class="solr.EnglishMinimalStemFilterFactory"/>
 	-->
         <filter class="solr.PorterStemFilterFactory"/>
@@ -509,12 +535,15 @@ version属性指示模式的语义和语法版本。
     </fieldType>
 
     <!-- A text field with defaults appropriate for English, plus
+    英语。
 	 aggressive word-splitting and autophrase features enabled.
+	 启用单词分割和自动短语功能。
 	 This field is just like text_en, except it adds
 	 WordDelimiterFilter to enable splitting and matching of
 	 words on case-change, alpha numeric boundaries, and
-	 分割：大小写变化，字母与数字分界，非字母字符。
+	 多加了一个“单词分隔符过滤器”：大小写变化，字母与数字分界，非字母字符。
 	 non-alphanumeric chars.  This means certain compound word
+	 意味着复合词能更好的匹配。
 	 cases will work, for example query "wi fi" will match
 	 document "WiFi" or "wi-fi".
         -->
@@ -600,14 +629,16 @@ version属性指示模式的语义和语法版本。
     -->
 
     <!-- This is an example of using the KeywordTokenizer along
+         关键字分割器的示例。
          With various TokenFilterFactories to produce a sortable field
+         可排序的字段。
          that does not include some properties of the source text
-         基于关键字分割。
       -->
     <fieldType name="alphaOnlySort" class="solr.TextField" sortMissingLast="true" omitNorms="true">
       <analyzer>
         <!-- KeywordTokenizer does no actual tokenizing, so the entire
              input string is preserved as a single token
+             整个字符串作为单一token。
           -->
         <tokenizer class="solr.KeywordTokenizerFactory"/>
         <!-- The LowerCase TokenFilter does what you expect, which can be
@@ -617,6 +648,7 @@ version属性指示模式的语义和语法版本。
         <!-- The TrimFilter removes any leading or trailing whitespace -->
         <filter class="solr.TrimFilterFactory" />
         <!-- The PatternReplaceFilter gives you the flexibility to use
+        “正则表达式替换”过滤器。
              Java Regular expression to replace any sequence of characters
              matching a pattern with an arbitrary replacement string, 
              which may include back references to portions of the original
@@ -633,6 +665,7 @@ version属性指示模式的语义和语法版本。
       </analyzer>
     </fieldType>
     
+    <!-- phonetic ，拼音 。  -->
     <fieldtype name="phonetic" stored="false" indexed="true" class="solr.TextField" >
       <analyzer>
         <tokenizer class="solr.StandardTokenizerFactory"/>
@@ -641,14 +674,16 @@ version属性指示模式的语义和语法版本。
     </fieldtype>
 
     <fieldtype name="payloads" stored="false" indexed="true" class="solr.TextField" >
+    <!-- 负载。 -->
       <analyzer>
         <tokenizer class="solr.WhitespaceTokenizerFactory"/>
         <!--
         The DelimitedPayloadTokenFilter can put payloads on tokens... for example,
         a token of "foo|1.4"  would be indexed as "foo" with a payload of 1.4f
         Attributes of the DelimitedPayloadTokenFilterFactory : 
-        可以给token添加属性值。
+        可以给token添加负载（属性值）。
          "delimiter" - a one character delimiter. Default is | (pipe)
+         分割符。
 	 "encoder" - how to encode the following value into a playload
 	    float -> org.apache.lucene.analysis.payloads.FloatEncoder,
 	    integer -> o.a.l.a.p.IntegerEncoder
@@ -672,7 +707,8 @@ version属性指示模式的语义和语法版本。
     <!-- 
       Example of using PathHierarchyTokenizerFactory at index time, so
       queries for paths match documents at that path, or in descendent paths
-      路径层级。
+      “路径层级分割器”示例。
+      用于索引期间，所以查询能匹配该路径，或子孙路径。
     -->
     <fieldType name="descendent_path" class="solr.TextField">
       <analyzer type="index">
@@ -685,7 +721,7 @@ version属性指示模式的语义和语法版本。
     <!-- 
       Example of using PathHierarchyTokenizerFactory at query time, so
       queries for paths match documents at that path, or in ancestor paths
-      匹配该路径，或该路径的父路径。
+      用于查询期间，所以能匹配该路径，或该路径的祖先路径。
     -->
     <fieldType name="ancestor_path" class="solr.TextField">
       <analyzer type="index">
@@ -703,38 +739,52 @@ version属性指示模式的语义和语法版本。
     <fieldtype name="ignored" stored="false" indexed="false" multiValued="true" class="solr.StrField" />
 
     <!-- This point type indexes the coordinates as separate fields (subFields)
+    "点"，用来索引坐标值。
       If subFieldType is defined, it references a type, and a dynamic field
+      如果定义了子字段类型，则会创建动态字段，名字为 “ *_类型名 ”。
       definition is created matching *___<typename>.  Alternately, if 
       subFieldSuffix is defined, that is used to create the subFields.
+      如果定义了子字段后缀，则用于创建子字段。
       Example: if subFieldType="double", then the coordinates would be
         indexed in fields myloc_0___double,myloc_1___double.
       Example: if subFieldSuffix="_d" then the coordinates would be indexed
         in fields myloc_0_d,myloc_1_d
       The subFields are an implementation detail of the fieldType, and end
       users normally should not need to know about them.
+      子字段属于实现细节，终端用户不需要知道它的存在。
      -->
     <fieldType name="point" class="solr.PointType" dimension="2" subFieldSuffix="_d"/>
 
-    <!-- A specialized field for geospatial search. If indexed, this fieldType must not be multivalued. -->
+    <!-- A specialized field for geospatial search. If indexed, this fieldType must not be multivalued. 
+    Lat 纬度，Lon 经度。
+    -->
     <fieldType name="location" class="solr.LatLonType" subFieldSuffix="_coordinate"/>
 
     <!-- An alternative geospatial field type new to Solr 4.  It supports multiValued and polygon shapes.
+    新的“地理空间”字段，支持多值和多边形形状。
       For more information about this and other Spatial fields new to Solr 4, see:
       http://wiki.apache.org/solr/SolrAdaptersForLuceneSpatial4
+      更多“空间”相关的字段信息，见上述网址。
     -->
     <fieldType name="location_rpt" class="solr.SpatialRecursivePrefixTreeFieldType"
                geo="true" distErrPct="0.025" maxDistErr="0.000009" units="degrees" />
 
     <!-- Money/currency field type. See http://wiki.apache.org/solr/MoneyFieldType
+    “货币”字段。
         Parameters:
           defaultCurrency: Specifies the default currency if none specified. Defaults to "USD"
+          默认值，美元。
           precisionStep:   Specifies the precisionStep for the TrieLong field used for the amount
+          精度步长。
           providerClass:   Lets you plug in other exchange provider backend:
                            solr.FileExchangeRateProvider is the default and takes one parameter:
                              currencyConfig: name of an xml file holding exchange rates
+                             交换汇率配置文件。
                            solr.OpenExchangeRatesOrgProvider uses rates from openexchangerates.org:
                              ratesFileLocation: URL or path to rates JSON file (default latest.json on the web)
+                             在线交换汇率。
                              refreshInterval: Number of minutes between each rates fetch (default: 1440, min: 60)
+                             交换汇率的刷新间隔。
    -->
     <fieldType name="currency" class="solr.CurrencyField" precisionStep="8" defaultCurrency="USD" currencyConfig="currency.xml" />
              
@@ -742,7 +792,7 @@ version属性指示模式的语义和语法版本。
 
     <!-- some examples for different languages (generally ordered by ISO code) -->
 
-    <!-- Arabic -->
+    <!-- Arabic 阿拉伯语 -->
     <fieldType name="text_ar" class="solr.TextField" positionIncrementGap="100">
       <analyzer> 
         <tokenizer class="solr.StandardTokenizerFactory"/>
@@ -755,7 +805,7 @@ version属性指示模式的语义和语法版本。
       </analyzer>
     </fieldType>
 
-    <!-- Bulgarian -->
+    <!-- Bulgarian 保加利亚语 -->
     <fieldType name="text_bg" class="solr.TextField" positionIncrementGap="100">
       <analyzer> 
         <tokenizer class="solr.StandardTokenizerFactory"/> 
@@ -765,7 +815,7 @@ version属性指示模式的语义和语法版本。
       </analyzer>
     </fieldType>
     
-    <!-- Catalan -->
+    <!-- Catalan 加泰罗尼亚语 -->
     <fieldType name="text_ca" class="solr.TextField" positionIncrementGap="100">
       <analyzer> 
         <tokenizer class="solr.StandardTokenizerFactory"/>
@@ -777,7 +827,9 @@ version属性指示模式的语义和语法版本。
       </analyzer>
     </fieldType>
     
-    <!-- CJK bigram (see text_ja for a Japanese configuration using morphological analysis) -->
+    <!-- CJK bigram (see text_ja for a Japanese configuration using morphological analysis) 
+    morphological，形态。
+    -->
     <fieldType name="text_cjk" class="solr.TextField" positionIncrementGap="100">
       <analyzer>
         <tokenizer class="solr.StandardTokenizerFactory"/>
@@ -977,28 +1029,35 @@ version属性指示模式的语义和语法版本。
     </fieldType>
     
     <!-- Japanese using morphological analysis (see text_cjk for a configuration using bigramming)
+    日语。morphological，形态。
 
          NOTE: If you want to optimize search for precision, use default operator AND in your query
          parser config with <solrQueryParser defaultOperator="AND"/> further down in this file.  Use 
          OR if you would like to optimize for recall (default).
+         “查准率（precision）”和“查全率（recall）”。
     -->
     <fieldType name="text_ja" class="solr.TextField" positionIncrementGap="100" autoGeneratePhraseQueries="false">
       <analyzer>
         <!-- Kuromoji Japanese morphological analyzer/tokenizer (JapaneseTokenizer)
+        Kuromoji是一个开源的,基于java语言开发的轻量级的日文分词工具包。
 
            Kuromoji has a search mode (default) that does segmentation useful for search.  A heuristic
+           Kuromoji 拥有一个搜索模式，会进行分割，以利于搜索。
            is used to segment compounds into its parts and the compound itself is kept as synonym.
 
            Valid values for attribute mode are:
               normal: regular segmentation
-              search: segmentation useful for search with synonyms compounds (default)
+              search: segmentation useful for search with synonyms compounds (default) 近义词复合。
             extended: same as search mode, but unigrams unknown words (experimental)
 
            For some applications it might be good to use search mode for indexing and normal mode for
+           对有些程序，搜索模式有助于索引，
            queries to reduce recall and prevent parts of compounds from being matched and highlighted.
+           而普通模式，有助于查询降低查全率，阻止“复合中的部分”被匹配和被高亮。
            Use <analyzer type="index"> and <analyzer type="query"> for this and mode normal in query.
 
            Kuromoji also has a convenient user dictionary feature that allows overriding the statistical
+           拥有用户字典，允许覆盖统计模式。
            model with your own entries for segmentation, part-of-speech tags and readings without a need
            to specify weights.  Notice that user dictionaries have not been subject to extensive testing.
 
@@ -1009,8 +1068,11 @@ version属性指示模式的语义和语法版本。
            See lang/userdict_ja.txt for a sample user dictionary file.
 
            Punctuation characters are discarded by default.  Use discardPunctuation="false" to keep them.
+           Punctuation，标点符号。
+           标点符号默认被丢弃。
 
            See http://wiki.apache.org/solr/JapaneseLanguageSupport for more on Japanese language support.
+           对日语的支持见上述网址。
         -->
         <tokenizer class="solr.JapaneseTokenizerFactory" mode="search"/>
         <!--<tokenizer class="solr.JapaneseTokenizerFactory" mode="search" userDictionary="lang/userdict_ja.txt"/>-->
@@ -1029,7 +1091,7 @@ version属性指示模式的语义和语法版本。
       </analyzer>
     </fieldType>
     
-    <!-- Latvian -->
+    <!-- Latvian 拉脱维亚 -->
     <fieldType name="text_lv" class="solr.TextField" positionIncrementGap="100">
       <analyzer> 
         <tokenizer class="solr.StandardTokenizerFactory"/>
@@ -1117,7 +1179,7 @@ version属性指示模式的语义和语法版本。
       </analyzer>
     </fieldType>
     
-    <!-- Turkish -->
+    <!-- Turkish 土耳其 -->
     <fieldType name="text_tr" class="solr.TextField" positionIncrementGap="100">
       <analyzer> 
         <tokenizer class="solr.StandardTokenizerFactory"/>
@@ -1129,9 +1191,11 @@ version属性指示模式的语义和语法版本。
 
   
   <!-- Similarity is the scoring routine for each document vs. a query.
+  相似性。scoring routine，常规得分？
        A custom Similarity or SimilarityFactory may be specified here, but 
        the default is fine for most applications.  
        For more info: http://wiki.apache.org/solr/SchemaXml#Similarity
+       定制相似性查询。
     -->
   <!--
      <similarity class="com.example.solr.CustomSimilarityFactory">

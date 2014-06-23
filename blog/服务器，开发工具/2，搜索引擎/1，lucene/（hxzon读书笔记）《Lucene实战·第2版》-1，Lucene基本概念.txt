@@ -47,7 +47,7 @@ norms，加权基准。p47
 
 stop words，停用词，很常用单没有实际意义的词，例如 a ，an ， on 。
 
-filter，过滤器。
+filter，过滤器。例如 PorterStemFilter：处理英文文本，去除词干。
 
 文档可能拥有不只一个同名的字段，在这种情况下，
 字段的值就按照索引操作顺序添加进去。
@@ -89,7 +89,7 @@ Query.setBoost(float)是最有趣的方法，使你告知Lucene某个子查询�
 Lucene要求索引期间，简单化或反向规格化原始数据，即不支持递归，嵌套。
 
 ====
-8，PorterStemFilter：处理英文文本，去除词干。
+8，
 
 ====
 9，Lucene将输入数据以一种“倒排索引（inverted index）”的数据结构进行存储。
@@ -245,7 +245,7 @@ Lucene不针对norms进行松散存储。
 
 要索引数字，要选择一个不丢弃数字的分析器。
 whitespaceAnalyzer,StandardAnalyzer 不丢弃数字。
-SimpleAnalyzer,StopAnalyzer会丢弃数字。
+SimpleAnalyzer,StopAnalyzer 会丢弃数字。
 
 tire structure（特里结构）p49
 lucene会在后台使用一些算法来确认数值是否被成功索引，以便后续能进行“范围搜索”和“数字排序”。
