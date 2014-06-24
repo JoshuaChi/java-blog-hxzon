@@ -1,0 +1,432 @@
+﻿Java development 2.0：通过 ElasticSearch 进行可伸缩搜索
+Java 企业应用程序的分布式搜索
+http://www.ibm.com/developerworks/cn/java/j-javadev2-24/
+
+Andrew Glover, CTO, App47
+2013 年 1 月 09 日
+
+笔记见《（hxzon学习笔记）ElasticSearch入门》
+
+==============
+对于现代应用程序来说，搜索是必需的。
+ElasticSearch 是一种搜索平台，它将搜索算法置于您的指尖，但不要求您掌握这门黑色艺术。
+但与大多数搜索平台不同的是，ElasticSearch 被构建成分布式平台。
+Java development 2.0 通过一个快速且有趣的教程来介绍 ElasticSearch，
+该教程会指导您在不到一小时的时间内完成从安装到实现 Snowball 算法的过程。
+
+我在上高中时，google 还只是一个代表令人难以置信的较大数量的名词。
+今天，我们有时使用 google 作为在线浏览和搜索的代名词，并且我们还用它来表示同名的公司。
+引用 "Papa Google" 作为几乎所有问题的答案也很常见："只需 google 一下即可！"。
+由此可见，应用程序用户期望能够搜索应用程序存储的数据（文件、日志、文章、图像等）。
+对于软件开发人员，他们面临的挑战则是快速而又轻松地支持搜索功能，无需为此而失眠或者崩溃。
+
+关于本系列
+自从 Java 技术首次面世以来，Java 开发格局已经发生了根本性的变化。
+得益于成熟的开源框架和可靠的租赁部署基础架构，用户现在可以快速而又廉价地组装、测试、运行和维护 Java 应用程序。
+在本 系列 文章中，Andrew Glover 将探讨使得这个新的 Java 开发范例成为可能的相关技术范围和工具。
+
+====
+随着时间的推移，用户查询变得越来越复杂、越来越个性化，并且提供相应响应所需的大部分数据实际上都是非结构化数据。
+那个时候，一个 SQL LIKE 子句可能就足够用了，但是，现在的用法有时需要复杂的算法。
+幸运的是，很多开源和商业平台都致力于解决对可插拔搜索技术的需求，
+这些平台包括 Lucene, Sphinx、Solr、Amazon 的 CloudSearch 和 Xapian。
+这一期的 Java development 2.0 文章将介绍 ElasticSearch，它是开源搜索平台领域的一个新成员。
+
+首先，我将向您展示如何快速安装和配置 ElasticSearch。
+然后，我将向您展示如何定义搜索基础架构，如何添加可搜索内容，以及如何对该内容进行搜索。
+这些示例基于现有的应用程序（USA Today 的 Music Reviews 提要和 API），但也能够为您构建的应用程序很好地工作。
+
+我们将使用 ElasticSearch 和两个其他开源工具：cURL 和 Jest。
+cURL 是一个与平台无关的命令行工具，用于处理 HTTP URL；
+Jest 是一个为 ElasticSearch 构建的 Java 库，我们将使用它来捕获、存储以及操作我们的数据。
+
+====
+通过 ElasticSearch 进行分布式搜索
+
+ElasticSearch 是众多开源搜索平台之一。
+它的服务是为已经具有数据库和 Web 前端的应用程序提供附加的组件（可搜索的储存库）。
+
+ElasticSearch 为您的应用程序提供搜索算法和相关基础架构。
+只需将应用程序数据上载到 ElasticSearch 数据存储，您就可以通过 RESTful URL 与其交互。
+您可以直接对其进行操作，也可以通过 cURL 或 Jest之类的库对其进行间接操作。
+
+ElasticSearch 是一个可下载的应用程序。
+某些基于云的平台已经开始以服务的形式提供该应用程序。
+
+在本文中，我们将使用 ElasticSearch 作为可嵌入的工具。
+
+ElasticSearch 的架构明显不同于它之前的架构，因为它是通过水平缩放功能来明确构建的。
+与其他一些搜索平台不同，ElasticSearch 被设计为分布式平台。
+该功能与云和大数据技术的崛起完美吻合。
+ElasticSearch 构建在更稳定的开业搜索引擎 Lucene 之上，因此它的工作方式与无模式 JSON 文档数据存储非常类似。
+它的独特作用就是支持基于文本的搜索。
+
+ElasticSearch 易于安装并且易于集成到您的应用程序中。
+您可以通过使用 RESTful API，采用您所选择的语言与 ElasticSearch 进行交互。
+它还提供了充满活力和不断增长的开源社区所生成的大量语言适配器。
+
+问询
+去年的这个时候巴黎的温度如何？2008 年美国总统大选中有多少人投票？把脚趾上的水泡挤破是否是个好主意？
+这些只是全球数百万个用户每天发布到 Web 浏览器的问题类型的几个示例。
+我们感觉不仅不需要手头掌握实际信息（例如，在我们的大脑或书本中），而且可以更多、更随意地提供这些信息 — 真正的 google 信息。
+当然，这种社会转变对我们的应用程序和相关搜索技术提出了一些新要求。
+
+====
+安装和配置 ElasticSearch
+
+由于 ElasticSearch 构建在 Lucene 之上，因此其中的所有内容都可以简单地归结为 Java 代码。
+若要开始了解 ElasticSearch，请 下载最新版本的 ElasticSearch，对其进行解压缩，并通过调用您的目标平台的启动脚本来启动该版本。
+您会注意到，ElasticSearch 提供了一个配置数组，但出于本文的目的，我们将坚持使用提供的默认值。
+
+我们的示例将会基于充当文档数据库的一个节点，而不是让节点彼此自动发现以及创建群集（顺便说一下，这是一个现有功能）。
+
+==========
+显示我喜欢的内容
+
+如前所述，用户期望能够搜索应用程序存储和操作的大多数数据类型。
+因此，为了让我们的示例起作用，我们需要获得的首要内容就是一些数据。
+为了让这些内容变得令人感兴趣，我们将会使用 USA Today 中的数据，可通过网站的 API 免费获得该数据。
+我将获取一个 USA Today 音乐评论摘要，并将其上载到 ElasticSearch。
+这个过程通常称为索引。
+
+USA Today 的音乐评论目前没有按特定流派或艺术家进行分类。
+如果想进行关联搜索，也就是说，如果想查找类似于我喜欢的其他艺术家的某些艺术家的正面评论，这就形成了一个挑战。
+例如，我可能会搜索听起来像 Buddy Guy 的布鲁斯艺术家。
+
+如果您想一直跟随我从 USA Today 中获取数据，那么您需要在网站上 注册一个免费的开发人员密钥。
+完成该操作之后，您便可以通过 RESTful URL 来访问 API。
+
+清单 1 显示了对单一音乐评论的调用样例（请注意，您必须在代码中使用您自己的开发人员密钥）：
+
+清单 1. USA Today 音乐评论服务的一个 API 调用
+curl-XGET 'http://api.usatoday.com/open/reviews/music/recent?count=1&api_key=your_key'
+
+清单 2 显示相应的 JSON 响应，如下所示：
+清单 2. 来自服务的响应
+
+{"APIParameters":
+ {"Count":"1","MinimumRating":"","MaximumRating":"","Artist":"",
+   "ArtistSearch":true,"Album":"",
+   "AlbumSearch":true,"Year":""},
+  "Found":1,"Albums":null,"Artists":null,
+  "MusicReviews":[
+      {"AlbumName":"Away From the World",
+       "ArtistName":"Dave Matthews Band",
+       "ReleaseDate":"",
+       "Rating":"3",
+       "DownloadSongs":"Mercy, Snow Outside, Drunken Soldier",
+       "ConsiderSongs":"",
+       "Reviewer":"Brian Mansfield",
+       "ReviewDate":"9/11/2012 10:11:00 AM",
+       "Brief":"...",
+       "WebUrl":"..."
+       }
+  ]
+}
+
+由于我正在搜索我可能喜欢收听的音乐，因此我希望至少捕获评论的三个部分：
+brief（该部分是音乐评论的核心）、rating 和 WebUrl。
+这会让我看到个人评论、数字评级以及一个我可以在其中查阅自己的音乐的 URL。
+
+====
+设置 ElasticSearch 索引
+
+ElasticSearch 使用一个 RESTful Web 界面进行交互。
+我将使用命令行工具 cURL 来访问该界面。
+
+在将任何文档放到 ElasticSearch 中之前，需要创建一个类似于数据库表的索引。
+我将可搜索的文档（在本例中为音乐评论）存储在 ElasticSearch 索引中。
+
+清单 3 演示了使用 cURL 创建 ElasticSearch 索引是多么容易。
+（默认情况下，ElasticSearch 会捕获您提供的每个文档并为它们建立索引）。
+
+清单 3. 使用 cURL 创建 ElasticSearch 索引
+curl -XPUT 'http://localhost:9200/music_reviews/'
+
+接下来，我可以为文档的特定属性指定特定的映射。
+这些特定属性会自动进行推断。
+例如，如果文档包含某个值，如 name:‘test'，那么 ElasticSearch 会推断 name 属性是一个 String。
+或者如果文档具有属性 score:1，那么 ElasticSearch 会合理地猜测 score 是一个数字。
+
+有时，ElasticSearch 也会有不正确的猜测，例如，将一个日期的格式设置为 String。
+在这些情况下，您可以指示 ElasticSearch 如何映射特定的值。
+
+在清单 4 中，我指示 ElasticSearch 将音乐评论的 reviewDate 视为 Date，而不是将它视为 String：
+清单 4. music_reviews 索引中的映射
+curl -XPUT 'http://localhost:9200/music_reviews/_mapping' -d 
+  '{"review": { "properties": { 
+     "reviewDate":
+      {"type":"date", "format":"MM/dd/YY HH:mm:ss aaa", "store":"yes"} } } }'
+
+清单 4 演示了通过 cURL 与 ElasticSearch 的 RESTful AP 进行交互是多么容易。
+
+====
+以 POJO 的形式捕获数据
+
+我们已经定义了一个 ElasticSearch 索引，并且映射了一个特定的属性，现在是时候插入一些音乐评论了。
+
+为此，我将使用一个称为 Jest 的 Java API，该 API 可以很好地处理 Java 对象序列。
+通过 Jest，您可以获取普通的 Java 对象并在 ElasticSearch 中为它们建立索引。
+然后，使用 ElasticSearch 的搜索 API，您可以将搜索结果转换回 Java 对象。
+
+因为无需处理 ElasticSearch 所需的 JSON 基础文档结构，所以您可以很方便地自动进行 POJO 序列化。
+
+我将创建一个代表某个音乐评论的简单的 Java 对象，然后我将使用 Jest 为它建立索引。
+由于最终从 USA Today 的 API 收到了某个音乐评论的 JSON 表示，
+所以我将通过代码设置一个将 JSON 文档转换为我的对象的工厂方法。
+我可以轻松地忽略整个 POJO 步骤（并且只是直接从 USA Today 索引 JSON），但之后我将向您介绍如何将索引结果自动转换为 POJO。
+
+清单 5. 一个表示某个音乐评论的简单的 POJO
+import io.searchbox.annotations.JestId;
+import net.sf.json.JSONObject;
+
+public class MusicReview {
+  private String albumName;
+  private String artistName;
+  private String rating;
+  private String brief;
+  private String reviewDate;
+  private String url;
+
+  @JestId
+  private Long id;
+
+  public static MusicReview fromJSON(JSONObject json) {
+   return new MusicReview(
+    json.getString("Id"),
+    json.getString("AlbumName"),
+    json.getString("ArtistName"),
+    json.getString("Rating"),
+    json.getString("Brief"),
+    json.getString("ReviewDate"),
+    json.getString("WebUrl"));
+  }
+
+  public MusicReview(String id, String albumName, String artistName, String rating, 
+    String brief,
+   String reviewDate, String url) {
+    this.id = Long.valueOf(id);
+    this.albumName = albumName;
+    this.artistName = artistName;
+    this.rating = rating;
+    this.brief = brief;
+    this.reviewDate = reviewDate;
+    this.url = url;
+  }
+
+  //...setters and getters omitted
+
+}
+
+请注意，在 ElasticSearch 中，每个索引的文档都有一个 id，可以将它视为主要密钥。
+您可以始终通过与文档对应的id 来获取特定文档。
+因此在 Jest API 中，我使用 @JestId 注释将 ElasticSearch 文档 id 与我的对象相关联，如 清单 5 所示。
+在本例中，我使用了 USA Today API 提供的 ID。
+
+==
+JestClient
+
+接下来，我将使用 Jest 来调用 USA Today API，以便返回评论集合，
+将这些 JSON 文档转换成 MusicReview 对象，并为每个对象在我本地运行的 ElasticSearch 应用程序中建立索引。
+
+从清单 6 中的 Jest 的 API 调用可以看出，ElasticSearch 被设计为在群集中工作。
+在本例中，我们只有一个要连接的服务器节点，但值得注意的是，连接可以采用服务器地址列表。
+
+清单 6. 使用 Jest 创建到 ElasticSearch 实例的连接
+
+ClientConfig clientConfig = new ClientConfig();
+Set<String> servers = new LinkedHashSet<String>();
+servers.add("http://localhost:9200");
+clientConfig.getServerProperties().put(ClientConstants.SERVER_LIST, servers);
+
+完成所有 ClientConfig 对象的初始化之后，就可以创建一个 JestClient 实例，如清单 7 中所示：
+
+清单 7. 创建一个客户端对象
+
+JestClientFactory factory = new JestClientFactory();
+factory.setClientConfig(clientConfig);
+JestClient client = factory.getObject();
+
+通过指向我本地运行的 ElasticSearch 实例的连接，
+我已准备好从 USA Today 服务中获取一些（比如 300 个）引用评论，并为它们建立索引。
+
+清单 8. 在本地 ElasticSearch 实例中捕获引用评论并为它们建立索引
+URL url = 
+  new URL("http://api.usatoday.com/open/reviews/music/recent?count=300&api_key=_key_");
+String jsonTxt = IOUtils.toString(url.openConnection().getInputStream());
+JSONObject json = (JSONObject) JSONSerializer.toJSON(jsonTxt);
+JSONArray reviews = (JSONArray) json.getJSONArray("MusicReviews");
+for (Object jsonReview : reviews) {
+  MusicReview review = MusicReview.fromJSON((JSONObject) jsonReview);
+  client.execute(new Index.Builder(review).index("music_reviews")
+   .type("review").build());
+}
+
+请注意 清单 8 中 for 循环的最后一行。
+该代码获取了我的 MusicReview POJO，并在 ElasticSearch 中为其建立索引；
+也就是说，它将 POJO 作为一个 review 类型放在一个 music_reviews 索引中。
+然后，ElasticSearch 将获取该文档，并在该文档上进行一些重要的处理，以便我们以后可以搜索它的很多方面。
+
+===========
+搜索非结构化数据
+
+ElasticSearch 的功能就是能够支持您搜索非结构化数据。
+非结构化数据的一个示例就是音乐评论的 brief 部分：描述某些音乐的一段文本。
+该 brief 中包含很多数据，但我们所需的数据就是可以指示关联性的关键词。
+这些关键词关联可帮助搜索引擎只返回用户正在查找的结果。
+
+在本例中，根据我已经喜欢的音乐，我正在查找我有可能有兴趣收听的音乐。
+因此，我将搜索已经使用描述我收藏的某些音乐所用的关键词描述的音乐。
+例如，我可能会在我索引的集合中搜索 brief 属性，以查找单词 jazz（请注意，该搜索是区分大小写的）。
+
+在使用 Jest 运行搜索之前，必须执行某些操作。
+首先，必须通过 QueryBuilder 类型创建一个术语查询。
+然后，将该查询添加到指向某个索引和类型的 Search。
+还要注意，Jest 将会获取 ElasticSearch 的 JSON 响应，并将其转换成 MusicReview 的集合。
+
+清单 9. 使用 Jest 进行搜索
+QueryBuilder queryBuilder = QueryBuilders.termQuery("brief", "jazz");
+Search search = new Search(queryBuilder);
+search.addIndex("music_reviews");
+search.addType("review");
+JestResult result = client.execute(search);
+
+List<MusicReview> reviewList = result.getSourceAsObjectList(MusicReview.class);
+for(MusicReview review: reviewList){
+  System.out.println("search result is " + review);
+}
+
+清单 10 中的搜索操作应该非常类似于 Java 开发人员所做的操作。
+通过 Jest 处理 POJO 非常容易。
+但是，需要注意的是，ElasticSearch 是完全 RESTfully 驱动的，因此我们可以轻松进行使用 cURL 执行的相同搜索，如下所示：
+
+清单 10. 使用 cURL 进行搜索
+curl -XGET 'http://localhost:9200/music_reviews/_search?pretty=true' -d
+ ' {"explain": true, "query" : { "term" : { "brief" : "jazz" } }}'
+
+JSON 可能很难读懂，因此您可以始终向任何搜索请求传递 pretty=true 选项。
+
+在清单 10 中，我还指定 ElasticSearch 返回一个有关如何执行搜索的执行计划。
+我通过在传递时向 JSON 文档中添加 "explain":true 子句来完成此操作。
+
+执行计划？
+
+执行计划只说明为了查找您的文档 ElasticSearch 究竟执行了哪些操作。
+如果您想稍微调整某些查询，或者想指定特殊的索引选项，那么该信息可能很有帮助。
+很多 RDBMS 也都提供了这项功能。
+
+在清单 9 和清单 10 中，我的搜索产生了 10 个结果（您的结果会因您索引的文档数量而异）。
+因此这个简单的搜索可以将 300 个评论缩减到我可能感兴趣的 10 个评论。
+但是请注意，评级范围介于 3.0 和 4.0 之间。
+更复杂的查询可能会获得更接近我最想收听的音乐的一流音乐。
+
+====
+添加范围和筛选器
+
+在清单 11 中，我导入了一些容易获取的静态方法，这些方法会使得构建复杂的查询变得稍微容易了一些。
+最后我需要做的就是对查找 brief 中包含单词 jazz 且 rating 介于 3.5 和 4.0 之间的查询进行精加工。
+这将缩减之前的搜索结果，增加找到适合 jazz 首选项的优质音乐的机会。
+
+清单 11. 使用 Jest 借助范围和筛选器进行搜索
+
+import static org.elasticsearch.index.query.FilterBuilders.rangeFilter;
+import static org.elasticsearch.index.query.QueryBuilders.filteredQuery;
+import static org.elasticsearch.index.query.QueryBuilders.termQuery;
+
+//later in the code
+
+QueryBuilder queryBuilder = filteredQuery(termQuery("brief", "jazz"), 
+  rangeFilter("rating").from(3.5).to(4.0));
+
+Search search = new Search(queryBuilder);
+search.addIndex("music_reviews");
+search.addType("review");
+JestResult result = client.execute(search);
+
+List<MusicReview> reviewList = result.getSourceAsObjectList(MusicReview.class);
+for(MusicReview review: reviewList){
+  System.out.println("search result is " + review);
+}
+
+请记住，使用 cURL 可以进行完全相同的搜索：
+
+清单 12. 使用 cURL 借助范围和筛选器进行搜索
+curl -XGET 'http://192.168.1.11:9200/music_reviews/_search?pretty=true' -d
+  '{"query": { "filtered" : { "filter" : {  "range" : { "rating" : 
+     {"from": 3.5, "to":4.0} } },
+     "query" : { "term" : { "brief" : "jazz" } } } }}'
+
+这个最新的搜索进一步缩减了我的结果，给我留下了一些我可能会收听的唱片。
+但是，如果我想获得更多特定内容，该怎么做呢？
+前面我曾经提到过，我是一个 Buddy Guy 歌迷，他是一个布鲁斯吉他手。
+因此，让我们看一看，如果向我的搜索中添加通配符，会出现什么情况，如清单 13 中所示：
+
+清单 13. 使用通配符进行搜索
+
+import static org.elasticsearch.index.query.QueryBuilders.wildcardQuery;
+//later in the code
+QueryBuilder queryBuilder = filteredQuery(wildcardQuery("brief", "buddy*"), 
+  rangeFilter("rating").from(3.5).to(4.0));
+//see listing 12 for the template search and response
+
+在清单 13 中，我正在查找其评级范围介于 3.5 和 4.0 之间且 brief 中包含单词 buddy 的所有评论。
+我可能会获得引用 Buddy Guy 的一个或两个评论，我几乎可以从中确定我喜欢收听的内容。
+另一方面，我可以获得一些包含单词 buddy 的更随机的文档，这是通用通配符搜索的一个缺陷。
+
+在本例中，我的通配符已见成效：我检索到了两个文档，该文档的评论指出了一些受我喜爱的吉他手影响的布鲁斯风格音乐。
+对于一天的工作来说，这样的成果已经很不错了！
+
+====
+使用令牌分析器
+（hxzon：token，翻译为“语汇单元”更好。）
+
+对于本文，我保留了有关 ElasticSearch 的配置的一些简单事项；
+我们没有配置群集或者的确已经改变了它的所有默认索引策略。
+有可能有很多情况比我显示的 ElasticSearch 更加复杂。
+例如，当定义索引映射时，可以配置索引特殊字段的方式。
+
+如果需要的话，各种 tokenizer 策略将会帮助您构建功能非常强大的复杂搜索。
+例如，如果使用了 USA Todaybrief 元素，那么我们可以指定一个 Snowball 分析器或者一个关键字分析器。
+Snowball 是一个令牌算法，该算法将单词转换成它们的基础，从而扩展搜索的领域。
+（例如，将单词 jazzy 缩减为 jazz。）
+可以使用不同的分析器来微调应用程序的搜索功能。
+并且可以使用 ElasticSearch 之类的搜索平台将这些选项置于您的指尖，无需您亲自滚动。
+
+========
+结束语
+
+搜索不再是可选功能：它是使用、生成或存储数据的大多数应用程序的预期功能。
+但是，并非每个人都希望成为搜索技术专家，尤其是考虑到基于当今复杂搜索的复杂算法的范围的时候。
+了解有关现有的开源搜索平台会为您节省很多时间和金钱，让您可以将时间花费在微调软件的主要功能上。
+
+在本文中，我介绍了 ElasticSearch，这是一个易于入门且可进行大量扩展的分布式搜索平台。
+ElasticSearch 的复杂性和易于使用性给人们留下了深刻的印象，如果您的数据要求进行扩展，它还提供了大量选项来自持水平扩展性。 
+（现在谁不这样做？）
+
+参考资料
+学习
+
+Java development 2.0：此 dW 系列 探讨了重新定义 Java 开发格局的技术。
+这些主题包括 Redis （2011 年 12 月）、Amazon RDS（2011 年 7 月）和 Hadoop MapReduce（2011 年 1 月）。
+
+Java development 2.0 系列：有关更多这样的文章，请参阅系列索引。
+
+"ElasticSearch on EC2" (James Cook, ElasticSearch.org, August 2011)：概述 ElasticSearch 之后，简要介绍了在 Amazon EC2 中使用它的教程。
+
+ElasticSearch Guide (ElasticSearch.org)：全面介绍了 ElasticSearch，包括安装、 API、查询 DSL、映射、模块以及更多内容。
+
+"ElasticSearch, Sphinx, Lucene, Solr, Xapian. Which fits for which usage?" (Stackoverflow, February 2010)：
+ElasticSearch 的创建者介绍了 ElasticSearch 在 Lucene 上的价值。
+
+"How does Amazon CloudSearch compare to ElasticSearch, Solr, or Sphinx?" (Stackoverflow, June 2012)：
+Stackoverflow 社区中的开发人员讨论并对比这些较新的搜索平台的优点。
+
+Knowledge path: Using NoSQL and analyzing big data (developerWorks, May 2011)：
+用于了解 NoSQL、大数据以及数据挖掘的 dW 参考资料集合。
+
+下载本文的源代码。
+下载 ElasticSearch：确保获得最新的稳定版本。
+下载 cURL：一个与平台无关的命令行工具，用于通过 URL 语法转换数据。
+下载 Jest：ElasticSearch Java Rest 客户端。
+USA Today API：注册一个开发人员密钥，以便访问 USA Today 的在线音乐评论和更多内容。
+

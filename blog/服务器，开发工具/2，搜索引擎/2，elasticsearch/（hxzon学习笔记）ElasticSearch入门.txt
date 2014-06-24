@@ -1,0 +1,234 @@
+﻿（hxzon学习笔记）ElasticSearch入门
+
+by hxzon
+====
+Java development 2.0：通过 ElasticSearch 进行可伸缩搜索
+Java 企业应用程序的分布式搜索
+http://www.ibm.com/developerworks/cn/java/j-javadev2-24/
+
+Andrew Glover, CTO, App47
+2013 年 1 月 09 日
+
+====
+开源，基于Lucene，分布式，使用 RESTful URL 交互。
+
+解压后运行即可。
+
+====
+1，创建索引
+
+清单 3. 使用 cURL 创建 ElasticSearch 索引
+curl -XPUT 'http://localhost:9200/music_reviews/'
+
+====
+2，指明数据类型
+
+接下来，我可以为文档的特定属性指定特定的映射。
+这些特定属性会自动进行推断。
+例如，如果文档包含某个值，如 name:‘test'，那么 ElasticSearch 会推断 name 属性是一个 String。
+或者如果文档具有属性 score:1，那么 ElasticSearch 会合理地猜测 score 是一个数字。
+
+有时，ElasticSearch 也会有不正确的猜测，例如，将一个日期的格式设置为 String。
+在这些情况下，您可以指示 ElasticSearch 如何映射特定的值。
+
+在清单 4 中，我指示 ElasticSearch 将音乐评论的 reviewDate 视为 Date，而不是将它视为 String：
+
+清单 4. music_reviews 索引中的映射
+
+curl -XPUT 'http://localhost:9200/music_reviews/_mapping' -d 
+  '{"review": { "properties": { 
+     "reviewDate":
+      {"type":"date", "format":"MM/dd/YY HH:mm:ss aaa", "store":"yes"} } } }'
+
+hxzon：使用 _mapping
+
+====
+3，以 POJO 的形式捕获数据
+
+Jest 是一个 Java API，该 API 可以很好地处理 Java 对象序列。
+通过 Jest，您可以获取普通的 Java 对象并在 ElasticSearch 中为它们建立索引。
+然后，使用 ElasticSearch 的搜索 API，您可以将搜索结果转换回 Java 对象。
+
+通过代码设置一个将 JSON 文档转换为我的对象的工厂方法。
+我可以轻松地忽略整个 POJO 步骤（并且只是直接从 USA Today 索引 JSON），
+但之后我将向您介绍如何将索引结果自动转换为 POJO。
+
+清单 5. 一个表示某个音乐评论的简单的 POJO
+import io.searchbox.annotations.JestId;
+import net.sf.json.JSONObject;
+
+public class MusicReview {
+  private String albumName;
+  private String artistName;
+  private String rating;
+  private String brief;
+  private String reviewDate;
+  private String url;
+
+  @JestId
+  private Long id;
+
+  public static MusicReview fromJSON(JSONObject json) {
+   return new MusicReview(
+    json.getString("Id"),
+    json.getString("AlbumName"),
+    json.getString("ArtistName"),
+    json.getString("Rating"),
+    json.getString("Brief"),
+    json.getString("ReviewDate"),
+    json.getString("WebUrl"));
+  }
+
+  public MusicReview(String id, String albumName, String artistName, String rating, 
+    String brief,
+   String reviewDate, String url) {
+    this.id = Long.valueOf(id);
+    this.albumName = albumName;
+    this.artistName = artistName;
+    this.rating = rating;
+    this.brief = brief;
+    this.reviewDate = reviewDate;
+    this.url = url;
+  }
+
+  //...setters and getters omitted
+
+}
+
+请注意，在 ElasticSearch 中，每个索引的文档都有一个 id，可以将它视为唯一标识符。
+您可以始终通过与文档对应的id 来获取特定文档。
+因此在 Jest API 中，我使用 @JestId 注释将 ElasticSearch 文档 id 与我的对象相关联，如 清单 5 所示。
+在本例中，我使用了 USA Today API 提供的 ID。
+
+==
+JestClient
+
+从清单 6 中的 Jest 的 API 调用可以看出，ElasticSearch 被设计为在群集中工作。
+在本例中，我们只有一个要连接的服务器节点，但值得注意的是，连接可以采用服务器地址列表。
+
+清单 6. 使用 Jest 创建到 ElasticSearch 实例的连接
+
+ClientConfig clientConfig = new ClientConfig();
+Set<String> servers = new LinkedHashSet<String>();
+servers.add("http://localhost:9200");
+clientConfig.getServerProperties().put(ClientConstants.SERVER_LIST, servers);
+
+完成所有 ClientConfig 对象的初始化之后，就可以创建一个 JestClient 实例，如清单 7 中所示：
+
+清单 7. 创建一个客户端对象
+
+JestClientFactory factory = new JestClientFactory();
+factory.setClientConfig(clientConfig);
+JestClient client = factory.getObject();
+
+====
+4，建立索引
+
+清单 8. 在本地 ElasticSearch 实例中捕获引用评论并为它们建立索引
+
+URL url = 
+  new URL("http://api.usatoday.com/open/reviews/music/recent?count=300&api_key=_key_");
+String jsonTxt = IOUtils.toString(url.openConnection().getInputStream());
+JSONObject json = (JSONObject) JSONSerializer.toJSON(jsonTxt);
+JSONArray reviews = (JSONArray) json.getJSONArray("MusicReviews");
+
+for (Object jsonReview : reviews) {
+  MusicReview review = MusicReview.fromJSON((JSONObject) jsonReview);
+  client.execute(new Index.Builder(review).index("music_reviews")
+   .type("review").build());
+}
+
+请注意 清单 8 中 for 循环的最后一行。
+该代码获取了我的 MusicReview POJO，并在 ElasticSearch 中为其建立索引；
+也就是说，它将 POJO 作为一个 review 类型放在一个 music_reviews 索引中。
+然后，ElasticSearch 将获取该文档，并在该文档上进行一些重要的处理，以便我们以后可以搜索它的很多方面。
+
+====
+5，搜索
+
+例如，我可能会在我索引的集合中搜索 brief 属性，以查找单词 jazz（请注意，该搜索是区分大小写的）。
+
+在使用 Jest 运行搜索之前，必须执行某些操作。
+首先，必须通过 QueryBuilder 类型创建一个术语查询。
+然后，将该查询添加到指向某个索引和类型的 Search。
+
+还要注意，Jest 将会获取 ElasticSearch 的 JSON 响应，并将其转换成 MusicReview 的集合。
+
+清单 9. 使用 Jest 进行搜索
+
+QueryBuilder queryBuilder = QueryBuilders.termQuery("brief", "jazz");//特定项的查询
+Search search = new Search(queryBuilder);
+search.addIndex("music_reviews");//指定哪个索引
+search.addType("review");
+JestResult result = client.execute(search);
+
+List<MusicReview> reviewList = result.getSourceAsObjectList(MusicReview.class);
+for(MusicReview review: reviewList){
+  System.out.println("search result is " + review);
+}
+
+清单 10 中的搜索操作应该非常类似于 Java 开发人员所做的操作。
+通过 Jest 处理 POJO 非常容易。
+但是，需要注意的是，ElasticSearch 是完全 RESTfully 驱动的，
+因此我们可以轻松进行使用 cURL 执行的相同搜索，如下所示：
+
+清单 10. 使用 cURL 进行搜索
+curl -XGET 'http://localhost:9200/music_reviews/_search?pretty=true' -d
+ ' {"explain": true, "query" : { "term" : { "brief" : "jazz" } }}'
+
+可以始终向任何搜索请求传递 pretty=true 选项，美化输出。
+
+通过在传递时向 JSON 文档中添加 "explain":true 子句，将返回一个有关如何执行搜索的执行计划。
+
+====
+6，搜索，添加范围和筛选器
+
+最后我需要做的就是对查找 brief 中包含单词 jazz 且 rating 介于 3.5 和 4.0 之间的查询进行精加工。
+这将缩减之前的搜索结果，增加找到适合 jazz 首选项的优质音乐的机会。
+
+清单 11. 使用 Jest 借助范围和筛选器进行搜索
+
+import static org.elasticsearch.index.query.FilterBuilders.rangeFilter;
+import static org.elasticsearch.index.query.QueryBuilders.filteredQuery;
+import static org.elasticsearch.index.query.QueryBuilders.termQuery;
+
+//later in the code
+
+QueryBuilder queryBuilder = filteredQuery(termQuery("brief", "jazz"), 
+  rangeFilter("rating").from(3.5).to(4.0));//指定要过滤的字段，及值范围
+
+Search search = new Search(queryBuilder);
+search.addIndex("music_reviews");
+search.addType("review");
+JestResult result = client.execute(search);
+
+List<MusicReview> reviewList = result.getSourceAsObjectList(MusicReview.class);
+for(MusicReview review: reviewList){
+  System.out.println("search result is " + review);
+}
+
+请记住，使用 cURL 可以进行完全相同的搜索：
+
+清单 12. 使用 cURL 借助范围和筛选器进行搜索
+curl -XGET 'http://192.168.1.11:9200/music_reviews/_search?pretty=true' -d
+  '{"query": { "filtered" : { "filter" : {  "range" : { "rating" : 
+     {"from": 3.5, "to":4.0} } },
+     "query" : { "term" : { "brief" : "jazz" } } } }}'
+
+====
+7，搜索，使用通配符
+
+清单 13. 使用通配符进行搜索
+
+import static org.elasticsearch.index.query.QueryBuilders.wildcardQuery;
+
+//later in the code
+QueryBuilder queryBuilder = filteredQuery(wildcardQuery("brief", "buddy*"), 
+  rangeFilter("rating").from(3.5).to(4.0));
+
+//see listing 12 for the template search and response
+
+在清单 13 中，我正在查找其评级范围介于 3.5 和 4.0 之间且 brief 中包含单词 buddy 的所有评论。
+我可能会获得引用 Buddy Guy 的一个或两个评论，我几乎可以从中确定我喜欢收听的内容。
+另一方面，我可以获得一些包含单词 buddy 的更随机的文档，这是通用通配符搜索的一个缺陷。
+
