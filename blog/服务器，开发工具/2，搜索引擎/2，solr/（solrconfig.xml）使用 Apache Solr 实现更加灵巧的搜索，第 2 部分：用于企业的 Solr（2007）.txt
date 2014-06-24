@@ -1,4 +1,4 @@
-﻿使用 Apache Solr 实现更加灵巧的搜索，第 2 部分：用于企业的 Solr（2007）
+﻿（solrconfig.xml）使用 Apache Solr 实现更加灵巧的搜索，第 2 部分：用于企业的 Solr（2007）
 管理、配置和性能
 http://www.ibm.com/developerworks/cn/java/j-solr2/index.html
 
@@ -22,7 +22,9 @@ Grant Ingersoll, 高级软件工程师, Center for Natural Language Processing a
 配置和管理
 
 本部分介绍了可用于监视和控制 Solr 功能性的诸多选项，首先来看看 Solr 的 Administration Start Page，
-该页可在 http://localhost:8080/solr/admin/ 找到。一旦找到了起始页，在继续之前，请务必花些时间熟悉一下上面的各种菜单选项。在起始页中，根据这些选项所提供的信息的不同对它们进行了分组：
+该页可在 http://localhost:8080/solr/admin/ 找到。一旦找到了起始页，
+在继续之前，请务必花些时间熟悉一下上面的各种菜单选项。
+在起始页中，根据这些选项所提供的信息的不同对它们进行了分组：
 Solr 给出了有关这种活动模式（请参见 第 1 部分）、配置以及当前部署的统计数据的详细信息。
 
 App server 给出了容器的当前状态，包括 threading 信息以及所有 Java 系统属性的列表。
@@ -83,6 +85,7 @@ unlockOnStartup 告知 Solr 忽略在多线程环境中用来保护索引的锁�
 
 在 <query> 部分，有一些与 缓存 无关的特性，这一点您需要知道。
 
+<maxBooleanClauses>
 首先，<maxBooleanClauses> 标记定义了可组合在一起形成一个查询的子句数量的上限。
 对于大多数应用程序而言，默认的 1024 就应该已经足够；
 然而，如果应用程序大量使用了通配符或范围查询，增加这个限值将能避免当值超出时，抛出 TooManyClausesException。
@@ -93,23 +96,31 @@ unlockOnStartup 告知 Solr 忽略在多线程环境中用来保护索引的锁�
 通配符查询允许使用 * 和 ? 通配符运算符，而范围查询则要求匹配文档必须要在指定的范围之内。
 例如，若查找 b*，可能导致潜在的数千个不同项都组合进这个查询，进而会导致 TooManyClausesException。
 
+<enableLazyFieldLoading>
 接下来，若应用程序预期只会检索 Document 上少数几个 Field，
 那么可以将 <enableLazyFieldLoading> 属性设置为 true。
+
 懒散加载的一个常见场景大都发生在应用程序返回和显示一系列搜索结果的时候，
 用户常常会单击其中的一个来查看存储在此索引中的原始文档。
 初始的显示常常只需要显示很短的一段信息。
 若考虑到检索大型 Document 的代价，除非必需，否则就应该避免加载整个文档。
 
+----
 最后，<query> 部分负责定义与在 Solr 中发生的事件相关的几个选项。
+
 首先，作为一种介绍的方式，Solr（实际上是 Lucene）使用称为 Searcher 的 Java 类来处理 Query 实例。
 Searcher 将索引内容相关的数据加载到内存中。
 根据索引、CPU 以及可用内存的大小，这个过程可能需要较长的一段时间。
-要改进这一设计和显著提高性能，Solr 引入了一种 “温暖” 策略，
+
+要改进这一设计和显著提高性能，Solr 引入了一种 “预热” 策略，
 即把这些新的 Searcher 联机以便为现场用户提供查询服务之前，先对它们进行 “热身”。
+
 <query> 部分中的 <listener> 选项定义 newSearcher 和 firstSearcher 事件，
 您可以使用这些事件来指定实例化新搜索程序或第一个搜索程序时应该执行哪些查询。
-如果应用程序期望请求某些特定的查询，那么在创建新搜索程序或第一个搜索程序时就应该反注释这些部分并执行适当的查询。
+如果应用程序期望请求某些特定的查询，
+那么在创建新搜索程序或第一个搜索程序时就应该反注释这些部分并执行适当的查询。
 
+----
 solrconfig.xml 文件的剩余部分，除 <admin> 之外，
 涵盖了与 缓存、复制 和 扩展或定制 Solr 有关的项目。
 admin 部分让您可以定制管理界面。
@@ -183,6 +194,7 @@ Analysis 页可接受用于查询和文档的文本片段以及能确定文本�
 EnglishPorterFilterFactory 会将字 champions 提取为 champion，将 Hurricanes 提取为 hurrican。
 紫色的醒目显示表明在特定文档中查询条件在何处有匹配。
 
+====
 查询测试
 
 admin 页的 Make a Query 部分提供了可输入查询并查看结果的搜索框。
@@ -273,6 +285,7 @@ snappuller 从主服务器上检索了所需文件后，snapinstaller shell 脚�
 rsyn 守护程序可用 rsyncd-enable shell 脚本启用，然后再用 rsyncd-start 命令实际启动。
 在从服务器上，snappuller-enable shell 脚本必须在调用 snappuller shell 脚本之前运行。
 
+====
 排除发布故障
 
 虽然，我们已经竭尽全力地对索引更新的发布进行了优化，但还是有几个常见的场景会为 Solr 带来问题：
@@ -308,6 +321,7 @@ Solr 提供了几个插件点，您可以在这里添加定制功能来扩展或
 
 ==
 请求处理
+<requestHandler>
 
 若现有的功能不能满足业务需求，Solr 允许应用程序实现其自身的请求处理功能。
 比如，您可能想要支持您自己的查询语言或想要将 Solr 与您的用户配置文件相集成来提供个性化的效果。
@@ -325,13 +339,15 @@ IndexInfoRequestHandler 可以检索有关索引的信息，比如索引中的�
 Solr servlet 使用参数值来查找给定的请求处理程序并将输入用于请求处理程序的处理。
 请求处理程序的声明和命名通过 solrconfig.xml 中的 <requestHandler> 标记指定。
 要添加其他的内容，只需实现定制的 SolrRequestHandler 线程安全的实例即可，
-将其添加到 上述 定义好的 Solr，并将其包括到 如前所述 的类路径中，之后就可以通过 HTTP GET 或 POST 方法开始向其发送请求了。
+将其添加到 上述 定义好的 Solr，并将其包括到 如前所述 的类路径中，
+之后就可以通过 HTTP GET 或 POST 方法开始向其发送请求了。
 
 ==
 响应处理
 
 与请求处理类似，也可以定制响应输出。
-必须要支持老式的搜索输出或必须要使用二进制或加密输出格式的应用程序可以通过实现 QueryResponseWriter 来输出所需的格式。 
+必须要支持老式的搜索输出或必须要使用二进制或加密输出格式的应用程序
+可以通过实现 QueryResponseWriter 来输出所需的格式。 
 然而，在添加您自己的 QueryResponseWriter 之前，需要先深入研究一下 Solr 所自带的实现，如表 4 所示：
 
 表 4. Solr 的查询响应书写器
@@ -361,14 +377,19 @@ QueryResponseWriter
 通过 <queryResponseWriter> 标记及其附属属性被添加至 Solr 的 solrconfig.xml 文件。
 响应的类型通过 wt 参数在请求中指定。
 默认值是 “标准”，即在 solrconfig.xml 中设定为 XMLResponseWriter。
-最后要强调的是，QueryResponseWriter 的实例必须提供用来创建响应的 write() 和 getContentType() 方法的线程安全的实现。
+最后要强调的是，QueryResponseWriter 的实例必须提供
+用来创建响应的 write() 和 getContentType() 方法的线程安全的实现。
 
 ==
 Analyzer、Tokenizer、TokenFilter 和 FieldType
 
+（schema.xml）
+
 借助新的 Analyzer、Tokenizer、TokenFilter 可以定制 Solr 的索引输出以提供新的分析功能。
+
 自身需要 Tokenizer 或 TokenFilter 的应用程序必须实现其自身的 TokenizerFactory 和 TokenFilterFactory，
 这两者使用 <tokenizer> 或 <filter> 标记（作为 <analyzer> 标记的一部分）在 schema.xml 中声明。
+
 如果您从之前的应用程序中已经获得了一个 Analyzer，那么就可以在 <analyzer> 标记的 class 属性中声明它并进行使用。
 您无需创建新的 Analyzer，除非是想要在其他 Lucene 应用程序中使用这些分析器 
 —— 在 schema.xml 中使用 <analyzer> 标记声明 Analyzer 真是容易呀！
@@ -382,12 +403,16 @@ Analyzer、Tokenizer、TokenFilter 和 FieldType
 
 虽然 Solr 可以开箱即用，但还是有几个技巧可有助于让它更易于使用。
 与任何应用程序一样，仔细考虑您对数据访问的具体业务需求任重而道远。
+
 比如，添加的已索引 Field 越多，对内存的需求就越多、索引就越大、优化该索引所需的时间也越长。
+
 同样的，检索已存储的 Field 会因为太多的 I/O 处理而减慢服务器的速度。
+
 使用懒散字段加载或在他处存储大型内容可以为搜索请求释放 CPU 资源。
 
 在搜索层面上，您应该考虑所支持的查询类型。
 很多应用程序都不需要 Lucene Query Parser 语法的全部，尤其是使用通配符和其他高级查询类型的情况下就更是如此。
+
 若能分析日志和确保常用的查询被缓存，将会非常有帮助。
 为一般的查询使用 Filter 对于减少服务器的负载也非常有用。
 

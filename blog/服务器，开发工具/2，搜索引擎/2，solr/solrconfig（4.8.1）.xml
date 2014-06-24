@@ -200,8 +200,13 @@
     索引的内存缓存大小。
          indexing for buffering added documents and deletions before they are
          flushed to the Directory.
+
          maxBufferedDocs sets a limit on the number of documents buffered
          before flushing.
+         在合并内存中文档和创建新段之前，定义所需索引的最小文档数。
+段 是用来存储索引信息的 Lucene 文件。
+较大的值可使索引时间变快但会牺牲较多的内存。
+
          If both ramBufferSizeMB and maxBufferedDocs is set, then
          Lucene will flush based on whichever limit is hit first.  -->
     <!-- <ramBufferSizeMB>100</ramBufferSizeMB> -->
@@ -223,6 +228,9 @@
 
     <!-- Merge Factor
     合并因子。一次合并多少段。
+    决定低水平的 Lucene 段被合并的频率。
+较小的值（最小为 2）使用的内存较少但导致的索引时间也更慢。
+较大的值可使索引时间变快但会牺牲较多的内存。
          The merge factor controls how many segments will get merged at a time.
          For TieredMergePolicy, mergeFactor is a convenience parameter which
          will set both MaxMergeAtOnce and SegmentsPerTier at once.
@@ -270,6 +278,10 @@
 
          If true, unlock any held write or commit locks on startup.
          在启动时解锁。
+         unlockOnStartup 告知 Solr 忽略在多线程环境中用来保护索引的锁定机制。
+在某些情况下，索引可能会由于不正确的关机或其他错误而一直处于锁定，这就妨碍了添加和更新。
+将其设置为 true 可以禁用启动锁定，进而允许进行添加和更新。
+
          This defeats the locking mechanism that allows multiple
          processes to safely access a lucene index, and should be used
          with care. Default is "false".
@@ -517,6 +529,10 @@
 
     <!-- Filter Cache
     过滤器缓存。
+    通过存储一个匹配给定查询的文档 id 的无序集，过滤器让 Solr 能够有效提高查询的性能。
+缓存这些过滤器意味着对 Solr 的重复调用可以导致结果集的快速查找。
+更常见的场景是缓存一个过滤器，然后再发起后续的精炼查询，这种查询能使用过滤器来限制要搜索的文档数。	
+可以自热。
 
          Cache used by SolrIndexSearcher for filters (DocSets),
          unordered sets of *all* documents that match a query.  When a
@@ -542,6 +558,8 @@
 
     <!-- Query Result Cache
          查询结果缓存。
+         为查询、排序条件和所请求文档的数量缓存文档 id 的有序 集合。	
+可以自热。
          Caches results of searches - ordered lists of document ids
          (DocList) based on a query, a sort, and the range of documents requested.  
       -->
@@ -552,6 +570,8 @@
 
     <!-- Document Cache
     文档缓存。
+    缓存 Lucene Document，使用内部 Lucene 文档 id（以便不与 Solr 惟一 id 相混淆）。
+由于 Lucene 的内部 Document id 可以因索引操作而更改，这种缓存不能自热。
 
          Caches Lucene Document objects (the stored fields for each
          document).  Since Lucene internal document ids are transient,
@@ -577,6 +597,16 @@
 
     <!-- Custom Cache
     自定义缓存实现。
+    命名缓存是用户定义的缓存，可被 Solr 定制插件 所使用。	
+可以，如果实现了 org.apache.solr.search.CacheRegenerator 的话。
+
+每个缓存声明都接受最多四个属性：
+
+class 是缓存实现的 Java 名。
+size 是最大的条目数。
+initialSize 是缓存的初始大小。
+autoWarmCount 是取自旧缓存以预热新缓存的条目数。
+如果条目很多，就意味着缓存的 hit 会更多，只不过需要花更长的预热时间。
 
          Example of a generic cache.  These caches may be accessed by
          name through SolrIndexSearcher.getCache(),cacheLookup(), and
@@ -598,6 +628,8 @@
 
     <!-- Lazy Field Loading
     是否启用字段懒加载。
+    若应用程序预期只会检索 Document 上少数几个 Field，
+那么可以将 <enableLazyFieldLoading> 属性设置为 true。
 
          If true, stored fields that are not requested will be loaded
          lazily.  This can result in a significant speed improvement
@@ -661,6 +693,7 @@
       -->
     <!-- QuerySenderListener takes an array of NamedList and executes a
          local query request for each NamedList in sequence. 
+         指定实例化一个搜索器时，及第一个搜索器，应该执行哪些查询语句，从而预热。
       -->
     <listener event="newSearcher" class="solr.QuerySenderListener">
       <arr name="queries">
@@ -1065,6 +1098,7 @@
       <str name="update.chain">add-unknown-fields-to-the-schema</str>
     </lst>
   </requestHandler>
+
   <requestHandler name="/update/csv" class="solr.UpdateRequestHandler">
     <lst name="defaults">
       <str name="stream.contentType">application/csv</str>
@@ -1733,6 +1767,11 @@
   <!-- Response Writers 响应书写器。
 
        http://wiki.apache.org/solr/QueryResponseWriter
+       通过 <queryResponseWriter> 标记及其附属属性被添加至 Solr 的 solrconfig.xml 文件。
+响应的类型通过 wt 参数在请求中指定。
+默认值是 “标准”，即在 solrconfig.xml 中设定为 XMLResponseWriter。
+最后要强调的是，QueryResponseWriter 的实例必须提供
+用来创建响应的 write() 和 getContentType() 方法的线程安全的实现。
 
        Request responses will be written using the writer specified by
        the 'wt' request parameter matching the name of a registered
@@ -1774,6 +1813,8 @@
   <!-- XSLT response writer transforms the XML output by any xslt file found
        in Solr's conf/xslt directory.  Changes to xslt files are checked for
        every xsltCacheLifetimeSeconds.  
+       请求中的 tr 参数指定了要使用的 XSLT 转换的名称。
+指定的转换必须存在于 Solr Home 的 conf/xslt 目录。
     -->
   <queryResponseWriter name="xslt" class="solr.XSLTResponseWriter">
     <int name="xsltCacheLifetimeSeconds">5</int>

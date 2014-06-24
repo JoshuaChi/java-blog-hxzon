@@ -47,15 +47,24 @@ norms，加权基准。p47
 
 stop words，停用词，很常用单没有实际意义的词，例如 a ，an ， on 。
 
-filter，过滤器。例如 PorterStemFilter：处理英文文本，去除词干。
+filter，过滤器。例如 PorterStemFilter：处理英文文本，词干提取（词干即词的基本形式）。
 
 DocValues（也称为跨列字段）。4.0版本开始。
 
 Facet，分面。
 
+----
 文档可能拥有不只一个同名的字段，在这种情况下，
 字段的值就按照索引操作顺序添加进去。
 在搜索时，所有字段的文本就好像连接在一起，作为一个字段来处理。
+
+----
+在 Solr 和 Lucene 中，Analyzer 包括一个 Tokenizer 和一个或多个 TokenFilter。
+Tokenizer 负责 生成 Token，后者在多数情况下对应要索引的词。
+TokenFilter 从 Tokenizer 接受 Token 并且可以在索引之前修改或删除 Token。 
+
+例如，Solr 的 WhitespaceTokenizer 根据空白断词，而它的 StopFilter 从搜索结果中删除公共词。
+其他类型的分析包括词干提取、同义词扩展和大小写折叠。
 
 ====
 5，搜索过程中的核心类

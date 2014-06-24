@@ -468,6 +468,12 @@
 	 also applies synonyms. 
 	 标准的符号分割，小写化，移除常用词。
 	 在查询期间，还会应用近义词。
+	 
+	 根据空白进行断词，然后删除所有的公共词（StopFilterFactory）
+使用破折号处理特殊的大小写、大小写转换等等。（WordDelimiterFilterFactory）；
+将所有条目处理为小写（LowerCaseFilterFactory）
+使用 Porter Stemming 算法进行词干提取 （EnglishPorterFilterFactory）
+删除所有的副本（RemoveDuplicatesTokenFilterFactory）
 	 -->
     <fieldType name="text_general" class="solr.TextField" positionIncrementGap="100" multiValued="true">
       <analyzer type="index">
