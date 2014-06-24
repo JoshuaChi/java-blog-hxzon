@@ -1,0 +1,562 @@
+﻿将 Internet 倒转过来——利用开源的 Apache Solr 搜索引擎构建 RESTful 基础存储服务
+http://www.ibm.com/developerworks/cn/web/1006_fengxs_apachesolr/index.html
+
+冯 希顺, 软件架构师, Neusoft
+2010 年 6 月 24 日
+
+hxzon：没有价值。
+
+====
+本文参考 Internet 的架构模式、提出了以搜索引擎为基础的存储服务架构，
+并给出了一个使用开源 Apache Solr 搜索引擎作为基础存储服务的 BLOG 例子程序。
+本文对于那些迫切需要分布式、高度可扩展、能存储海量数据的存储系统的应用的构建提供了一个可行的思路。
+
+前言
+搜索引擎已经成为我们生活的组成部分，对很多人来是已经是每天生活的必须品。
+无论是 Internet 的搜索引擎，例如 Google、Yahoo 们，还是服务于企业的私有搜索引擎，它们都已经成为我们获得信息的必要手段。
+搜索引擎优秀的检索性能无疑曾经、且还在给我们留下越来越深刻的印象，而搜索引擎整合各种各样资源的能力同样令我们刮目相看
+——无论是私有的数据库、还是晦涩的文件服务器，甚至是您的桌面系统。
+搜索引擎是如此的令人印象深刻，那么作为最贴近我们人类思维方式的一种服务形式，它在随时随地、快捷的为我们检索信息以外，搜索引擎还可以为我们做什么？
+
+====
+问题的提出
+
+想象一下每天都在发生改变的 Internet：每过一天，就会有越来越多的容纳人类智慧财富的网站、网页连入 Internet 与人分享；
+每时每刻都有大大小小、各种搜索引擎的爬虫们（Crawler）不知疲倦的访问各个 Internet 站点，
+它们读取、下载网页后，根据越来越复杂的索引技术对其进行分析，将分析结果缓存下来，为各种各样检索需求提供高性能的服务。
+Internet 中每个网页除了自身包含的内容以外，还有各种各样指向外部资源的链接，
+这些外部链接资源所包含的内容一般是链接源页面的内容的补充、详细说明或参考资源，
+这些外部资源页面本身同样也会包含有指向其他资源的链接，外部链接的页面内容和链接源页面内容一起，描述某一个主题。
+实际上，只要 Internet 上的每个网页都有通向外部资源的链接，那么随便从哪个页面开始，遍历所有的链接，就可以访问到 Internet 的每个网页。
+（网友评论：只有通向外部的链接，是无法被搜索到的。）
+
+互联网存储了各种各样的海量资源，而搜索引擎给我们提供了访问这些资源的接口，不过这个接口现在只能提供检索服务，
+那么一个很简单的问题是自然而然的：搜索引擎是否还可以为我们提供存储服务？
+假如现在我们把 Internet 倒过来——想象一下：
+如果搜索引擎不仅仅提供检索各个网页信息的服务，还提供将信息存储到“Internet 的各个网页”的服务，
+即将各个站点、网页作为存储信息的容器、来提供信息存储服务，那么这是不是一个理想的分布式、近乎无限扩展的基础存储服务系统？
+
+====
+灵感来源
+
+让我们先看看人类的大脑结构，虽然现阶段人类对大脑的结构和运作方式的了解还不是那么全面，但是最基本的结构我们还是知道的：
+人类的大脑中有数千亿的神经元，各个神经元可能同数以万计的神经元通过树突、轴突连接。
+当外界的刺激信号传递到某一个神经元时，根据树突和轴突的阀值，受刺激的神经元可能会将刺激信号传递到与之相关的其他神经元，
+以此类推，很显然，这是一个类似链式反应的系统。
+可能随便一个简单的外界刺激信号，就会引起大脑中无数的神经元产生各种各样的信号，这些信号在传递和交互过程中互相作用和影响，这大概就是人类智慧的来源吧。
+如果把 Internet 中的每一个网页看作大脑中的一个神经元，而网页中通向外部的链接相当于神经元之间的联系（例如树突和轴突），那么 Internet 也就可以看作是人类智慧的存储系统。
+
+====
+本文的目的
+
+本文对使用搜索引擎作为存储服务的思路的实现方法做了简单的分析，并基于开源的 Apache Solr 项目构建一个基础存储服务系统，
+在此基础上结合一个很简单的 BLOG 网站的例子对存储服务的结构和使用进行了说明。
+希望本文所探讨的思路能对那些迫切需要大规模、高扩展性存储服务的应用有所启发。
+
+====
+基于搜索引擎的基础存储服务
+
+为了说明基于搜索引擎的基础存储服务的构成，首先需要对搜索引擎的角色变化有所了解：
+图 1. 传统的网络服务中搜索引擎扮演的角色
+
+传统的网络服务中搜索引擎仅仅对外提供检索服务，索引服务通过自动化的 Crawler 在后台完成，一般并不对外提供索引服务接口。
+
+图 2. 在基础存储服务中扮演的角色：
+
+很显然，在基于搜索引擎的基础存储服务系统中，搜索引擎不再仅仅是接收检索请求返回检索结果，还可以接收存储请求（也就是索引服务）。
+索引服务不再隐藏在后台、仅仅通过 Crawler 来搜集信息，现在也可以接收外界存储的信息了。
+
+存储系统的组织
+
+存储模式
+
+基于搜索引擎的基础存储服务并不是基于结构化的概念，而是基于声明式的概念。
+基础存储服务使用 URL 来组织存储资源，因为 URL 对用户来说是隐藏的，
+因此用户使用基础存储服务的时候不用考虑以什么样的结构来存储数据，而是直接通知基础存储服务要存储什么样的数据。
+当然对于不同的搜索引擎来说，其所能接受的资源的格式通常是有差别的，
+例如本文中所使用的开源搜索引擎 Apache Solr，其能处理的资源为 XML 格式的文档，
+实际使用的时候需要将存储的资源变化为 XML 格式的文档来进行存储。
+本文附带的例子中包含有用于进行 Java 对象到 Solr XML 文档的变换代码，详细的处理逻辑请参考例子的代码。
+
+基础存储服务内部的资源存储方式是类似于互联网信息的存储方式：
+分布式、且使用 URL 来标识实体之间的关联。
+显然这里的实体可以类比为互联网的页面。
+
+存储服务可定制，即可以定制将实体以任何形式存储在任何场所，
+如果以 Internet 中页面来进行类比，即将实体存在各个网站的各个页面中。
+但是这个结构对外是不暴露的，用户可以不必关心 URL 的信息。
+
+分布式
+
+分布式对于以搜索引擎为基础的存储服务系统来说是天然的，存储系统中标识一个资源的唯一标识符是资源的 URL，
+但是这个 URL 不同于一般意义上的 URL（这里叫 URL 仅仅是为了和存储服务的灵感来源—— Internet 进行统一，因为 Internet 中的资源是使用 URL 来定位的），
+存储服务的 URL 不包含地址信息，仅包含用于标识资源的信息。
+虽然 URL 不包含地址信息，但是基础存储服务依然可以根据 URL 的内容决定将资源的存储节点，但是存储在哪一个节点上是根据存储系统实际的部署的情况来确定。
+
+扩展性
+
+扩展性对于以搜索引擎为基础的存储服务系统来说也是天然的，因为用户使用存储服务的时候不用关心资源如何存储，
+另外因为分布式存储是通过资源的 URL 来进行区分，而 URL 却不包含地址信息，
+所以就像 Internet（可能 IPv4 会有所限制，但是 IPv6 就没问题了）一样，理论上，基于搜索引擎的基础存储服务是可以无限扩展的。
+
+事务
+
+本文中的 BLOG 网站的例子虽然应用了事务，
+但是，毫无疑问，直接利用搜索引擎的索引服务自身提供的简单事务管理功能是不足以满足作为一个存储系统时的事务管理需要的。
+如果要进行复杂系统的开发，需要定制搜索引擎的事务管理机制。
+因为本文的目的仅在于对使用搜索引擎作为存储服务的可能性做简单的分析和验证，关于如何定制事务管理的问题超出了本文的范围，所以这里不再赘述。
+
+安全
+
+同事务一样，关于安全的问题同样超出了本文的范围，所以这里不再赘述。
+
+使用存储系统
+
+同组织 Internet 的资源的 URL 一样，基础存储系统最重要的方面就是资源的 URL 设计。
+在基础存储系统的 URL 设计思路中，主要参照了 REST 的原则。
+
+RESTful 存储结构
+
+什么是 REST ？ REST 定义了一组体系架构原则（例如：显式地使用 HTTP 方法、无状态、公开目录结构式的 URI、传输 XML、JSON，或同时传输这两者），
+您可以根据这些原则设计以系统资源为中心的 Web 服务，包括使用不同语言编写的客户端如何通过 HTTP 处理和传输资源状态。
+
+为什么需要 REST ？在基础存储服务中，REST 原则应用在资源的 URL 设计上。
+虽然看起来 REST 和存储服务好像没有什么关系。
+但是前面已经说过，基于搜索引擎的基础存储服务实际上是将 Internet 倒转过来，
+也就是说原来搜索引擎仅用于检索的资源现在不仅用于检索，还用于提供存储服务，
+那么存储系统的结构就等同于 Internet 的结构了，因此应用 REST 的原则就顺理成章了。
+REST 原则在组织 Internet 资源中的意义是非常重要的，在基础存储服务中，REST 原则对 URL 设计同样也是极为重要的。
+
+URL 的结构
+
+基于搜索引擎的存储服务的处理依赖于资源的 URL 结构。
+在存储和检索资源的过程中，存储系统根据资源的 URL 来对资源进行组织，例如在存储的时候，可能会将 URL 相似的对象保存到同一个存储地址空间中
+（当然对用户来说这个问题是不需要考虑的，决定采用什么样的策略来保存资源是存储服务系统需要考虑的问题）；
+同样，在进行检索处理的过程中，也可能会在某一个 URL 空间内进行资源的检索，类似于使用 Google 搜索引擎检索的时候使用 site 关键字：solr site:apache.org。
+
+在存储系统中有两种类型的资源：
+基础资源和附属资源，资源的类型是依照资源本身和其他关联资源的关联形式的不同加以区分（关于为何这样进行区分，参考后面的说明）。
+两种类型的资源的 URL 的结构是不同的：
+
+基础资源，基础资源是指不附属于其他资源的资源。
+追加、更新和删除基础资源都需要以基础资源为单位来进行，追加、更新和删除其他资源的时候不会影响到基础资源的内容。
+基础资源的 URL 可以使用任意的形式构建。
+
+附属资源，附属资源是指附属于其他资源的资源，附属资源的 URL 以其附属的基础资源的 URL 为基础构建。
+
+基础资源和附属资源之所以使用不同的 URL 格式进行标识，这主要参考了面向对象方法论中对象之间关系的模式，
+基础存储服务使用这些模式来组织存储系统中的资源。
+例如：面向对象方法论中对象之间的关系主要有：has-a、contains-a 和 is-a 三种模式（其他的模式都可以划到这三种模式中），
+has-a 所关联的资源可以理解为基础资源，
+contains-a 所关联的资源可以理解为附属资源，这两种关联方式在本文的例子中都有所体现。
+但是 is-a 关系在本文的例子中没有体现，但是通过记录资源的类型信息可以很容易的实现 is-a 关系的存储和查询。
+
+如何查询
+
+毫无疑问，作为基础存储服务基础的搜索引擎所支持的查询方式，基础存储服务无疑都是支持的，例如基于 URL 的查询。
+除了这些基本的查询功能以外，还可以使用其他更为精确的查询方法，这依赖于具体的存储服务设计和具体的应用系统设计。
+
+如何更新
+
+更新过程类似于搜索引擎的索引处理。
+但是根据用于更新的资源和其关联资源的关联形式的不同，追加、更新和删除资源的时候其处理方式也是不同的：
+
+追加资源，类似于关系数据库的插入处理。
+如果被追加的资源内部包含有其他附属资源，那么同样需要递归的追加附属资源；
+如果被追加的资源内部包含有其他基础资源，不做特殊处理。
+
+更新资源，类似于关系数据的更新处理，同追加资源类似，
+如果被更新的资源内部包含有其他附属资源，那么同样需要递归的更新附属资源；
+如果被更新的资源内部包含有其他基础资源，不做特殊处理。
+
+删除资源，类似于关系数据的删除处理，如果被删除的资源内部包含有其他附属资源，那么同样需要递归的删除附属资源；
+如果被更新的资源内部包含有其他基础资源，不做特殊处理。
+
+========
+BLOG 网站的例子
+
+理论的说明总是不那么容易理解，下面使用一个使用基于 Apache Solr 构建的 RESTful 基础存储服务的 BLOG 网站的例子来进行更直观的说明。
+
+BLOG 网站的功能
+
+本文中的 BLOG 网站例子是一个最简单的 BLOG 网站，仅实现了一个 BLOG 网站应有的最基本的功能：
+注册 Blogger、Blogger 登录和注销。
+Blogger 信息包含全部的个人可公开信息，例如姓名、电子信箱、个人主页等；
+
+Blogger 可以发表、更新和删除 Article，删除 Article 的时候同时也会删除 Article 相关的 Review；不能直接删除 Review。
+
+Blogger 可以针对 Article 直接使用当前登录信息（用户名和电子邮件）发表 Review，也可以提供其他的用户名和电子信箱发表 Review；
+
+Blogger 可以基于关键字检索 Article标题或内容符合条件的 Article。
+
+====
+关于 Apache Solr
+Apache Solr 是一个开源的搜索服务器。
+Solr 使用 Java 语言开发，主要基于 HTTP 和 Apache Lucene 实现。
+Apache Solr 中存储的资源是以 Document 为对象进行存储的。
+每个文档由一系列的 Field 构成，每个 Field 表示资源的一个属性。
+Solr 中的每个 Document 需要有能唯一标识其自身的属性，默认情况下这个属性的名字是 id，在 Schema 配置文件中使用：<uniqueKey>id</uniqueKey>进行描述。本文中的例子为了使用方便和容易理解，将用于标识 Document 的 uniqueKey 元素修改为：<uniqueKey>url</uniqueKey>，详细的内容请参考本文所带的例子程序中的 Schema 配置文件的配置。
+
+提示：如果您对诸如 Solr、Document、Field、Schema 等名词感到陌生，请先阅读参考资源中和 Apache Lucene 和 Solr 相关的资源，
+特别是 IBM developerWorks 中涉及到 Apache Lucene 和 Solr 的文章。
+
+====
+关于 Solrj
+
+本文的例子程序使用 Solrj 同 Solr 服务器通信（进行了部分定制开发，详细内容请参考例子程序的代码）。
+Solrj 是一个访问 Solr 服务器的 Java 客户端，它提供了一个 Java 的接口用于追加、更新和查询的 Solr 的索引库。
+Solrj 从 Solr 1.3 开始作为 Solr 的一部分发布，因为本文的例子使用的是 Apache Solr 1.4.0，所以您不需要另外下载 Solrj，
+可以在 Solr 的安装目录下找到 Solrj：SOLR_HOME/dist/solrj-lib。
+
+软件的下载和安装
+要使用运行本文中的 BLOG 网站例子程序，您必须先下载或安装（解压）以下软件：
+Java 1.5 或更高版本。
+Web 浏览器，我使用的是 Chrome4，不过其他任何现代浏览器都没问题。
+Apache Tomcat 5.5.25，假设安装目录是：TOMCAT_HOME
+Apache Solr 1.4.0，假设安装目录是：SOLR_HOME
+下载本文中的例子程序和 Solr 模式配置文件：solr-blog.war和 schema.xml
+
+因为安装和配置本文的例子的时候直接使用了 Apache Solr 发布包中的例子索引库，因此不包含可以用来进行测试的 Blogger、Article 等数据。
+为了能够运行例子程序，请您在安装配置例子程序后，从注册一个新的 Blogger 用户开始进行测试。
+详细的功能请通过运行本文中的例子或直接参考例子程序的源代码。
+
+安装和测试本文的例子程序
+
+下载和安装上述软件以后，需要进行以下配置才能运行本文的例子程序。
+
+首先，在 Tomcat 中配置 Apache Solr。将 Apache Solr 应用：SOLR_HOME/dist/ apache-solr-1.4.0.war
+解压到 TOMCAT_HOME/webapps/solr目录（如果此目录不存在需要您手动创建）。
+解压完成后打开 TOMCAT_HOME/webapps/solr/WEB-INF/web.xml 文件，
+将其中的环境变量：solr/home修改为：SOLR_HOME/example/solr（这里使用的是 Solr 安装包附带的例子索引库）。
+缺省状态下，环境变量 solr/home是被注释掉的，请您解除对 solr/home的注释：
+
+清单 1. TOMCAT_HOME/webapps/solr/WEB-INF/web.xml
+ <web-app> 
+ <env-entry> 
+    <env-entry-name>solr/home</env-entry-name> 
+    <env-entry-value>SOLR_HOME/example/solr</env-entry-value> 
+    <env-entry-type>java.lang.String</env-entry-type> 
+ </env-entry> 
+… …
+  <servlet> 
+    <servlet-name>SolrServer</servlet-name> 
+    <servlet-class>org.apache.solr.servlet.SolrServlet</servlet-class> 
+    <load-on-startup>1</load-on-startup> 
+ </servlet> 
+… …
+  <servlet-mapping> 
+    <servlet-name>SolrServer</servlet-name> 
+    <url-pattern>/select/*</url-pattern> 
+  </servlet-mapping> 
+… …
+ </web-app>
+
+注意：环境变量 solr/home的值中 SOLR_HOME需要替换成实际的目录信息，而不能保持原状。
+
+然后，修改 Apache Solr 的默认的模式配置（直接使用下载的 schema.xml覆盖 SOLR_HOME/example/solr/conf/schema.xml文件亦可），
+主要的修改内容是（红色字体部分，其中 <field> url和 resource_type的内容是追加的，<dynamicField>和 <uniqueKey>对原来已有的内容的修改）：
+
+清单 2. SOLR_HOME/example/solr/conf/schema.xml
+ <?xml version="1.0" encoding="UTF-8" ?> 
+ <schema name="example" version="1.2"> 
+  <types> 
+    <fieldType name="string" class="solr.StrField" omitNorms="true"/> 
+    ... ... 
+ </types> 
+
+
+ <fields> 
+   <! — url 字段的定义 --> 
+   <field name="url" type="string" indexed="true" stored="true" required="false" /> 
+   <! — resource_type 字段的定义 --> 
+   <field name="resource_type" type="string" … required="true" /> 
+    ... ... 
+   <! —缺省 dynamicField 的配置 --> 
+   <dynamicField name="*" type="text" multiValued="true" /> 
+ </fields> 
+
+ <!-- uniqueKey 的配置 --> 
+ <uniqueKey>url</uniqueKey>
+ <defaultSearchField>text</defaultSearchField> 
+
+ </schema>
+
+其次，将本文附带的例子程序 solr-blog.war解压缩到 TOMCAT_HOME/webapps/blog目录，同样，如果目录不存在的话需要您手动创建。
+解压完成后打开 TOMCAT_HOME/webapps/blog/WEB-INF/web.xml文件，
+将初始化参数：solr-server-url修改为您刚刚配置的 Apache Solr 应用的 URL，
+例如，如果您对 Tomcat 的安装和配置没做特殊的修改的话，solr-server-url的值应该是：http://localhost:8080/solr/。其他的配置内容保持不变即可。
+
+清单 3. TOMCAT_HOME/webapps/blog/WEB-INF/web.xml
+ <web-app> 
+
+  <context-param> 
+    <param-name>solr-server-url</param-name> 
+    <param-value>http://localhost:8080/solr/</param-value> 
+  </context-param> 
+
+  <listener> 
+    <listener-class>org.apache.solr.blogsample.InitListener</listener-class> 
+  </listener> 
+  
+  <servlet> 
+    <servlet-name>BloggerServlet</servlet-name> 
+    <servlet-class>org.apache.solr.blogsample.BloggerServlet</servlet-class> 
+  </servlet> 
+
+  <servlet-mapping> 
+    <servlet-name>BloggerServlet</servlet-name> 
+    <url-pattern>/bloggers/*</url-pattern> 
+  </servlet-mapping> 
+	
+  <welcome-file-list> 
+	 <welcome-file>login.jsp</welcome-file> 
+  </welcome-file-list> 
+
+ </web-app>
+
+运行 TOMCAT_HOME/bin/startup.bat（假设您的操作系统是 Windows）批处理文件，启动 Tomcat 服务器。
+启动您的浏览器，打开地址：http://localhost:8080/blog，您看到的页面将会是：
+
+图 3. 例子程序的初始页面
+
+因为系统初始状态没有任何 Blogger，所以，接下来您需要从注册 Blogger 开始，注册完毕后登录到系统中，
+然后进行发表 Article、更新和删除 Article、发表 Review，以及检索 Article 的操作：
+
+图 4. Blogger 注册页面
+输入 Blogger 的基本信息就可以进行注册了，需要注意的是，Blogger 的名字必须是系统中唯一的，如果输入了重复的 Blogger 名字，程序会进行提示。
+
+图 5. Article 检索和一览页面
+进行检索处理的时候，任何标题或内容匹配检索条件输入框中输入的内容的 Article 都会返回。
+点击 Blogger 名字链接会打开 Blogger 信息查看页面。点击 Title 链接会进入 Article 编辑画面。
+
+图 6. 发表、编辑和删除 Article、以及发表 Review 页面
+Article 编辑画面分为三个部分，最上面是 Article 的基本信息编辑区域，
+中间是已经发表的 Article 相关的 Review 显示区域，最下面是发表 Review 的编辑区域。
+
+图 7. Blogger 信息查看页面
+
+====
+BLOG 网站的实现
+
+BLOG 网站使用 Java 语言开发，在使用 Apache Solr 进行数据存储的时候直接将 Java 对象保存在存储库中，
+当然这个过程中需要进行 Java 对象到 XML 的变换。
+同样进行检索处理的时候还需要将返回的 XML 格式的检索结果变换成 Java 对象。
+
+注：Solrj 提供了对 Java 对象到 Solr 需要 XML 格式的文档的变换处理（或反向），
+但是因为我们的例子需要特殊的 URL 信息，所以例子程序对这部分处理进行了定制，并没有直接使用 Solrj 的实现。
+
+====
+例子程序的 URL 结构设计
+
+在本文的例子程序的实现中，基础资源的 URL结构是：resource-type/id，
+其中 resource-type是指要进行存储的 Java 对象的类名；
+id是指在 resource-type限定的范围内能唯一地标识资源的信息，
+
+例如在本文的例子中，基础资源 Blogger 对象（假设 Blogger 的名字是 bob）URL 是：
+ org.apache.solr.blogsample.Blogger/bob。
+
+附属资源使用的 URL 形式是：BASE_RESOURCE_URL/attribute/id，
+这里的 BASE_RESOURCE_URL代表被附属资源附属的基础资源的 URL；
+attribute表示的是附属资源附属在基础资源中的属性名。
+id是指在 BASE_RESOURCE_URL/attribute限定的范围内能唯一地标识资源的信息。
+
+例如，在本文的例子中，Article 是基础资源，
+而 Article 的 Review 就是 Article 的附属资源，如果一个 Article 的 URL 是：
+ org.apache.solr.blogsample.Article/0
+
+而第一个 Review 的 URL 是：
+ org.apache.solr.blogsample.Article/0/reviews/0
+
+这里的 reviews 实际上就是 Article 对象中的、用来容纳 Review 信息的属性名。
+
+在不同的应用系统中，基础资源和附属资源的划分根据实际应用的设计思路的不同，其划分也不尽相同。
+例如：在文中的例子中，Blogger 和 Article 被看作是两种基础资源，所以其 URL 分别是：
+ org.apache.solr.blogsample.Blogger/bob 
+ org.apache.solr.blogsample.Article/0
+
+而 Review 被看作是 Article 的附属资源，所以其 URL 是：
+ org.apache.solr.blogsample.Article/0/reviews/0
+
+但是如果设计上考虑将 Article 定义为 Blogger 的附属资源，这个时候 Article 的 URL 就可能是：
+ org.apache.solr.blogsample.Blogger/bob/articles/0
+
+而 Article 对应的 Review 的 URL 格式就变成了：
+ org.apache.solr.blogsample.Blogger/bob/articles/0/reviews/0
+
+====
+使用 Solr 进行存储的对象数据
+
+在存储 Java 对象之前，例子程序首先需要将 Java 对象变换为 Solr 可以接受的 XML 格式的 Document。
+前面已经提到，因为 Solrj 无法为我们处理 URL 信息（因为它不了解例子程序是如何设计 URL 的格式的），
+所以例子程序对这个处理过程进行了定制，变换后的 XML 格式的 Solr 的 Document 对象数据如下：
+
+清单 4. Blogger 对象的数据格式（Blogger 的名字是 bob）
+ <doc> 
+	 <field name="url">org.apache.solr.blogsample.Blogger/bob</field> 
+	 <field name="resource_type">org.apache.solr.blogsample.Blogger</field> 
+	 <field name="name">bob</field> 
+	 <field name="password">111</field> 
+	 <field name="email">bob@gmail.com</field> 
+	 <field name="gender">male</field> 
+	 <field name="phone">111-111-11</field> 
+	 <field name="homepage">http://www.app.com</field> 
+
+	 <field name="articles">[org.apache.solr.blogsample.Article/0]</field> 
+ </doc>
+
+表 1. Blogger 对象的 Document 模型
+No.	Field Name	描述
+
+1	 url	 存储系统使用的属性，用于唯一标识一个文档的属性，url 的格式参考前面的说明， Blogger 对象的 url 表示它是一个基础对象、且它的 name=bob。
+2	 resource_type	 资源的类型，类型的名字在系统中是唯一的，在使用 Java 语言开发的应用中，资源类型显然设定为类名很方便。
+3	 name	 Blogger 的名字
+4	 password	 Blogger 的密码
+5	 email	 Blogger 的电子邮件地址
+6	 gender	 Blogger 的性别
+7	 phone	 Blogger 电话号码
+8	 homepage	 Blogger 个人主页
+
+9	 articles	 Blogger 发表的所有 Article 的集合，articles 是一个包含其他对象的 List。
+同 JSON 的格式类似，List 类型的属性使用“[”和“]”标识开始和结束，List 元素之间使用“,”进行分割。
+
+上述的属性中，url 是系统必须的属性，而 resource_type 属性是存储用于进行对象类型跟踪和创建的 Java 对象类型信息。
+其他的属性是对象本身的属性。
+您可能奇怪 Blogger bob 的 URL 信息中已经包含了 Java 对象的类型信息为什么这里还需要存储，
+这是因为只有基础资源的 URL 中包含了基础资源的类型信息，
+附属资源的 URL 没有包含附属资源的类型信息——它包含的是附属资源附属的基础资源的信息。
+
+清单 5. Article 对象的数据格式（bob 发表的第一篇文章）
+ <doc> 
+	 <field name="url">org.apache.solr.blogsample.Article/0</field> 
+	 <field name="resource_type">org.apache.solr.blogsample.Article</field> 
+	 <field name="id">0</field> 
+	 <field name="title">title111</field> 
+	 <field name="content">content111</field> 
+	 <field name="date">2010/02/28</field> 
+	 <field name="reviews">[org.apache.solr.blogsample.Article/0/reviews/0]</field> 
+ </doc>
+
+表 2. Article 对象的 Document 模型
+No.	Field Name	描述
+
+1	 url	 存储系统使用的属性，用于唯一标识一个文档的属性，url 的格式参考前面的说明。Article 对象的 url 表示它是一个基础对象、且它的 id=0。
+2	 resource_type	 资源的类型，类型的名字在系统中是唯一的，在使用 Java 语言开发的应用中，资源类型显然设定为类名很方便。
+3	 id	 Article 的 id，可以唯一的标识 Article
+4	 title	 Article 的标题
+5	 content	 Article 的内容
+6	 date	 Article 的发表或更新日期
+9	 reviews	 Article 相关的所有 Review 的集合，reviews 是一个包含其他对象的 List。同 JSON 的格式类似，List 类型的属性使用“[”和“]”标识开始和结束，List 元素之间使用“,”进行分割。
+
+清单 6. Review 对象的数据格式（bob 发表的第一篇文章的第一条评论）
+ <doc> 
+	 <field name="url">org.apache.solr.blogsample.Article/0/reviews/0</field> 
+	 <field name="resource_type">org.apache.solr.blogsample.Review</field> 
+	 <field name="id">0</field> 
+	 <field name="reviewer">mike</field> 
+	 <field name="email">mike@gmail.com</field> 
+	 <field name="date">2010/03/02</field> 
+	 <field name="content">review content111</field> 
+ </doc>
+
+表 3. Review 对象的 Document 模型
+No.	Field Name	描述
+
+1	 url	 存储系统使用的属性，用于唯一标识一个文档的属性，url 的格式参考前面的说明。Review 对象的 url 表示它是 Article 对象（id=0）的附属对象。
+2	 resource_type	 资源的类型，类型的名字在系统中是唯一的，在使用 Java 语言开发的应用中，资源类型显然设定为类名很方便。
+3	 id	 Review 的 id，在其关联的 Article 对象的范围内可以唯一的标识 Review 的信息。
+4	 reviewer	 发表 Review 的用户名
+5	 email	 发表 Review 的用户的电子邮件地址
+6	 date	 Review 的发表日期
+9	 content	 Review 的内容。
+
+==
+从 Solr 返回的检索结果的数据格式
+
+从 Solr 返回的检索结果和存储时使用的数据格式很类似：
+
+清单 7. Blogger 对象的检索结果（Blogger 的名字是 bob）
+ <?xml version="1.0" encoding="UTF-8"?> 
+ <response> 
+ <lst name="responseHeader"> … … </lst> 
+ <result name="response" numFound="1" start="0"> 
+    <doc> 
+       <str name="url">org.apache.solr.blogsample.Blogger/bob</str> 
+       <arr name="resource_type"><str>org.apache.solr.blogsample.Blogger</str></arr> 
+       <arr name="email"><str>bob@gmail.com</str></arr> 
+       <arr name="gender"><str>male</str></arr> 
+       <arr name="homepage"><str>http://bob.com</str></arr> 
+       <str name="name">bob</str> 
+       <arr name="password"><str>111</str></arr> 
+       <arr name="phone"><str>1111111</str></arr> 
+		<arr name="articles"> 
+			 <str>[org.apache.solr.blogsample.Article/0]</str> 
+		</arr> 
+    </doc> 
+ </result> 
+ </response>
+
+清单 8. Article 对象的检索结果（bob 发表的第一篇文章）
+ <?xml version="1.0" encoding="UTF-8"?> 
+ <response> 
+ <lst name="responseHeader"> … … </lst> 
+ <result name="response" numFound="1" start="0"> 
+    <doc> 
+       <str name="url">org.apache.solr.blogsample.Article/0</str> 
+       <arr name="resource_type">org.apache.solr.blogsample.Article</str></arr> 
+       <arr name="title"><str>Title-001</str></arr> 
+       <arr name="content"><str>Content-001</str></arr> 
+       <arr name="date"><str>2010/02/28 01:38:18</str></arr> 
+       <str name="id">0</str> 
+ <arr name="reviews"> 
+ <str>[org.apache.solr.blogsample.Article/0/reviews/0]</str> 
+ </arr> 
+    </doc> 
+ </result> 
+ </response>
+
+清单 9. Review 对象的检索结果（bob 发表的第一篇文章的第一条评论）
+ <?xml version="1.0" encoding="UTF-8"?> 
+ <response> 
+ <lst name="responseHeader"> … … </lst> 
+ <result name="response" numFound="1" start="0"> 
+    <doc> 
+       <str name="url">org.apache.solr.blogsample.Article/0/reviews/0</str> 
+       <arr name="resource_type">org.apache.solr.blogsample.Review</str></arr> 
+       <str name="id">0</str> 
+       <arr name="reviewer"><str>mike</str></arr> 
+       <arr name="email"><str>mike@gmail.com</str></arr> 
+       <arr name="content"><str>review content111</str></arr> 
+       <arr name="date"><str>2010/02/28 01:38:18</str></arr> 
+    </doc> 
+ </result> 
+ </response>
+
+应用程序将检索到的 XML 文件格式的检索结果变换为 Java 对象后，就可以进行后续的业务处理了。
+
+这就是所有的实现，是不是很简单？
+
+====
+总结
+
+本文首先简单分析了搜索技术的应用和发展，对 Internet 的信息存储方式及这种方式对于构建基础存储系统的意义和使用搜索引擎作为存储服务的实现方法做了简单的分析，
+并基于开源的 Apache Solr 项目构建了一个基础存储服务系统，在此基础上实现了一个很简单的 BLOG 网站的例子。
+本文对于那些迫切需要能存储海量数据、分布式和高度可扩展的存储系统的应用提供了一个可行的思路。
+
+
+下载说明
+使用 Apache Solr 作为基础存储服务的例子程序：solr-blog.war
+Apache Solr 的模式配置文件：schema.xml
+
+描述	名字	大小
+业务模型	blog-sample-code.zip	970KB
+
+参考资料
+
+使用 Apache Solr 实现更加灵巧的搜索，第 1 部分 : 基本特性和 Solr 模式，对于理解 Solr 中的模式概念很有帮助。
+使用 Apache Solr 实现更加灵巧的搜索，第 2 部分 : 用于企业的 Solr，对于如何使用和定制 Solr 进行了说明。
+基于 REST 的 Web 服务：基础，对 REST 原则的概念和意义进行了介绍。
+构建 RESTful Web 服务，用助于理解 RESTful 的概念
+使用 PHP 和 Apache Solr 实现企业搜索，【把数据装入 Solr 】部分对如何描述数据和构造索引进行了说明，并给出了【搜索汽车零部件】的例子。
+另外，PHP 的例子对于实际的系统构建也有参考意义。
+面向 Java 开发人员的 db4o 指南，对对象数据库 db4o 的功能和实现进行了说明。
+

@@ -1497,7 +1497,8 @@ autoWarmCount 是取自旧缓存以预热新缓存的条目数。
 
 
   <!-- Query Elevation Component
-  Elevation，海拔。
+  Elevation，海拔，提高。
+  允许人为编辑结果，适用于“付费排名”等场景。
 
        http://wiki.apache.org/solr/QueryElevationComponent
 
