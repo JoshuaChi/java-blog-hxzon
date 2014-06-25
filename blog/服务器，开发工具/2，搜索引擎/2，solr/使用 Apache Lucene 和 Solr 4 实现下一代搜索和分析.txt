@@ -5,9 +5,16 @@ http://www.ibm.com/developerworks/cn/java/j-solr-lucene/
 Grant Ingersoll, 资深技术人员, Lucid Imagination
 2013 年 12 月 05 日
 
+==============
 hxzon学习笔记：
 
 1，内容摘要：相关性、分布式搜索和分面 (facet) 
+新版关注点已转向实现轻松的可伸缩性、近实时的索引和搜索，以及许多 NoSQL 功能。
+
+动态非反转 (un-invert) ？
+
+NRT示例：
+searcher = new IndexSearcher(DirectoryReader.open(writer, false));
 
 2，两个插件点
 
@@ -18,10 +25,15 @@ Codec 为您提供了控制帖子列表的格式（也就是倒排索引）、Lu
 在一些应用程序中，您可能想要实现自己的 Codec。
 但您可能更想要更改用于索引中的一个文档字段子集的 Codec。
 
+--
 第二个重要的新插件点让 Lucene 的计分模型变得完全可插拔。
 您不再局限于使用 Lucene 的默认计分模型，一些批评者声称它太简单了。
 如果您喜欢的话，可以使用备用的计分模型，
-比如来自 Randomness 的 BM25 和 Divergence（参见 参考资料），或者您可以编写自己的模型。
+比如来自 Randomness 的 BM25 和 Divergence（参见 参考资料），
+或者您可以编写自己的模型。
+
+通过 IndexWriterConfig.setSimilarity(Similarity) 方法更改该模型，
+并在搜索时通过 IndexSearcher.setSimilarity(Similarity) 方法更改它。
 
 3，对 Lucene 的数据结构和算法的全面修改在 Lucene 4 中带来两个特别有趣的改进：
 
@@ -30,7 +42,8 @@ DocValues（也称为跨列字段）。
 
 4，分面
 
-在其核心，分面生成一定数量的文档属性，为用户提供一种缩小其搜索结果的轻松方式，无需他们猜测要向查询中添加哪些关键词。
+在其核心，分面生成一定数量的文档属性，
+为用户提供一种缩小其搜索结果的轻松方式，无需他们猜测要向查询中添加哪些关键词。
 例如，如果有人在一个购物网站上搜索电视，那么分面功能会告诉他们哪些制造商生产了多少种电视型号。
 分面也常常用于增强基于搜索的业务分析和报告工具。
 通过使用更高级的分面功能，您为用户提供了以有趣方式对分面进行切片和切块的能力。
@@ -38,22 +51,26 @@ DocValues（也称为跨列字段）。
 5，Solr 的无模式功能。
 典型的生产系统（也有一些例外）不应使用无模式，因为值猜测并不总是完美的。
 
-====
+6，空间（非地理空间）改进
+
+================
 Apache Lucene™ 和 Solr™ 是强大的开源搜索技术，使组织能够轻松地显著增强数据访问。
 借助 4.x 版的 Lucene 和 Solr，向数据驱动应用程序中添加可扩展的搜索功能变得比以往更加轻松。
 Lucene 和 Solr 提交者 Grant Ingersoll 介绍了与相关性、分布式搜索和分面 (facet) 相关的最新 Lucene 和 Solr 功能。
 本文将学习如何利用这些功能构建快速、高效、可扩展的下一代数据驱动应用程序。
 
-===============
+====
 我 6 年前开始为 developerWorks 编写 Solr 和 Lucene（参见 参考资料）。
 这些年来，Lucene 和 Solr 将自身建设成了一项坚不可摧的技术（Lucene 作为 Java™ API 的基础，Solr 作为搜索服务）。
-举例而言，它们支持着 Apple iTunes、Netflix、Wikipedia 等许多公司的基于搜索的应用程序，它们还帮助为 IBM Watson 答问系统提供支持。
+举例而言，它们支持着 Apple iTunes、Netflix、Wikipedia 等许多公司的基于搜索的应用程序，
+它们还帮助为 IBM Watson 答问系统提供支持。
 多年来，大部分人对 Lucene 和 Solr 的使用主要集中在基于文本的搜索上。
 与此同时，新的、有趣的大数据趋势以及对分布式计算和大规模分析的全新（重新）关注正在兴起。
 大数据常常还需要实时的、大规模的信息访问。
 
 鉴于这种转变，Lucene 和 Solr 社区发现自己走到了十字路口：
-Lucene 的核心支柱开始在大数据应用程序的压力下呈现老态，比如对 Twittersphere 的所有消息建立索引（参见 参考资料）。
+Lucene 的核心支柱开始在大数据应用程序的压力下呈现老态，
+比如对 Twittersphere 的所有消息建立索引（参见 参考资料）。
 
 此外，Solr 在原生分布式索引支持上的匮乏，使得 IT 组织越来越难以富有成本效益的方式扩展他们的搜索基础架构。
 
@@ -193,7 +210,9 @@ Lucene 和 Solr 扩展的地理空间支持
 举例而言，显示每条路线、每个航空公司、每个航班编号最常见的抵达晚点时间（比如 SFO TO ATL）。
 
 near 选项利用新的 Lucene 和 Solr 空间功能执行大大增强的空间计算，比如复杂多边形交集。
+
 likely 选项展示了 Solr 的分组功能，以显示距离某个起飞机场的一定范围内的抵达晚点超过 30 分钟的机场。
+
 所有这些请求类型都通过少量的 D3 JavaScript 来显示信息，这增强了地图功能。
 对于列表中的最后一种请求类型，我只返回了关联的 JSON。
 这种请求类型支持您自行浏览该数据。
@@ -205,15 +224,19 @@ likely 选项展示了 Solr 的分组功能，以显示距离某个起飞机场�
 
 在 图 3 中，地图左侧突出显示了两个机场。
 右侧的 Route Stats 列表显示了每个航空公司的每个航班最常见的抵达晚点时间。
-（我只加载了 1987 年的数据。）例如，该列表会告诉您，Delta 航班 156 有 5 次晚点五分钟到达亚特兰大，而且有 4 次提前 6 分钟到达。
+（我只加载了 1987 年的数据。）
+例如，该列表会告诉您，Delta 航班 156 有 5 次晚点五分钟到达亚特兰大，而且有 4 次提前 6 分钟到达。
 您可以在浏览器的控制台（比如在 Mac 上的 Chrome 中，选择 View -> Developer -> Javascript Console）
-和在 Solr 日志中查看基础的 Solr 请求。我使用的 SFO-TO-ATL 请求（在这里为了格式化用途而分为 3 行）是：
+和在 Solr 日志中查看基础的 Solr 请求。
+
+我使用的 SFO-TO-ATL 请求（在这里为了格式化用途而分为 3 行）是：
 /solr/collection1/travel?&wt=json&facet=true&facet.limit=5&fq=Origin:SFO 
 AND Dest:ATL&q=*:*&facet.pivot=UniqueCarrier,FlightNum,ArrDelay&
 f.UniqueCarrier.facet.limit=10&f.FlightNum.facet.limit=10
 
 facet.pivot 参数提供了此请求中的关键功能。
-facet.pivot 从航空公司（称为 UniqueCarrier）移动到 FlightNum，再到 ArrDelay，因此提供了 图 3 的 Route Stats 中显示的嵌套结构。
+facet.pivot 从航空公司（称为 UniqueCarrier）移动到 FlightNum，再到 ArrDelay，
+因此提供了 图 3 的 Route Stats 中显示的嵌套结构。
 
 如果尝试一次 near 插入，如 near:JFK 中所示，您的结果将类似于图 4：
 图 4. 示例屏幕显示了 JFK 附近的机场
@@ -225,10 +248,12 @@ facet.pivot 从航空公司（称为 UniqueCarrier）移动到 FlightNum，再�
 &fq=source:Airports&q=AirportLocationJTS:"IsWithin(Circle(40.639751,-73.778925 d=3))"
 ...
 
-您可能已经猜到，该请求查找以纬度 40.639751 和经度 -73.778925 为中心，以 3 度（大约为 111 千米）为半径的圆圈内的所有机场。
+您可能已经猜到，该请求查找以纬度 40.639751 和经度 -73.778925 为中心，
+以 3 度（大约为 111 千米）为半径的圆圈内的所有机场。
 
 现在您应很好地认识到 Lucene 和 Solr 应用程序能够以有趣的方式对数据（数字、文本或其他数据）执行切块和切片。
 而且因为 Lucene 和 Solr 都是开源的，所以可以使用适合商用的许可，您可以自由地添加自己的自定义。
+
 更妙的是，4.x 版的 Lucene 和 Solr 增加了您可以插入自己的想法和功能的位置数量，您无需大动干戈修改代码。
 在接下来查看 Lucene 4（编写本文时最新版为 4.4）的一些要点功能和随后查看 Solr 4 要点功能时，请记住这些功能。
 
@@ -268,7 +293,8 @@ Lucene 4 包含重大的 API 更改和增强，这些都对该引擎有益，而
 图 5 显示的改进来自对 Lucene 构建其索引结构和方式和它在构建它们时处理并行性的方式所做的一系列更改
 （以及其他一些更改，包括 JVM 更改和固态驱动器的使用）。
 这些更改专注于在 Lucene 将索引写入磁盘时消除同步；
-有关的详细信息（不属于本文的介绍范畴），请参阅 参考资料，以获取 Mike McCandless 的博客文章的链接。
+有关的详细信息（不属于本文的介绍范畴），请参阅 参考资料，
+以获取 Mike McCandless 的博客文章的链接。
 
 除了提高总体索引性能之外，Lucene 4 还可执行近实时 (NRT) 的索引操作。
 NRT 操作可显著减少搜索引擎反映索引更改所花的时间。
@@ -288,9 +314,11 @@ doc.add(new TextField("body", "This is document 100.", Field.Store.YES));
 writer.addDocument(doc);
 //The results are still 100
 printResults(searcher);
+
 //Don't commit; just open a new searcher directly from the writer
 //hxzon：使用writer重建一个searcher
 searcher = new IndexSearcher(DirectoryReader.open(writer, false));
+
 //The results now reflect the new document that was added
 printResults(searcher);
 ...
@@ -315,6 +343,7 @@ Num docs: 101
 
 Lucene 4 还包含内存改进，利用了一些更高级的数据结构（我将在 有限状态自动机和其他好功能 中进行更详细的介绍）。
 这些改进不仅减少了 Lucene 的内存占用，还大大加快了基于通配符和正则表达式的查询速度。
+
 此外，代码库从处理 Java String 对象转变为管理字节数组的大量分配。
 （BytesRef 类目前在 Lucene 中似乎随处可见。）
 结果，String 开销减小了，Java 堆上的对象数量得到了更好的控制，这减少了导致所有工作停止的垃圾收集的发生几率。
@@ -401,16 +430,20 @@ Solr 用户可修改简单的配置项来设置和更改这些功能。
 请参阅 Solr 参考指南，了解更多的细节（参见 参考资料）。
 
 ----
+（hxzon：重要。）
 第二个重要的新插件点让 Lucene 的计分模型变得完全可插拔。
 您不再局限于使用 Lucene 的默认计分模型，一些批评者声称它太简单了。
 如果您喜欢的话，可以使用备用的计分模型，
 比如来自 Randomness 的 BM25 和 Divergence（参见 参考资料），或者您可以编写自己的模型。
+
 为什么编写自己的模型？
 或许您的 “文档” 代表着分子或基因；
-您想要采用一种快速方式来对它们分进行类，但术语频率和文档频率并不适用。
+您想要采用一种快速方式来对它们进行分类，但术语频率和文档频率并不适用。
 或者您可能想要试验您在一篇研究文章中读到的一种新计分模型，以查看它在您内容上的工作情况。
-无论原因是什么，更改计分模型都需要您在建立索引时通过 IndexWriterConfig.setSimilarity(Similarity) 方法更改该模型，
+无论原因是什么，更改计分模型都需要您在建立索引时
+通过 IndexWriterConfig.setSimilarity(Similarity) 方法更改该模型，
 并在搜索时通过 IndexSearcher.setSimilarity(Similarity) 方法更改它。
+
 清单 4 演示了对 Similarity 的更改，首先运行一个使用默认 Similarity 的查询，
 然后使用 Lucene 的 BM25Similarity 重新建立索引并重新运行该查询：
 
@@ -421,6 +454,7 @@ directory = new RAMDirectory();
 writer = new IndexWriter(directory, conf);
 index(writer, DOC_BODIES);
 writer.close();
+
 searcher = new IndexSearcher(DirectoryReader.open(directory));
 System.out.println("Lucene default scoring:");
 TermQuery query = new TermQuery(new Term("body", "snow"));
@@ -428,10 +462,12 @@ printResults(searcher, query, 10);
 
 BM25Similarity bm25Similarity = new BM25Similarity();
 conf.setSimilarity(bm25Similarity);
+
 Directory bm25Directory = new RAMDirectory();
 writer = new IndexWriter(bm25Directory, conf);
 index(writer, DOC_BODIES);
 writer.close();
+
 searcher = new IndexSearcher(DirectoryReader.open(bm25Directory));
 searcher.setSimilarity(bm25Similarity);
 System.out.println("Lucene BM25 scoring:");
@@ -445,24 +481,27 @@ BM25 方法的结果是否更准确地反映了一个用户想要的结果集，
 然后不仅对比了 Similarity 结果，还要对比了各种查询结构、Analyzer 和其他许多方面的结果。
 
 ====
-有限状态自动机和其他好功能
+有限状态自动机和其他好功能（hxzon：未理解）
 
 对 Lucene 的数据结构和算法的全面修改在 Lucene 4 中带来两个特别有趣的改进：
 
-DocValues（也称为跨列字段）。
+DocValues（也称为跨列字段）。（hxzon：？未理解）
 有限状态自动机 (FSA) 和有限状态转换器 (Finite State Transducers, FST)。
 
 本文剩余内容将二者都称为 FSA。
 （在技术上，一个 FST 是访问它的节点时的输出值，但这一区别在本文中并不重要。）
 
+----
 DocValues 和 FSA 都为某些可能影响您应用程序的操作类型提供了重大的新性能优势。
 
 在 DocValues 端，在许多情况下，应用程序需要非常快地顺序访问一个字段的所有值。
-或者应用程序需要对快速查找这些值来进行排序或分面，而不会导致从索引构建内存型版本（这个过程也称为非反转 (un-inverting)）的成本。
+或者应用程序需要对快速查找这些值来进行排序或分面，
+而不会导致从索引构建内存型版本（这个过程也称为非反转 (un-inverting)）的成本。
 
 DocValues 设计用来满足以下需求类型。
 一个没有大量通配符或模糊查询的应用程序应该看到使用 FSA 带来的重大性能改进。
 
+----
 Lucene 和 Solr 现在支持利用了 FSA 的查询自动建议和拼写检查功能。
 而且 Lucene 默认的 Codec 显著减少了磁盘和内存空间占用，
 在幕后使用 FSA 来存储术语字典（Lucene 在搜索期间用于查询术语的结构）。
@@ -485,11 +524,14 @@ for (String word : words) {
   strings.add(new BytesRef(word));
 
 }
+
 //build up a simple automaton out of several words
 Automaton automaton = BasicAutomata.makeStringUnion(strings);
 CharacterRunAutomaton run = new CharacterRunAutomaton(automaton);
 System.out.println("Match: " + run.run("hockey"));
 System.out.println("Match: " + run.run("ha"));
+
+（Automaton，自动机）
 
 在 清单 5 中，我从各种单词构建了一个 Automaton 并将它提供给 RunAutomaton。
 从名称可以看出，RunAutomaton 通过自动化来运行输入，
@@ -498,9 +540,10 @@ System.out.println("Match: " + run.run("ha"));
 （请参见 参考资料 以获取相关链接。）
 
 ====
-分面
+分面（hxzon：重要，未理解）
 
-在其核心，分面生成一定数量的文档属性，为用户提供一种缩小其搜索结果的轻松方式，无需他们猜测要向查询中添加哪些关键词。
+在其核心，分面生成一定数量的文档属性，
+为用户提供一种缩小其搜索结果的轻松方式，无需他们猜测要向查询中添加哪些关键词。
 例如，如果有人在一个购物网站上搜索电视，那么分面功能会告诉他们哪些制造商生产了多少种电视型号。
 分面也常常用于增强基于搜索的业务分析和报告工具。
 通过使用更高级的分面功能，您为用户提供了以有趣方式对分面进行切片和切块的能力。
@@ -510,6 +553,8 @@ System.out.println("Match: " + run.run("ha"));
 Lucene 的分面模块在功能上没有 Solr 丰富，但它确实提供了一些有趣的权衡。
 Lucene 的分面模块不是动态的，因为您必须在索引时制定一些分面决策。
 但它是分层的，而且它没有将字段动态非反转 (un-invert) 到内存中的成本。
+
+（Taxonomy，分类学，分类系统）
 
 清单 6（包含在示例代码的 FacetExamples.java 文件中）显示了 Lucene 的一些新的分面功能：
 清单 6. Lucene 分面示例
@@ -530,10 +575,12 @@ for (int i = 0; i < DOC_BODIES.length; i++) {
 }
 writer.commit();
 taxoWriter.commit();
+
 DirectoryReader reader = DirectoryReader.open(dir);
 IndexSearcher searcher = new IndexSearcher(reader);
 DirectoryTaxonomyReader taxor = new DirectoryTaxonomyReader(taxoWriter);
 ArrayList<FacetRequest> facetRequests = new ArrayList<FacetRequest>();
+
 CountFacetRequest home = new CountFacetRequest(new CategoryPath("Home", '/'), 100);
 home.setDepth(5);
 facetRequests.add(home);
@@ -549,10 +596,13 @@ for (FacetResult fres : facetsCollector.getFacetResults()) {
   printFacet(root, 0);
 }
 
-清单 6 中的重要代码（除正常的 Lucene 索引和搜索外）包含在 FacetFields、FacetsCollector、TaxonomyReader 和 TaxonomyWriter 类的使用中。
+清单 6 中的重要代码（除正常的 Lucene 索引和搜索外）
+包含在 FacetFields、FacetsCollector、TaxonomyReader 和 TaxonomyWriter 类的使用中。
+
 FacetFields 在文档中创建了合适的字段条目，在建立索引时可与 TaxonomyWriter 结合使用。
 在搜索时，可结合使用 TaxonomyReader 与 FacetsCollector，以获取每个类别的正确计数。
 另请注意，Lucene 的分面模块创建了一个辅助索引，要让该索引生效，必须让它与主要索引保持同步。
+
 使用您在前面示例的相同命令中使用的顺序来运行 清单 6 的代码，
 但将 java 命令中的 FacetExamples 替换为 IndexingExamples。
 您应该得到：
@@ -574,6 +624,7 @@ Home (0.0)
 
 请注意，在这个特定的实现中，我未包含 Home 分面的计数，因为包含它们可能需要很高的成本。
 该选项可通过设置适当的 FacetIndexingParams 来提供支持，这里没有提供有关介绍。
+
 Lucene 的分面模块拥有我未介绍的额外功能。
 您可以查阅 参考资料 中的文章，探索它们本文未涉及的其他新的 Lucene 功能。
 现在，我们来看一看 Solr 4.x。
@@ -588,12 +639,13 @@ Solr 还使您能够回答新的问题类型，同时利用我刚列出的许多
 其他更改主要针对开发人员的上手体验。
 例如，全新的 Solr 参考指南（参见 参考资料）为每个 Solr 版本（从 4.4 版开始）提供了具有图书质量的文档。
 
-而且 Solr 新的无模式功能使新数据能快速添加到索引中，无需首先定义一种模式。
+而且 Solr 新的“无模式”功能使新数据能快速添加到索引中，无需首先定义一种模式。
 您稍后将看到 Solr 的无模式功能。
-让我们先来看一下 Solr 中一些新的搜索、分面和相关性增强，您已在 Solr Air 应用程序中看到了其中一些功能的实际应用。
+让我们先来看一下 Solr 中一些新的搜索、分面和相关性增强，
+您已在 Solr Air 应用程序中看到了其中一些功能的实际应用。
 
 ====
-搜索、分面和相关性
+搜索、分面和相关性（hxzon：知识点）
 
 一些新 Solr 4 功能设计用来在索引端和 “搜索和分面” 端更容易地构建下一代数据驱动应用程序。
 表 1 总结了要点功能以及适用的命令和代码示例：
@@ -630,7 +682,8 @@ Codec 支持
 字段突变（例如串联字段、分析数字、修剪）
 
 脚本。
-使用 JavaScript 或其他受 JavaScript 引擎支持的脚本来处理文档。请参阅 Solr Air 示例中的 update-script.js 文件。
+使用 JavaScript 或其他受 JavaScript 引擎支持的脚本来处理文档。
+请参阅 Solr Air 示例中的 update-script.js 文件。
 
 检测语言（在 3.5 版中在技术上可行，但这里值得一提）来识别文档中使用的语言（比如英语或日语）。
 
@@ -639,20 +692,26 @@ Codec 支持
 从命令行，使用 cURL，将文档 243551 的来源更改为 FOO：
 curl http://localhost:8983/solr/update -H 'Content-type:application/json' -d ' [{"id":"243551","Origin":{"set":"FOO"}}]'
 
+----
 您可在浏览器地址栏（而不是在 Solr Air UI 中）对 Solr Air 演示数据运行 表 1 中的前 3 个示例命令。
 
-有关相关性功能、连接和 Codec — 以及其他新 Solr 4 功能 — 的更多细节，请参见 参考资料 获取 Solr Wiki 和其他位置的相关链接。
+有关相关性功能、连接和 Codec — 以及其他新 Solr 4 功能 — 的更多细节，
+请参见 参考资料 获取 Solr Wiki 和其他位置的相关链接。
 
 ====
 扩展、NoSQL 和 NRT
 
 或许最近几年 Solr 中最重大的变化是，构建一个多节点可扩展搜索解决方案变得简单了许多。
-在 Solr 4.x 中，比以往更容易将 Solr 扩展为数十亿条记录的权威的存储和访问机制 — 同时获得 Solr 已为大家熟知的搜索和分面功能。
-此外，您可以在容量需求更改时重新平衡您的集群，并利用乐观锁定、内容原子更新，以及实时数据检索，即使它尚未建立索引。
+在 Solr 4.x 中，比以往更容易将 Solr 扩展为数十亿条记录的权威的存储和访问机制 
+— 同时获得 Solr 已为大家熟知的搜索和分面功能。
+此外，您可以在容量需求更改时重新平衡您的集群，
+并利用乐观锁定、内容原子更新，以及实时数据检索，即使它尚未建立索引。
+
 Solr 中新的分布式功能被统称为 SolrCloud。
 
 SolrCloud 是如何工作的？
-Solr 4 在（可选的）分布式模式下运行时，发送给它的文档会依据一种哈希机制来路由到集群中的某个节点（被称为前导点 (leader)）。
+Solr 4 在（可选的）分布式模式下运行时，发送给它的文档
+会依据一种哈希机制来路由到集群中的某个节点（被称为前导点 (leader)）。
 前导点负责将文档索引到一个分片 (shard)。
 一个分片是一个索引，由一个前导点和 0 或多个副本组成。
 
@@ -660,19 +719,23 @@ Solr 4 在（可选的）分布式模式下运行时，发送给它的文档会�
 在 Solr 启动时，4 个机器中的每一个与其他 3 个通信。
 两个机器被选为前导点，一个前导点对应一个分片。
 其他两个节点自动成为一个分片的副本。
-如果一个前导点因为某种原因而发生故障，那么分片副本（在此情况下是惟一的副本）也会成为前导点，以保证系统仍能正常运行。
-您可以从这个示例得出结论，在生成系统中，必须有足够多个节点参与其中，才能确保您可处理系统宕机。
+如果一个前导点因为某种原因而发生故障，
+那么分片副本（在此情况下是惟一的副本）也会成为前导点，以保证系统仍能正常运行。
+您可以从这个示例得出结论，在生产系统中，
+必须有足够多个节点参与其中，才能确保您可处理系统宕机。
 
-要查看 SolrCloud 的实际应用，可使用一个 -z 标志运行 Solr Air 示例 中使用的 start-solr.sh 脚本，启动一个双节点、双分片的系统。
+要查看 SolrCloud 的实际应用，可使用一个 -z 标志运行 Solr Air 示例 中
+使用的 start-solr.sh 脚本，启动一个双节点、双分片的系统。
 从 *NIX 命令行，首先关闭您的旧实例：
 kill -9 PROCESS_ID
 然后重新启动系统：
 bin/start-solr.sh -c -z
 
-====
+==
 Apache Zookeeper
 
-Zookeeper 是一个分布式协调系统，设计用来选择前导点，建立一个配额数量，并执行其他任务来协调集群中的节点。
+Zookeeper 是一个分布式协调系统，设计用来选择前导点，
+建立一个配额数量，并执行其他任务来协调集群中的节点。
 得益于 Zookeeper，Solr 集群绝不会遇到 “分裂脑” 症状，
 也就是说，由于一个分区事件，集群的一部分的行为与剩余部分是独立的。
 请参见 参考资料，了解 Zookeeper 的更多信息。
@@ -691,7 +754,10 @@ java -Dbootstrap_confdir=$SOLR_HOME/solr/collection1/conf
 该脚本告诉第二个节点 Zookeeper 位于何处：
 java -Djetty.port=7574 -DzkHost=localhost:9983 -jar start.jar
 
-嵌入式 Zookeeper 非常适合入门，但为了确保生产系统的高可用性和容错能力，请在您的集群中设置一组独立的 Zookeeper 实例。
+嵌入式 Zookeeper 非常适合入门，但为了确保生产系统的高可用性和容错能力，
+请在您的集群中设置一组独立的 Zookeeper 实例。
+
+==
 以 SolrCloud 功能为基础，提供了对 NRT 和许多类似 NoSQL 的功能的支持，比如：
 乐观锁定
 原子更新
@@ -699,6 +765,7 @@ java -Djetty.port=7574 -DzkHost=localhost:9983 -jar start.jar
 受事务日志支持的耐久性
 
 Solr 中的许多分布式功能和 NoSQL 功能（比如文档和事务日志的自动版本控制）会开箱即用地运行。
+
 对于其他一些功能，表 2 中的描述和示例将很有帮助：
 表 2. Solr 4 中的分布式功能和 NoSQL 功能的总结
 
@@ -706,7 +773,7 @@ Solr 中的许多分布式功能和 NoSQL 功能（比如文档和事务日志�
 
 实时获取	
 按 ID 检索一个文档，无论它的索引或分发状态如何。
-	获取 ID 为 243551 的文档：
+获取 ID 为 243551 的文档：
 http://localhost:8983/solr/collection1/get?id=243551
 
 分片拆分	
@@ -728,7 +795,7 @@ NRT
 
 集合	
 根据需要，使用 Solr 新的集合 API 以编程方式创建、删除或更新集合。
-	创建一个名为 hockey 的新集合：
+创建一个名为 hockey 的新集合：
 http://localhost:8983/solr/admin/collections?action=CREATE&name=hockey&numShards=2
 
 ====
@@ -737,12 +804,14 @@ http://localhost:8983/solr/admin/collections?action=CREATE&name=hockey&numShards
 无模式：营销噱头？
 
 数据集合很少没有模式。
-无模式 是一个营销词汇，源自数据社区引擎对 “告诉” 引擎模式是什么的数据做出适当反应的能力，而无需引擎指定数据必须采用的格式。
+无模式 是一个营销词汇，源自数据社区引擎对 “告诉” 引擎模式是什么的数据做出适当反应的能力，
+而无需引擎指定数据必须采用的格式。
 例如，Solr 可接受 JSON 输入，可基于 JSON 中隐式定义的模式适当地为内容建立索引。
 正如有人在 Twitter 上对我所说的，更少模式 是一个比无模式 更好的词汇，
 因为您在一个位置上（比如一个 JSON 文档）定义模式，而不是在两个位置上（比如一个 JSON 文档和 Solr）。
 
-基于我的经验，在绝大多数情况下，您都不应在生产环境中使用无模式，除非您喜欢在凌晨两点，
+基于我的经验，在绝大多数情况下，您都不应在生产环境中使用无模式，
+除非您喜欢在凌晨两点，
 在您的系统认为它拥有一种数据类型而实际拥有另一种类型的时候调试错误。
 
 Solr 的无模式功能使得客户端能够快速添加内容，而不会产生首先定义一个 schema.xml 文件的开销。
@@ -750,8 +819,10 @@ Solr 检查传入的数据，并通过一个级联的值分析器集合传递该
 值分析器猜测数据的类型，然后自动向内部模式添加字段并向索引添加内容。
 
 典型的生产系统（也有一些例外）不应使用无模式，因为值猜测并不总是完美的。
-例如，Solr 第一次看到一个新字段时，它可能将该字段识别为一个整数，进而在底层模式中定义一个整数 FieldType。
-但您可能发现，在 3 星期后该字段无法用于搜索，因为在 Solr 看到的剩余内容中，该字段都由浮点值组成。
+例如，Solr 第一次看到一个新字段时，它可能将该字段识别为一个整数，
+进而在底层模式中定义一个整数 FieldType。
+但您可能发现，在 3 星期后该字段无法用于搜索，
+因为在 Solr 看到的剩余内容中，该字段都由浮点值组成。
 
 但是，无模式对您很少能控制其格式的内容的早期开发或索引特别有帮助。
 例如，表 2 包含一个使用 Solr 中的集合 API 来创建一个新集合的示例：
@@ -762,6 +833,7 @@ http://localhost:8983/solr/admin/collections?action=CREATE&name=hockey&numShards
 作为实现无模式支持的一部分，Solr 还添加了具象状态传输 (Representational State Transfer, REST) API 来访问该模式。
 您可通过在浏览器中打开 http://localhost:8983/solr/hockey/schema/fields（或在命令行上使用 cURL），
 看到为 hockey 集合定义的所有字段。
+
 您会看到 Solr Air 示例中的所有字段。
 该模式使用这些字段，因为我的默认配置使用 create 选项作为新集合的基础。
 如果愿意的话，您可改写该配置。
@@ -791,20 +863,24 @@ bin/schemaless-example.sh
 Solr 对基于点的空间搜索的长久支持，使您能够找到距离某个点的一定距离内的所有文档。
 尽管 Solr 支持在一个 n 维空间中使用此方法，
 但大部分人都使用它执行地理空间搜索（例如，查找我的位置附近的所有饭店）。
-但是直到现在，Solr 仍不支持更加复杂的空间功能，比如对多边形建立索引或在建立了索引的多边形内执行搜索。
+但是直到现在，Solr 仍不支持更加复杂的空间功能，
+比如对多边形建立索引
+或在建立了索引的多边形内执行搜索。
 
 新的空间包中的一些要点包括：
-通过 Spatial4J 库（参见 参考资料），可支持许多新的空间类型（比如矩形、圆圈、线条和任意多边形）并支持 Well Known Text (WKT) 格式
-已建立索引的多值字段，您可以使用它们将多个点编码到同一个字段中
-可配置的精度，为开发人员提供了对准确性而不是计算速度的更多控制
-内容的快速过滤
-对 Is Within、Contains 和 IsDisjointTo 的查询支持
-对 Java Topological Suite (JTS)（参见 参考资料）的可选支持
-Lucene API 和工件
+-1，通过 Spatial4J 库（参见 参考资料），可支持许多新的空间类型（比如矩形、圆圈、线条和任意多边形）
+并支持 Well Known Text (WKT) 格式
+-2，已建立索引的多值字段，您可以使用它们将多个点编码到同一个字段中
+-3，可配置的精度，为开发人员提供了对准确性而不是计算速度的更多控制
+-4，内容的快速过滤
+-5，对 Is Within、Contains 和 IsDisjointTo 的查询支持
+-6，对 Java Topological Suite (JTS)（参见 参考资料）的可选支持
+-7，Lucene API 和工件
 
 Solr Air 应用程序的模式拥有多种字段类型，它们设置来利用这种新的空间功能。
 
 我定义了两种字段类型来处理机场数据的经度和纬度：
+
 <fieldType name="location_jts" class="solr.SpatialRecursivePrefixTreeFieldType" 
 distErrPct="0.025" spatialContextFactory=
 "com.spatial4j.core.context.jts.JtsSpatialContextFactory" 
@@ -816,10 +892,12 @@ distErrPct="0.025" geo="true" maxDistErr="0.000009" units="degrees"/>
 location_jts 字段类型显式使用可选的 JTS 集成来定义一个点，而 location_rpt 字段类型不会这么做。
 如果您希望对比简单矩形更复杂的任何内容建立索引，则需要使用 JTS 版本。
 该字段的属性有助于定义系统的准确性。
+
 在索引时需要使用这些属性，因为 Solr 通过 Lucene 和 Spatial4j 以多种方式编码数据，以确保可在搜索时高效地使用数据。
 对于您的应用程序，您可能希望对您的数据运行一些测试，以确定要在索引大小、精度和查询时性能上执行的权衡。
 
-此外，Solr Air 应用程序中使用的 near 查询使用了新的空间查询语法（一个 Circle 上的 IsWithin）来查找指定的来源和目标机场附近的机场。
+此外，Solr Air 应用程序中使用的 near 查询
+使用了新的空间查询语法（一个 Circle 上的 IsWithin）来查找指定的来源和目标机场附近的机场。
 
 ====
 新的管理 UI
@@ -834,37 +912,44 @@ location_jts 字段类型显式使用可选的 JTS 集成来定义一个点，�
 
 如果在仪表板左侧选择 Cloud，该 UI 将会显示 SolrCloud 的详细信息。
 例如，您会获得配置状态、活动节点和前导点，以及集群拓扑结构的可视化的深入信息。
+
 图 8 显示了一个示例。
 请花费一点时间了解一下所有云 UI 选项。
 （您必须在 SolrCloud 模式下运行才能看到它们。）
+
 图 8. 示例 SolrCloud UI
 一个 SolrCloud UI 示例的屏幕截图
 
 要介绍的最后一个未绑定到特定核心/集合/索引的 UI 区域是 Core Admin 屏幕集合。
 这些屏幕为核心的管理提供了即指即点式的控制，包括添加、删除、重新加载和交换核心。
 图 9 显示了 Core Admin UI：
+
 图 9. Core Admin UI 的示例
 核心 Solr 管理 UI 的屏幕截图
 
 通过从 Core 列表选择一个核心，您可以获得特定于该核心的信息和统计数据概述。
 图 10 显示了一个示例：
+
 图 10. 示例核心概述
 Solr UI 中一个核心概述示例的屏幕截图
 
 大多数针对核心的功能与 4.x 以前的 UI 的功能类似（但是使用起来更加轻松），除了 Documents 选项之外。
 您可以使用 Documents 选项直接从 UI 向该集合添加各种格式（JSON、CSV、XML 等）的文档，
 如图 11 所示：
+
 图 11. 从 UI 添加一个文档的示例
 来自 Solr UI 的屏幕截图，显示了一个添加到一个集合中的 JSON 文档
 
 您甚至可上传富文当类型，比如 PDF 和 Word。
-花费片刻时间将一些文档添加到您的索引中，或者浏览其他针对集合的功能，比如 Query 接口或修改的 Analysis 屏幕。
+花费片刻时间将一些文档添加到您的索引中，
+或者浏览其他针对集合的功能，比如 Query 接口或修改的 Analysis 屏幕。
 
 ============
 结束语
 
 下一代搜索引擎技术为用户提供了决定如何处理他们的数据的权力。
-本文详细介绍了 Lucene 和 Solr 4 的功能，我还希望您更广泛地了解了搜索引擎如何解决涉及分析和建议的非基于文本的搜索问题。
+本文详细介绍了 Lucene 和 Solr 4 的功能，
+我还希望您更广泛地了解了搜索引擎如何解决涉及分析和建议的非基于文本的搜索问题。
 Lucene 和 Solr 都在不断演变，这得益于一个庞大的维护社区，该社区由 30 多个提交者和数百位贡献者提供支持。
 
 该社区正在积极开发两个主要分支：
@@ -882,7 +967,8 @@ Lucene 和 Solr 都在不断演变，这得益于一个庞大的维护社区，�
 
 参考资料
 学习
-Grant Ingersoll 探讨 Solr 和 Lucene：在这些 developerWorks 文章中进一步了解 Solr，以及 Solr 和 Lucene 中的位置感知搜索。
+Grant Ingersoll 探讨 Solr 和 Lucene：
+在这些 developerWorks 文章中进一步了解 Solr，以及 Solr 和 Lucene 中的位置感知搜索。
 
 “Earlybird:Real-Time Search at Twitter”（Michael Busch 等，012 年度 IEEE 第 28 届数据工程国际会议的会议记录，2012 年）：
 了解 Twitter 如何使用 Lucene 执行搜索。
@@ -893,31 +979,43 @@ D3：进一步了解 D3 JavaScript 库并查阅 D3 Airport 示例。
 Solr 网站
 Solr 参考指南
 
-Apache Solr 3 Enterprise Search Server（David Smiley 和 Eric Pugh，Packt Publishing，2011 年）。（涵盖第 3 版，但大部分图书都适合入门。）
+Apache Solr 3 Enterprise Search Server（David Smiley 和 Eric Pugh，Packt Publishing，2011 年）。
+（涵盖第 3 版，但大部分图书都适合入门。）
+
 Solr In Action（Trey Grainger 和 Timothy Potter，Manning Publications，2012 年）
+
 Taming Text（Grant S. Ingersoll、Thomas S. Morton 和 Andrew L. Farris，Manning Publications，2013 年）
 
-使用 Lucene 的并发刷新将索引加速 265%： 查阅 Mike McCandless 的博客文章，了解 Lucene 中的性能加速的更多详细信息。
+使用 Lucene 的并发刷新将索引加速 265%： 
+查阅 Mike McCandless 的博客文章，了解 Lucene 中的性能加速的更多详细信息。
 
 Introduction to Information Retrieval
 （Christopher D. Manning、Prabhakar Raghavan 和 Hinrich Schütze，Cambridge University Press，2008 年）：
 在这篇优秀且免费的参考文章中了解搜索引擎计分模型和其他信息检索主题的详细信息。
 
+----
 进一步了解本文介绍的 Lucene 4.x 功能：
+
 DocValues：
 “跨列字段又称为DocValues”：查阅来自 Simon Willnauer 的演讲的幻灯片。
 DocValues：查阅 Solr wiki 的 DocValues 页面。
+
 有限状态自动机：
 “Automata Invasion”：观看 Robert Muir 和 Mike McCandless 解释 Lucene 中对 FSA 的使用，或者阅读演示 幻灯片
 有限状态机：要进一步了解 FSA，请首先查阅这篇 Wikipedia 文章。
+
 分面增强：
 Lucene 分面，第 1 部分 和 第 2 部分（Shai Erera 的博客）。（代码示例相对 Lucene 4.4 而言已过时，但概念仍然适用。）
 Fun with Lucene's faceted search module（Mike McCandless 的博客）
 Drill sideways faceting with Lucene（Mike McCandless 的博客）
 Dynamic faceting with Lucene（Mike McCandless 的博客）
-索引吞吐量：查看 Mike McCandless 的 Lucene 基准测试图表。
 
+索引吞吐量：
+查看 Mike McCandless 的 Lucene 基准测试图表。
+
+----
 查阅 Solr wiki，进一步了解本文介绍的 Solr 4.x 功能：
+
 相关性功能
 DocTransformers
 联接
@@ -932,11 +1030,14 @@ NRT
 针对 Lucene Spatial 4 的 Solr 适配器
 
 Spatial for Time Duration
-“Shard Splitting in SolrCloud”（Anshum Gupta，SearchHub，2013 年 6 月）：了解如何使用分片拆分来重新平衡您的 Solr 集群。
+“Shard Splitting in SolrCloud”（Anshum Gupta，SearchHub，2013 年 6 月）：
+了解如何使用分片拆分来重新平衡您的 Solr 集群。
 
-SolrCloud Document Routing（Joel Bernstein 的博客）：努力控制如何在分布式索引中路由文档。
+SolrCloud Document Routing（Joel Bernstein 的博客）：
+努力控制如何在分布式索引中路由文档。
 
-“Lucene / Solr 4 Spatial Deep Dive”：观看 David Smiley 的这篇演示文稿，进一步了解 Solr 的空间功能。
+“Lucene / Solr 4 Spatial Deep Dive”：
+观看 David Smiley 的这篇演示文稿，进一步了解 Solr 的空间功能。
 
 Spatial4j：进一步了解 Solr 和 Lucene 所使用的 Java 地理空间库。
 

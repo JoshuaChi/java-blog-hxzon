@@ -1,0 +1,6 @@
+﻿（hxzon读书笔记）《Lucene实战·第2版》-3，查询（Query）
+
+by hxzon
+原书Lucene 3.0版，当前Lucene 4.8.1版。
+====
+

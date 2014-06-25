@@ -128,6 +128,13 @@ IndexWriter会周期性的选择一些段，合并到一个新段中，然后删
 合并段的选取策略由类MergePolicy控制。
 具体合并操作由类MergeScheduler控制。
 
+补充：
+Lucene 分段是整个索引的一个子集。
+从许多方面来看，分段是一个自成一体的微型索引。
+Lucene 使用了分段平衡索引的搜索可用性和写入速度，以便构建其索引。
+分段是索引期间只需编写一次的文件，在写入期间，每次提交时都会创建一个新分段。
+在后台，默认情况下，Lucene 会定期将较小的分段合并到已交到的分段中，以提高读取性能和减少系统开销。
+
 ====
 10，基本索引操作
 
@@ -291,5 +298,15 @@ MaxFieldLength.Limited 只截取字段中的前1000项。
 IndexWriter.setInfoStream(System.out) 可以接收很多诊断信息。
 
 （2014.6.22）
+
+============
+18，近实时搜索
+
+Lucene4.8.1，用writer重建一个searcher 。
+
+searcher = new IndexSearcher(DirectoryReader.open(writer, false));
+
+====
+19，
 
 

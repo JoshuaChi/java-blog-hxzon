@@ -300,6 +300,8 @@
          Class names starting with "solr" refer to java classes in a
        standard package such as org.apache.solr.analysis
        以“solr”开头的类名，指向特定的solr包。
+       
+       hxzon补充：postingsFormat="SimpleText" 指定索引文件格式。
     -->
 
     <!-- The StrField type is not analyzed, but indexed/stored verbatim.
@@ -628,7 +630,7 @@
       </analyzer>
     </fieldType>
 
-    <!-- charFilter + WhitespaceTokenizer  -->
+    <!-- charFilter + WhitespaceTokenizer 字符过滤器 -->
     <!--
     <fieldType name="text_char_norm" class="solr.TextField" positionIncrementGap="100" >
       <analyzer>
@@ -639,9 +641,9 @@
     -->
 
     <!-- This is an example of using the KeywordTokenizer along
-         关键字分割器的示例。
+         关键字分割器（不分析）。
          With various TokenFilterFactories to produce a sortable field
-         可排序的字段。
+         配合各种过滤器，产生一个可排序的字段。
          that does not include some properties of the source text
       -->
     <fieldType name="alphaOnlySort" class="solr.TextField" sortMissingLast="true" omitNorms="true">
@@ -675,7 +677,7 @@
       </analyzer>
     </fieldType>
     
-    <!-- phonetic ，拼音 。  -->
+    <!-- phonetic ，拼音 。 Metaphone，音素，对发音编码。 -->
     <fieldtype name="phonetic" stored="false" indexed="true" class="solr.TextField" >
       <analyzer>
         <tokenizer class="solr.StandardTokenizerFactory"/>
@@ -689,6 +691,7 @@
         <tokenizer class="solr.WhitespaceTokenizerFactory"/>
         <!--
         The DelimitedPayloadTokenFilter can put payloads on tokens... for example,
+        一个token分为多个部分，某些部分作为属性（即负载）。
         a token of "foo|1.4"  would be indexed as "foo" with a payload of 1.4f
         Attributes of the DelimitedPayloadTokenFilterFactory : 
         可以给token添加负载（属性值）。
@@ -749,7 +752,7 @@
     <fieldtype name="ignored" stored="false" indexed="false" multiValued="true" class="solr.StrField" />
 
     <!-- This point type indexes the coordinates as separate fields (subFields)
-    "点"，用来索引坐标值。
+    "点"，用来索引坐标值。可以指定维度数。
       If subFieldType is defined, it references a type, and a dynamic field
       如果定义了子字段类型，则会创建动态字段，名字为 “ *_类型名 ”。
       definition is created matching *___<typename>.  Alternately, if 
@@ -766,7 +769,7 @@
     <fieldType name="point" class="solr.PointType" dimension="2" subFieldSuffix="_d"/>
 
     <!-- A specialized field for geospatial search. If indexed, this fieldType must not be multivalued. 
-    Lat 纬度，Lon 经度。
+    Lat 纬度，Lon 经度。如果要被索引，不能是多值的。
     -->
     <fieldType name="location" class="solr.LatLonType" subFieldSuffix="_coordinate"/>
 
@@ -778,6 +781,23 @@
     -->
     <fieldType name="location_rpt" class="solr.SpatialRecursivePrefixTreeFieldType"
                geo="true" distErrPct="0.025" maxDistErr="0.000009" units="degrees" />
+
+
+    <!-- hxzon补充。 
+    <fieldType name="location_jts" class="solr.SpatialRecursivePrefixTreeFieldType" 
+			distErrPct="0.025" 
+			spatialContextFactory="com.spatial4j.core.context.jts.JtsSpatialContextFactory" 
+			maxDistErr="0.000009" units="degrees"/>
+    location_jts 字段类型显式使用可选的 JTS 集成来定义一个点，而 location_rpt 字段类型不会这么做。
+如果您希望对比简单矩形更复杂的任何内容建立索引，则需要使用 JTS 版本。
+该字段的属性有助于定义系统的准确性。
+
+在索引时需要使用这些属性，因为 Solr 通过 Lucene 和 Spatial4j 以多种方式编码数据，以确保可在搜索时高效地使用数据。
+对于您的应用程序，您可能希望对您的数据运行一些测试，以确定要在索引大小、精度和查询时性能上执行的权衡。
+
+此外，Solr Air 应用程序中使用的 near 查询
+使用了新的空间查询语法（一个 Circle 上的 IsWithin）来查找指定的来源和目标机场附近的机场。
+     -->
 
     <!-- Money/currency field type. See http://wiki.apache.org/solr/MoneyFieldType
     “货币”字段。
@@ -1202,6 +1222,17 @@
   
   <!-- Similarity is the scoring routine for each document vs. a query.
   相似性。scoring routine，常规得分？
+  如果您喜欢的话，可以使用备用的计分模型，
+比如来自 Randomness 的 BM25 和 Divergence（参见 参考资料），或者您可以编写自己的模型。
+
+为什么编写自己的模型？
+或许您的 “文档” 代表着分子或基因；
+您想要采用一种快速方式来对它们进行分类，但术语频率和文档频率并不适用。
+或者您可能想要试验您在一篇研究文章中读到的一种新计分模型，以查看它在您内容上的工作情况。
+无论原因是什么，更改计分模型都需要您在建立索引时
+通过 IndexWriterConfig.setSimilarity(Similarity) 方法更改该模型，
+并在搜索时通过 IndexSearcher.setSimilarity(Similarity) 方法更改它。
+
        A custom Similarity or SimilarityFactory may be specified here, but 
        the default is fine for most applications.  
        For more info: http://wiki.apache.org/solr/SchemaXml#Similarity

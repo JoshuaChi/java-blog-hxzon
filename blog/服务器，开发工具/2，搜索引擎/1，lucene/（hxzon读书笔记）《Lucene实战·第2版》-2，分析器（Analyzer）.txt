@@ -89,7 +89,7 @@ TrimFilterFactory 移除每个token的前后空白符。
 
 PatternReplaceFilterFactory 基于正则表达式的替换。
 
-DoubleMetaphoneFilterFactory （Metaphone，音素，发音。）
+DoubleMetaphoneFilterFactory （Metaphone，音素，对发音进行编码。）
 
 DelimitedPayloadTokenFilterFactory 
 
