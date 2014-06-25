@@ -1,0 +1,58 @@
+﻿（hxzon读书笔记）《Lucene实战·第2版》-4，更多
+
+by hxzon
+原书Lucene 3.0版，当前Lucene 4.8.1版。
+====
+1，字段缓存（为了更快的读取文档的某个字段的值）
+
+2，对搜索结果排序
+
+12，自定义排序
+
+
+3，MultiPhraseQuery
+
+4，同时对多个字段查询
+
+5，跨度查询
+
+6，搜索过滤
+
+7，自定义评分（使用“功能查询”实现）
+
+8，对多个索引进行搜索（MultiSearch）
+
+多线程搜索（ParallelMultiSearcher）
+
+9，使用项向量
+9.1，查找相似书籍
+9.2，自动分类
+9.3，TermVectorMapper
+
+10，FieldSelector（加载字段）
+
+11，停止较慢的搜索
+
+13，自定义Collector
+
+14，扩展QueryParser
+XML QueryParser
+
+15，自定义过滤器
+链式过滤器
+
+16，有效负载
+
+17，高亮显示
+
+17.1，FastVectorHighlighter（更快的高亮显示）
+
+18，拼写检查
+
+19，查询扩展
+
+20，WordNet 同义词
+
+21，外围查询语言
+
+22，Spatial Lucene 空间查询

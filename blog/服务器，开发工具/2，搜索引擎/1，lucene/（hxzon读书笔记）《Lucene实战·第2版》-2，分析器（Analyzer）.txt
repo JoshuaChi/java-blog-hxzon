@@ -3,8 +3,148 @@
 by hxzon
 原书Lucene 3.0版，当前Lucene 4.8.1版。
 ====
+1，分析，即文本转换为项，
+项即字段名加上语汇单元（token）。
+
+常见操作：提取单词，去除标点符号，去掉字母的音调符号，
+将字母转成小写（规范化），去除常用词（停用词），
+将单词还原为词干形式（词干还原），
+或者将单词转换成基本形式（词形归并lemmatization），
+同义词注入，近音词。
+
+====
+2，四个内置分析器
+
+WhitespaceAnalyzer 通过空格来分割，不做其他处理。
+
+SimpleAnalyzer 通过“非字母字符”分割（会去掉数字类型的字符），统一为小写。
+
+StopAnalyzer 类似SimpleAnalyzer，但是会去掉常用词。
+
+StandardAnalyzer 包含大量逻辑操作，可以识别公司名称，Email地址，主机名称等。
+统一为小写，去除停用词，去除标点符号。
+支持：字母数字混合的词汇，缩写词，公司名称，Email地址，计算机主机名称，数字，
+内部带撇号的单词，序列号，ip地址，中文和日文字符。
+
+其它分析器
+KeywordAnalyzer 整个文本作为一个token。
 
 
+====
+3，索引期间，三个层次指定分析器：IndexWriter，文档级别，字段级别
+
+QueryParser：只能指定一个分析器。
+"persident obama" +hardvard +professor 注意，是会三次调用分析器（每个独立的文本片段一次）。
+
+====
+4，分析器通过TokenStream，将文本转换为token流。
+
+TokenStream有两个不同的类型：
+Tokenizer，从Reader读取字符，并创建token。
+TokenFilter，对前面的TokenStream进行新增，删除，修改。
+
+----
+核心分割器：
+
+LowerCaseTokenizer 通过“非字母字符”分割（去掉非字母字符），统一为小写。LetterTokenizer的子类。
+
+CharTokenizer 基于字符的抽象父类，包含抽象方法isTokenChar()。
+该方法返回true时，输出连续的语汇单元块。
+该类还能将字符规范化处理（例如转换成小写）。
+
+WhitespaceTokenizer CharTokenizer的子类，isTokenChar()返回true。处理所有分空格字符。
+
+KeywordTokenizer 整个字符串作为语汇单元。
+
+LetterTokenizer CharTokenizer的子类。
+
+SinkTokenizer 用于吸收token，缓存至自己的私有列表中。与TeeTokenFilter配合使用。
+
+StandardTokenizer
+
+----
+核心过滤器：
+
+LowerCaseFilter 小写化。
+
+StopFilter 移除停用词。
+
+PorterStemFilter 波特算法的词干提取。
+
+TeeTokenFilter 将token写入SinkTokenizer，同时返回未被修改的token，即复制token流。
+使用场景：当多个字段共享“同一个初始化分析步骤”时。
+
+ASCIIFoldingFilter 去除音调（带音调字符转换为不带音调的字符）。
+
+CachingTokenFilter 缓存所有token。调用reset()方法后，能重复以上处理。
+
+LengthFilter 支持特定文本长度的token。
+
+StandardFilter 与StandardTokenizer配合使用。去除缩略词中的点号，去除's（去除所有格） 。
+
+
+====
+5，语汇单元的组成
+
+位置增量（token之间的位置）
+起点和终点偏移量（可用于高亮显示）
+有效负载
+语汇单元类型（只在分析过程中使用，默认值为word）
+标志位（int）（只在分析过程中使用，Lucene内置分析器不使用）
+
+位置增量影响“短语查询”和“跨度查询”。
+如果位置增量大于1，则token之间有空隙，用空隙表示被删除的单词。
+位置增量为0，表示token放置在前一个token的相同位置上。例如通过零增量来插入同义词。
+
+观察token的属性p117
+
+内置的token属性：
+TemAttribute
+PositionIncrementAttribute
+OffsetAttribute
+TypeAttribute
+FlagAttribute
+PayloadAttribute
+
+可以通过它们来获取，或设置属性值。
+
+StandardAnalyzer是唯一会设置语汇单元类型的内置分析器，但只在分析时使用，不会存入索引中。
+可以使用TypeAsPayloadTokenFilter，将类型作为有效负载保存下来。
+
+====
+6，近音词查询
+
+7，同义词
+
+可在索引期间，也可在搜索期间加入同义词。
+在搜索期间加入同义词，灵活性更大。
+
+8，词干分析
+
+====
+9，多值字段的分析
+
+getPositionIncrementGap()，若返回0，表示各个值是连接在一起的。
+若返回100（足够大），就不会意外匹配两个分离的字段值。
+
+endOffset()
+
+getOffsetGap()
+
+====
+10，指定某个字段使用某个分析器（PerFieldAnalyzerWrapper）
+
+11，搜索未被分析的字段 QueryParser也使用PerFieldAnalyzerWrapper
+
+12，Nutch分析
+
+包含常用词的短语。
+
+二元语法技术（bigram，将两个连续的单词作为一个单一的token）。
+
+Shingles也提供了同样功能。
+
+（2014.6.25）（第4章结束）
 
 =======================
 hxzon补充：solr schema.xml 中的分析器
