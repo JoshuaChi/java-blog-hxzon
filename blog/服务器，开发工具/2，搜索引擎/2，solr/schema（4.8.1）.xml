@@ -176,7 +176,9 @@
     <dynamicField name="*_d"  type="double" indexed="true"  stored="true"/>
     <dynamicField name="*_ds" type="double" indexed="true"  stored="true"  multiValued="true"/>
 
-    <!-- Type used to index the lat and lon components for the "location" FieldType -->
+    <!-- Type used to index the lat and lon components for the "location" FieldType 
+    经纬度。
+    -->
     <dynamicField name="*_coordinate"  type="tdouble" indexed="true"  stored="false" />
 
     <dynamicField name="*_dt"  type="date"    indexed="true"  stored="true"/>
@@ -453,7 +455,7 @@
     -->
 
     <!-- A text field that only splits on whitespace for exact matching of words 
-    只按空白符分割，且精确匹配整个单词。
+    只按空白符分割，即精确匹配整个单词。
     -->
     <fieldType name="text_ws" class="solr.TextField" positionIncrementGap="100">
       <analyzer>
@@ -466,6 +468,7 @@
 	 removes stop words from case-insensitive "stopwords.txt"
 	 (empty by default), and down cases.  At query time only, it
 	 also applies synonyms. 
+	 分别制定索引时，和查询时，的分析器。
 	 标准的符号分割，小写化，移除常用词。
 	 在查询期间，还会应用近义词。
 	 
@@ -599,6 +602,7 @@
         <filter class="solr.KeywordMarkerFilterFactory" protected="protwords.txt"/>
         <filter class="solr.EnglishMinimalStemFilterFactory"/>
         <!-- this filter can remove any duplicate tokens that appear at the same position - sometimes
+        移除重复的token。
              possible with WordDelimiterFilter in conjuncton with stemming. -->
         <filter class="solr.RemoveDuplicatesTokenFilterFactory"/>
       </analyzer>

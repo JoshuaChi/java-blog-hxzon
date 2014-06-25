@@ -45,11 +45,11 @@ token，语汇单元
 norms，加权基准。p47
 （hxzon：在线性代数，函数分析等数学学科中，norm是一种可以在向量空间里对向量赋予长度和大小的函数。）
 
-stop words，停用词，很常用单没有实际意义的词，例如 a ，an ， on 。
+stop words，停用词，很常用但没有实际意义的词，例如 a ，an ， on 。
 
 filter，过滤器。例如 PorterStemFilter：处理英文文本，词干提取（词干即词的基本形式）。
 
-DocValues（也称为跨列字段）。4.0版本开始。
+DocValues（也称为跨列字段）。4.0版本开始。？
 
 Facet，分面。
 
@@ -70,7 +70,7 @@ TokenFilter 从 Tokenizer 接受 Token 并且可以在索引之前修改或删�
 5，搜索过程中的核心类
 
 -1，IndexSearcher，搜索器
--2，Term，项，条目（字段名+字段值）
+-2，Term，项，条目（字段名+语汇单元）
 -3，Query，查询
 -4，TermQuery，条目查询，最基本的查询类型。
 -5，TopDocs，匹配结果，指向排名中的前n个搜索结果，会记录每个结果的文档id（int）和分数（float）。
@@ -291,18 +291,5 @@ MaxFieldLength.Limited 只截取字段中的前1000项。
 IndexWriter.setInfoStream(System.out) 可以接收很多诊断信息。
 
 （2014.6.22）
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 

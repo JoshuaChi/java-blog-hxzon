@@ -1,0 +1,101 @@
+﻿（hxzon读书笔记）《Lucene实战·第2版》-2，分析器（Analyzer）
+
+by hxzon
+原书Lucene 3.0版，当前Lucene 4.8.1版。
+====
+
+
+
+=======================
+hxzon补充：solr schema.xml 中的分析器
+
+1，solr的字段类型
+
+StrField 不分析，但是索引和存储。
+TextField
+
+BoolField
+TrieIntField
+TrieFloatField
+TrieLongField
+TrieDoubleField
+TrieDateField
+
+BinaryField 二进制
+
+RandomSortField
+
+CurrencyField 货币。
+
+PointType 点，可设定维度数。
+
+LatLonType 经纬度
+
+SpatialRecursivePrefixTreeFieldType 地理空间递归前缀树。
+http://wiki.apache.org/solr/SolrAdaptersForLuceneSpatial4
+
+
+
+====
+2，分析器=分割器+若干个过滤器
+
+==
+2.1，字符过滤器（charFilter，在分割器之前）：
+
+MappingCharFilterFactory 将字符替换为另一个字符，例如繁体转简体。
+
+==
+2.2，分割器（tokenizer，生成语汇单元token）
+
+WhitespaceTokenizerFactory 根据空白符分割。
+
+StandardTokenizerFactory 标准分割。
+
+KeywordTokenizerFactory 不分析，整个输入作为语汇单元。
+
+PathHierarchyTokenizerFactory 路径层级，可以指定层级之间的分隔符。
+
+JapaneseTokenizerFactory 日文分词。
+
+
+==
+2.3，过滤器（filter，对之前的token流进行添加，删除，修改）
+
+StopFilterFactory 移除停用词。
+
+SynonymFilterFactory 添加近义词。
+
+LowerCaseFilterFactory
+
+KeywordMarkerFilterFactory
+
+EnglishPossessiveFilterFactory 英语所有格。
+
+EnglishMinimalStemFilterFactory 英语词干提取。
+
+PorterStemFilterFactory 基于波特算法的词干提取。
+
+SnowballPorterFilterFactory 雪球算法的词干提取，适用于欧洲语言。
+
+StemmerOverrideFilterFactory 词干覆盖。
+
+WordDelimiterFilterFactory 
+
+RemoveDuplicatesTokenFilterFactory 移除重复的token。
+
+ReversedWildcardFilterFactory 反转通配符。反转每个符号的字母顺序。为了更好的支持以通配符开始的查询。
+
+TrimFilterFactory 移除每个token的前后空白符。
+
+PatternReplaceFilterFactory 基于正则表达式的替换。
+
+DoubleMetaphoneFilterFactory （Metaphone，音素，发音。）
+
+DelimitedPayloadTokenFilterFactory 
+
+CJKWidthFilterFactory 中日韩。
+
+CJKBigramFilterFactory 中日韩。Bigram，二元语法，即每两个字组合成一个语汇单元。
+
+ElisionFilterFactory （Elision，元音省略。）
+
