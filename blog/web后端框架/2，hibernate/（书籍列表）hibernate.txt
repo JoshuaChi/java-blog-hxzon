@@ -1,0 +1,32 @@
+﻿（书籍列表）hibernate
+
+Java Persistence with Hibernate (2014) 
+by Christian Bauer, Gavin King, Gary Gregory
+
+Pro Hibernate and MongoDB (The Expert's Voice) (2013) 
+by Anghel Leonard
+
+Hibernate Recipes: A Problem-Solution Approach (Expert's Voice in Open Source) (2010) 
+by Gary Mak, Srinivas Guruzu
+
+Spring Persistence with Hibernate (Expert's Voice in Open Source) (2010) 
+by Paul Tepper Fisher, Brian D. Murphy
+
+Beginning Hibernate (Expert's Voice in Java Technology) (2010) 
+by Jeff Linwood, Dave Minter
+
+Hibernate Search in Action (2009) 
+by Emmanuel Bernard, John Griffin
+
+Hibernate Made Easy: Simplified Data Persistence with Hibernate and JPA (Java Persistence API) Annotations (2008) 
+by Cameron Wallace McKenzie
+
+Harnessing Hibernate (2008) 
+by James Elliott, Timothy M. O'Brien, Ryan Fowler
+
+Java Persistence with Hibernate (2006) 
+by Christian Bauer, Gavin King
+
+Hibernate in Action (In Action series) (2004) 
+by Christian Bauer, Gavin King
+

@@ -1,0 +1,15 @@
+﻿（书籍列表）Lucene
+
+Instant Lucene.NET (2013) 
+by Michael Heydt
+
+Lucene in Action, Second Edition: Covers Apache Lucene 3.0 (2010) 
+by Michael McCandless, Erik Hatcher, Otis Gospodnetic
+已读，了解基本概念，入门实践。
+
+Building Search Applications: Lucene, Lingpipe, and Gate (2008) 
+by Manu Konchady
+
+Lucene in Action (2004) 
+by Erik Hatcher, Otis Gospodnetic
+已出第2版。

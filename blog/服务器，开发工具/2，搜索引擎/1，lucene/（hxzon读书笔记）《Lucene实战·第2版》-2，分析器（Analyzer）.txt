@@ -46,17 +46,20 @@ TokenFilter，对前面的TokenStream进行新增，删除，修改。
 ----
 核心分割器：
 
-LowerCaseTokenizer 通过“非字母字符”分割（去掉非字母字符），统一为小写。LetterTokenizer的子类。
+LowerCaseTokenizer 通过“非字母字符”分割（去掉非字母字符），统一为小写。
+LetterTokenizer的子类。
+等价于LetterTokenizer 加 LowerCaseFilter，但性能更好。
 
 CharTokenizer 基于字符的抽象父类，包含抽象方法isTokenChar()。
 该方法返回true时，输出连续的语汇单元块。
 该类还能将字符规范化处理（例如转换成小写）。
 
-WhitespaceTokenizer CharTokenizer的子类，isTokenChar()返回true。处理所有分空格字符。
+LetterTokenizer CharTokenizer的子类。isTokenChar() 返回 Character.isLetter(c) 。
+
+WhitespaceTokenizer CharTokenizer的子类，isTokenChar()返回 !Character.isWhitespace(c) 。
+处理所有非空格字符。
 
 KeywordTokenizer 整个字符串作为语汇单元。
-
-LetterTokenizer CharTokenizer的子类。
 
 SinkTokenizer 用于吸收token，缓存至自己的私有列表中。与TeeTokenFilter配合使用。
 

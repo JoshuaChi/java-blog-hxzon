@@ -1,0 +1,20 @@
+﻿（书籍列表）solr
+
+Solr in Action (2014) 
+by Trey Grainger, Timothy Potter
+
+Apache Solr 4 Cookbook	Apache Solr 4 Cookbook (2013) 
+by Rafal Kuc
+
+Instant Apache Solr for Indexing Data How-to (2013) 
+by Alexandre Rafalovitch
+
+Scaling Big Data with Hadoop and Solr (Community Experience Distilled) (2013) 
+by Hrishikesh Karambelkar
+
+Apache Solr 3 Enterprise Search Server (2011) 
+by David Smiley, Eric Pugh
+
+Solr 1.4 Enterprise Search Server (2009) 
+by David Smiley, Eric Pugh
+
