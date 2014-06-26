@@ -9,6 +9,8 @@ and how those fields should be dealt with when adding documents to the index, or
 
 Analysis for Multiterm queries can be separately specified, see: 
 Multiterm Query Analysis, which handles automatically lowercasing wildcard queries under most circumstances. 
+“多项”查询的分析器，可以分开描述，见：
+“多项查询分析器”，
 <!> Solr3.6 
 <!> Solr4.0
 
@@ -50,6 +52,7 @@ please see SolrPlugins for information on how to ensure that your own custom Fie
 对于普通的数值类型，有多种实现可选择。
 
 Common options that field types can have are...
+常用数据类型的配置选项有：
 
 sortMissingLast=true|false
 
@@ -129,7 +132,7 @@ If you remove it you must also remove the transaction logging from solrconfig.xm
 
 ==
 Common field options
-常用字段选项
+常用字段的配置选项
 
 Common options that fields can have are...
 
@@ -232,7 +235,7 @@ Schildt, Herbert
 
 ==
 Expert field options
-专家级字段选项
+专家级的字段配置选项
 
 The storage of Lucene term vectors can be triggered using the following field options:
 
@@ -244,7 +247,10 @@ termOffsets=true|false
 
 These options can be used to accelerate highlighting and other ancillary functionality, 
 but impose a substantial cost in terms of index size. 
-They are not necessary for typical uses of Solr (phrase queries, etc., do not require these settings to be present).
+They are not necessary for typical uses of Solr 
+在典型的应用中，它们是不需要配置的。
+(phrase queries, etc., do not require these settings to be present).
+“短语查询”等，不需要这些设置。
 
 ====
 Miscellaneous Settings

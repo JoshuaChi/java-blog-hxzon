@@ -1,0 +1,221 @@
+﻿（hxzon学习笔记）solrconfig.xml
+
+by hxzon
+====
+1，<updateHandler>
+“更新”处理器
+
+<listener event="postCommit"/>
+"更新"处理事件监听器
+
+样例中的配置：
+
+<updateHandler class="solr.DirectUpdateHandler2">
+默认的，高效的“更新”处理器。
+
+===================
+2，<requestDispatcher>
+请求分派器
+
+====
+3，<requestHandler>
+
+请求处理器
+http://wiki.apache.org/solr/SolrRequestHandler
+http://wiki.apache.org/solr/SearchHandler
+
+“请求分派器”根据请求路径，转发到对应名字的请求处理器。
+
+各种参数配置：
+
+<lst name="defaults"> 配置默认参数。
+<lst name="appends"> 配置追加参数。
+<lst name="invariants"> 配置不变参数。
+
+<arr name="components"> 配置“搜索组件”。
+
+样例中的请求处理器：
+
+<requestHandler name="/select" class="solr.SearchHandler">
+
+<requestHandler name="/query" class="solr.SearchHandler">
+
+<requestHandler name="/get" class="solr.RealTimeGetHandler">
+
+<requestHandler name="/browse" class="solr.SearchHandler">
+用于浏览器。详细。
+
+<requestHandler name="/update" class="solr.UpdateRequestHandler">
+处理数据更新。
+http://wiki.apache.org/solr/UpdateXmlMessages
+
+<requestHandler name="/update/json" class="solr.UpdateRequestHandler">
+<requestHandler name="/update/csv" class="solr.UpdateRequestHandler">
+这两个处理器，是为了兼容老版本。
+
+<requestHandler name="/update/extract"
+                  startup="lazy"
+                  class="solr.extraction.ExtractingRequestHandler" >
+solr cell 
+http://wiki.apache.org/solr/ExtractingRequestHandler
+
+<requestHandler name="/analysis/field"
+                  startup="lazy"
+                  class="solr.FieldAnalysisRequestHandler" />
+字段分析。
+
+<requestHandler name="/analysis/document"
+                  class="solr.DocumentAnalysisRequestHandler"
+                  startup="lazy" />
+文档分析。
+http://wiki.apache.org/solr/AnalysisRequestHandler
+
+
+<requestHandler name="/admin/"
+                  class="solr.admin.AdminHandlers" />
+
+<requestHandler name="/admin/ping" class="solr.PingRequestHandler">
+
+<requestHandler name="/debug/dump" class="solr.DumpRequestHandler" >
+回显请求内容。
+
+<requestHandler name="/replication" class="solr.ReplicationHandler" >
+集群复制。
+http://wiki.apache.org/solr/SolrReplication
+https://wiki.apache.org/solr/SolrCloud/
+
+<requestHandler name="/spell" class="solr.SearchHandler" startup="lazy">
+拼写检查。
+
+<requestHandler name="/tvrh" class="solr.SearchHandler" startup="lazy">
+项向量。
+
+<requestHandler name="/terms" class="solr.SearchHandler" startup="lazy">
+项。
+
+<requestHandler name="/elevate" class="solr.SearchHandler" startup="lazy">
+人为编辑搜索结果。
+
+=============================
+4，<searchComponent>
+搜索组件
+
+       <searchComponent name="query"     class="solr.QueryComponent" />
+       <searchComponent name="facet"     class="solr.FacetComponent" />
+       <searchComponent name="mlt"       class="solr.MoreLikeThisComponent" />
+       <searchComponent name="highlight" class="solr.HighlightComponent" />
+       <searchComponent name="stats"     class="solr.StatsComponent" />
+       <searchComponent name="debug"     class="solr.DebugComponent" />
+
+“请求处理器”的默认“搜索组件”配置：
+       <arr name="components">
+         <str>query</str>
+         <str>facet</str>
+         <str>mlt</str>
+         <str>highlight</str>
+         <str>stats</str>
+         <str>debug</str>
+       </arr>
+
+在默认搜索组件链之前或之后（注意，debug组件总是在最后）插入新搜索组件：
+       <arr name="first-components">
+         <str>myFirstComponentName</str>
+       </arr>
+    
+       <arr name="last-components">
+         <str>myLastComponentName</str>
+       </arr>
+
+----
+样例中的搜索组件：
+
+<searchComponent name="spellcheck" class="solr.SpellCheckComponent">
+拼写检查。
+http://wiki.apache.org/solr/SpellCheckComponent
+
+<searchComponent name="tvComponent" class="solr.TermVectorComponent"/>
+项向量。
+http://wiki.apache.org/solr/TermVectorComponent
+
+集群组件。（样例中没有给出）
+
+<searchComponent name="terms" class="solr.TermsComponent"/>
+项。返回项，及项的出现频率。
+http://wiki.apache.org/solr/TermsComponent
+
+<searchComponent name="elevator" class="solr.QueryElevationComponent" >
+人为编辑搜索结果。
+http://wiki.apache.org/solr/QueryElevationComponent
+
+<searchComponent class="solr.HighlightComponent" name="highlight">
+高亮。自定制。
+http://wiki.apache.org/solr/HighlightingParameters
+
+=================================
+5，<updateRequestProcessorChain>
+“更新”请求处理器
+http://wiki.apache.org/solr/UpdateRequestProcessor
+
+<updateRequestProcessorChain name="add-unknown-fields-to-the-schema">
+对未知字段的处理。
+http://wiki.apache.org/solr/GuessingFieldTypes
+
+<updateRequestProcessorChain name="dedupe">
+删除重复数据。
+
+<updateRequestProcessorChain name="langid">
+语言标识。
+http://wiki.apache.org/solr/LanguageDetection
+
+<updateRequestProcessorChain name="script">
+http://wiki.apache.org/solr/ScriptUpdateProcessor
+
+============================
+6，<queryResponseWriter>
+响应书写器
+http://wiki.apache.org/solr/QueryResponseWriter
+
+默认内置的响应书写器，定义同名的书写器，可以覆盖：
+
+<queryResponseWriter name="xml" 
+                          default="true"
+                          class="solr.XMLResponseWriter" />
+<queryResponseWriter name="json" class="solr.JSONResponseWriter"/>
+<queryResponseWriter name="python" class="solr.PythonResponseWriter"/>
+<queryResponseWriter name="ruby" class="solr.RubyResponseWriter"/>
+<queryResponseWriter name="php" class="solr.PHPResponseWriter"/>
+<queryResponseWriter name="phps" class="solr.PHPSerializedResponseWriter"/>
+<queryResponseWriter name="csv" class="solr.CSVResponseWriter"/>
+<queryResponseWriter name="schema.xml" class="solr.SchemaXmlResponseWriter"/>
+
+样例中的响应书写器：
+
+<queryResponseWriter name="velocity" class="solr.VelocityResponseWriter" startup="lazy"/>
+
+<queryResponseWriter name="xslt" class="solr.XSLTResponseWriter">
+    <int name="xsltCacheLifetimeSeconds">5</int>
+</queryResponseWriter>
+
+===============================
+7，<queryParser>
+查询语法解析器
+http://wiki.apache.org/solr/SolrQuerySyntax
+
+<queryParser name="myparser" class="com.mycompany.MyQParserPlugin"/>
+
+8，功能查询解析器
+http://wiki.apache.org/solr/FunctionQuery
+
+<valueSourceParser name="myfunc" 
+                        class="com.mycompany.MyValueSourceParser" />
+
+9，文档转换器
+http://wiki.apache.org/solr/DocTransformers
+
+<transformer name="db" class="com.mycompany.LoadFromDatabaseTransformer" >
+       <int name="connection">jdbc://....</int>
+</transformer>
+
+
+
+

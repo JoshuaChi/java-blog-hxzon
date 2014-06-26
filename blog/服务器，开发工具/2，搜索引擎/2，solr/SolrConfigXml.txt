@@ -77,6 +77,7 @@ For detailed instructions on how to configure SimpleTextCodec, see: SimpleTextCo
 
 --
 indexConfig Section
+索引配置
 
 <!> Solr3.6 These settings control low-level behavior of indexing. 
 Please see comments in the example solrconfig.xml for details.
@@ -96,7 +97,7 @@ Update Handler Section
 
 The Update Handler section mostly relates to low level information about how updates are handled internally 
 (do not confuse with higher level configuration of "Request Handlers" for dealing with updates sent by clients)
-
+较低层配置。
 
 <updateHandler class="solr.DirectUpdateHandler2">
 
