@@ -1,4 +1,4 @@
-﻿（hxzon学习笔记）solrconfig.xml
+﻿（hxzon学习笔记）solr-4，solrconfig.xml
 
 by hxzon
 ====

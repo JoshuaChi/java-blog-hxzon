@@ -1,0 +1,103 @@
+﻿（hxzon学习笔记）solr-3，查询
+
+by hxzon
+============
+6，查询
+
+用于 StandardRequestHandler 的 Solr 查询语法
+与 Lucene QueryParser 支持的查询语法相同，只是前者加入了一些排序支持。
+示例应用程序对输入的值几乎没有进行验证，
+而且没有演示如查询增强、短语、范围筛选等功能，所有这些功能在 Solr 和 Lucene 中都有效。
+
+<response>
+    <lst name="responseHeader">
+        <int name="status">0</int>
+        <int name="QTime">6</int>
+        <lst name="params">
+            <str name="rows">10</str>
+            <str name="start">0</str>
+            <str name="fl">*,score</str>
+            <str name="hl">true</str>
+            <str name="q">content:"faceted browsing"</str>
+        </lst>
+    </lst>
+    <result name="response" numFound="1" start="0" maxScore="1.058217">
+        <doc>
+            <float name="score">1.058217</float>
+            <arr name="all">
+                <str>http://localhost/myBlog/solr-rocks-again.html</str>
+                <str>Solr is Great</str>
+                <str>solr,lucene,enterprise,search,greatness</str>
+                <str>Solr has some really great features, like faceted browsing
+                and replication</str>
+            </arr>
+            <arr name="content">
+                <str>Solr has some really great features, like faceted browsing
+                and replication</str>
+            </arr>
+            <date name="creationDate">2007-01-07T05:04:00.000Z</date>
+            <arr name="keywords">
+                <str>solr,lucene,enterprise,search,greatness</str>
+            </arr>
+            <int name="rating">8</int>
+            <str name="title">Solr is Great</str>
+            <str name="url">http://localhost/myBlog/solr-rocks-again.html</str>
+        </doc>
+    </result>
+    <lst name="highlighting">
+        <lst name="http://localhost/myBlog/solr-rocks-again.html">
+            <arr name="content">
+                <str>Solr has some really great features, like <em>faceted</em>
+                <em>browsing</em> and replication</str>
+            </arr>
+        </lst>
+    </lst>
+</response>
+
+----
+表 2. 醒目显示的查询参数
+参数	描述	示例
+
+--
+q	
+Solr 中用来搜索的查询。
+有关该语法的完整描述，请参阅 参考资料 中的 “Lucene QueryParser Syntax”。
+可以通过追加一个分号和已索引且未进行断词的字段（下面会进行解释）的名称来包含排序信息。
+默认的排序是 score desc，指按记分降序排序。	
+
+q=myField:Java AND otherField:developerWorks; date asc
+此查询搜索指定的两个字段并根据一个日期字段对结果进行排序。
+
+--
+start	
+将初始偏移量指定到结果集中。
+可用于对结果进行分页。默认值为 0。	
+示例：start=15 返回从第 15 个结果开始的结果。
+
+--
+rows	
+返回文档的最大数目。默认值为 10。	
+示例：rows=25
+
+==
+fq	
+提供一个可选的筛选器查询。
+查询结果被限制为仅搜索筛选器查询返回的结果。
+筛选过的查询由 Solr 进行缓存。
+它们对提高复杂查询的速度非常有用。	
+
+任何可以用 q 参数传递的有效查询，排序信息除外。
+
+--
+hl	
+当 hl=true 时，在查询响应中醒目显示片段。
+默认为 false。
+参看醒目显示参数上的 Solr Wiki 部分可以查看更多选项（见 参考资料）。	
+
+--
+fl	
+逗号分隔的列表，指定要返回的 字段集。
+默认为 “*”，指所有的字段。
+“score” 指还应返回记分。	
+示例： *,score
+

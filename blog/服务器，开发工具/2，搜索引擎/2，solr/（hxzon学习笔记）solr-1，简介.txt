@@ -1,0 +1,169 @@
+﻿（hxzon学习笔记）solr-1，简介
+
+by hxzon
+《solr in Action》
+====
+1，solr是一个java web应用。
+
+solr支持在一个引擎中运行多个核（core）。
+每个核可独立配置，拥有独立的索引。
+
+多核的一个使用场景是分区（data partitioning）。
+另一个使用场景是多租户应用（multitenant）。
+
+====
+2，solr提供的功能
+
+用户体验方面：
+
+Pagination and sorting 分页和排序
+Faceting 分面
+Auto-suggest 自动建议
+Spell checking 拼写检查
+Hit highlighting 高亮
+Geo-spatial search 地理空间搜索
+
+
+FACETING
+Faceting provides users with tools to refine their search criteria and discover more 
+information by categorizing search results into sub-groups using facets. In our real estate 
+example (figure 1.1) we saw how search results from a basic keyword search were organized 
+into three facets: Features, Home Style, and Listing Type. Solr faceting is one of the more 
+popular and powerful features available in Solr; we cover faceting in depth in chapter 8.
+
+GEO-SPATIAL
+Geographical location is a first-class concept in Solr 4 in that it has built-in support for 
+indexing latitude and longitude values as well as sorting or ranking documents by 
+geographical distance. Solr can find and sort documents by distance from a geo-location 
+(latitude and longitude). In the real estate example, matching listings are displayed on an 
+interactive map where users can zoom in/out and move the map center point to find near-by 
+listings using geo-spatial search. 
+
+Another exciting addition to Solr 4 is that you can index geographical shapes such as 
+polygons, which allows you to find documents that intersect geographical regions. This might 
+be useful for finding home listings in specific neighborhoods using a precise geographical 
+representation of a neighborhood. We cover Solr’s geo-spatial search features in chapter 14.
+
+----
+数据模型方面：
+
+Field collapsing / grouping
+  Flexible query support
+  Joins
+  Clustering
+  Importing rich document formats like PDF and Word
+  Importing data from relational databases
+  Multilingual support
+
+FIELD COLLAPSING / GROUPING
+Although Solr requires a flat, denormalized document, Solr allows you to treat multiple 
+documents as a group based on some common property shared by all documents in a group. 
+Field grouping, also known as field collapsing, allows you to return unique groups instead of 
+individual documents in the results.
+The classic example of field collapsing is threaded email discussions where emails 
+matching a specific query could be grouped under the original email message that started 
+the conversation. You’ll learn about field grouping in chapter 11.
+POWERFUL AND FLEXIBLE QUERY SUPPORT
+Solr provides a number of powerful query features including:
+  Conditional logic using and, or, not
+  Wildcard matching
+  Range queries for dates and numbers
+  Phrase queries with slop to allow for some distance between terms
+  Fuzzy string matching
+  Regular expression matching
+  Function queries
+Don’t worry if you don’t know what all of these terms mean as we’ll cover all of them in 
+depth in chapter 7.
+
+JOINS
+In SQL, you use a JOIN to create a relation by pulling data from two or more tables together 
+using a common property such as a foreign key. But in Solr, joins are more like sub-queries 
+in SQL in that you don’t build documents by joining data from other documents. For 
+example, with Solr joins, you can return child documents of parents that match your search 
+criteria. One example where Solr joins are useful would be grouping all retweets of a Twitter 
+message into a single group. We discuss joins in chapter 14.
+DOCUMENT CLUSTERING
+Document clustering allows you to identify groups of documents that are similar, based on 
+the terms present in each document. This is helpful to avoid returning many documents 
+containing the same information in search results. For example, if your search engine is 
+based on news articles pulled from multiple RSS feeds, then it’s likely that you’ll have many 
+documents for the same news story. Rather than returning multiple results for the same 
+story, you can use clustering to pick a single representative story. Clustering techniques are 
+discussed briefly in chapter 17.
+IMPORT COMMON DOCUMENT FORMATS LIKE PDF AND WORD
+In some cases, you may want to take a bunch of existing documents in common formats like 
+PDF and Microsoft Word and make them searchable. With Solr this is easy because it 
+integrates with Apache Tika project that supports most popular document formats. Importing 
+rich format documents is covered in chapter 12.
+IMPORT DATA FROM RELATIONAL DATABASES
+If the data you want to search with Solr is in a relational database, then you can configure 
+Solr to create documents using a SQL query. We cover Solr’s data import handler (DIH) in 
+chapter 12.
+MULTILINGUAL SUPPORT
+Solr and Lucene have a long history of working with multiple languages. Solr has language 
+detection built-in and provides language-specific text analysis solutions for many languages. 
+We’ll see Solr’s language detection in action in chapter 6.
+
+----
+solr4 的新功能：
+
+Near-real-time search
+  Atomic updates with optimistic concurrency
+  Real-time get
+  Write durability using a transaction log
+Easy sharding and replication using Zookeeper
+
+NEAR-REAL-TIME SEARCH
+Solr’s Near-Real-Time (NRT) search feature supports applications that have a high velocity of 
+documents that need to be searchable within seconds of being added to the index. With NRT, 
+you can use Solr to search rapidly changing content sources such as breaking news and 
+social networks. We cover NRT in chapter 13.
+ATOMIC UPDATES WITH OPTIMISTIC CONCURRENCY
+The atomic update feature allows a client application to add, update, delete, and increment 
+fields on an existing document without having to resend the entire document. For example, if 
+the price of a home in our example real estate application from section 1.2 changes, then we 
+can send an atomic update to Solr to change the price field specifically.
+You might be wondering what happens if two different users attempt to change the same 
+document concurrently. In this case, Solr guards against incompatible updates using 
+optimistic concurrency. In a nutshell, Solr uses a special version field named _version_ to 
+enforce safe update semantics for documents. In the case of two different users trying to 
+update the same document concurrently, the user that submits updates last will have a stale 
+version field so their update will fail. Atomic updates and optimistic concurrency are covered 
+in chapter 12.
+REAL-TIME GET
+At the beginning of this chapter, we stated that Solr is a NoSQL technology. Solr’s real-time 
+get feature definitely fits within the NoSQL approach by allowing you to retrieve the latest 
+version of a document using its unique identifier regardless of whether that document has 
+been committed to the index. This is similar to using a key-value store like Cassandra to 
+retrieve data using a row key.
+Prior to Solr 4, a document wasn’t retrievable until it was committed to the Lucene index. 
+With the real-time get feature in Solr 4, you can safely decouple the need to retrieve a 
+document by its unique ID from the commit process. This can be useful if you need to update 
+an existing document after it’s sent to Solr without having to do a commit first. As we’ll learn 
+in chapter 5, commits can be expensive and impact query performance. 
+DURABLE WRITES
+When a document is sent to Solr for indexing, it’s written to a transaction log to prevent data 
+loss in the event of server failure. Solr’s transaction log sits between the client application 
+and the Lucene index. It also plays a role in servicing real-time get requests as documents 
+are retrievable by their unique identifier regardless of whether they’re committed to Lucene.
+The transaction log allows Solr to decouple update durability from update visibility. This 
+means that documents can be on durable storage but aren’t visible in search results yet. This 
+gives your application control over when to commit documents to make them visible in 
+search results without risking data loss if a server fails before you commit. We’ll discuss 
+durable writes and commit strategies in chapter 5.
+
+EASY SHARDING AND REPLICATION WITH ZOOKEEPER
+If you’re new to Solr, then you may not be aware that scaling previous versions of Solr was a 
+cumbersome process at best. With SolrCloud, scaling is simple and automated because Solr 
+uses Apache Zookeeper to distribute configuration and manage shard leaders and replicas. 
+The Apache website (zookeeper.apache.org) describes Zookeeper as a “centralized service 
+for maintaining configuration information, naming, providing distributed synchronization, and 
+providing group services.” 
+In Solr, Zookeeper is responsible for assigning shard leaders and replicas and keeps track 
+of which servers are available to service requests. SolrCloud bundles Zookeeper so you don’t 
+need to do any additional configuration or setup to get started with SolrCloud. We’ll dig into 
+the details of SolrCloud in chapter 16.
+
+
+
+

@@ -1,0 +1,169 @@
+﻿（hxzon学习笔记）solr-2，添加索引
+
+by hxzon
+《solr in Action》
+
+===========
+1，添加索引的方式：
+
+http请求，
+solrj客户端，
+Data Import Handler (DIH)，
+Extracting Request Handler aka Solr Cell（从pdf，word文档提取，底层使用Apache Tika），
+Nutch 。
+
+====
+2，可以向 Solr 索引 servlet 传递四个不同的索引请求：
+
+add/update 允许您向 Solr 添加文档或更新文档。
+直到提交后才能搜索到这些添加和更新。
+
+commit 告诉 Solr，应该使上次提交以来所做的所有更改都可以搜索到。
+
+optimize 重构 Lucene 的文件以改进搜索性能。
+索引完成后执行一下优化通常比较好。
+如果更新比较频繁，则应该在使用率较低的时候安排优化。
+一个索引无需优化也可以正常地运行。
+优化是一个耗时较多的过程。
+
+delete 可以通过 id 或查询来指定。
+按 id 删除将删除具有指定 id 的文档；按查询删除将删除查询返回的所有文档。
+
+====
+2.1，添加或更新文档
+
+清单 1. Solr add 命令样例
+
+<add>
+    <doc>
+        <field name="url">http://localhost/myBlog/solr-rocks.html</field>
+        <field name="title">Solr Search is Simply Great</field>
+        <field name="keywords">solr,lucene,enterprise,search</field>
+        <field name="creationDate">2007-01-06T05:04:00.000Z</field>
+        <field name="rating">10</field>
+        <field name="content">Solr is a really great open source search server. It scales,
+        it's easy to configure and the Solr community is really supportive.</field>
+        <field name="published">on</field>
+    </doc>
+</add>
+
+<add> #A
+<doc> #B
+    <field name="id">1</field>
+    <field name="screen_name_s">@thelabdude</field> #C
+    <field name="type_s">post</field>
+    <field name="lang_s">en</field>
+    <field name="timestamp_tdt">2012-05-22T09:30:22Z/HOUR</field>
+    <field name="favourites_count_ti">10</field>
+    <field name="text_t">#Yummm :) Drinking a latte at Caffe Grecco in SF's 
+    historic North Beach... Learning text analysis with #SolrInAction by 
+    @Manning on my i-Pad</field>
+</doc>
+<doc>
+    <field name="id">2</field>
+    <field name="screen_name_s">@thelabdude</field>
+    <field name="type_s">post</field>
+    <field name="lang_s">en</field>
+    <field name="timestamp_tdt">2012-05-23T09:30:22Z/HOUR</field>
+    <field name="favourites_count_ti">10</field>
+    <field name="text_t">Just downloaded the MEAP for #SolrInAction from 
+    @Manning http://bit.ly/15tzw to learn more about #Solr 
+    http://bit.ly/3ynriE</field> 
+    <field name="link_ss">http://manning.com/</field> #D
+    <field name="link_ss">http://lucene.apache.org/solr/</field>
+</doc>
+</add>
+
+#A <add>表示添加或更新文档
+#B 每个<doc>表示一个文档
+#C 根据字段名后缀，来判断字段类型。
+#D 多值字段，两个同名的<field>。
+
+json格式：
+
+[  #A
+    {  #B
+        "id" : "1",
+        "screen_name_s" : "@thelabdude",
+        "type_s" : "post",
+        "lang_s" : "en",
+        "timestamp_tdt" : "2012-05-22T09:30:22Z/HOUR",
+        "favourites_count_ti" : "10",
+        "text_t" : "#Yummm :) Drinking a latte at Caffe Grecco in SF's historic 
+        North Beach... Learning text analysis with #SolrInAction by @Manning on my 
+        i-Pad"
+    },
+    { 
+        "id" : "2",
+        "screen_name_s" : "@thelabdude",
+        "type_s" : "post",
+        "lang_s" : "en",
+        "timestamp_tdt" : "2012-05-23T09:30:22Z/HOUR",
+        "favourites_count_ti" : "10",
+        "text_t" : "Just downloaded the MEAP for #SolrInAction from @Manning 
+        http://bit.ly/15tzw to learn more about #Solr http://bit.ly/3ynriE",
+        "link_ss" : [ "http://manning.com/", 
+        "http://lucene.apache.org/solr/"] #C
+    } 
+] 
+
+#A 所有的文档放在一个数组中
+#B 每个文档时一个map
+#C 多值字段，放在一个数组中
+
+java -Dtype=application/json -jar post.jar ch5/tweets.json
+
+====
+2.2，删除文档（根据id或查询语句）
+
+<delete>
+    <id>1</id>
+</delete>
+
+<delete>
+    <query>screen_name:@thelabdude</query>
+</delete>
+
+====
+2.3，原子更新（Atomic Update）（update="set"）
+
+Update one or more fields of 
+an existing document using 
+optimistic locking; see 
+section 5.6.4 below.
+
+<add>
+    <doc>
+        <field name="id">1</field>
+        <field update="set" name="favourites_count">12</field>
+    </doc>
+</add>
+
+====
+2.4，提交（Commit）
+
+Commits documents to the 
+index with options to do a 
+soft or hard commit and 
+whether to block on the client 
+until the new searcher is 
+open and warmed.
+
+<commit waitSearcher="true" 
+softCommit="false" />
+
+====
+2.5，优化索引（Optimize）
+
+Optimize the index by merging segments and removing deletes
+
+<optimize waitSearcher="false"/>
+
+====
+3，solrj
+
+ConcurrentUpdateSolrServer，更好的批量添加和更新。
+
+====
+
+
