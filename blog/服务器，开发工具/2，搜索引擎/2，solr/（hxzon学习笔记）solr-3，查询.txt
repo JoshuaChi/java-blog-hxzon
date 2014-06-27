@@ -2,7 +2,35 @@
 
 by hxzon
 ============
-6，查询
+1，solr查询界面的表单参数
+
+qt：指定“请求处理器”（request handler）。
+
+q：查询语句
+
+fq：filter query，对结果过滤
+
+sort：指定排序参数
+
+start,rows：分页，起始位置，和结果数量
+
+fl：指定返回哪些字段。
+
+df：default search field，指定默认字段。
+
+wt：指定“响应书写器”，即返回格式。
+
+■ dismax—Disjunction Max query parser (see chapter 7) （Disjunction，析取）
+■ edismax—Extended Disjunction Max query parser (see chapter 7)
+■ hl—Hit highlighting (see chapter 9)
+■ facet—Faceting (see chapter 8)
+■ spatial—Geospatial search, such as sorting by geo distance (see chapter 15)
+■ spellcheck—Spell-checking on query terms (see chapter 10)
+
+defType=edismax ：通过defType指定“查询语法解析器”。
+
+====
+2，查询
 
 用于 StandardRequestHandler 的 Solr 查询语法
 与 Lucene QueryParser 支持的查询语法相同，只是前者加入了一些排序支持。
@@ -12,8 +40,8 @@ by hxzon
 <response>
     <lst name="responseHeader">
         <int name="status">0</int>
-        <int name="QTime">6</int>
-        <lst name="params">
+        <int name="QTime">6</int>  查询执行耗时
+        <lst name="params"> 查询参数
             <str name="rows">10</str>
             <str name="start">0</str>
             <str name="fl">*,score</str>
@@ -21,7 +49,7 @@ by hxzon
             <str name="q">content:"faceted browsing"</str>
         </lst>
     </lst>
-    <result name="response" numFound="1" start="0" maxScore="1.058217">
+    <result name="response" numFound="1" start="0" maxScore="1.058217"> 最高评分（即最匹配的文档的分数）
         <doc>
             <float name="score">1.058217</float>
             <arr name="all">
@@ -44,7 +72,7 @@ by hxzon
             <str name="url">http://localhost/myBlog/solr-rocks-again.html</str>
         </doc>
     </result>
-    <lst name="highlighting">
+    <lst name="highlighting"> 高亮
         <lst name="http://localhost/myBlog/solr-rocks-again.html">
             <arr name="content">
                 <str>Solr has some really great features, like <em>faceted</em>

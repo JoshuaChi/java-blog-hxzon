@@ -86,7 +86,7 @@ rsyn 守护程序可用 rsyncd-enable shell 脚本启用，然后再用 rsyncd-s
 
 
 ===========
-4，请求处理程序是由请求中的 qt 参数指定的。
+
 
 
 

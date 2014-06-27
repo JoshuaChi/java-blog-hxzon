@@ -28,9 +28,9 @@ http://wiki.apache.org/solr/SearchHandler
 
 各种参数配置：
 
-<lst name="defaults"> 配置默认参数。
+<lst name="defaults"> 配置默认参数。可在请求参数中覆盖默认值。
 <lst name="appends"> 配置追加参数。
-<lst name="invariants"> 配置不变参数。
+<lst name="invariants"> 配置不变参数。固定，不会被请求参数覆盖。
 
 <arr name="components"> 配置“搜索组件”。
 
@@ -99,6 +99,9 @@ https://wiki.apache.org/solr/SolrCloud/
 =============================
 4，<searchComponent>
 搜索组件
+
+“搜索组件”包含在“SearchHandler”（它是其中一个requestHander）中。
+QueryComponent是其中一种搜索组件，可以对它指定Query parser（查询语法解析器）。
 
        <searchComponent name="query"     class="solr.QueryComponent" />
        <searchComponent name="facet"     class="solr.FacetComponent" />
@@ -202,6 +205,8 @@ http://wiki.apache.org/solr/QueryResponseWriter
 http://wiki.apache.org/solr/SolrQuerySyntax
 
 <queryParser name="myparser" class="com.mycompany.MyQParserPlugin"/>
+
+defType=edismax 通过defType指定“查询语法解析器”。
 
 8，功能查询解析器
 http://wiki.apache.org/solr/FunctionQuery
