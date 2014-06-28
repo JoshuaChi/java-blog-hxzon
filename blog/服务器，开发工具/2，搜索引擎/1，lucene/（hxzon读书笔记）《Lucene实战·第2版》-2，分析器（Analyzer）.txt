@@ -13,7 +13,7 @@ by hxzon
 同义词注入，近音词。
 
 ====
-2，四个内置分析器
+2，内置分析器
 
 WhitespaceAnalyzer 通过空格来分割，不做其他处理。
 
@@ -26,7 +26,6 @@ StandardAnalyzer 包含大量逻辑操作，可以识别公司名称，Email地�
 支持：字母数字混合的词汇，缩写词，公司名称，Email地址，计算机主机名称，数字，
 内部带撇号的单词，序列号，ip地址，中文和日文字符。
 
-其它分析器
 KeywordAnalyzer 整个文本作为一个token。
 
 
@@ -148,6 +147,55 @@ getOffsetGap()
 Shingles也提供了同样功能。
 
 （2014.6.25）（第4章结束）
+
+=======================
+《第8章，Lucene基本扩展-8.2，分析器、语汇单元器和语汇单元过滤器》
+
+13，SnowballAnalyzer
+
+SnowballFilter
+
+Martin Porter博士提出了Porter词干还原算法，并以此创建了Snowball算法。
+Porter算法是转为英语而设计的。
+Porter博士严格定义了Snowball词干还原算法体系。
+通过这些精确的算法定义，可以保证算法实现的正确性。
+
+====
+14，NGramTokenFilter,EdgeNGramTokenFilter
+
+ngram过滤器会接收单个token，并输出一个字母ngram token序列，
+该序列由作为token的“邻接字母”组成。
+
+new NGramTokenFilter(new KeywordTokenizer(reader),2,4)
+输入lettuce，会输出长度分别为2,3,4的所有字母ngram。
+如下：le，et，tt，tu，uc，ce，let，ett，ttu，tuc，uce，lett，ettu，ttuc，tuce。
+
+new EdgeNGramTokenFilter(new KeywordTokenizer(reader),EdgeNGramTokenFilter.Side.FRONT,1,4)
+
+new EdgeNGramTokenFilter(new KeywordTokenizer(reader),EdgeNGramTokenFilter.Side.BACK,1,4)
+
+上面两个功能相似，但是只生成以单词开始，或结束处的ngram。
+如下：l，le，let，lett。
+如下：el，ce，uce，tuce。
+
+====
+15，shingle过滤器
+
+shingle将“邻接单词”组成一个token。
+例如“please divide this sentence into shingles”会切割成
+“please divide”“divide this”“this sentence”“sentence into”“into shingles”。
+（hxzon：类似中文分词，每两个相邻汉字作为一个词。）
+
+这种操作，可以加快“短语搜索”的速度，特别是“含有常用词的短语”搜索。
+例如“wizard of oz”，如果对“wizard of”“of oz”索引，则搜起来很快。
+nutch就是出于这个目的而创建了shingle。
+
+由于在索引期间没有丢弃任何常用词，shingle允许你实现精确而正确的短语搜索，
+即使短语中包含常用词。
+
+shingle另一个使用场景是“文档群”，允许你将相似或几近重复的文档分到同一个组。
+这很像使用“项向量”来找相似文档，它通过突出的shingle来展现每个文档，
+并随后搜索其它具有类似shingle，以及类似的出现频率的文档。
 
 =======================
 hxzon补充：solr schema.xml 中的分析器

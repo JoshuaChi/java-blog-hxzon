@@ -1,0 +1,7 @@
+﻿（hxzon读书笔记）《Lucene实战·第2版》-2.2，同义词，WordNet
+
+by hxzon
+原书Lucene 3.0版，当前Lucene 4.8.1版。
+《第4章，Lucene的分析过程-4.5，同义词、别名和其它表示相同意义的词》
+《第9章，Lucene高级扩展-9.3，WordNet同义词》
+====

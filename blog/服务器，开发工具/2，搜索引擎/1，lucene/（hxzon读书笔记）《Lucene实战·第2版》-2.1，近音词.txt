@@ -1,0 +1,6 @@
+﻿（hxzon读书笔记）《Lucene实战·第2版》-2.1，近音词
+
+by hxzon
+原书Lucene 3.0版，当前Lucene 4.8.1版。
+《第4章，Lucene的分析过程-4.4，近音词查询》
+====
