@@ -45,3 +45,101 @@ new SortField(String fieldName,Locale locale,boolean reverse)
 而Collator.compare()方法决定排序方式。
 
 =============
+《第6章，扩展搜索-6.1，使用自定义排序方法》
+
+5，FieldComparatorSource（抽象类）
+
+创建FieldComparatorSource的子类，来使用自己的排序规则。
+
+new Sort(new SortField("location",
+    new DistanceComparatorSource(0,0)));
+
+示例：基于地理位置排序
+public class DistanceComparatorSource extends FieldComparatorSource{
+    private int x;
+    private int y;
+
+    public DistanceComparatorSource(int x,int y){
+        this.x=x;
+        this.y=y;
+    }
+
+    public FieldComparator newComparator(String fieldName,int numHits,int sortPos,
+                                        boolean reversed) throws IOException{
+        return new DistanceScoreDocLookupComparator(fieldName,numHits);
+    }
+
+    private class DistanceScoreDocLookupComparator extends FieldComparator{
+        private int[] xDoc,yDoc;
+        private float[] values;
+        private float bottom;
+        String fieldName;
+
+        public DistanceScoreDocLookupComparator(String fieldName,int numHits) throws IOException{
+            values=new float[numHits];
+            this.fieldName=fieldName;
+        }
+
+        public void setNextReader(IndexReader reader,int docBase) throws IOException{
+            xDoc=FieldCache.DEFAULT.getInts(reader,"x");
+            yDoc=FieldCache.DEFAULT.getInts(reader,"y");
+        }
+
+        private float getDistance(int doc){
+            int deltaX=xDoc[doc]-x;
+            int deltaY=yDoc[doc]-y;
+            return (float)Math.sqrt(deltaX*deltaX+deltaY*deltaY);
+        }
+
+        public int compare(int slot1,int slot2){
+            if(values[slot1]< values[slot2]) return -1;
+            if(values[slot1]>values[slot2]) return 1;
+            return 0;
+        }
+
+        public void setBottom(int slot){
+            bottom=values[slot];
+        }
+
+        public int compareBottom(int doc]{
+            float distance=getDistance(doc);
+            if(bottom<distance) return -1;
+            if(bottom>distance) return 1;
+            return 0;
+        }
+
+        public void copy(int slot,int doc){
+            values[slot]=getDistance[doc];
+        }
+
+        public Comparable value(int slot){
+            return new Float(values[slot]);
+        }
+
+        public int sortType(){
+            return SortType.Custom;
+        }
+    }
+}
+
+
+
+====
+5.1，获得自定义排序中的值
+
+public TopFieldDocs search(Query query,Filter filter,int nDocs,Sort sort);
+这个方法需要指定要返回的最大命中数量（nDocs），
+
+topFieldDocs.totalHits 命中结果总数
+topFieldDocs.scoreDocs.length 返回的文档总数
+
+TopFieldDocs是TopDocs的子类，在每个命中结果进行排序时，它会添加对应的文档字段值。
+这里的字段值是通过FieldDoc对象提供的，它是ScoreDoc的子类。
+
+FieldDoc封装了原始评分，文档id，带值的Comparable对象数组，
+被每个SortField所使用。
+
+fieldDoc.fields[0] 在前面的例子中，会得到已经计算好的距离
+
+（2014.6.28）
+
