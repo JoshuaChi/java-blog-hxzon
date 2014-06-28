@@ -3,18 +3,78 @@
 by hxzon
 原书Lucene 3.0版，当前Lucene 4.8.1版。
 ====
-1，字段缓存（为了更快的读取文档的某个字段的值）
+1，FieldCache，字段缓存（为了更快的读取文档的某个字段的值）
+《第5章，高级搜索技术-5.1，Lucene字段缓存》
+
+限制：字段只能有一个项。
+
+float[] weights=FieldCache.DEFAULT.getFloats(reader,"weight");
+
+字段缓存支持byte，short，int，long，float，double，string，以及StringIndex类型。
+StringIndex用于根据string字段进行排序。
+StringIndex需要额外保存int类型的数组，用来表示对应的所有文档的排列顺序。
+
+对于给定的reader和字段，首次访问时，底层会访问所有的文档值，
+并以一维大数组的形式将其加载至内存，并记录至内部缓存，
+主键为reader实例和字段名。
+
+只有关闭reader并去掉其引用，才会清除该字段缓存。
+
+注意，传入字段缓存的reader参数将永远是对应一个段。
+所以必须避免将最顶层的IndexReader直接传入字段缓存，否则会加载两次，消耗两倍内存。
+Collector，Filter，FieldComparatorSource，这些类的reader也是单段的。
+
+====
+2，FieldSelector（决定加载哪些字段，怎么加载）
+《第5章，高级搜索技术-5.10，使用FieldSelector加载字段》
+
+FieldSelector只有一个接口方法：
+FieldSelectorResult accept(String fieldName);
+
+FieldSelectorResult是一个枚举类型，
+描述了是否对字段进行加载，以及如何加载。
+
+LOAD 加载字段。
+LAZY_LOAD 延迟加载，直到调用Field.stringValue()或Field.binaryValue()时。
+NO_LOAD 不加载字段。
+LOAD_AND_BREAK 加载字段，然后停止加载剩余的字段。
+LOAD_FOR_MERGE 内部用于段合并期间，会跳过对压缩字段的解压处理。
+SIZE 只读取该字段的长度，然后用4字节长的数组对该长度进行编码，形成一个新的二进制字段。
+SIZE_AND_BREAK 与SIZE相同，但停止加载剩余的字段。
+
+当使用FieldSelector加载字段时，IndexReader会逐个访问文档的字段，按照索引期间的添加顺序。
+字段加载的大量开销在于“寻找索引中字段存储位置所对应的指针”上，
+所以有时跳过对一些字段的加载，也不会节省大量时间。
+
+内置的几个FieldSelector子类：
+
+LoadFirstFieldSelector 只加载第一个字段。
+MapFieldSelector 自行指定要加载的字段名。
+SetBasedFieldSelector 自行指定两个集合，一个加载，另一个延迟加载。
+
+====
+3，停止较慢的搜索（TimeLimitingCollector）
+
+TopScoreDocCollector topDocs=TopScoreDocCollector.create(10,false);
+Collector collector=new TimeLimitingCollector(topDocs,1000);
+searcher.search(q,collector);
+
+在超时时会抛出TimeExceededException异常。
+
+可以获得目前已得到的结果。
+
+timeLimitingCollector会在获取每个结果文档时检查是否超时，
+而且只在收集结果阶段判断是否超时。
+而有些查询是Query.rewrite()比较耗时。
 
 
-12，自定义排序
+====
+
 
 
 3，MultiPhraseQuery
 
 4，同时对多个字段查询
-
-
-6，搜索过滤
 
 
 
@@ -23,17 +83,14 @@ by hxzon
 多线程搜索（ParallelMultiSearcher）
 
 
-10，FieldSelector（加载字段）
 
-11，停止较慢的搜索
 
-13，自定义Collector
+
+
 
 14，扩展QueryParser
 XML QueryParser
 
-15，自定义过滤器
-链式过滤器
 
 16，有效负载
 
@@ -45,7 +102,7 @@ XML QueryParser
 
 19，查询扩展
 
-20，WordNet 同义词
+
 
 21，外围查询语言
 

@@ -4,4 +4,44 @@ by hxzon
 原书Lucene 3.0版，当前Lucene 4.8.1版。
 《第5章：高级搜索技术-5.2：对搜索结果进行排序》
 ======
+1，默认情况下，Lucene以评分降序排列。
 
+2，search(Query,Filter,int,Sort)
+
+默认情况下，接受Sort的search方法，不会执行评分操作。
+
+IndexSearcher.setDefaultFieldSortScoring(boolean doTrackScores,boolean doMaxScore)
+前者为true时，每个搜索命中结果都会执行评分。
+后者为true时，最大分值的搜索命令结果会执行评分。后者会消耗更多资源。（hxzon：？）
+
+当我们需要显示搜索结果的对应评分时，doTrackScores=true，doMaxScore=false。（hxzon：？）
+
+Sort.RELEVANCE 与new Sort()等价，即默认的按评分降序排序（按相关度排序）。
+Sort.INDEXORDER 按索引排序。
+
+3，根据字段值排序
+
+new Sort(new SortField("c",SortField.STRING)));//升序
+new Sort(new SortField("c",SortField.INT,true)));//降序
+
+这要求该字段只有一个项。
+只有评分时降序排序，其它字段默认是升序排序。
+
+根据多个字段的值进行排序
+
+new Sort(new SortField("c",SortField.STRING),
+        SortField.FIELD_SCORE,//按评分排序
+        new SortField("p",SortField.INT,true)));
+
+SortField.DOC 根据文档id排序（即按索引排序）
+
+4，根据非默认的locale排序
+
+使用SortField.STRING时，底层默认调用String.compareTo()来排序。
+
+new SortField(String fieldName,Locale locale,boolean reverse)
+
+内部Collator对象是通过Collator.getInstance(Locale)初始化的，
+而Collator.compare()方法决定排序方式。
+
+=============

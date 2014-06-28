@@ -1,0 +1,6 @@
+﻿（hxzon读书笔记）《Lucene实战·第2版》-3.7，自定义Collector
+
+by hxzon
+原书Lucene 3.0版，当前Lucene 4.8.1版。
+《第6章，扩展搜索-6.2，自定义Collector》
+==========
