@@ -5,7 +5,6 @@ by hxzon
 ====
 1，字段缓存（为了更快的读取文档的某个字段的值）
 
-2，对搜索结果排序
 
 12，自定义排序
 
@@ -14,20 +13,15 @@ by hxzon
 
 4，同时对多个字段查询
 
-5，跨度查询
 
 6，搜索过滤
 
-7，自定义评分（使用“功能查询”实现）
+
 
 8，对多个索引进行搜索（MultiSearch）
 
 多线程搜索（ParallelMultiSearcher）
 
-9，使用项向量
-9.1，查找相似书籍
-9.2，自动分类
-9.3，TermVectorMapper
 
 10，FieldSelector（加载字段）
 
@@ -55,4 +49,3 @@ XML QueryParser
 
 21，外围查询语言
 
-22，Spatial Lucene 空间查询

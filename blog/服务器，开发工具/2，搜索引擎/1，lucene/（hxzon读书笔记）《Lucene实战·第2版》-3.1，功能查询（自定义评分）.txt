@@ -1,0 +1,50 @@
+﻿（hxzon读书笔记）《Lucene实战·第2版》-3.1，功能查询（自定义评分）
+
+by hxzon
+原书Lucene 3.0版，当前Lucene 4.8.1版。
+《第5章：高级搜索技术-5.7：使用功能查询实现自定义评分》
+====
+1，位于search.function包内。
+
+ValueSourceQuery，所有功能查询类的基类。
+
+ValueSource，对每个匹配文档评分。可以创建自定义的ValueSource。
+
+FieldCacheSource，负责从字段缓存中导出字段值。
+
+ValueSourceQuery
+
+====
+2，FieldScoreQuery
+
+ValueSourceQuery的子类，
+能从指定的索引字段中，静态导出每个文档的评分。
+该字段必须是数值类型的，并且不能使用norms索引，且是不分析的。
+
+例如，用“score”字段来作为评分。
+doc.add(new Field("score","42",Field.Store.NO,Field.Index.NOT_ANALYZER_NO_NORMS);
+
+创建功能查询：
+Query q=new FieldScoreQuery("score",FieldScoreQuery.Type.BYTE);//也可以使用short，int，float类型。
+
+该查询会对所有文档进行匹配，并根据“score”字段对每个文档评分。
+该功能查询会使用字段缓存。
+
+上面的示例本身没有意义。
+因为Sort本来就可以通过字段排序。
+
+====
+3，CustomScoreQuery
+
+3.1，示例：通过FieldScoreQueryy以及CustomScoreQuery来计算评分
+
+====
+3.2，示例：使用功能查询，对最近修改过的文档进行加权
+
+
+
+
+
+
+
+
