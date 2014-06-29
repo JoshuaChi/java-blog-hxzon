@@ -2,5 +2,195 @@
 
 by hxzon
 原书Lucene 3.0版，当前Lucene 4.8.1版。
+《第3章，为应用程序添加搜索功能》
 ====
+1，解析用户输入的表达式（QueryParser）
+
+查询表达式：
+
+java
+默认字段包含java的文档
+
+java junit
+等价于：java OR junit
+默认字段包含java和/或junit的文档
+
++java +junit
+等价于：java AND junit
+默认字段包含java和junit的文档
+
+title:ant
+title字段包含ant的文档
+
+title:ant -subject:sports
+等价于：title:ant AND NOT subject:sports
+title字段包含ant，且subject字段不包含sports的文档
+
+(agile OR ant) AND methodogy
+分组查询，用括弧形成子查询。
+默认字段包含methodogy，且包含agile或ant其中一个或两个，的文档
+
+title:"junit in action"
+title字段为junit in action的文档
+
+title:"junit action" ~5
+title字段中，junit和action之间距离小于5，的文档
+
+java*
+包含java开头的项，的文档
+
+java~
+java~0.7
+包含与java相近的项（例如lava），的文档。
+可以用波浪号指定相似程度。
+
+--
+title:[Q TO V]
+title:{Q TO \"Tapestry in Action\"}
+
+lastmodified:[1/1/09 TO 12/31/09]
+lastmodified字段，值在2009年1月1日，到2009年12月31日之间，的文档
+
+方括号表示包含，花括号表示排除。TO必须全大写。
+注意，目前的语法中，起点和终点必须同时包含在内，或者同时排除在外。
+
+当前QueryParser不会建立NumericRangeQuery。
+
+----
+*:*
+MatchAllDocsQuery，匹配所有文档
+
+----
+fieldX(a b c)
+
+----
+junit^2.0 testing
+指定junit的TermQuery的加权系数为2.0 ，并维持testing的TermQuery的默认加权系数（1.0）。
+
+----
+特殊字符使用反斜杠来转义。
+
+----
+因为性能问题，默认情况下，QueryParser不支持以通配符开头的项。
+可以使用setAllowLeadingWildcard。
+
+短语中的*号不会被解释成模糊查询。
+
+另见《（hxzon读书笔记）《Lucene实战·第2版》-3.8，扩展QueryParser》
+
+================
+2，IndexSearcher
+
+====
+3，Lucene评分机制
+
+使用Explanation来了解搜索结果的评分
+
+TopDocs topDocs=searcher.search(query,10);
+for(ScoreDoc match:topDocs.scoreDocs){
+    Explanation explanation=searcher.explain(query,match.doc);
+    System.out.println(explanation.toString());
+}
+
+==============
+4，Query
+
+====
+4.1，TermQuery：对特定项进行搜索
+
+new TermQuery(new Term(fieldName,"java");
+
+====
+4.2，TermRangeQuery，指定项范围
+
+new TermRangeQuery(fieldName,"d","j",true,true);
+参数：起点，终点，是否包含起点，是否包含终点
+
+捐赠模块，CollectionKeyAnalyzer能够提高性能。
+
+====
+4.3，NumericRangeQuery，指定数字范围
+
+NumericRangeQuery.newIntRange(fieldName,200605,200609,true,true);
+
+====
+4.4，PrefixQuery，指点前缀
+
+new PrefixQuery(new Term(fieldName,"/tech/comp");
+
+====
+4.5，BooleanQuery，组合查询
+
+booleanQuery.add(Query,BooleanClause.Occur);
+
+BooleanClause.Occur.MUST 必须
+BooleanClause.Occur.SHOULD 可选
+BooleanClause.Occur.MUST_NOT 不包含
+
+====
+4.6，PhraseQuery，短语搜索
+
+new PhraseQuery();
+query.setSlop(slop);//指定两个项的位置之间，所允许的最大间隔距离
+
+间隔距离：指项若要按顺序组合成指定短语，所需要的移动位置的次数。
+slop默认为0，表示查询结果必须和输入的短语完全匹配。
+
+for(String word:words){
+    query.add(new Term(fieldName,word);//添加短语的项
+}
+
+测试文档：the quick brown fox jumped over the lazy dog
+输入：quick fox，需要slop值为1才能匹配
+输入：fox quick，需要slop值为3才能匹配
+
+----
+复合项短语（multiple-term phrases）
+
+支持复合项短语。
+无论有多少个项，slop都规定了按顺序移动项位置的总次数的最大值。
+
+输入：quick jumped lazy，slop=3不能匹配
+输入：quick jumped lazy，slop=4更好匹配
+输入：lazy jumped quick，slop=7不能匹配
+输入：lazy jumped quick，slop=8更好匹配
+
+----
+短语查询评分
+
+短语查询根据短语匹配所需要的“编辑距离”来评分。
+
+
+====
+4.7，WildcardQuery，通配符查询
+
+两个标准通配符：*表示0或多个字母，?表示0或1个字母。
+
+new WildcardQuery(new Term(fieldName,"?ild*"));
+
+以通配符开头的查询，会强制枚举所有索引中的项。
+
+通配符匹配查询对评分没有任何影响。
+
+====
+4.8，FuzzyQuery，模糊查询
+
+levenshtein距离算法（“编辑距离”算法），用来决定索引中的项，与指定的项的相似程度。
+它是两个字符串之间相似度的一个度量方法，
+“编辑距离”就是一个字符串转换到另一个字符串所需的最少插入、删除、替换的字母个数。
+
+levenshitein距离计算，不同于PhraseQuery和PhrasePerfixQuery所使用的距离计算方法。
+
+FuzzyQuery会尽可能的枚举索引中的所有项。
+
+====
+4.9，MatchAllDocsQuery，匹配所有的文档
+
+默认情况下，对匹配的文档分配了一个固定的评分，该文档具体的查询加权默认为1.0 。
+
+对于一些特殊字段，可以用它来为索引中的文档进行评分加权。
+new MatchAllDocsQuery(fieldName);
+文档会根据指定的字段的加权情况而被评分。
+
+（2014.6.29）
 

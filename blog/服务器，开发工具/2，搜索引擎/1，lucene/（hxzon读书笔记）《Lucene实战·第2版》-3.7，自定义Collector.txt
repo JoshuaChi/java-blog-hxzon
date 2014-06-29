@@ -4,3 +4,111 @@ by hxzon
 原书Lucene 3.0版，当前Lucene 4.8.1版。
 《第6章，扩展搜索-6.2，自定义Collector》
 ==========
+1，自定义Collector，对搜索返回的文档进行更多的控制
+
+Collector，抽象类
+
+自定义方法：
+
+setNextReader(IndexReader reader,int docBase)
+正在搜索一个新的段（每个段的reader不同）
+（为了高性能，Lucene每次只对一个段进行搜索。）
+
+setScorer(Scorer scorer)
+为collector提供一个scorer，每处理一个段时都会调这个方法。
+通过scorer.score()来获取当前匹配的文档的评分。
+scorer.score()必须在collect()方法内使用，因为它保留了
+针对正被手机的当前文档所对应的可变数据。
+注意，scorer.score()每次都重新计算文档评分，所以你应该缓存它的结果。
+ScoreCachingWrapperScorer是Scorer的子类，能够对评分进行缓存。
+
+collect(int docId)
+针对每个匹配文档调用此方法，
+注意，docId是当前段相关的，必须加入docBase使之绝对化。
+相关性评分不会传递给collect()方法，这样可以节省资源。
+
+acceptsDocsOutOfOrder()
+返回true，表示能够处理乱序docId，
+这能让一些BooleanQuery更快收集搜索结果。
+
+2，Lucene所有的核心搜索方法都在后台使用Collector子类来完成搜索结果的收集。
+
+当通过相关性排序时，后台会使用TopScoreDocCollector。
+当通过字段排序时，则使用TopFieldCollector。
+
+====
+3，示例：收集一个映射表，从url对应到标题
+
+public class BookLinkeCollector extends Collector{
+    private Map<String,String> documents=new HashMap<String,String>();
+    private Scorer scorer;
+    private String[] urls;
+    private String[] titles;
+
+    public boolean acceptsDocsOutOfOrder(){
+        return true;
+    }
+
+    public void setScorer(Scorer scorer){
+        this.scorer=scorer;
+    }
+
+    public void setNextReader(IndexReader reader,int docBase) throws IOException{
+        urls=FieldCache.DEFAULT.getStrings(reader,"url");
+        titles=FieldCache.DEFAULT.getStrings(reader,"title");
+    }
+
+    public void collect(int docId){
+        try{
+            String url=urls[docId];
+            String title=titles[docId];
+            documents.put(url,title];
+            System.out.println(title+":"+scorer.score());//只能在collect内使用
+        }catch(IOException e){}
+    }
+
+    public Map<String,String> getLinks(){
+        return Collections.unmodifiableMap(documents);
+    }
+}
+
+使用：
+BookLinkCollector collector=new BookLinkCollector(searcher);
+searcher.search(query,collector);
+Map<String,String> linkMap=collector.getLinks();
+
+====
+4，示例：简单记录各个匹配的文档
+
+public class AllDocCollector extends Collector{
+    List<ScoreDoc> docs=new ArrayList<ScoreDoc>();
+    private Scorer scorer;
+    private int docBase;
+
+    public boolean acceptsDocsOutOfOrder(){
+        return true;
+    }
+
+    public void setScorer(Scorer scorer){
+        this.scorer=scorer;
+    }
+
+    public void setNextReader(IndexReader reader,int docBase){
+        this.docBase=docBase;
+    }
+
+    public void collect(int doc) throws IOException{
+        docs.add(new ScoreDoc(doc+docBase,scorer.score()));
+    }
+
+    public reset(){
+        docs.clear();
+    }
+
+    public List<ScoreDoc> getHits(){
+        return docs;
+    }
+}
+
+（2014.6.29）
+
