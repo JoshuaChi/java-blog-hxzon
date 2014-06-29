@@ -1,0 +1,6 @@
+﻿（hxzon读书笔记）《Lucene实战·第2版》-4.2，拼写检查
+
+by hxzon
+原书Lucene 3.0版，当前Lucene 4.8.1版。
+《第8章，Lucene基本扩展-8.5，拼写检查》
+====

@@ -192,5 +192,153 @@ FuzzyQuery会尽可能的枚举索引中的所有项。
 new MatchAllDocsQuery(fieldName);
 文档会根据指定的字段的加权情况而被评分。
 
+====
+《第8章，Lucene基本扩展-8.6，引人注目的查询扩展功能》
+
+5.1，MoreLikeThis，查找类似文档
+
+MoreLikeThis能够找到与任意字符串数组相似的文档，
+也能找到与给定文件或url相似的文档。
+
+MoreLikeThis会迭代访问文档中所有存储的字段，或者包含项向量的字段，
+从而对该文档的字段进行定位。
+对于存储的字段，它必须对文本重新分析，以便在不适合使用StandardAnalyzer的情况下，
+首先设置合适的分析器。
+
+mlt=new MoreLikeThis(reader);
+mlt.setFieldNames(new String[]{"title","author"});
+mlt.setMinTermFreq(1);
+mlt.setMinDocFreq(1);
+Query query=mlt.like(docId);
+
+====
+5.2，FuzzyLikeThisQuery，模糊查询
+
+联合MoreLikeThis和FuzzyQuery。
+它允许你任意添加文本来建立查询，这些文本会由StandardAnalyzer分析。
+然后它会将分析过程中的token模糊化（与FuzzyQuery相同的处理方式）。
+最后，在这些生成的项中，会选择最突出的项进行搜索。
+当用户不熟悉标准QueryParser的布尔语法时，它可作为一个替代方案。
+
+====
+5.3，BoostingQuery
+
+new BoostingQuery(positiveQuery,negativeQuery,0.01f);
+
+（原文：所有匹配negativeQuery的文档都不会出现在搜索结果中，
+hxzon：所有只匹配negativeQuery的文档都不会出现在搜索结果中。）
+所有匹配positiveQuery的文档会出现在搜索结果中，并带有它们的初始评分。
+所有匹配两个查询的文档则通过制定的因子降低其评分。
+
+====
+5.4，TermsFilter，保留指定的项
+
+（hxzon：原文描述不清）
+
+====
+5.5，DuplicateFilter，过滤“相同的”文档，只一个
+
+df=new DuplicateFilter("key");
+df.setKeepMode(DuplicateFilter.KM_USE_LAST_OCCURRENCE);
+
+如果两个文档的key值相同，只保留最后编入索引的那个。
+
+====
+5.6，RegexQuery，匹配正则表达式
+
+new RegexQuery(new Term("title",".*st.*"));
+
+默认使用java内置的正则表达式语法，也可以切换到org.apache.regexp表达式语法。
+
+RegexQuery.setRegexImplementation(new JakartaRegexpCapabilities());
+
+====
+5.7，SpanRegexQuery
+
+联合SpanQuery使用，使所有匹配的文档都包括对应的跨度查询。
+
+====
+《第5章，高级搜索技术-5.3，MultiPhraseQuery》
+
+6，MultiPhraseQuery
+
+与PhraseQuery相似，但是允许在同一位置上，针对多个项的查询。
+
+测试文档1：the quick brown fox jumped over the lazy dog
+测试文档2：the fast fox hopped over the hound
+
+query=new MultiPhraseQuery();
+query.add(new Term[]{new Term(fieldName,"quick"),new Term(fieldName,"fast")});//允许其中一个项被首先匹配
+query.add(new Term(fieldName,"fox"));//允许单个项随后匹配
+searcher.search(query,10);//匹配第二个文档
+query.setSlop(1);
+searcher.search(query,10);//匹配两个文档
+
+----
+BooleanQuery可以实现上述功能。
+不同之处在于，MultiPhrase的slop因子作用于查询过程中的所有短语。
+
+PhraseQuery quickFox=new PhraseQuery();
+quickFox.setSlop(1);
+quickFox.add(new Term(fieldName,"quick"));
+quickFox.add(new Term(fieldName,"fox"));
+
+PhraseQuery fastFox=new PhraseQuery();
+fastFox.add(new Term(fieldName,"fast"));
+fastFox.add(new Term(fieldName,"fox"));
+
+BooleanQuery query=new BooleanQuery();
+query.add(quickFox,BooleanClause.Occur.SHOULD);
+query.add(fastFox,BooleanClause.Occur.SHOULD);
+
+----
+当分析器针对短语中的token，使用零位置增量时，QueryParser会生成MultiPhraseQuery。
+
+new QueryParser(new SynonyAnalyzer(engine)).parse("\"quick fox\"");//使用同义词分析器
+//会解析成 fieldName:(quick fast) fox，生成MultiPhraseQuery。
+
+====
+《第5章，高级搜索技术-5.4，针对多个字段的一次性查询》
+
+7，同时搜索多个字段（MultiFieldQueryParser）
+
+如果需要同时对多个字段进行搜索，
+一种方案是使用全包含字段。
+这种方案要注意，要处理字段值之间的位置增量，避免跨两个字段进行匹配。
+缺陷是，不能直接针对某个字段加权。
+并且，浪费磁盘空间（同样的文本索引两次）。
+
+另一种方案是使用MultiFieldQueryParser，它是QueryParser的子类。
+它在底层对每个字段进行查询表达式解析，然后使用BooleanQuery将查询结果合并起来。
+它能够针对某个字段进行加权。
+
+queryParser=new MultiFieldQueryParser(new String[]{fieldName1,fieldName2},
+                                        new SimpleAnalyzer());
+Query query=queryParser.parse("development");
+
+或者使用静态方法：
+
+MultiFieldQueryParser.parse("development",new String[]{fieldName1,fieldName2},
+                            new BooleanClause.Occur[]{
+                                BooleanClause.Occur.MUST,BooleanClause.Occur.MUST},
+                            new SimpleAnalyzer());
+
+MultiFieldQueryParser有一些缺陷，不能对QueryParser所支持的任何设置进行控制。
+而且，它会生成更多复杂查询，会比使用全包含字段更慢。
+
+====
+7.1，DisjunctionMaxQuery
+
+第三种方案是使用DisjunctionMaxQuery。
+它会封装一个或多个任意的查询，将匹配的文档进行OR操作。
+
+可以使用BooleanQuery完成相同功能。
+但DisjunctionMaxQuery的有趣之处在于它的评分方式：
+当某个文档匹配到多于一条查询时，这个文档会被评为最高分。
+而BooleanQuery会将所有匹配的评分详加。
+
+DisjunctionMaxQuery还有一个可选的仲裁器，一个匹配更多查询的文档能够获得更高评分。
+
+
 （2014.6.29）
 

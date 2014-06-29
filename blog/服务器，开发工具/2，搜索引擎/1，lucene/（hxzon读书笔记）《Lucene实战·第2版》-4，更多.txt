@@ -69,40 +69,7 @@ timeLimitingCollector会在获取每个结果文档时检查是否超时，
 
 
 ====
-
-
-
-3，MultiPhraseQuery
-
-4，同时对多个字段查询
-
-
-
-8，对多个索引进行搜索（MultiSearch）
+4，对多个索引进行搜索（MultiSearch）
 
 多线程搜索（ParallelMultiSearcher）
-
-
-
-
-
-
-
-14，扩展QueryParser
-XML QueryParser
-
-
-16，有效负载
-
-17，高亮显示
-
-17.1，FastVectorHighlighter（更快的高亮显示）
-
-18，拼写检查
-
-19，查询扩展
-
-
-
-21，外围查询语言
 

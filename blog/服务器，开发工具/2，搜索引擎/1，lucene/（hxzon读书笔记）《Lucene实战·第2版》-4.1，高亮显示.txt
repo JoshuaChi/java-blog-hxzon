@@ -1,0 +1,7 @@
+﻿（hxzon读书笔记）《Lucene实战·第2版》-4.1，高亮显示
+
+by hxzon
+原书Lucene 3.0版，当前Lucene 4.8.1版。
+《第8章，Lucene基本扩展-8.3，高亮显示查询项》
+《第8章，Lucene基本扩展-8.4，FastVectorHighlighter（更快）》
+====

@@ -3,4 +3,8 @@
 by hxzon
 原书Lucene 3.0版，当前Lucene 4.8.1版。
 《第6章，扩展搜索-6.3，扩展QueryParser》
+《第9章，Lucene高级扩展-9.5，XMLQueryParser》
+《第9章，Lucene高级扩展-9.9，灵活的QueryParser》
+《第9章，Lucene高级扩展-9.6，外围查询语言》
 ======
+
