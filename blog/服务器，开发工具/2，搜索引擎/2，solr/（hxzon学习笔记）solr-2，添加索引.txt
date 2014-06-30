@@ -1,7 +1,7 @@
 ﻿（hxzon学习笔记）solr-2，添加索引
 
 by hxzon
-《solr in Action》
+《solr in Action》第5章，索引
 
 ===========
 1，添加索引的方式：

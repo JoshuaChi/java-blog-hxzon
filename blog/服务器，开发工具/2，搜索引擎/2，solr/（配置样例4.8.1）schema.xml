@@ -80,11 +80,11 @@
      字段名。
      type: mandatory - the name of a field type from the 
        <types> fieldType section
-     字段的类型名。
+     字段的类型名。类型决定字段如何分析。
      indexed: true if this field should be indexed (searchable or sortable)
      是否索引（从而可搜索可排序）。
      stored: true if this field should be retrievable
-     是否存储。
+     是否存储原文。
      docValues: true if this field should have doc values. Doc values are
      是否有文档值。
        useful for faceting, grouping, sorting and function queries. Although not

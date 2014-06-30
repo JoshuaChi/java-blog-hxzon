@@ -1,0 +1,41 @@
+﻿Red Hat发布Red Hat Enterprise Linux 7 ，增强了Linux容器支持
+作者 Carlos Sanchez ，译者 孙镜涛 发布于 2014年6月29日
+http://www.infoq.com/cn/news/2014/06/red-hat-enterprise-linux-7
+
+Red Hat最近发布了Red Hat Enterprise Linux 7一般可用版，这是该公司最新的Linux发行版。
+该版本提供了Docker应用程序，并将其作为Linux容器的一个主要的管理工具。
+Docker基于内核能力构建，同时还添加了一些增强特性，例如可移植性和版本控制。
+
+用户可以通过Red Hat Enterprise Linux Extras通道使用Docker和Docker注册表。
+除了为这两者提供安装包之外，Red Hat还提供了一个认证的Docker映像注册，在RHEL 7上为Docker提供了预构建的可用解决方案。
+
+Red Hat Enterprise Linux 7使用了核心技术实现Linux容器，
+例如使用控制组（cgroups）进行资源管理，通过命名空间实现进程隔离，通过SELinux控制安全。
+Cgroups的理念是通过一棵命名组的树组织进程从而实现资源管理的目的，它提供了一种可以按层次分组、
+标记进程并对这些组应用资源限制的方法。
+通过把cgroup层级系统与systemd单元树绑定到一起，
+Red Hat Enterprise Linux 7将cgroups资源管理设置从进程级别移动到了应用程序级别。
+控制组通过systemd进行专门地管理。
+
+版本7中的其他更新包括：一个新内核（版本3.10）、kpatch（一个动态的“内核补丁实用程序”）、
+GRUB 2启动加载器以及使用XFS作为默认的文件系统。
+
+引入的Kpatch是技术预览版，它允许用户管理一个二进制内核补丁的集合，该集合不需要重启就能够动态地为内核打补丁。
+
+GRUB 2启动加载器支持其他的固件类型以及更加广泛的平台，包括PowerPC。
+它支持GUID分区表（GPT）和非Linux文件系统，
+例如Apple扩展分层文件系统（HFS+）和Microsoft NTFS。
+
+XFS替代了Red Hat Enterprise Linux 6中默认使用的ext4。
+XFS是一个高度可扩展的、高性能的文件系统，它最大支持16 exabytes的文件系统，
+最大为8 exabytes的文件和包含数千万条条目的目录结构。
+XFS支持元数据日志记录，能够更加方便快速地完成崩溃恢复，
+同时XFS文件系统在被装载和激活的时候能够进行碎片整理和扩展。
+支持的另一个文件系统Btrfs（B-Tree）也作为技术预览，它提升了扩展性和可靠性，同时比ext4更容易管理。
+它允许用户创建快照、同时允许压缩和集成设备管理。
+
+Red Hat已经在它的Docker注册表中提供了一个认证的Docker Red Hat Enterprise Linux 7基础映像容器，
+包括运行应用程序和安装其他软件所需要的最小运行时。
+
+查看英文原文：Red Hat Releases Red Hat Enterprise Linux 7 with Increased Linux Containers Support
+

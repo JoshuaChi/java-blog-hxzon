@@ -235,6 +235,10 @@ http://wiki.apache.org/solr/SolrAdaptersForLuceneSpatial4
 
 MappingCharFilterFactory 将字符替换为另一个字符，例如繁体转简体。
 
+HTMLStripCharFilterFactory 移除html标签。
+
+PatternReplaceCharFilterFactory 基于正则表达式的字符替换。
+
 ==
 2.2，分割器（tokenizer，生成语汇单元token）
 
@@ -270,6 +274,9 @@ SnowballPorterFilterFactory 雪球算法的词干提取，适用于欧洲语言�
 
 StemmerOverrideFilterFactory 词干覆盖。
 
+KStemFilterFactory 基于Krovetz stemmer算法的词干提取。
+Stemming on English text; less aggressive than the Porter stemmer.
+
 WordDelimiterFilterFactory 
 
 RemoveDuplicatesTokenFilterFactory 移除重复的token。
@@ -289,4 +296,6 @@ CJKWidthFilterFactory 中日韩。
 CJKBigramFilterFactory 中日韩。Bigram，二元语法，即每两个字组合成一个语汇单元。
 
 ElisionFilterFactory （Elision，元音省略。）
+
+ASCIIFoldingFilterFactory 移除音调。
 

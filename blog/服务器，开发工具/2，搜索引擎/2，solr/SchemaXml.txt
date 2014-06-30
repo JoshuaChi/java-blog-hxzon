@@ -71,11 +71,13 @@ omitTermFreqAndPositions=true|false <!> Solr1.4
 omitPositions=true|false <!> Solr3.4
 
 positionIncrementGap=N
+用来阻止多值字段的“跨值”匹配。
 
 autoGeneratePhraseQueries=true|false 
 (in schema version 1.4 and later this now defaults to false)
 
 postingsFormat=<name of a postings format> 
+指定索引文件格式。
 <!> Solr4.0, only works if you use a codec factory that is schema-aware such as SchemaCodecFactory. 
 Please note that the postings formats used in a fieldType definition need to be in any of Solr lib directories. 
 (For example, some useful (but unsupported) postings formats are available in the lucene-codecs JAR.). 
