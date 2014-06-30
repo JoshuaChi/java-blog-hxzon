@@ -16,6 +16,14 @@ IndexSearcher.setDefaultFieldSortScoring(boolean doTrackScores,boolean doMaxScor
 
 当我们需要显示搜索结果的对应评分时，doTrackScores=true，doMaxScore=false。（hxzon：？）
 
+If doTrackScores is true, then each hit will have a score computed. 
+If doMaxScore is true, then the max score across all hits will be computed. 
+Note that computing the max score is in general more costly than the score per hit, 
+because the score per hit is only computed if the hit is competitive.
+For our example, because we want to display the scores, 
+we enablescore tracking but not max score tracking.
+
+
 Sort.RELEVANCE 与new Sort()等价，即默认的按评分降序排序（按相关度排序）。
 Sort.INDEXORDER 按索引排序。
 

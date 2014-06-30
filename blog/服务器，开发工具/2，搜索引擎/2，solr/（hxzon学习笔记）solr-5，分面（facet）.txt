@@ -1,0 +1,20 @@
+﻿（hxzon学习笔记）solr-5，分面（facet）
+
+by hxzon
+《solr in action》第8章，faceted search
+=======
+1，分面（facet）
+
+hxzon：类似数据库中的“聚合”，“分组”等功能。
+
+Faceted search, also called faceted
+navigation or faceted browsing, allows users who are running searches to see a highlevel breakdown of their search results based upon one or more aspects (facets) of
+their documents. This allows users to select filters to drill into those search results.
+
+使玩家能按照多个方面来查看搜索结果，使得玩家有一个概览。
+
+能够按照时间（最近一个小时，最近一天，最近一周），
+或者按照类别来查看。
+包括各个方面的计数。
+
+2，

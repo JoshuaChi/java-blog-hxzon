@@ -5,3 +5,151 @@ by hxzon
 《第4章，Lucene的分析过程-4.5，同义词、别名和其它表示相同意义的词》
 《第9章，Lucene高级扩展-9.3，WordNet同义词》
 ====
+1，同义词分析器
+
+public class SynonymAnalyzer extends Analyzer {
+    private SynonymEngine engine;
+    public SynonymAnalyzer(SynonymEngine engine) {
+        this.engine = engine;
+    }
+
+    public TokenStream tokenStream(String fieldName, Reader reader) {
+        return result = new SynonymFilter(
+            new StopFilter(true,
+                new LowerCaseFilter(
+                    new StandardFilter(
+                        new StandardTokenizer(Version.LUCENE_30, reader))),
+                StopAnalyzer.ENGLISH_STOP_WORDS_SET),
+            engine);
+    }
+}
+
+public class SynonymFilter extends TokenFilter {
+    public static final String TOKEN_TYPE_SYNONYM = "SYNONYM";
+    private Stack<String> synonymStack;
+    private SynonymEngine engine;
+    private AttributeSource.State current;
+    private final TermAttribute termAtt;
+    private final PositionIncrementAttribute posIncrAtt;
+
+    public SynonymFilter(TokenStream in, SynonymEngine engine) {
+        super(in);
+        synonymStack = new Stack<String>();
+        this.engine = engine;
+        this.termAtt = addAttribute(TermAttribute.class);
+        this.posIncrAtt = addAttribute(PositionIncrementAttribute.class);
+    }
+
+    public boolean incrementToken() throws IOException {
+        if (synonymStack.size() > 0) {
+            String syn = synonymStack.pop();
+            restoreState(current);
+            termAtt.setTermBuffer(syn);
+            posIncrAtt.setPositionIncrement(0);
+            return true;
+        }
+        if (!input.incrementToken())
+            return false;
+        if (addAliasesToStack()) {
+            current = captureState();
+        }
+        return true;
+    }
+
+    private boolean addAliasesToStack() throws IOException {
+        String[] synonyms = engine.getSynonyms(termAtt.term());
+        if (synonyms == null) {
+            return false;
+        }
+        for (String synonym : synonyms) {
+            synonymStack.push(synonym);
+        }
+        return true;
+    }
+}
+
+public interface SynonymEngine {
+    String[] getSynonyms(String s) throws IOException;
+}
+
+//用于测试的同义词引擎
+public class TestSynonymEngine implements SynonymEngine {
+    private static HashMap<String, String[]> map = new HashMap<String, String[]>();
+    static {
+        map.put("quick", new String[] {"fast", "speedy"});
+        map.put("jumps", new String[] {"leaps", "hops"});
+        map.put("over", new String[] {"above"});
+        map.put("lazy", new String[] {"apathetic", "sluggish"});
+        map.put("dog", new String[] {"canine", "pooch"});
+    }
+
+    public String[] getSynonyms(String s) {
+        return map.get(s);
+    }
+}
+
+With SynonymAnalyzer, "fox jumps" parses to "fox (jumps hops leaps)"
+With StandardAnalyzer, "fox jumps" parses to "fox jumps"
+
+============
+2，WordNet
+
+http://wordnet.princeton.edu/wordnet/download
+
+wn_s.pl
+
+建立WordNet索引：
+java org.apache.lucene.wordnet.Syns2Index prolog/wn_s.pl wordnetindex
+
+查看WordNet的索引：
+java org.apache.lucene.wordnet.SynLookup indexes/wordnet search
+
+使用：
+Query query = new TermQuery(new Term(Syns2Index.F_WORD, word));
+
+CountingCollector countingCollector = new CountingCollector();
+searcher.search(query, countingCollector);
+
+ScoreDoc[] hits = searcher.search(query, 
+countingCollector.numHits).scoreDocs;
+for (int i = 0; i < hits.length; i++) {
+    Document doc = searcher.doc(hits[i].doc);
+    String[] values = doc.getValues(Syns2Index.F_SYN);
+    for (int j = 0; j < values.length; j++) {
+        System.out.println(values[j]);
+    }
+}
+
+
+public class WordNetSynonymEngine implements SynonymEngine {
+    IndexSearcher searcher;
+    Directory fsDir;
+
+    public WordNetSynonymEngine(File index) throws IOException {
+        fsDir = FSDirectory.open(index);
+        searcher = new IndexSearcher(fsDir);
+    }
+
+    public void close() throws IOException {
+        searcher.close();
+        fsDir.close();
+    }
+
+    public String[] getSynonyms(String word) throws IOException {
+        List<String> synList = new ArrayList<String>();
+        AllDocCollector collector = new AllDocCollector();
+        searcher.search(new TermQuery(new Term("word", word)), collector);
+
+        for (ScoreDoc hit : collector.getHits()) {
+            Document doc = searcher.doc(hit.doc);
+            String[] values = doc.getValues("syn");//获取同义词
+            for (String syn : values) {
+                synList.add(syn);
+            }
+        }
+        return synList.toArray(new String[0]);
+    }
+}
+
+（2014.6.27）
+

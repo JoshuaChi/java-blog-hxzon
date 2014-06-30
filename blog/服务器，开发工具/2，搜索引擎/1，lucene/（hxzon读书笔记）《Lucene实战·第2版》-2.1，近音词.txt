@@ -4,3 +4,42 @@ by hxzon
 原书Lucene 3.0版，当前Lucene 4.8.1版。
 《第4章，Lucene的分析过程-4.4，近音词查询》
 ====
+public class MetaphoneReplacementAnalyzer extends Analyzer {
+    public TokenStream tokenStream(String fieldName, Reader reader) {
+        return new MetaphoneReplacementFilter(
+            new LetterTokenizer(reader));
+    }
+}
+
+public class MetaphoneReplacementFilter extends TokenFilter {
+    public static final String METAPHONE = "metaphone";
+    private Metaphone metaphoner = new Metaphone();
+    private TermAttribute termAttr;
+    private TypeAttribute typeAttr;
+
+    public MetaphoneReplacementFilter(TokenStream input) {
+        super(input);
+        termAttr = addAttribute(TermAttribute.class);
+        typeAttr = addAttribute(TypeAttribute.class);
+    }
+
+    public boolean incrementToken() throws IOException {
+        if (!input.incrementToken())
+            return false; 
+        String encoded = metaphoner.encode(termAttr.term());
+        termAttr.setTermBuffer(encoded);
+        typeAttr.setType(METAPHONE);
+        return true;
+    }
+}
+
+输入：The quick brown fox jumped over the lazy dog
+输入：Tha quik brown phox jumpd ovvar tha lazi dag
+输出：[0] [KK] [BRN] [FKS] [JMPT] [OFR] [0] [LS] [TKS] 
+输出：[0] [KK] [BRN] [FKS] [JMPT] [OFR] [0] [LS] [TKS] 
+
+Analyzer analyzer = new MetaphoneReplacementAnalyzer();
+索引和查询解析时，都使用上述分析器。
+
+（2014.6.27）
+

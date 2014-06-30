@@ -1,0 +1,207 @@
+﻿Java安全教程 —— 创建SSL连接和证书
+
+原文链接： javacodegeeks 翻译： ImportNew.com - hejiani
+译文链接： http://www.importnew.com/12241.html
+（图见原文）
+=======
+我们在关于Java EE安全的系列文章中，有一篇也详细介绍了如何在Java EE应用中创建SSL连接和证书。
+正如前面文章提到的，
+SSL(Secure Sockets Layer，安全套接层)/TLS(Transport Layer Security，传输层安全)
+保证了客户端和web服务器的连接安全。
+客户端通过HTTPS连接使用web资源。
+为创建与客户端的安全连接，以加密格式发送/接受信息，Java提供了完善的安全体系API类库。
+
+JCA(Java Cryptography Architecture，Java加密体系结构)
+JCE(Java Cryptographic Extension，Java加密扩展包)
+JSSE(Java Secured Socket Extension，Java安全套接字扩展包)
+
+SSL连接要求web服务器持有数字证书，该证书使客户端信任该web应用的可靠性。
+需要发送加密信息的应用从CA(Certificate Authority，数字证书认证机构)申请数字证书。
+CA验证应用所有者的详细信息和其他身份信息，并签发数字证书。
+
+在PKI(Public Key Infrastructure，公钥基础设施)体系中，数字证书由CA签发，
+它包括识别名(DN,Distinguished Name)/所有者名称/使用者(Subject)，唯一识别证书的序列号，所有者公钥，
+签发日期，到期时间，CA识别名，签发机构(CA)的数字签名，签名的创建算法。
+CA签发的数字证书发布在CA的注册库中，这样认证用户就可以使用所有者的公钥。
+
+====
+浏览器如何确认拥有证书的应用或网站的可靠性？
+
+所有的商业CA都与主流的浏览器有所关联，它们的根证书被嵌入在浏览器中。
+浏览器SSL兼容性可以通过证书存储区检查，证书存储区提供了CA证书的相关信息，CA证书保存在浏览器的存储中。
+同时，CA网站也提供了浏览器SSL兼容性信息。
+
+下面的图片展示了示例网站http://abcgen.uk的证书的详细信息。
+该证书保证所有者的可靠性已经被验证，数字证书签发给ABCGen Idiotechie plc，它的Common Name为www.abcgen.uk。
+
+说明：安全起见我们没有引用任何真实的网站。
+本文的例子都是示例性的并且仅仅出于学习目的。
+本例中的证书由Verisign as Class 3签发，表明Verisign执行了对所有者的验证和确认。
+这并不是一个规定的PKI标准。
+下一项为证书的有效性。
+Fingerprints为编码后的公钥。
+数据使用密码哈希函数SHA1和MD5来哈希。
+
+
+证书详细信息
+
+下图为证书层次结构。
+第一项为根证书，第二项为扩展验证。
+认证机构(CA)通过扩展验证提供了更高级的安全认证。
+所有主流浏览器的密钥存储区都包含根和扩展验证信息，这样它们就可以认证特定应用的可靠性。
+
+
+证书层次结构
+
+====
+希望你已经了解了大概思路，现在来编码实现吧。
+
+使用的产品
+
+IDE: Netbeans 7.2
+Java Development Kit (JDK): Version 6
+Glassfish server: 3.1
+认证机制：Form Based认证
+认证服务器：LDAP OpenDS v2.2
+
+目标
+
+web服务器与客户端之间创建SSL连接。
+
+第1步：
+
+在Glassfish服务器创建服务器证书
+
+打开windows中的命令行提示 -> 进入{domain_dir}/config目录，{domain_dir}为Glassfish domain路径，
+比如C:\NetBeans\7.2\config\GF3\domain1\config
+
+第2步：
+
+使用keytool命令生成证书。
+Keytool是Java SE 6提供的密钥和证书管理工具。运行以下命令：
+
+
+>keytool -genkey -alias server-alias -keyalg RSA -keypass changeit -storepass changeit -keystore keystore.jks
+The command will ask for the following details:
+What is your first and last name?
+[Unknown]:  localhost  <<For testing purposes we need to use localhost since it maps to the application server hostname. Ideally in production environments this field should include application server’s name.>>
+What is the name of your organizational unit?
+[Unknown]:  idiotechie
+What is the name of your organization?
+[Unknown]:  idiotechie
+What is the name of your City or Locality?
+[Unknown]:  edinburgh
+What is the name of your State or Province?
+[Unknown]:  EDN
+What is the two-letter country code for this unit?
+[Unknown]:  GB
+Is CN=localhost, OU=idiotechie, O=idiotechie, L=edinburgh, ST=EDN, C=GB correct?
+[no]:  YES
+
+第3步：
+
+生成的证书导出到server.cer文件
+
+>keytool -export -alias server-alias -storepass changeit -file server.cer -keystore keystore.jks
+Certificate stored in file <server.cer>
+
+第4步：
+
+证书添加到trust store文件
+
+>keytool -import -v -trustcacerts -alias server-alias -file server.cer -keystore cacerts.jks -keypass changeit -storepass changeit
+Owner: CN=localhost, OU=idiotechie, O=idiotechie, L=edinburgh, ST=EDN, C=GB
+Issuer: CN=localhost, OU=idiotechie, O=idiotechie, L=edinburgh, ST=EDN, C=GB
+Serial number: 519e7165
+Valid from: Thu May 23 20:43:33 BST 2013 until: Wed Aug 21 20:43:33 BST 2013
+Certificate fingerprints:
+MD5:  34:B7:71:CD:C9:56:9A:EA:0C:F2:91:50:EA:7F:4B:64
+SHA1: AA:DE:EC:1B:27:8E:BC:3A:7A:82:8C:B7:FA:C3:AA:11:2F:97:1F:2C
+Signature algorithm name: SHA1withRSA
+Version: 3
+Trust this certificate? [no]:  YES
+Certificate was added to keystore
+[Storing cacerts.jks]
+
+第5步：
+
+验证证书成功添加到keystore。
+
+>keytool -list -v -keystore keystore.jks
+Enter keystore password:
+Alias name: server-alias
+Creation date: 23-May-2013
+Entry type: PrivateKeyEntry
+Certificate chain length: 1
+Certificate[1]:
+Owner: CN=localhost, OU=idiotechie, O=idiotechie, L=edinburgh, ST=EDN, C=GB
+Issuer: CN=localhost, OU=idiotechie, O=idiotechie, L=edinburgh, ST=EDN, C=GB
+Serial number: 519e7165
+Valid from: Thu May 23 20:43:33 BST 2013 until: Wed Aug 21 20:43:33 BST 2013
+Certificate fingerprints:
+MD5:  34:B7:71:CD:C9:56:9A:EA:0C:F2:91:50:EA:7F:4B:64
+SHA1: AA:DE:EC:1B:27:8E:BC:3A:7A:82:8C:B7:FA:C3:AA:11:2F:97:1F:2C
+Signature algorithm name: SHA1withRSA
+Version: 3
+
+第6步：
+
+确认证书是否成功添加到trust store。
+
+>keytool -list -keystore cacerts.jks
+Enter keystore password:
+ 
+server-alias, 23-May-2013, trustedCertEntry,
+Certificate fingerprint (MD5): 34:B7:71:CD:C9:56:9A:EA:0C:F2:91:50:EA:7F:4B:64
+
+现在证书在keystore和truststore都是可用的。
+keystore包含服务器的私钥而truststore仅包含CA证书或者公钥。
+这就是证书和密钥的清晰分界，密钥保存在keystore的更安全的环境中，
+而公钥放在truststore更容易访问。
+但在本例中由于我们没有CA证书，服务器证书存储在trusted store中。
+
+第7步：
+
+从服务器配置视图进入服务器admin控制台。
+然后点击Configurations -> server-config->HTTP Service ->http-listeners-2。
+Http-Listeners-2为安全的HTTPS port 8181。
+点击SSL tab页，修改Certificate Nick-name为”server-alias”，上面我们已经创建该证书。
+
+
+应用服务器SSL设置
+
+第8步：
+
+重启服务器。
+
+所有服务器相关配置现在就完成了。
+
+接下来就是代码了。
+我们将使用http://idiotechie.com/secure-web-application-in-java-ee6-using-ldap/已经用到的相同的代码。
+
+唯一需要更改的就是web.xml中transport-guarantee从none改为confidential。
+
+<user-data-constraint>
+<transport-guarantee>CONFIDENTIAL</transport-guarantee>
+</user-data-constraint>
+CONFIDENTIAL保护模式用于应用需要防止其他实体访问到传输内容的情况。
+
+编译，部署，运行该应用。
+
+现在即使你输入URL http://localhost:9999/SampleWebApp/index.jsp服务器
+也会通过https://localhost:8181/SampleWebApp/index.jsp将用户重定向到安全的HTTPS连接。
+由于服务器生成的证书是自签名的而不是来自CA的证书，浏览器会有网站安全证书不可信的警示信息。
+这是因为事实上浏览器的truststore不包含有这些证书。
+
+
+安全的应用
+
+为避免更多的警示信息将证书添加到浏览器的exception list。
+从Mozilla Firefox浏览器可以看到该示例应用的证书详细信息：
+
+
+localhost证书详细信息
+
+希望读者明白了如何创建数字证书和安全的web应用。
+
+示例代码下载：链接。

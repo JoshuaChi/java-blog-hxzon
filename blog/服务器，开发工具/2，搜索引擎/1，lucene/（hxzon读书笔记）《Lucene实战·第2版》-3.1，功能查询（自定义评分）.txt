@@ -38,13 +38,85 @@ Query q=new FieldScoreQuery("score",FieldScoreQuery.Type.BYTE);//也可以使用
 
 3.1，示例：通过FieldScoreQueryy以及CustomScoreQuery来计算评分
 
+Query q = new QueryParser(Version.LUCENE_30,
+                fieldName,
+                new StandardAnalyzer(Version.LUCENE_30))
+        .parse("the green hat");
+
+FieldScoreQuery qf = new FieldScoreQuery("score",FieldScoreQuery.Type.BYTE);
+
+CustomScoreQuery customQ = new CustomScoreQuery(q, qf) {
+    public CustomScoreProvider getCustomScoreProvider(IndexReader r) {
+        return new CustomScoreProvider(r) {
+                        public float customScore(int doc,
+                            float subQueryScore,float valSrcScore) {
+                                return (float) (Math.sqrt(subQueryScore) * valSrcScore);
+                        }
+                };
+    }
+};
+
 ====
 3.2，示例：使用功能查询，对最近修改过的文档进行加权
 
+static class RecencyBoostingQuery extends CustomScoreQuery {
+    double multiplier;
+    int today;
+    int maxDaysAgo;
+    String dayField;
+    static int MSEC_PER_DAY = 1000*3600*24;
 
+    public RecencyBoostingQuery(Query q, double multiplier,
+        int maxDaysAgo, String dayField) {
+        super(q);
+        today = (int) (new Date().getTime()/MSEC_PER_DAY);
+        this.multiplier = multiplier;
+        this.maxDaysAgo = maxDaysAgo;
+        this.dayField = dayField;
+    }
 
+    private class RecencyBooster extends CustomScoreProvider {
+        final int[] publishDay;
 
+        public RecencyBooster(IndexReader r) throws IOException {
+            super(r);
+            publishDay = FieldCache.DEFAULT.getInts(r, dayField);
+        }
 
+        public float customScore(int doc, float subQueryScore,float valSrcScore) {
+            int daysAgo = today - publishDay[doc];
+            if (daysAgo < maxDaysAgo) {
+                float boost = (float) (multiplier * (maxDaysAgo-daysAgo) / maxDaysAgo);
+                return (float) (subQueryScore * (1.0+boost));
+            } else {
+                return subQueryScore;
+            }
+        }
+    }
 
+    public CustomScoreProvider getCustomScoreProvider(IndexReader r) throws IOException {
+        return new RecencyBooster(r);
+    }
+}
 
+使用：
+doc.add(new NumericField("pubmonthAsDay").setIntValue((int) (d.getTime()/(1000*3600*24))));
+
+IndexSearcher s = new IndexSearcher(r);
+s.setDefaultFieldSortScoring(true, true);
+
+QueryParser parser = new QueryParser(Version.LUCENE_30,fieldName,
+    new StandardAnalyzer(Version.LUCENE_30));
+
+Query q = parser.parse("java in action");
+
+Query q2 = new RecencyBoostingQuery(q,2.0, 2*365);
+
+Sort sort = new Sort(new SortField[] {
+                            SortField.FIELD_SCORE,
+                            new SortField("title2", SortField.STRING)});
+
+TopDocs hits = s.search(q2, null, 5, sort);
+
+（2014.6.28）
 

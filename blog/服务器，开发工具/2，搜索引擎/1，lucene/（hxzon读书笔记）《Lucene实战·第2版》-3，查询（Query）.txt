@@ -61,7 +61,12 @@ lastmodified字段，值在2009年1月1日，到2009年12月31日之间，的文
 MatchAllDocsQuery，匹配所有文档
 
 ----
-fieldX(a b c)
+fieldX:(a b c)
+
+You can group field selection over multiple clauses. Using
+field:(a b c)will OR together (by default) the three term queries, where each term
+must appear in the specified field. 
+指定字段名。
 
 ----
 junit^2.0 testing
@@ -150,10 +155,10 @@ for(String word:words){
 支持复合项短语。
 无论有多少个项，slop都规定了按顺序移动项位置的总次数的最大值。
 
-输入：quick jumped lazy，slop=3不能匹配
-输入：quick jumped lazy，slop=4更好匹配
-输入：lazy jumped quick，slop=7不能匹配
-输入：lazy jumped quick，slop=8更好匹配
+输入：quick jumped lazy，slop=3 不能匹配
+输入：quick jumped lazy，slop=4 恰好匹配
+输入：lazy jumped quick，slop=7 不能匹配
+输入：lazy jumped quick，slop=8 恰好匹配
 
 ----
 短语查询评分
@@ -225,15 +230,20 @@ Query query=mlt.like(docId);
 
 new BoostingQuery(positiveQuery,negativeQuery,0.01f);
 
-（原文：所有匹配negativeQuery的文档都不会出现在搜索结果中，
-hxzon：所有只匹配negativeQuery的文档都不会出现在搜索结果中。）
-所有匹配positiveQuery的文档会出现在搜索结果中，并带有它们的初始评分。
+（hxzon：中文版翻译有误。
+All documents matching negativeQuery alone won’t be included in the results。
+）
+
+所有只匹配negativeQuery的文档都不会出现在搜索结果中。
+所有只匹配positiveQuery的文档会出现在搜索结果中，并带有它们的初始评分。
 所有匹配两个查询的文档则通过制定的因子降低其评分。
 
 ====
 5.4，TermsFilter，保留指定的项
 
-（hxzon：原文描述不清）
+addTerm() 添加项。
+
+（hxzon：中文版翻译描述不清）
 
 ====
 5.5，DuplicateFilter，过滤“相同的”文档，只一个
@@ -255,7 +265,9 @@ RegexQuery.setRegexImplementation(new JakartaRegexpCapabilities());
 ====
 5.7，SpanRegexQuery
 
-联合SpanQuery使用，使所有匹配的文档都包括对应的跨度查询。
+which combines RegexQuery and SpanQuery so that all matches also include the matching spans.
+
+联合RegexQuery和SpanQuery。使所有匹配的文档都包括对应的跨度。
 
 ====
 《第5章，高级搜索技术-5.3，MultiPhraseQuery》
