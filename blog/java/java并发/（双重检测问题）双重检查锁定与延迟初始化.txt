@@ -80,7 +80,9 @@ public class DoubleCheckedLocking {                 //1
 在多个线程试图在同一时间创建对象时，会通过加锁来保证只有一个线程能创建对象。
 在对象创建好之后，执行getInstance()将不需要获取锁，直接返回已创建好的对象。
 双重检查锁定看起来似乎很完美，但这是一个错误的优化！
-在线程执行到第4行代码读取到instance不为null时，instance引用的对象有可能还没有完成初始化。
+
+在线程执行到第4行代码读取到instance不为null时，
+instance引用的对象有可能还没有完成初始化。（hxzon：注意）
 
 ====
 问题的根源
@@ -91,7 +93,10 @@ public class DoubleCheckedLocking {                 //1
 memory = allocate();   //1：分配对象的内存空间
 ctorInstance(memory);  //2：初始化对象
 instance = memory;     //3：设置instance指向刚分配的内存地址
-上面三行伪代码中的2和3之间，可能会被重排序（在一些JIT编译器上，这种重排序是真实发生的，详情见参考文献1的“Out-of-order writes”部分）。2和3之间重排序之后的执行时序如下：
+
+上面三行伪代码中的2和3之间，可能会被重排序
+（在一些JIT编译器上，这种重排序是真实发生的，详情见参考文献1的“Out-of-order writes”部分）。
+2和3之间重排序之后的执行时序如下：
 
 memory = allocate();   //1：分配对象的内存空间
 instance = memory;     //3：设置instance指向刚分配的内存地址
@@ -182,7 +187,8 @@ JVM在类的初始化阶段（即在Class被加载后，且被线程使用之前
 在执行类的初始化期间，JVM会去获取一个锁。
 这个锁可以同步多个线程对同一个类的初始化。
 
-基于这个特性，可以实现另一种线程安全的延迟初始化方案（这个方案被称之为Initialization On Demand Holder idiom）：
+基于这个特性，可以实现另一种线程安全的延迟初始化方案
+（这个方案被称之为Initialization On Demand Holder idiom）：
 
 public class InstanceFactory {
     private static class InstanceHolder {
@@ -198,7 +204,8 @@ public class InstanceFactory {
 
 
 
-这个方案的实质是：允许“问题的根源”的三行伪代码中的2和3重排序，但不允许非构造线程（这里指线程B）“看到”这个重排序。
+这个方案的实质是：允许“问题的根源”的三行伪代码中的2和3重排序，
+但不允许非构造线程（这里指线程B）“看到”这个重排序。
 
 初始化一个类，包括执行这个类的静态初始化和初始化在这个类中声明的静态字段。
 根据java语言规范，在首次发生下列任意一种情况时，一个类或接口类型T将被立即初始化：
@@ -282,7 +289,8 @@ t4	B4：线程B的类初始化处理过程完成
 
 
 
-这个happens-before关系将保证：线程A执行类的初始化时的写入操作（执行类的静态初始化和初始化类中声明的静态字段），线程B一定能看到。
+这个happens-before关系将保证：线程A执行类的初始化时的写入操作
+（执行类的静态初始化和初始化类中声明的静态字段），线程B一定能看到。
 
 第五阶段：线程C执行类的初始化的处理：
 

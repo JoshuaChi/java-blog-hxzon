@@ -1,9 +1,57 @@
 ﻿（双重检测问题）双重检查锁定和单件模式
-译者： Elaine.Ye 原作者：Peter Haggar (haggar@us.ibm.com), Senior Software Engineer, IBM
+译者： Elaine.Ye 
+原作者：Peter Haggar (haggar@us.ibm.com), Senior Software Engineer, IBM
 http://article.yeeyan.org/view/213582/191888
 发表时间：2011-05-06
 
-====
+======
+hxzon学习笔记：
+
+双重检测，在有些jvm上，可能会导致，有线程获得单例时，单例仍处于未完全初始化的状态。
+
+解决方案：
+
+-1，接受清单2中给出getInstance()方法的同步做法。（在方法上同步。）
+
+public static synchronized Singleton getInstance()
+{
+  if (instance == null)                //1
+    instance = new Singleton();  //2
+  return instance;                     //3
+}
+
+-2，放弃同步，使用一个static域。（即不延迟生成。）
+
+-3，参见另一篇文章。使用 volatile ，避免重排序。
+
+public class SafeDoubleCheckedLocking {
+    private volatile static Instance instance;
+
+    public static Instance getInstance() {
+        if (instance == null) {
+            synchronized (SafeDoubleCheckedLocking.class) {
+                if (instance == null)
+                    instance = new Instance();//instance为volatile，现在没问题了
+            }
+        }
+        return instance;
+    }
+}
+
+-4，参见另一篇文章。延迟初始化。
+这个方案被称之为 Initialization On Demand Holder idiom 。（“静态持有者”模式）
+
+public class InstanceFactory {
+    private static class InstanceHolder {
+        public static Instance instance = new Instance();
+    }
+
+    public static Instance getInstance() {
+        return InstanceHolder.instance ;  //这里将导致InstanceHolder类被初始化
+    }
+}
+
+==============
 所有的编程语言都会有分享一些它们的惯用技法，其中的许多是值得了解并加以使用的，
 编程者花费了宝贵的时间来创建、学习和实现它们。
 但问题是，一些惯用技法在后来被证明并不完全如它们所声称的那样，或根本不能起到所描述的效用。
@@ -18,7 +66,8 @@ Java编程语言就包含了一些有用的编程惯用技法，其同样包含�
 
 单件（Singleton）的创建模式是一种常见的编程惯用技法。
 在与多线程一起使用时，必须要用到某种类型的同步机制。
-为了努力创建更高效的代码，Java编程者创造出了双重检查锁定（double-checked locking）来与单件创建模式一起使用，以此来限定有多少代码要做同步。
+为了努力创建更高效的代码，Java编程者创造出了双重检查锁定（double-checked locking）
+来与单件创建模式一起使用，以此来限定有多少代码要做同步。
 然而，由于Java内存模型的一些鲜为人知的细节，这一双重检查锁定的惯用做法并不保证会发挥作用。
 其会偶然失败，而不是一直不起作用。
 此外，其失败的原因并不明显，且涉及了Java内存模型的一些私密的细节。
@@ -27,6 +76,7 @@ Java编程语言就包含了一些有用的编程惯用技法，其同样包含�
 
 ====
 单件创建的惯用做法
+
 为了了解双重检查锁定最初起源于什么地方，你需要理解常见的单件创建的惯用做法，清单1是这一做法的一个例子说明：
 
 清单1. 单件创建的惯用做法
@@ -81,12 +131,16 @@ public static synchronized Singleton getInstance()
 后续的调用都不需要做同步，因为只有第一次的调用是会执行//2行代码的调用，只有该行代码是需要同步的。
 所有其他的调用判定了instance是非空的，然后返回它。
 除了首个调用之外，多线程可以安全地在所有的调用上并发地执行。
-然而，因为方法是被声明成synchronized的，因此你为方法的每次调用都付出了同步代价，尽管只有第一次的调用是需要这一同步成本的。
+然而，因为方法是被声明成synchronized的，
+因此你为方法的每次调用都付出了同步代价，尽管只有第一次的调用是需要这一同步成本的。
+
+（hxzon：缺陷，除了第1次，以后的每次调用，是不需要同步的。）
 
 为了努力使这一方法更加的高效，一种被称作双重检查锁定的惯用做法被创建了出来。
 其想法是避免除了第一个方法调用之外的其他所有方法调用的高昂的同步费用。
 不同的JVM之间的同步开销不同，在早期，这一成本代价可以是相当高的。
-随着更先进的JVM的出现，同步成本已经降低，不过就进入和离开一个synchronized 方法或是代码块来说，仍然会存在性能上的损失。
+随着更先进的JVM的出现，同步成本已经降低，
+不过就进入和离开一个synchronized 方法或是代码块来说，仍然会存在性能上的损失。
 就抛开JVM技术方面的进步不论，编程者也永远不想对处理时间做不必要的浪费。
 
 因为清单2中只有//2行代码是需要同步的，因此我们可以仅把它包在一个同步块中，如清单3所示：
@@ -109,6 +163,8 @@ public static Singleton getInstance()
 当首个进程退出synchronized块时，等待的进程进入并创建另一个Singleton对象。
 需要注意的是，当第二个进程进入synchronized块时，其并未查看instance是否是非空的。
 
+（hxzon：将同步，从整个方法，移到 if 内部。缺陷，不保证单例。）
+
 ====
 双重检查锁定
 
@@ -128,7 +184,8 @@ public static Singleton getInstance()
   return instance;
 }
 
-双重检查锁定背后的理论是，//2行上的第二个检查可以使得不可能出现清单3中那种情况，即有两个不同的Singleton对象被创建。
+双重检查锁定背后的理论是，
+//2行上的第二个检查可以使得不可能出现清单3中那种情况，即有两个不同的Singleton对象被创建。
 考虑一下下面的事件发生顺序：
 
 线程1进入getInstance() 方法中。
@@ -150,6 +207,11 @@ public static Singleton getInstance()
 导致双重检查锁定失败的问题并不是因为JVM中的实现错误，而是因为当前Java平台的内存模型。
 这一内存模型允许通常所说的“无序写（out-of-order write）”，而这是为什么这一惯用技法会失败的首要原因。
 
+（hxzon：在同步以内，再次检查是否为null。
+问题：内存模型允许“无序写”，
+变量instance在Singleton的构造函数体执行之前，有可能会变成是非空的。
+这会导致另一个线程得到对象时，还未完成初始化。）
+
 ====
 无序写
 
@@ -166,7 +228,8 @@ public static Singleton getInstance()
 因为instance为null，线程1进入synchronized块的//1行。
 线程1往下执行到//3行，并把instance变成是非空的，但是在构造函数执行之前。
 线程1被线程2抢占。
-线程2查看instance是否为null，如果不为空的话，线程2返回instance，其引用一个完全构造好，但只是部分被初始化的Singleton对象。
+线程2查看instance是否为null，如果不为空的话，线程2返回instance，
+其引用一个完全构造好，但只是部分被初始化的Singleton对象。（hxzon：注意。）
 线程2被线程1抢占。
 线程1通过运行Singleton对象的构造函数来完成该对象的初始化，并返回到该对象的引用。
 
@@ -245,15 +308,19 @@ BE行上的代码为Singleton对象从堆中分配内存，并把指向这一内
 CA和D0 行代表了内联的构造函数，该函数把值true和5存放入Singleton对象中。
 如果这一段代码在执行了C3 行，但在完成构造函数之前就被另一个线程中断的话，双重检查锁定就会失败。
 
-并非所有的JIT编译器都生成上述形式的代码，有一些生成的代码是这样的，只有在构造函数执行之后，instance才能变为非空的。
+并非所有的JIT编译器都生成上述形式的代码，有一些生成的代码是这样的，
+只有在构造函数执行之后，instance才能变为非空的。
 IBM的SDK for Java技术的1.3版本，以及Sun JDK 1.3都是生成这种情形的代码的。
+
 然而，这并不意味着你应该在这些版本上使用双重检查锁定，因为还有其他导致其失败的原因存在。
-此外，你不会总是知道你的代码会在哪一个JVM上运行，而且JTM编译器总是会有所改动，其后生成的代码就有可能会破坏这一惯用技法。
+此外，你不会总是知道你的代码会在哪一个JVM上运行，而且JTM编译器总是会有所改动，
+其后生成的代码就有可能会破坏这一惯用技法。
 
 ====
 双重检查锁定：采用两个变量
 
-鉴于目前的这一双重检查锁定代码不能使用，我把另一个版本的代码也放到这里来，如清单7所示，尝试着防止你刚才见到的无序写问题的出现。
+鉴于目前的这一双重检查锁定代码不能使用，我把另一个版本的代码也放到这里来，
+如清单7所示，尝试着防止你刚才见到的无序写问题的出现。
 
 清单7. 尝试解决无序写的问题
 public static Singleton getInstance()
@@ -276,10 +343,12 @@ public static Singleton getInstance()
 
 
 看一下清单7中的代码，你应该会发现事情变得有点可笑了起来。
-请记住，双重检查锁定是作为一种避免同步那个简单的三行代码的getInstance()方法的方式而被创造出来的，而清单7中的代码已经失控了。
-而且，这一代码并没有解决问题，仔细检查一下就会找出原因。
+请记住，双重检查锁定是作为一种避免同步那个简单的三行代码的getInstance()方法的方式而被创造出来的，
+而清单7中的代码已经失控了。
+而且，这一代码并没有解决问题，仔细检查一下就会找出原因。（hxzon：并没有解决问题。）
 
-这段代码是在试着去避开无序写的问题，其通过引入局部变量inst和第二个synchronized锁来试着做到这一点。理论上的工作过程如下：
+这段代码是在试着去避开无序写的问题，
+其通过引入局部变量inst和第二个synchronized锁来试着做到这一点。理论上的工作过程如下：
 
 Thread 1 enters the getInstance() method.
 因为instance为null，线程1进入//1行上的第一个synchronized块。
@@ -299,8 +368,9 @@ Thread 1 enters the getInstance() method.
 然而出现问题的地方是，理论和现实的运行情况是却彼此正交的。
 
 由于目前的内存模型的定义方式，清单7中的代码是不起作用的。
-Java语言规范（Java Language Specification ，JLS）要求在某个synchronized块内的代码不能被移到synchronized块之外，
-但并没有说不在某个synchronized块内的代码不能被移到某个synchronized块内。
+Java语言规范（Java Language Specification ，JLS）要求
+在某个synchronized块内的代码不能被移到synchronized块之外，
+但并没有说不在某个synchronized块内的代码不能被移到某个synchronized块内。（hxzon：注意。）
 
 JIT编译器应该是在这个地方看到了一个优化的机会。
 这一优化把//4行和//5行的代码移去，把它结合起来生成了清单8所示的代码：
@@ -360,11 +430,15 @@ class test
   }                
 
 
-根据JLS，因为stop和num都被声明成volatile的，因此它们应该是顺序上一致的，这意味着如果stop一旦为true的话，那么num就必须已经被设置成了100。
+根据JLS，因为stop和num都被声明成volatile的，因此它们应该是顺序上一致的，
+这意味着如果stop一旦为true的话，那么num就必须已经被设置成了100。
 然而，由于许多的JVM并未实现volatile的顺序上的一致性，因此你不能依赖这一行为。
-因此，如果线程1对foo的调用和线程2对bar的调用是并发的话，线程1有可能在把num设置成100之前先把stop设置成true，
+因此，如果线程1对foo的调用和线程2对bar的调用是并发的话，
+线程1有可能在把num设置成100之前先把stop设置成true，
 而这有可能会导致线程2查看到stop为true，但num依然设成0。
-volatile和64位变量的原子性还有着其他的一些问题，不过这已经超出了本文的范围，请参阅参考资料以了解更多有关这一主题的信息。
+
+volatile和64位变量的原子性还有着其他的一些问题，不过这已经超出了本文的范围，
+请参阅参考资料以了解更多有关这一主题的信息。
 
 ====
 解决方案
@@ -468,29 +542,35 @@ StringReader也进入一个无限循环中，接着在 //2行上查看当前的S
 小结
 
 为了在单件中尽力避免代价高昂的同步，编程者很是巧妙地发明了双重检查锁定这一惯用技法。
-然而不幸的是，在得到较为广泛的应用之前，有一点就已经很明显了，那就是由于目前的内存模型，这一技法并不是一种安全的编程结构。
+然而不幸的是，在得到较为广泛的应用之前，有一点就已经很明显了，
+那就是由于目前的内存模型，这一技法并不是一种安全的编程结构。
 一些工作正在进行中，以重新定义内存模型的一些薄弱环节。
 不过，即使是在新提议的内存模型下，双重检查锁定依然无法工作。
 这一问题的最好解决方案是接受同步或是使用一个静态域。
 
 资源
 
-在他的这本书Practical Java Programming Language Guide （Addison-Wesley，2000）中，Peter Haggar涵盖了许多的Java编程主题，包括整章的多线程的问题和编程技术。
+在他的这本书Practical Java Programming Language Guide （Addison-Wesley，2000）中，
+Peter Haggar涵盖了许多的Java编程主题，包括整章的多线程的问题和编程技术。
 
 The Java Language Specification, Second Edition 由Bill Joy等人所著（Addison-Wesley，2000），最佳的Java编程语言技术参考。
 
-The Java Virtual Machine Specification, Second Edition 由Tim Lindholm和Frank Yellin 所著（Addison-Wesley，1999），关于Java编译器和运行时环境的最佳文档。
+The Java Virtual Machine Specification, Second Edition 由Tim Lindholm和Frank Yellin 所著（Addison-Wesley，1999），
+关于Java编译器和运行时环境的最佳文档。
 
 Visit Bill Pugh的 Java内存模型网站，有着关于这一重要主题的丰富信息。
 
-欲了解更多关于volatile和64位变量的信息，请参阅Peter Haggar的文章“Does Java Guarantee Thread Safety?”，发表在Dr. Dobb's Journal 的2002年6月刊上。
+欲了解更多关于volatile和64位变量的信息，请参阅Peter Haggar的文章“Does Java Guarantee Thread Safety?”，
+发表在Dr. Dobb's Journal 的2002年6月刊上。
 JSR-133处理Java平台的内存模型和线程规范的修订。
 
 Java软件顾问Brian Goetz在“Threading lightly: Synchronization is not the enemy”（developerWorks，July 2001）一文中探讨了何时使用同步。
 
-在“Threading lightly: Sometimes it's best not to share”（developerWorks，October 2001）一文中，Brian Goetz分析了ThreadLocal并给出了一些利用其能力的贴士。
+在“Threading lightly: Sometimes it's best not to share”（developerWorks，October 2001）一文中，
+Brian Goetz分析了ThreadLocal并给出了一些利用其能力的提示。
 
-在“Writing multithreaded Java applications”（developerWorks，February 2001）一文中，Alex Roetter介绍了Java Thread API，列出了涉及多线程的一些问题，并给常见问题提供了解决方案。
+在“Writing multithreaded Java applications”（developerWorks，February 2001）一文中，
+Alex Roetter介绍了Java Thread API，列出了涉及多线程的一些问题，并给常见问题提供了解决方案。
 
 在developerWorks Java technology zone上查找其他的Java技术资料。
 
