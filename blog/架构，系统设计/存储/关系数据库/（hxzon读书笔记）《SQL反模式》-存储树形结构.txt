@@ -44,7 +44,12 @@ by hxzon
 
 ========
 解决方案4，使用闭包表。
+
 使用一张额外的表treepaths，所有祖孙关系都存成一行（包括节点到自身）。
+
+ancestor
+descendant
+
 
 优点：
 1，查询所有后代，所有祖先都很容易。
@@ -101,8 +106,139 @@ and subtree.ancestor = #myId
 
 =======
 hxzon总结：
+
 闭包表最优，最通用，各项操作都很简单，支持一个节点属于多棵树，属于冗余换时间。
+
 邻接表次之，查询树困难，如果数据库支持递归查询则很高效。
+
 路径枚举各项查询都很简单，但是层级数受字段长度限制，也没有引用完整性，性能可能是个问题。
+
 嵌套集，除了查询所有子代性能高，插入、删除、查询直接子代直接父亲都很复杂，没有引用完整性。
+
+=======
+create table if not exists htree_tree(
+anc_id varchar(32),
+desc_id varchar(32),
+lvldiff int
+);
+
+delimiter //
+
+drop procedure if exists tree_find_ancs//
+
+create procedure tree_find_ancs(in p_myId varchar(32))
+begin
+select anc_id,lvldiff from htree_tree where desc_id = p_myId order by lvldiff desc;
+end//
+
+--注意，varchar必须指明长度。
+
+create procedure tree_find_descs(in p_myId varchar(32))
+begin
+select desc_id,lvldiff from htree_tree where anc_id = p_myId order by lvldiff asc;
+end//
+
+create procedure tree_find_parent(in p_myId varchar(32))
+begin
+select anc_id,lvldiff from htree_tree where desc_id = p_myId and lvldiff=1;
+end//
+
+create procedure tree_find_children(in p_myId varchar(32))
+begin
+select desc_id,lvldiff from htree_tree where anc_id = p_myId and lvldiff=1;
+end//
+
+drop procedure if exists tree_insert;
+
+create procedure tree_insert(in p_myId varchar(32),in p_pId varchar(32))
+begin
+	insert into htree_tree(anc_id,desc_id,lvldiff)
+	select t.anc_id,p_myId,lvldiff+1
+	from htree_tree t
+	where t.desc_id = p_pId
+	union all
+	select p_myId,p_myId,0;
+end//
+
+create procedure tree_delete(in p_myId varchar(32))
+begin
+delete from htree_tree
+where desc_id in
+(select desc_id from htree_tree where anc_id = p_myId);
+end//
+
+因为mysql的限制，所以上述语句会抛出异常：
+
+You can't specify target table 'htree_tree' for update in FROM clause
+不能先select出一张表中的某些值，再update这张表(在同一语句中)
+
+drop procedure if exists tree_delete;
+
+create procedure tree_delete(in p_myId varchar(32))
+begin
+delete from htree_tree
+where desc_id in
+(select desc_id from
+(select desc_id from htree_tree where anc_id = p_myId ) as tmp);
+end//
+
+drop procedure if exists tree_move;
+
+create procedure tree_move(in p_myId varchar(32),in p_npId varchar(32))
+begin
+	delete from htree_tree
+	where desc_id in
+	(select tmp1.desc_id from
+	(select desc_id from htree_tree where anc_id = p_myId) as tmp1)
+	and anc_id in
+	(select tmp2.anc_id from
+	(select anc_id from htree_tree where desc_id = p_myId and anc_id != desc_id) as tmp2); 
+	
+	insert into htree_tree(anc_id,desc_id)
+	select tmp3.anc_id, tmp3.desc_id from (
+	select supertree.anc_id anc_id ,subtree.desc_id desc_id
+	from htree_tree supertree
+	cross join htree_tree subtree
+	where supertree.desc_id = p_npId
+	and subtree.anc_id = p_myId ) as tmp3;
+end//
+
+如何计算 lvldiff ?
+
+delimiter ;
+
+====
+call tree_insert('a1',null);
+call tree_insert('b1','a1');
+call tree_insert('b2','a1');
+call tree_insert('b3','a1');
+
+call tree_insert('c1','b1');
+call tree_insert('c2','b1');
+call tree_insert('c3','b1');
+
+call tree_insert('c4','b2');
+call tree_insert('c5','b2');
+call tree_insert('c6','b2');
+
+call tree_insert('c7','b3');
+call tree_insert('c8','b3');
+call tree_insert('c9','b3');
+
+call tree_insert('d1','c1');
+call tree_insert('d2','c1');
+
+call tree_insert('d3','c2');
+call tree_insert('d4','c2');
+
+call tree_insert('d5','c3');
+call tree_insert('d6','c3');
+
+call tree_insert('d7','c4');
+call tree_insert('d8','c4');
+
+call tree_insert('d9','c5');
+call tree_insert('d10','c6');
+
+call tree_move('c3','b3');
 
