@@ -1,0 +1,37 @@
+﻿Apache Lucene 4.9发布
+作者 李士窑 发布于 2014年7月1日 |
+http://www.infoq.com/cn/news/2014/07/lucene-4-9
+
+Apache软件基金会近日正式发布了Lucene 4.9版本。
+由于老的JDK版本的一些JVM bug会影响到Lucene，
+所以新版本的Lucene不再支持JDK 7u55以下的Java版本，且版本全面兼容Java 8。
+
+Lucene 4.9版本包括大量的bug修复、优化和改进，现已提供下载（Lucene 4.9更新文档）。
+
+主要改进包括：
+
+一组doc值字段的原子更新（Atomic update）
+
+针对doc值搜索性能的大量优化
+
+新增了Terms.getMin/Max方法，用于检索每个字段中使用率最高和最低的项（term）
+
+新增了IDVersionPostingsFormat方法，优化了主键ID filed，
+也为每个id记录了一个long型的版本值，优化了ID查找功能
+
+新的（默认的）Lucene49NormsFormat方法，可以在某些情况下（比如超短字段）实现更好的压缩
+
+新的SORTED_NUMERIC文档值类型，可以更有效地处理多个值的数字字段
+
+索引现在可以传递早期的令牌流（token stream），使得重用更容易
+
+MoreLikeThis可以接受每个字段中的多个值，pre-existing方法已经不再鼓励使用
+
+Lucene文件现在通过OutputStream编写，完全禁止通过简化的IO API进行搜索
+
+Apache Lucene是一个使用Java开发的高性能的全文检索引擎，
+读者可以从这里下载最新版本的Lucene,详细的改进说明可以阅读Lucene ChangeLog。
+此外，基于Lucene的Solr也更新到了4.9版本，
+Solr 4.9中除了包含Lucene 4.9的改进外，
+还针对企业搜索应用进行了优化和改进，读者可以到其官网了解相关信息。
+

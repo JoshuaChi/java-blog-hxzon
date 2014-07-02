@@ -316,4 +316,10 @@ partition_options:
     (see CREATE TABLE options)
 
 ====
-4，
+4，修改分隔符
+
+delimiter //
+
+====
+5，
+
