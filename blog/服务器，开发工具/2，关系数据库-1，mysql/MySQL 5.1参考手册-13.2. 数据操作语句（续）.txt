@@ -1,0 +1,404 @@
+﻿MySQL 5.1参考手册-13.2. 数据操作语句（续）
+http://dev.mysql.com/doc/refman/5.1/zh/sql-syntax.html#data-manipulation
+
+13.2. 数据操作语句
+13.2.1. DELETE语法
+13.2.2. DO语法
+13.2.3. HANDLER语法
+13.2.4. INSERT语法
+13.2.5. LOAD DATA INFILE语法
+13.2.6. REPLACE语法
+13.2.7. SELECT语法
+13.2.8. Subquery语法
+13.2.9. TRUNCATE语法
+13.2.10. UPDATE语法
+
+======
+13.2.2. DO语法
+DO expr [, expr] ...
+DO用于执行表达式，但是不返回任何结果。DO是SELECT expr的简化表达方式。DO有一个优势，就是如果您不太关心结果的话，DO的速度稍快。
+DO主要用于执行有副作用的函数，比如RELEASE_LOCK()。
+
+13.2.3. HANDLER语法
+HANDLER tbl_name OPEN [ AS alias ]
+HANDLER tbl_name READ index_name { = | >= | <= | < } (value1,value2,...)
+    [ WHERE where_condition ] [LIMIT ... ]
+HANDLER tbl_name READ index_name { FIRST | NEXT | PREV | LAST }
+    [ WHERE where_condition ] [LIMIT ... ]
+HANDLER tbl_name READ { FIRST | NEXT }
+    [ WHERE where_condition ] [LIMIT ... ]
+HANDLER tbl_name CLOSE
+HANDLER语句提供通往表存储引擎接口的直接通道。HANDLER可以用于MyISAM和InnoDB表。
+
+HANDLER...OPEN语句用于打开一个表，通过后续的HANDLER...READ语句建立读取表的通道。本表目标不会被其它线程共享，也不会关闭，直到线程调用HANDLER...CLOSE或线程中止时为止。如果您使用一个别名打开表，则使用其它HANDLER语句进一步参阅表是必须使用此别名，而不能使用表名。
+
+如果被指定的索引满足给定的值并且符合了WHERE条件，则第一个HANDLER...READ语法取出一行。如果您有一个多列索引，则指定索引列值为一个用逗号隔开的清单。既可以为索引中的所有列指定值，也可以为索引列的最左边的前缀指定值。假设一个索引包括三个列，名称为col_a, col_b,和col_c，并按此顺序排列。HANDLER语句可以为索引中的所有三个列指定值，或者为一个最左边前缀中的各列指定值。举例说明：
+
+HANDLER ... index_name = (col_a_val,col_b_val,col_c_val) ...
+HANDLER ... index_name = (col_a_val,col_b_val) ...
+HANDLER ... index_name = (col_a_val) ...
+第二个HANDLER...READ语法按索引的顺序从表中取出一行。索引的顺序符合WHERE条件。
+
+第三个HANDLER...READ语法按自然行的顺序从表中取出一行。自然行的顺序符合WHERE条件。当想要对整个表进行扫描时，此语句比HANDLER tbl_name READ index_name更快。自然行的顺序指的是行存储在MyISAM表数据文件的顺序。本语句也适用于InnoDB表，但是因为没有独立的数据文件，所以没有这类概念。
+
+不使用LIMIT子句时，所有形式的HANDLER...READ语句均只取出一行。 如果要返回多个行，应加入一个LIMIT子句。本语句于SELECT语句的语法一样。请参见13.2.7节，“SELECT语法”。
+
+HANDLER...CLOSE用于关闭使用HANDLER...OPEN打开的表。
+
+注释：要使用HANDLER接口来查阅一个表的PRIMARY KEY，应使用带引号的识别符`PRIMARY`：
+
+HANDLER tbl_name READ `PRIMARY` > (...);
+HANDLER是比较低级别的语句。例如，它不能提供一致性。也就是说，HANDLER...OPEN不能为表做快照，也不能锁定表。这意味着，当一个HANDLER...OPEN语句被编写后，表数据可以被更改（用此线程或用其它线程），并且这些更改只会部分地出现在HANDLER...NEXT或HANDLER...PREV扫描中。
+
+使用HANDLER接口代替常规的SELECT语句有多个原因：
+
+·         HANDLER比SELECT更快：
+
+o        一个指定的存储引擎管理程序目标为了HANDLER...OPEN进行整序。该目标被重新用于该表的后续的HANDLER语句；不需要对每个语句进行重新初始化。
+
+o        涉及的分析较少。
+
+o        没有优化程序或查询校验开销。
+
+o        在两个管理程序请求之间，不需要锁定表。
+
+o        管理程序接口不需要提供外观一致的数据（例如，允许无条理的读取），所以存储引擎可以使用优化，而SELECT通常不允许使用优化。
+
+·         有些应用程序使用与ISAM近似的接口与MySQL连接。使用HANDLER可以更容易地与这些应用程序连接。
+
+·         HANDLER允许您采用一种特殊的方式进出数据库。而使用SELECT时难以采用（或不可能采用）这种方式。有些应用程序可以提供一个交互式的用户接口与数据库连接。当与这些应用程序同时使用时，用HANDLER接口观看数据更加自然。
+
+========
+13.2.5. LOAD DATA INFILE语法
+ LOAD DATA [LOW_PRIORITY | CONCURRENT] [LOCAL] INFILE 'file_name.txt'
+    [REPLACE | IGNORE]
+    INTO TABLE tbl_name
+    [FIELDS
+        [TERMINATED BY 'string']
+        [[OPTIONALLY] ENCLOSED BY 'char']
+        [ESCAPED BY 'char' ]
+    ]
+    [LINES
+        [STARTING BY 'string']
+        [TERMINATED BY 'string']
+    ]
+    [IGNORE number LINES]
+    [(col_name_or_user_var,...)]
+    [SET col_name = expr,...)]
+LOAD DATA INFILE语句用于高速地从一个文本文件中读取行，并装入一个表中。文件名称必须为一个文字字符串。
+
+要了解有关INSERT和LOAD DATA INFILE的效率的对比和有关LOAD DATA INFILE加速的更多信息，请参见7.2.16节，“INSERT语句的速度”。
+
+由character_set_database系统变量指示的字符集被用于解释文件中的信息。SET NAMES和character_set_client的设置不会影响对输入的解释。
+
+注意，目前不能载入UCS2数据文件。
+
+您也可以通过使用mysqlimport应用程序载入数据文件；通过向服务器发送一个LOAD DATA INFILE语句实现此功能。--local选项用于使mysqlimport从客户主机中读取数据文件。如果客户端和服务器支持压缩协议，则您可以指定—compress选项提高在慢速网络中的性能。请参见8.10节，“mysqlimport：数据导入程序。
+
+如果您使用LOW_PRIORITY，则LOAD DATA语句的执行被延迟，直到没有其它的客户端从表中读取为止。
+
+如果一个MyISAM表满足同时插入的条件（即该表在中间有空闲块），并且您对这个MyISAM表指定了CONCURRENT，则当LOAD DATA正在执行时，其它线程会从表中重新获取数据。即使没有其它线程在同时使用本表格，使用本选项也会略微影响LOAD DATA的性能。
+
+如果指定了LOCAL，则被认为与连接的客户端有关：
+
+·         如果指定了LOCAL，则文件会被客户主机上的客户端读取，并被发送到服务器。文件会被给予一个完整的路径名称，以指定确切的位置。如果给定的是一个相对的路径名称，则此名称会被理解为相对于启动客户端时所在的目录。
+
+·         如果LOCAL没有被指定，则文件必须位于服务器主机上，并且被服务器直接读取。
+
+当在服务器主机上为文件定位时，服务器使用以下规则：
+
+·         如果给定了一个绝对的路径名称，则服务器使用此路径名称。
+
+·         如果给定了带有一个或多个引导组件的相对路径名称，则服务器会搜索相对于服务器数据目录的文件。
+
+·         如果给定了一个不带引导组件的文件名称，则服务器会在默认数据库的数据库目录中寻找文件。
+
+注意，这些规则意味着名为./myfile.txt的文件会从服务器数据目录中被读取，而名为myfile.txt的同样的文件会从默认数据库的数据库目录中读取。例如，下面的LOAD DATA语句会从db1数据库目录中读取文件data.txt，因为db1是当前数据库。即使语句明确把文件载入到db2数据库中的表里，也会从db1目录中读取。
+
+mysql> USE db1;
+mysql> LOAD DATA INFILE 'data.txt' INTO TABLE db2.my_table;
+注意，使用正斜杠指定Windows路径名称，而不是使用反斜杠。如果您使用反斜杠，您必须使用两个。
+
+出于安全原因，当读取位于服务器中的文本文件时，文件必须位于数据库目录中，或者是全体可读的。另外，要对服务器文件使用LOAD DATA INFILE，您必须拥有FILE权限。
+
+见5.7.3节，“MySQL提供的权限”。
+
+与让服务器直接读取文件相比，使用LOCAL速度略慢，这是因为文件的内容必须通过客户端发送到服务器上。不过，您不需要FILE权限来载入本地文件。
+
+只有当您的服务器和您的客户端都许可时，LOCAL才可运行。例如，如果使用—local-infile=0启动mysqld，则LOCAL不运行。请参见5.6.4节，“LOAD DATA LOCAL安全问题”。
+
+如果您需要LOAD DATA来从一个管道中读取，您可以使用以下方法（此处我们把/目录清单载入一个表格）：
+
+mkfifo /mysql/db/x/x
+chmod 666 /mysql/db/x/x
+find / -ls > /mysql/db/x/x
+mysql -e "LOAD DATA INFILE 'x' INTO TABLE x" x
+有些输入记录把原有的记录复制到唯一关键字值上。REPLACE和IGNORE关键字用于控制这些输入记录的操作。
+
+如果您指定了REPLACE，则输入行会替换原有行（换句话说，与原有行一样，对一个主索引或唯一索引具有相同值的行）。请参见13.2.6节，“REPLACE语法”。
+
+如果您指定IGNORE，则把原有行复制到唯一关键字值的输入行被跳过。如果您这两个选项都不指定，则运行情况根据LOCAL关键词是否被指定而定。不使用LOCAL时，当出现重复关键字值时，会发生错误，并且剩下的文本文件被忽略。使用LOCAL时，默认的运行情况和IGNORE被指定时的情况相同；这是因为在运行中间，服务器没有办法中止文件的传输。
+
+如果您希望在载入运行过程中忽略外键的限制，您可以在执行LOAD DATA前发送一个SET FOREIGN_KEY_CHECKS=0语句。
+
+如果您对一个空的MyISAM表使用LOAD DATA INFILE，则所有的非唯一索引会被创建在一个独立批中（对于REPAIR TABLE）。当您有许多索引时，这通常会使LOAD DATA INFILE大大加快。通常，LOAD DATA INFILE的速度会非常快，但是在某些极端情况下，您可以在把文件载入到表中之前使用ALTER TABLE...DISABLE KEYS关闭LOAD DATA INFILE，或者在载入文件之后使用ALTER TABLE...ENABLE KEYS再次创建索引，使创建索引的速度更快。请参见7.2.16节，“INSERT语句的速度”。
+
+LOAD DATA INFILE是SELECT...INTO OUTFILE的补语。（见13.2.7节，“SELECT语法”。）要从一个表中把数据写入一个文件中，应使用SELECT...INTO OUTFILE。要读取文件，放回到表中，应使用LOAD DATA INFILE。FIELDS和LINES子句的语法对于两个语句是一样的。两个子句都是自选的，但是如果两个都被指定了，FIELDS必须位于LINES的前面。
+
+如果您指定了一个FIELDS子句，则每个亚子句（TERMINATED BY, [OPTIONALLY] ENCLOSED BY和ESCAPED BY）也是自选的。不过，您必须指定其中至少一个。
+
+如果您不指定FIELDS子句，则默认值为假设您写下如下语句时的值：
+
+FIELDS TERMINATED BY '\t' ENCLOSED BY '' ESCAPED BY '\\'
+如果您不指定LINES子句，则默认值为假设您写下如下语句时的值：
+
+LINES TERMINATED BY '\n' STARTING BY ''
+换句话说，当读取输入值时，默认值会使LOAD DATA INFILE按如下方式运行：
+
+·         在新行处寻找行的边界。
+
+·         不会跳过任何行前缀。
+
+·         在制表符处把行分解为字段。
+
+·         不希望字段被包含在任何引号字符之中。
+
+·         出现制表符、新行、或在‘\’前有‘\’时，理解为作为字段值一部分的文字字符。
+
+相反的，当编写输出值时，默认值会使SELECT...INTO OUTFILE按如下方式运行：
+
+·         在字段之间写入制表符。
+
+·         不把字段包含在任何引号字符中。
+
+·         当字段值中出现制表符、新行或‘\’时，使用‘\’进行转义。
+
+·         在行的末端写入新行。
+
+注意，要写入FIELDS ESCAPED BY ‘\\’，您必须为待读取的值指定两个反斜杠，作为一个单反斜杠使用。
+
+注释：如果您已经在Windows系统中生成了文本文件，您可能必须使用LINES TERMINATED BY ‘\r\n’来正确地读取文件，因为Windows程序通常使用两个字符作为一个行终止符。部分程序，比如WordPad，当编写文件时，可能会使用\r作为行终止符。要读取这样的文件，应使用LINES TERMINATED BY ‘\r’。
+
+如果所有您希望读入的行都含有一个您希望忽略的共用前缀，则您可以使用'prefix_string'来跳过前缀（和前缀前的字符）。如果某行不包括前缀，则整个行被跳过。注释：prefix_string会出现在一行的中间。
+
+示例：
+
+mysql> LOAD DATA INFILE '/tmp/test.txt'
+    -> INTO TABLE test LINES STARTING BY "xxx";
+使用此语句，您可以读入包含有如下内容的文件：
+
+xxx"row",1
+something xxx"row",2
+并只得到数据("row",1)和("row",2)。
+
+IGNORE number LINES选项可以被用于在文件的开始处忽略行。例如，您可以使用IGNORE 1 LINES来跳过一个包含列名称的起始标题行：
+
+mysql> LOAD DATA INFILE '/tmp/test.txt'
+    -> INTO TABLE test IGNORE 1 LINES;
+当您联合使用SELECT...INTO OUTFILE和LOAD DATA INFILE来从一个数据库中把数据写入一个文件中，然后再读取文件，返回到数据库中时，用于两个语句的field-和line-handling选项必须匹配。否则，LOAD DATA INFILE不会正确地理解文件的内容。假设您使用SELECT...INTO OUTFILE来编写一个的文件，字段由逗号分隔：
+
+mysql> SELECT * INTO OUTFILE 'data.txt'
+    ->          FIELDS TERMINATED BY ','
+    ->          FROM table2;
+要读取由逗号分隔的文件并返回，则正确的语句应该是：
+
+mysql> LOAD DATA INFILE 'data.txt' INTO TABLE table2
+    ->           FIELDS TERMINATED BY ',';
+如果您尝试使用以下所示的语句读入文件，则不会运行，因为该语句命令LOAD DATA INFILE寻找位于字段之间的制表符：
+
+mysql> LOAD DATA INFILE 'data.txt' INTO TABLE table2
+    ->           FIELDS TERMINATED BY '\t';
+结果很可能是，每个输入行被理解为一个单一字段。
+
+LOAD DATA INFILE也可以被用于读取从外源中获取的文件。例如，一个dBASE格式的文件具有以逗号分隔并且包含在双引号中的字段。如果文件中的各行以新行为结尾，则此处所示的语句描述了您可以用于载入文件的field-和line-handling选项：
+
+mysql> LOAD DATA INFILE 'data.txt' INTO TABLE tbl_name
+    ->           FIELDS TERMINATED BY ',' ENCLOSED BY '"'
+    ->           LINES TERMINATED BY '\n';
+所有field-或line-handling选项都可以指定一个空字符串('')。如果字符串不是空的，则FIELDS [OPTIONALLY] ENCLOSED BY和FIELDS ESCAPED BY值必须为单一字符。FIELDS TERMINATED BY, LINES STARTING BY和LINES TERMINATED BY值可以超过一个字符。例如，要编写由回车/换行成对字符作为结尾的行，或读取包含这类行的文件，则应指定一个LINES TERMINATED BY ‘\r\n’子句。
+
+如果jokes被由%%组成的行分隔，要读取包含jokes的文件，您可以这么操作：
+
+mysql> CREATE TABLE jokes
+    ->     (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    ->     joke TEXT NOT NULL);
+mysql> LOAD DATA INFILE '/tmp/jokes.txt' INTO TABLE jokes
+    ->     FIELDS TERMINATED BY ''
+    ->     LINES TERMINATED BY '\n%%\n' (joke);
+FIELDS [OPTIONALLY] ENCLOSED BY用于控制字段的引号。对于（SELECT...INTO OUTFILE），如果您忽略了词语OPTIONALLY，则所有的字段都被包含在ENCLOSED BY字符串中。此处展示了此类输出的一个示例（使用逗号作为字段分隔符）：
+
+"1","a string","100.20"
+"2","a string containing a , comma","102.20"
+"3","a string containing a \" quote","102.20"
+"4","a string containing a \", quote and comma","102.20"
+如果您指定了OPTINALLY，则ENCLOSED BY字符只被用于包含具有字符串数据类型（比如CHAR, BINARY, TEXT或ENUM）的列中的值：
+
+1,"a string",100.20
+2,"a string containing a , comma",102.20
+3,"a string containing a \" quote",102.20
+4,"a string containing a \", quote and comma",102.20
+注意，如果在字段值内出现ENCLOSED BY字符，则通过使用ESCAPED BY字符作为前缀，对ENCLOSED BY字符进行转义。另外，要注意，如果您指定了一个空的ESCAPED BY值，则可能会生成不能被LOAD DATA INFILE正确读取的输出值。例如，如果转义符为空字符，则刚显示的先前输出值应显示如下。请观察，第四行中的第二个字段在引号后面包含一个逗号，该引号（错误地）显示出来，作为字段的结尾：
+
+1,"a string",100.20
+2,"a string containing a , comma",102.20
+3,"a string containing a " quote",102.20
+4,"a string containing a ", quote and comma",102.20
+对于输入值，ENCLOSED BY字符被从字段字的末尾剥离。（不论OPTIONALLY是否被指定都会剥离；OPTIONALLY对输入值的解释没有影响。）如果ENCLOSED BY字符前面带有ESCAPED BY字符，则被理解为当前字段值的一部分。
+
+如果字段以ENCLOSED BY字符为开始，当出现这类字符时，只有后面接着字段或行TERMINATED BY序列时，这类字符被认为是一个字段值的结尾。为了避免意思不明确，当在一个字段值中出现ENCLOSED BY字符时，此字符可以重复书写，并被理解为单一的字符。例如，如果指定了ENCLOSED BY '"'，则按照以下方法操作引号：
+
+"The ""BIG"" boss"  -> The "BIG" boss
+The "BIG" boss      -> The "BIG" boss
+The ""BIG"" boss    -> The ""BIG"" boss
+FIELDS ESCAPED BY用于控制如何写入或读取特殊字符。如果FIELDS ESCAPED BY字符不是空字符，则可以在输出中用于对以下字符加前缀：
+
+·         FIELDS ESCAPED BY字符
+
+·         FIELDS [OPTIONALLY] ENCLOSED BY字符
+
+·         FIELDS TERMINATED BY和LINES TERMINATED BY值的第一个字符
+
+·         ASCII 0（在转义符之后编写的字符实际上是ASCII‘0’，而不是一个值为0的字节）
+
+如果FIELDS ESCAPED BY字符为空字符，则没有字符被转义，并且NULL被作为NULL输出，而不是\N。去指定一个空的转义符不是一个好办法，特别是如果数据的字段值包含任何刚给定的清单中的字符时，更不能这么做。
+
+对于输入值，如果FIELDS ESCAPED BY字符不是空字符，则出现这种字符时会被剥离，然后以下字符被作为字段值的一部分。例外情况是，被转义的‘0’或‘N’（例如，\0或\N，此时转义符为‘\’）。这些序列被理解为ASCII NUL（一个零值字节）和NULL。用于NULL处理的规则在本节的后部进行说明。
+
+要了解有关‘\’-escape语法的更多信息，请参见9.1节，“文字值”。
+
+在特定情况下，field-和line-handling选项相互影响：
+
+·         如果LINES TERMINATED BY是空字符串，并且FIELDS TERMINATED BY不是空字符串，则各行以FIELDS TERMINATED BY作为结尾。
+
+·         如果FIELDS TERMINATED BY和FIELDS ENCLOSED BY值均为空值('')，则使用固定行（无分隔）格式。使用固定行格式时，在字段之间不使用分隔符（但是您仍然可以有行终止符）。列值使用列的显示宽度进行写入和读取。例如，如果某列被定义为INT(7)，则使用7字符字段写入列值。输出时，通过读取7个字符获取列值。
+
+LINES TERMINATED BY仍然用于分隔行。如果某行不包含所有字段，则其余的各列被设置到默认值。如果您没有行终止符，您应该把终止符设置为''。在此情况下，文本文件必须包含每行的所有字段。
+
+固定行格式也会影响NULL值的操作，这将在以后进行介绍。注意，如果您正在使用一个多字节字符集，则固定规格格式不会运行。
+
+根据正在使用中的FIELDS和LINES选项的不同，NULL值的操作有所变化：
+
+·         对于默认的FIELDS和LINES值，NULL被作为\N的字段值编写，用于输出；\N字段值被作为NULL读取，用于输入（假设ESCAPED BY字符为‘\’）。
+
+·         如果FIELDS ENCLOSED BY不是空值，则包含以文字词语NULL为值的字段被作为NULL值读取。这与被FIELDS ENCLOSED BY字符包围的词语NULL不同。该词语被作为字符串'NULL'读取。
+
+·         如果FIELDS ESCAPED BY是空值，则NULL被作为词语NULL写入。
+
+·         采用固定行格式时（当FIELDS TERMINATED BY和FIELDS ENCLOSED BY均为空值时采用），NULL被作为一个空字符串写入。注意，这会导致在被写入文件时，表中的NULL值和空字符串均无法辨别，这是因为两者都被作为空字符串写入。如果您需要在读取文件并返回时能够分辨两者，则您不应使用固定行格式。
+
+LOAD DATA INFILE不支持有些情况：
+
+·         固定规格行（FIELDS TERMINATED BY和FIELDS ENCLOSED BY均为空值）和BLOB或TEXT列。
+
+·         如果您指定了一个分隔符，并且该分隔符与其它的前缀一样，则LOAD DATA INFILE不能正确地理解输入值。例如，下面的FIELDS子句会导致问题：
+
+·                FIELDS TERMINATED BY '"' ENCLOSED BY '"'
+·         如果FIELDS ESCAPED BY为空值，则包含FIELDS ENCLOSED BY或LINES TERMINATED BY的字段值后面再接FIELDS TERMINATED BY值会导致LOAD DATA INFILE过早地停止读取一个字段或行。出现这种情况的原因是LOAD DATA INFILE不能正确地决定字段或行值在哪里结束。
+
+以下的例子载入了persondata表中的所有列：
+
+mysql> LOAD DATA INFILE 'persondata.txt' INTO TABLE persondata;
+默认情况下，如果在LOAD DATA INFILE语句的末尾处没有设列清单时，则输入行预计会包含一个字段，用于表中的每个列。如果您只想载入一个表的部分列，则应指定一个列清单：
+
+mysql> LOAD DATA INFILE 'persondata.txt'
+    ->           INTO TABLE persondata (col1,col2,...);
+如果输入文件中各字段的顺序与表中各列的顺序不同，您也必须指定一个列清单。否则，MySQL不能把输入字段和表中的列匹配起来。
+
+列清单可以包含列名称或用户变量。支持SET子句。这使您可以把输入值赋予用户变量，然后在把结果赋予列之前，对这些值进行变换。
+
+SET子句中的用户变量可以采用多种方式使用。以下例子使用数据文件中的第一列，直接用于t1.column1的值。在用户变量被用于t2.column2值之前，把第二列赋予用户变量。该变量从属于一个分割运行。
+
+LOAD DATA INFILE 'file.txt'
+  INTO TABLE t1
+  (column1, @var1)
+  SET column2 = @var1/100;
+SET子句可以被用于提供不是来源于输入文件的值。以下语句把column3设置为当前的日期和时间：
+
+LOAD DATA INFILE 'file.txt'
+  INTO TABLE t1
+  (column1, column2)
+  SET column3 = CURRENT_TIMESTAMP;
+您也可以通过把输入值赋予一个用户变量，同时不把变量赋予表中的列，来丢弃此输入值：
+
+LOAD DATA INFILE 'file.txt'
+  INTO TABLE t1
+  (column1, @dummy, column2, @dummy, column3);
+列/变量清单和SET子句的使用受到以下限定：
+
+·         在SET子句中的赋值应只含有位于赋值操作符的左侧的列名称。
+
+·         您可以在SET赋值的右侧使用子查询。如果子查询可以返回一个值，并且此值将被赋予到一个列中，则此子查询只能是标量子查询。另外，您不能使用子查询从一个正在被载入的表中选择。
+
+·         对于于列/变量清单或SET子句，被IGNORE子句忽略的行不被处理。
+
+·         当载入采用固定行格式的数据时，不能使用用户变量，因为用户变量没有显示宽度。
+
+当处理一个输入行时，LOAD DATA会依据列/变量清单和SET子句，把行拆分成字段，并使用值。然后，得到的行被插入表中。如果有用于表的BEFORE INSERT或AFTER INSERT触发器，则在插入行之前和插入行之后分别启动触发器。
+
+如果一个输入行含有过多的字段，则多余的字段被忽略，并且警告的数量增加。
+
+如果一个输入行含有的字段过少，则输入字段缺失的表中的列被设置为默认值。默认值赋值在13.1.5节，“CREATE TABLE语法”中进行了说明。
+
+如果字段值缺失，则对一个空字段值会被按不同方式理解：
+
+·         对于字符串类型，列被设置为空字符串。
+
+·         对于数字类型，列被设置为0。
+
+·         对于日期和时间类型，列被设置为该类型相应的“zero”。请参见11.3节，“日期和时间类型”。
+
+如果您明确地把一个空字符串赋予一个INSERT或UPDATE语句中的字符串类型、数字类型或日期或时间类型，则产生的这些值相同。
+
+只有在两种情况下TIMESTAMP列被设置为当前日期和时间。一种情况时当列有一个NULL值（也就是\N）时；另一种情况是（仅对于第一个TIMESTAMP列），当一个字段清单被指定时，TIMESTAMP列会从字段清单中被略去。
+
+LOAD DATA INFILE把所有的输入值当作字符串，所以您不能按照使用INSERT语句的方式使用ENUM或SET列的数字值。所有的ENUM和SET值必须被指定为字符串。
+
+当LOAD DATA INFILE语句结束时，会按以下格式返回一个信息字符串：
+
+Records: 1  Deleted: 0  Skipped: 0  Warnings: 0
+如果您正在使用C API，您可以通过调用mysql_info()函数获取有关语句的信息。请参见25.2.3.34节，“mysql_info()”。
+
+当值通过INSERT语句被插入时或出现相同情况时，会发生警告（见13.2.4节，“INSERT语法”）。例外情况是，当输入行中字段过多或过少时，LOAD DATA INFILE也生成警告。这些警告并不存储；警告的数量只用于指示运行是否良好。
+
+您可以使用SHOW WARNINGS来得到第一批max_error_count警告的清单，作为有关运行错误的信息。请参见13.5.4.22节，“SHOW WARNINGS语法”。
+
+========
+13.2.6. REPLACE语法
+ REPLACE [LOW_PRIORITY | DELAYED]
+    [INTO] tbl_name [(col_name,...)]
+    VALUES ({expr | DEFAULT},...),(...),...
+或：
+
+REPLACE [LOW_PRIORITY | DELAYED]
+    [INTO] tbl_name
+    SET col_name={expr | DEFAULT}, ...
+或：
+
+REPLACE [LOW_PRIORITY | DELAYED]
+    [INTO] tbl_name [(col_name,...)]
+    SELECT ...
+REPLACE的运行与INSERT很相像。只有一点除外，如果表中的一个旧记录与一个用于PRIMARY KEY或一个UNIQUE索引的新记录具有相同的值，则在新记录被插入之前，旧记录被删除。请参见13.2.4节，“INSERT语法”。
+
+注意，除非表有一个PRIMARY KEY或UNIQUE索引，否则，使用一个REPLACE语句没有意义。该语句会与INSERT相同，因为没有索引被用于确定是否新行复制了其它的行。
+
+所有列的值均取自在REPLACE语句中被指定的值。所有缺失的列被设置为各自的默认值，这和INSERT一样。您不能从当前行中引用值，也不能在新行中使用值。如果您使用一个例如“SET col_name = col_name + 1”的赋值，则对位于右侧的列名称的引用会被作为DEFAULT(col_name)处理。因此，该赋值相当于SET col_name = DEFAULT(col_name) + 1。
+
+为了能够使用REPLACE，您必须同时拥有表的INSERT和DELETE权限。
+
+REPLACE语句会返回一个数，来指示受影响的行的数目。该数是被删除和被插入的行数的和。如果对于一个单行REPLACE该数为1，则一行被插入，同时没有行被删除。如果该数大于1，则在新行被插入前，有一个或多个旧行被删除。如果表包含多个唯一索引，并且新行复制了在不同的唯一索引中的不同旧行的值，则有可能是一个单一行替换了多个旧行。
+
+受影响的行数可以容易地确定是否REPLACE只添加了一行，或者是否REPLACE也替换了其它行：检查该数是否为1（添加）或更大（替换）。
+
+如果您正在使用C API，则可以使用mysql_affected_rows()函数获得受影响的行数。
+
+目前，您不能在一个子查询中，向一个表中更换，同时从同一个表中选择。
+
+以下是所用算法的更详细的说明（该算法也用于LOAD DATA...REPLACE）：
+
+1.    尝试把新行插入到表中
+
+2.    当因为对于主键或唯一关键字出现重复关键字错误而造成插入失败时：
+
+a.    从表中删除含有重复关键字值的冲突行
+
+b.    再次尝试把新行插入到表中

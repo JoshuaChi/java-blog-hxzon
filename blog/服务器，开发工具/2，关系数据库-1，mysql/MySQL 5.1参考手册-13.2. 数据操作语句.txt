@@ -1,0 +1,849 @@
+﻿MySQL 5.1参考手册-13.2. 数据操作语句
+http://dev.mysql.com/doc/refman/5.1/zh/sql-syntax.html#data-manipulation
+
+13.2. 数据操作语句
+13.2.1. DELETE语法
+13.2.2. DO语法
+13.2.3. HANDLER语法
+13.2.4. INSERT语法
+13.2.5. LOAD DATA INFILE语法
+13.2.6. REPLACE语法
+13.2.7. SELECT语法
+13.2.8. Subquery语法
+13.2.9. TRUNCATE语法
+13.2.10. UPDATE语法
+
+====
+13.2.1. DELETE语法
+单表语法：
+
+DELETE [LOW_PRIORITY] [QUICK] [IGNORE] FROM tbl_name
+    [WHERE where_definition]
+    [ORDER BY ...]
+    [LIMIT row_count]
+多表语法：
+
+DELETE [LOW_PRIORITY] [QUICK] [IGNORE]
+    tbl_name[.*] [, tbl_name[.*] ...]
+    FROM table_references
+    [WHERE where_definition]
+或：
+
+DELETE [LOW_PRIORITY] [QUICK] [IGNORE]
+    FROM tbl_name[.*] [, tbl_name[.*] ...]
+    USING table_references
+    [WHERE where_definition]
+tbl_name中有些行满足由where_definition给定的条件。DELETE用于删除这些行，并返回被删除的记录的数目。
+
+如果您编写的DELETE语句中没有WHERE子句，则所有的行都被删除。当您不想知道被删除的行的数目时，有一个更快的方法，即使用TRUNCATE TABLE。请参见13.2.9节，“TRUNCATE语法”。
+
+如果您删除的行中包括用于AUTO_INCREMENT列的最大值，则该值被重新用于BDB表，但是不会被用于MyISAM表或InnoDB表。如果您在AUTOCOMMIT模式下使用DELETE FROM tbl_name（不含WHERE子句）删除表中的所有行，则对于所有的表类型（除InnoDB和MyISAM外），序列重新编排。对于InnoDB表，此项操作有一些例外，在15.2.6.3节，“AUTO_INCREMENT列如何在InnoDB中运行”中进行了讨论。
+
+对于MyISAM和BDB表，您可以把AUTO_INCREMENT次级列指定到一个多列关键字中。在这种情况下，从序列的顶端被删除的值被再次使用，甚至对于MyISAM表也如此。请参见3.6.9节，“使用AUTO_INCREMENT”。
+
+DELETE语句支持以下修饰符：
+
+·         如果您指定LOW_PRIORITY，则DELETE的执行被延迟，直到没有其它客户端读取本表时再执行。
+
+·         对于MyISAM表，如果您使用QUICK关键词，则在删除过程中，存储引擎不会合并索引端结点，这样可以加快部分种类的删除操作的速度。
+
+·         在删除行的过程中，IGNORE关键词会使MySQL忽略所有的错误。（在分析阶段遇到的错误会以常规方式处理。）由于使用本选项而被忽略的错误会作为警告返回。
+
+删除操作的速度会受到一些因素的影响，这些因素在7.2.18节，“DELETE语句的速度”中进行了讨论。
+
+在MyISAM表中，被删除的记录被保留在一个带链接的清单中，后续的INSERT操作会重新使用旧的记录位置。要重新使用未使用的空间并减小文件的尺寸，则使用OPTIMIZE TABLE语句或myisamchk应用程序重新编排表。OPTIMIZE TABLE更简便，但是myisamchk速度更快。请参见13.5.2.5节，“OPTIMIZE TABLE语法”和第7章：优化。
+
+QUICK修饰符会影响到在删除操作中索引端结点是否合并。当用于被删除的行的索引值被来自后插入的行的相近的索引值代替时，DELETE QUICK最为适用。在此情况下，被删除的值留下来的空穴被重新使用。
+
+未充满的索引块跨越某一个范围的索引值，会再次发生新的插入。当被删除的值导致出现未充满的索引块时，DELETE QUICK没有作用。在此情况下，使用QUICK会导致未利用的索引中出现废弃空间。下面是此种情况的举例说明：
+
+1.    创建一个表，表中包含已编索引的AUTO_INCREMENT列。
+
+2.    在表中插入很多记录。每次插入会产生一个索引值，此索引值被添加到索引的高端处。
+
+3.    使用DELETE QUICK从列的低端处删除一组记录。
+
+在此情况下，与被删除的索引值相关的索引块变成未充满的状态，但是，由于使用了QUICK，这些索引块不会与其它索引块合并。当插入新值时，这些索引块仍为未充满的状态，原因是新记录不含有在被删除的范围内的索引值。另外，即使您此后使用DELETE时不包含QUICK，这些索引块也仍是未充满的，除非被删除的索引值中有一部分碰巧位于这些未充满的块的之中，或与这些块相邻。在这些情况下，如果要重新利用未使用的索引空间，需使用OPTIMIZE TABLE。
+
+如果您打算从一个表中删除许多行，使用DELETE QUICK再加上OPTIMIZE TABLE可以加快速度。这样做可以重新建立索引，而不是进行大量的索引块合并操作。
+
+用于DELETE的MySQL唯一的LIMIT row_count选项用于告知服务器在控制命令被返回到客户端前被删除的行的最大值。本选项用于确保一个DELETE语句不会占用过多的时间。您可以只重复DELETE语句，直到相关行的数目少于LIMIT值为止。
+
+如果DELETE语句包括一个ORDER BY子句，则各行按照子句中指定的顺序进行删除。此子句只在与LIMIT联用是才起作用。例如，以下子句用于查找与WHERE子句对应的行，使用timestamp_column进行分类，并删除第一（最旧的）行：
+
+DELETE FROM somelog
+WHERE user = 'jcole'
+ORDER BY timestamp_column
+LIMIT 1;
+您可以在一个DELETE语句中指定多个表，根据多个表中的特定条件，从一个表或多个表中删除行。不过，您不能在一个多表DELETE语句中使用ORDER BY或LIMIT。
+
+table_references部分列出了包含在联合中的表。此语法在13.2.7.1节，“JOIN语法”中进行了说明。
+
+对于第一个语法，只删除列于FROM子句之前的表中的对应的行。对于第二个语法，只删除列于FROM子句之中（在USING子句之前）的表中的对应的行。作用是，您可以同时删除许多个表中的行，并使用其它的表进行搜索：
+
+DELETE t1, t2 FROM t1, t2, t3 WHERE t1.id=t2.id AND t2.id=t3.id;
+或：
+
+DELETE FROM t1, t2 USING t1, t2, t3 WHERE t1.id=t2.id AND t2.id=t3.id;
+当搜索待删除的行时，这些语句使用所有三个表，但是只从表t1和表t2中删除对应的行。
+
+以上例子显示了使用逗号操作符的内部联合，但是多表DELETE语句可以使用SELECT语句中允许的所有类型的联合，比如LEFT JOIN。
+
+本语法允许在名称后面加.*，以便与Access相容。
+
+如果您使用的多表DELETE语句包括InnoDB表，并且这些表受外键的限制，则MySQL优化程序会对表进行处理，改变原来的从属关系。在这种情况下，该语句出现错误并返回到前面的步骤。要避免此错误，您应该从单一表中删除，并依靠InnoDB提供的ON DELETE功能，对其它表进行相应的修改。
+
+注释：当引用表名称时，您必须使用别名（如果已给定）：
+
+DELETE t1 FROM test AS t1, test2 WHERE ...
+进行多表删除时支持跨数据库删除，但是在此情况下，您在引用表时不能使用别名。举例说明：
+
+DELETE test1.tmp1, test2.tmp2 FROM test1.tmp1, test2.tmp2 WHERE ...
+目前，您不能从一个表中删除，同时又在子查询中从同一个表中选择。
+
+==========
+13.2.4. INSERT语法
+13.2.4.1. INSERT ... SELECT语法
+13.2.4.2. INSERT DELAYED语法
+ INSERT [LOW_PRIORITY | DELAYED | HIGH_PRIORITY] [IGNORE]
+    [INTO] tbl_name [(col_name,...)]
+    VALUES ({expr | DEFAULT},...),(...),...
+    [ ON DUPLICATE KEY UPDATE col_name=expr, ... ]
+或：
+
+INSERT [LOW_PRIORITY | DELAYED | HIGH_PRIORITY] [IGNORE]
+    [INTO] tbl_name
+    SET col_name={expr | DEFAULT}, ...
+    [ ON DUPLICATE KEY UPDATE col_name=expr, ... ]
+或：
+
+INSERT [LOW_PRIORITY | HIGH_PRIORITY] [IGNORE]
+    [INTO] tbl_name [(col_name,...)]
+    SELECT ...
+    [ ON DUPLICATE KEY UPDATE col_name=expr, ... ]
+INSERT用于向一个已有的表中插入新行。INSERT...VALUES和INSERT...SET形式的语句根据明确指定的值插入行。INSERT...SELECT形式的语句插入从其它表中选出的行。在13.2.4.1节，“INSERT ... SELECT语法”中对INSERT...SELECT进行了进一步的讨论。
+
+行应被插入到tbl_name表中。可以按以下方法指定列。本语句向这些列提供值。
+
+·         列名称清单或SET子句明确的指示了列。
+
+·         如果您不为INSERT...VALUES或INSERT...SELECT指定列的清单，则表中每列的值必须在VALUES清单中提供，或由SELECT提供。如果您不知道表中各列的顺序，则使用DESCRIBE tbl_name查询。
+
+列值可以采用多种方法给定：
+
+·         如果不是在严格模式下运行，则所有没有明确给定值的列都被设置为默认值（明确的或隐含的）。例如，如果您指定了一个列清单，但此清单没有对表中所有的列进行命名，则未命名的各列被设置为默认值。默认值的赋值在13.1.5节，“CREATE TABLE语法”中进行了说明。也可参见1.8.6.2节，“对无效数据的约束”。
+
+有时候，您需要对所有没有默认值的列明确地指定值。如果您希望，在没有明确指定值时，INSERT语句可以生成错误信息，则您应该使用STRICT模式。请参见5.3.2节，“SQL服务器模式”。
+
+·         使用关键词DEFAULT，明确地把列设置为默认值。这样，编写向所有列赋值的INSERT语句时可以更容易，因为使用DEFAULT可以避免编写出不完整的、未包含全部列值的VALUES清单。如果不使用DEFUALT，您必须编写一个列名称清单，与VALUES清单中的每个值对应。
+
+您还可以使用DEFAULT(col_name)作为一种更通用的形式，在表达式中使用，用于生成一个列的默认值。
+
+·         如果列清单和VALUES清单均为空清单，则INSERT会创建一个行，每个列都被设置为默认值：
+
+·                mysql> INSERT INTO tbl_name () VALUES();
+在STRICT模式中，如果有一列没有默认值，则会出现错误。或者，MySQL会对所有没有明确定义默认值的列使用隐含的默认值。
+
+·         您可以指定一个表达式expr来提供一个列值。如果表达式的类型与列值不匹配，这样做会造成类型转化。并且，给定值的转化会导致不同的插入值，插入何值由列类型而定。例如，向一个INT, FLOAT, DECIMAL(10,6)或YEAR列插入字符串'1999.0e-2'，插入值分别是1999，19.9921，19.992100和1999。存储在INT和YEAR列中的值为1999的原因是，在从字符串到整数的转化中，只把字符串的前面部分看作有效的整数或年份。对于浮点列和固定点列，在从字符串到浮点的转化中，把整个字符串均看作有效的浮点值。
+
+表达式expr可以引用在值清单中已设置的所有列。例如，您可以这么操作，因为用于col2的值引用了col1，而col1已经被赋值：
+
+mysql> INSERT INTO tbl_name (col1,col2) VALUES(15,col1*2);
+但是以下语句不合法，因为用于col1的值引用了col2，而col2在col1之后被赋值：
+
+mysql> INSERT INTO tbl_name (col1,col2) VALUES(col2*2,15);
+有一种例外情况，那就是含有AUTO_INCREMENT值的列。因为AUTO_INCREMENT值在其它值赋值之后被生成，所以任何在赋值时对AUTO_INCREMENT列的引用都会返回0。
+
+INSERT语句支持下列修改符：
+
+·         如果您使用DELAYED关键字，则服务器会把待插入的行放到一个缓冲器中，而发送INSERT DELAYED语句的客户端会继续运行。如果表正在被使用，则服务器会保留这些行。当表空闲时，服务器开始插入行，并定期检查是否有新的读取请求。如果有新的读取请求，则被延迟的行被延缓执行，直到表再次空闲时为止。请参见13.2.4.2节，“INSERT DELAYED语法”。
+
+·         如果您使用LOW_PRIORITY关键词，则INSERT的执行被延迟，直到没有其它客户端从表中读取为止。当原有客户端正在读取时，有些客户端刚开始读取。这些客户端也被包括在内。此时，INSERT LOW_PRIORITY语句等候。因此，在读取量很大的情况下，发出INSERT LOW_PRIORITY语句的客户端有可能需要等待很长一段时间（甚至是永远等待下去）。（这与INSERT DELAYED形成对比，INSERT DELAYED立刻让客户端继续执行。请参见13.2.4.2节，“INSERT DELAYED语法”。）注意LOW_PRIORITY通常不应用于MyISAM表，因为这么做会取消同时进行的插入。请参见15.1节，“MyISAM存储引擎”。
+
+·         如果您指定了HIGH_PRIORITY，同时服务器采用--low-priority-updates选项启动，则HIGH_PRIORITY将覆盖--low-priority-updates选项。这么做还会导致同时进行的插入被取消。
+
+·         使用mysql_affected_rows() C API函数，可以获得用于INSERT的受影响行的值。请参见25.2.3.1节，“mysql_affected_rows()”。
+
+·         如果您在一个INSERT语句中使用IGNORE关键词，在执行语句时出现的错误被当作警告处理。例如，没有使用IGNORE时，如果一个行复制了原有的UNIQUE索引或PRIMARY KEY值，会导致出现重复关键字错误，语句执行失败。使用IGNORE时，该行仍然未被插入，但是不会出现错误。IGNORE未被指定时，如果数据转化引发错误，则会使语句执行失败。使用IGNORE后，无效数据被调整到最接近的值，并被插入；此时，生成警告，但是语句执行不会失败。您可以使用mysql_info() C API函数测定有多少行被插入到表中。
+
+如果您指定了ON DUPLICATE KEY UPDATE，并且插入行后会导致在一个UNIQUE索引或PRIMARY KEY中出现重复值，则执行旧行UPDATE。例如，如果列a被定义为UNIQUE，并且包含值1，则以下两个语句具有相同的效果：
+
+mysql> INSERT INTO table (a,b,c) VALUES (1,2,3)
+    -> ON DUPLICATE KEY UPDATE c=c+1;
+ 
+mysql> UPDATE table SET c=c+1 WHERE a=1;
+如果行作为新记录被插入，则受影响行的值为1；如果原有的记录被更新，则受影响行的值为2。
+
+注释：如果列b也是唯一列，则INSERT与此UPDATE语句相当：
+
+mysql> UPDATE table SET c=c+1 WHERE a=1 OR b=2 LIMIT 1;
+如果a=1 OR b=2与多个行向匹配，则只有一个行被更新。通常，您应该尽量避免对带有多个唯一关键字的表使用ON DUPLICATE KEY子句。
+
+您可以在UPDATE子句中使用VALUES(col_name)函数从INSERT...UPDATE语句的INSERT部分引用列值。换句话说，如果没有发生重复关键字冲突，则UPDATE子句中的VALUES(col_name)可以引用被插入的col_name的值。本函数特别适用于多行插入。VALUES()函数只在INSERT...UPDATE语句中有意义，其它时候会返回NULL。
+
+示例：
+
+mysql> INSERT INTO table (a,b,c) VALUES (1,2,3),(4,5,6)
+    -> ON DUPLICATE KEY UPDATE c=VALUES(a)+VALUES(b);
+本语句与以下两个语句作用相同：
+
+mysql> INSERT INTO table (a,b,c) VALUES (1,2,3)
+    -> ON DUPLICATE KEY UPDATE c=3;
+mysql> INSERT INTO table (a,b,c) VALUES (4,5,6)
+    -> ON DUPLICATE KEY UPDATE c=9;
+当您使用ON DUPLICATE KEY UPDATE时，DELAYED选项被忽略。
+
+您可以使用SQL LAST_INSERT_ID()函数查找用于AUTO_INCREMENT列的值。从C API的内部，使用mysql_insert_id()函数。不过，您应该注意，两个函数的作用并不总是相同的。在12.9.3节，“信息函数”和25.2.3.36节，“mysql_insert_id()”中进一步讨论了与AUTO_INCREMENT列有关的INSERT语句的作用。
+
+如果您使用INSERT...VALUES语句时采用了多个值清单或INSERT...SELECT，则该语句按以下格式返回一个信息字符串：
+
+Records: 100 Duplicates: 0 Warnings: 0
+记录指示了经过语句处理的行的数目。（因为重复数目可以不是零，所以该数目不一定是实际被插入的行的数目。）重复数目指的是不能被插入的行的数目，因为这些行会复制部分原有的唯一索引值。警告指的是插入有错误或有问题的列值的次数。在以下情况下会出现警告：
+
+·         向一个已定义为NOT NULL的列中插入NULL。对于一个多行INSERT语句或INSERT INTO...SELECT语句，根据列数据的类型，列被设置为隐含的默认值。对于数字类型，默认值为0；对于字符串类型，默认值为空字符串('')；对于日期和时间类型，默认值为“zero”值。对INSERT INTO...SELECT语句的处理方法与对多行插入的处理方法一样，因为服务器不能检测来自SELECT的结果，不能判断是否返回单一行。（对于单一行INSERT，当NULL被插入一个NOT NULL列时，不会出现警告，而是出现错误，并且语句运行失败。）
+
+·         数字列的值被设置在列的值范围之外。此值被修改为未最接近的值范围端点。
+
+·         向一个数字列赋予一个例如'10.34 a'的值。尾部的非数字文本被删节，其余的数字部分被插入，如果字符串值没有前导的数字部分，则该列被设置为0。
+
+·         向一个字符串列（CHAR, VARCHAR, TEXT或BLOB）中插入的字符串超过了列的最大长度。此值被删节到列的最大长度。
+
+·         向日期或时间列中插入的值对于该列的类型是不合法的。根据列的类型，该列被设置到相应的零值。
+
+如果您正在使用C API，则可以通过调用mysql_info()函数获取信息字符串。请参见25.2.3.34节，“mysql_info()”。
+
+13.2.4.1. INSERT ... SELECT语法
+INSERT [LOW_PRIORITY | HIGH_PRIORITY] [IGNORE]
+    [INTO] tbl_name [(col_name,...)]
+    SELECT ...
+    [ ON DUPLICATE KEY UPDATE col_name=expr, ... ]
+使用INSERT...SELECT，您可以快速地从一个或多个表中向一个表中插入多个行。
+
+示例：
+
+INSERT INTO tbl_temp2 (fld_id)
+    SELECT tbl_temp1.fld_order_id
+    FROM tbl_temp1 WHERE tbl_temp1.fld_order_id > 100;
+使用INSERT...SELECT语句时会出现以下情况：
+
+·         明确地指定IGNORE，用于忽略会导致重复关键字错误的记录。
+
+·         不要同时使用DELAYED和INSERT...SELECT。
+
+·         INSERT语句的目标表会显示在查询的SELECT部分的FROM子句中。（在有些旧版本的MySQL中不会出现这种情况。）
+
+·         AUTO_INCREMENT列照常运行。
+
+·         为了确保二进制日志可以被用于再次创建原表，MySQL不允许在INSERT...SELECT运行期间同时进行插入操作。
+
+·         目前，您不能在向一个表插入的同时，又在一个子查询中从同一个表中选择。
+
+在ON DUPLICATE KEY UPDATE的值部分中，只要您不使用SELECT部分中的GROUP BY，您就可以引用在其它表中的列。有一个副作用是，您必须使值部分中的非唯一列的名称符合要求。
+
+您可以使用REPLACE替代INSERT，来覆盖旧行。对于包含唯一关键字值，并复制了旧行的新行，在进行处理时，REPLACE可以作为INSERT IGNORE的同类子句：新行被用于替换旧行，而不是被丢弃。
+
+13.2.4.2. INSERT DELAYED语法
+ INSERT DELAYED ...
+用于INSERT语句的DELAYED选项是MySQL相对于标准SQL的扩展。如果您的客户端不能等待INSERT完成，则这个选项是非常有用的。当您使用MySQL进行日志编写时，这是非常常见的问题。您也可以定期运行SELECT和UPDATE语句，这些语句花费的时间较长。
+
+当一个客户端使用INSERT DELAYED时，会立刻从服务器处得到一个确定。并且行被排入队列，当表没有被其它线程使用时，此行被插入。
+
+使用INSERT DELAYED的另一个重要的好处是，来自许多客户端的插入被集中在一起，并被编写入一个块。这比执行许多独立的插入要快很多。
+
+使用DELAYED时有一些限制：
+
+·         INSERT DELAYED仅适用于MyISAM, MEMORY和ARCHIVE表。对于MyISAM表，如果在数据文件的中间没有空闲的块，则支持同时采用SELECT和INSERT语句。在这些情况下，基本不需要对MyISAM使用INSERT DELAYED。请参见15.1节，“MyISAM存储引擎”, 15.4节，“MEMORY (HEAP)存储引擎”和15.8节，“ARCHIVE存储引擎”。
+
+·         INSERT DELAYED应该仅用于指定值清单的INSERT语句。服务器忽略用于INSERT DELAYED...SELECT语句的DELAYED。
+
+·         服务器忽略用于INSERT DELAYED...ON DUPLICATE UPDATE语句的DELAYED。
+
+·         因为在行被插入前，语句立刻返回，所以您不能使用LAST_INSERT_ID()来获取AUTO_INCREMENT值。AUTO_INCREMENT值可能由语句生成。
+
+·         对于SELECT语句，DELAYED行不可见，直到这些行确实被插入了为止。
+
+·         DELAYED在从属复制服务器中被忽略了，因为DELAYED不会在从属服务器中产生与主服务器不一样的数据。
+
+注意，目前在队列中的各行只保存在存储器中，直到它们被插入到表中为止。这意味着，如果您强行中止了mysqld（例如，使用kill -9）或者如果mysqld意外停止，则所有没有被写入磁盘的行都会丢失。
+
+以下详细描述了当您对INSERT或REPLACE使用DELAYED选项时会发生什么情况。在这些描述中，“线程”指的是已接受了一个INSERT DELAYED语句的线程，“管理程序”指的是为某个特定的表处理所有INSERT DELAYED语句的线程。
+
+·         当一个线程对一个表执行DELAYED语句时，会创建出一个管理程序线程（如果原来不存在），对用于本表的所有DELAYED语句进行处理。
+
+·         线程会检查是否管理程序以前已获取了DELAYED锁定；如果没有获取，则告知管理程序线程进行此项操作。即使其它线程对表有READ或WRITE锁定，也可以获得DELAYED锁定。但是管理程序会等待所有的ALTER TABLE锁定或FLUSH TABLE锁定，以确保表的结构是最新的。
+
+·         线程执行INSERT语句，但不是把行写入表中，而是把最终行的拷贝放入一个由管理程序线程管理的队列中。线程会提示出现语法错误，这些错误会被报告到客户端中。
+
+·         因为在插入操作之前，INSERT返回已经完成，所以客户端不能从服务器处获取重复记录的数目，也不能获取生成的行的AUTO_INCREMENT值。（如果您使用C API，则出于同样的原因，mysql_info()函数不会返回任何有意义的东西。）
+
+·         当行被插入表中时，二进制日志被管理程序线程更新。在多行插入情况下，当第一行被插入时，二进制日志被更新。
+
+·         每次delayed_insert_limit行被编写时，管理程序会检查是否有SELECT语句仍然未执行。如果有，则会在继续运行前，让这些语句先执行。
+
+·         当管理程序的队列中没有多余的行时，表被解锁。如果在delayed_insert_timeout时间内，没有接收到新的INSERT DELAYED语句，则管理程序中止。
+
+·         如果在某个特定的管理程序队列中，有超过delayed_queue_size的行未被执行，则申请INSERT DELAYED的线程会等待，直到队列中出现空间为止。这么做可以确保mysqld不会把所有的存储器都用于被延迟的存储队列。
+
+·         管理程序线程会显示在MySQL进程清单中，其命令列中包含delayed_insert。如果您执行一个FLUSH TABLES语句或使用KILL thread_id进行删除，则会删除此线程。不过，在退出前，线程会首先把所有排入队列的行存储到表中。在这期间，该线程不会从其它线程处接受任何新的INSERT语句。如果您在此之后执行一个INSERT DELAYED语句，则会创建出一个新的管理程序线程。
+
+注意，如果有一个INSERT DELAYED管理程序正在运行，则这意味着INSERT DELAYED语句比常规的INSERT语句具有更高的优先权。其它更新语句必须等待，直到INSERT DELAYED语句队列都运行完毕，或者管理程序线程被中止（使用KILL thread_id），或者执行了一个FLUSH TABLES时为止。
+
+·         以下状态变量提供了有关INSERT DELAYED语句的信息：
+
+状态变量
+
+意义
+
+Delayed_insert_threads
+
+管理程序线程的数目
+
+Delayed_writes
+
+使用INSERT DELAYED写入的行的数目
+
+Not_flushed_delayed_rows
+
+等待被写入的行的数目
+
+·         您可以通过发送一个SHOW STATUS语句，或者执行一个mysqladmin extended-status命令，来阅览这些变量。
+
+注意，当没有使用表时，INSERT DELAYED比常规的INSERT要慢。对于服务器来说，为每个含有延迟行的表操纵一个独立的线程，也是一个额外的系统开销。这意味着只有当您确认您需要时，才应使用INSERT DELAYED。
+
+
+===========
+13.2.7. SELECT语法
+
+13.2.7.1. JOIN语法
+13.2.7.2. UNION语法
+ 
+ SELECT
+    [ALL | DISTINCT | DISTINCTROW ]
+      [HIGH_PRIORITY]
+      [STRAIGHT_JOIN]
+      [SQL_SMALL_RESULT] [SQL_BIG_RESULT] [SQL_BUFFER_RESULT]
+      [SQL_CACHE | SQL_NO_CACHE] [SQL_CALC_FOUND_ROWS]
+    select_expr, ...
+    [INTO OUTFILE 'file_name' export_options
+      | INTO DUMPFILE 'file_name']
+    [FROM table_references
+    [WHERE where_definition]
+    [GROUP BY {col_name | expr | position}
+      [ASC | DESC], ... [WITH ROLLUP]]
+    [HAVING where_definition]
+    [ORDER BY {col_name | expr | position}
+      [ASC | DESC] , ...]
+    [LIMIT {[offset,] row_count | row_count OFFSET offset}]
+    [PROCEDURE procedure_name(argument_list)]
+    [FOR UPDATE | LOCK IN SHARE MODE]]
+SELECT用于恢复从一个或多个表中选择的行，并可以加入UNION语句和子查询。请参见13.2.7.2节，“UNION语法
+”和13.2.8节，“Subquery语法”。
+
+·         每个select_expr都指示一个您想要恢复的列。
+
+·         table_references指示行从哪个表或哪些表中被恢复。在13.2.7.1节，“JOIN语法”中对该语法进行了说明。
+
+·         where_definition包括关键词WHERE，后面接一个表达式。该表达式指示被选择的行必须满足的条件。
+
+有的行在计算时未引用任何表。SELECT也可以用于恢复这类行。
+
+举例说明：
+
+mysql> SELECT 1 + 1;
+        -> 2
+所有被使用的子句必须按语法说明中显示的顺序严格地排序。例如，一个HAVING子句必须位于GROUP BY子句之后，并位于ORDER BY子句之前。
+
+·         使用AS alias_name可以为select_expr给定一个别名。此别名用作表达式的列名，可以用于GROUP BY、ORDER BY或HAVING子句。例如：
+
+·                mysql> SELECT CONCAT(last_name,', ',first_name) AS full_name
+·                    -> FROM mytable ORDER BY full_name;
+在为select_expr给定别名时，AS关键词是自选的。前面的例子可以这样编写：
+
+mysql> SELECT CONCAT(last_name,', ',first_name) full_name
+    -> FROM mytable ORDER BY full_name;
+因为AS是自选的，如果您忘记在两个select_expr表达式之间加逗号，则会出现一个小问题：MySQL会把第二个表达式理解为一个别名。例如，在以下语句中，columnb被作为别名对待：
+
+mysql> SELECT columna columnb FROM mytable;
+因此，使用AS明确地指定列的别名，把它作为习惯，是一个良好的操作规范。
+
+·         在一个WHERE子句中使用列别名是不允许的，因为当执行WHERE子句时，列值可能还没有被确定。请参见A.5.4节，“与列别名有关的问题”。
+
+·         FROM table_references子句指示行从哪些表中被恢复。如果您命名的表多于一个，则您在进行一个联合操作。要了解有关联合语法的说明，请参见13.2.7.1节，“JOIN语法”。对于每一个被指定的表，您可以自选地指定一个别名。
+
+·                tbl_name [[AS] alias]
+·                    [{USE|IGNORE|FORCE} INDEX (key_list)]
+使用USE INDEX、IGNORE INDEX、FORCE INDEX可以向优化符提示如何选择索引。这部分内容在13.2.7.1节，“JOIN语法”中进行了讨论。
+
+您可以使用SET max_seeks_for_key=value作为一种替代方法，来促使MySQL优先采用关键字扫描，替代表扫描。
+
+·         您可以把当前数据库中的一个表作为tbl_name（在当前数据库中）引用，或作为db_name.tbl_name引用，来明确地指定一个数据库。您可以把一列作为col_name, tbl_name.col_name引用或作为db_name.tbl_name.col_name引用。您不需要对一个列引用指定一个tbl_name或db_name.tbl_name前缀，除非此引用意义不明确。意义不明确时，要求指定明确的列引用格式。有关示例见9.2节，“数据库、表、索引、列和别名”。
+
+·         在没有表被引用的情况下，允许您指定DUAL作为一个假的表名。
+
+·                mysql> SELECT 1 + 1 FROM DUAL;
+·                        -> 2
+有些服务器要求一个FROM子句。DUAL仅用于与这些服务器兼容。如果没有表被引用，则MySQL不要求该子句，前面的语句可以按以下方法编写：
+
+mysql> SELECT 1 + 1;
+        -> 2
+·         使用tbl_name AS alias_name或tbl_name alias_name可以为一个表引用起别名：
+
+·                mysql> SELECT t1.name, t2.salary FROM employee AS t1, info AS t2
+·                    ->     WHERE t1.name = t2.name;
+·                mysql> SELECT t1.name, t2.salary FROM employee t1, info t2
+·                    ->     WHERE t1.name = t2.name;
+·         在WHERE子句中，您可以使用MySQL支持的所有函数，不过总计（总结）函数除外。请参见第12章：函数和操作符。
+
+·         被选择的用于输出的列可以使用列名称、列别名或列位置被引用到ORDER BY和GROUP BY子句中。列位置为整数，从1开始：
+
+·                mysql> SELECT college, region, seed FROM tournament
+·                    ->     ORDER BY region, seed;
+·                mysql> SELECT college, region AS r, seed AS s FROM tournament
+·                    ->     ORDER BY r, s;
+·                mysql> SELECT college, region, seed FROM tournament
+·                    ->     ORDER BY 2, 3;
+要以相反的顺序进行分类，应把DESC（降序）关键字添加到ORDER BY子句中的列名称中。默认值为升序；该值可以使用ASC关键词明确地指定。
+
+不建议使用列位置，因为该语法已经从SQL标准中删除。
+
+·         如果您使用GROUP BY，则输出行根据GROUP BY列进行分类，如同您对相同的列进行了ORDER BY。MySQL对GROUP BY进行了扩展，因此您可以在各列（在子句中进行命名）的后面指定ASC和DESC：
+
+·                SELECT a, COUNT(b) FROM test_table GROUP BY a DESC
+·         MySQL对GROUP BY的使用进行了扩展，允许选择在GROUP BY子句中没有被提到的字段。如果您没有得到预期的结果，请阅读GROUP BY的说明，请参见12.10节，“与GROUP BY子句同时使用的函数和修改程序”。
+
+·         GROUP BY允许一个WITH ROLLUP修饰符。请参见12.10.2节，“GROUP BY修改程序”。
+
+·         HAVING子句基本上是最后使用，只位于被发送给客户端的条目之前，没有进行优化。（LIMIT用于HAVING之后。）
+
+SQL标准要求HAVING必须引用GROUP BY子句中的列或用于总计函数中的列。不过，MySQL支持对此工作性质的扩展，并允许HAVING因为SELECT清单中的列和外部子查询中的列。
+
+如果HAVING子句引用了一个意义不明确的列，则会出现警告。在下面的语句中，col2意义不明确，因为它既作为别名使用，又作为列名使用：
+
+mysql> SELECT COUNT(col1) AS col2 FROM t GROUP BY col2 HAVING col2 = 2;
+标准SQL工作性质具有优先权，因此如果一个HAVING列名既被用于GROUP BY，又被用作输出列清单中的起了别名的列，则优先权被给予GROUP BY列中的列。
+
+·         HAVING不能用于应被用于WHERE子句的条目。例如，不能编写如下语句：
+
+·                mysql> SELECT col_name FROM tbl_name HAVING col_name > 0;
+而应这么编写：
+
+mysql> SELECT col_name FROM tbl_name WHERE col_name > 0;
+·         HAVING子句可以引用总计函数，而WHERE子句不能引用：
+
+·                mysql> SELECT user, MAX(salary) FROM users
+·                    ->     GROUP BY user HAVING MAX(salary)>10;
+（在有些较早版本的MySQL中，本语句不运行。）
+
+·         LIMIT子句可以被用于限制被SELECT语句返回的行数。LIMIT取一个或两个数字自变量，自变量必须是非负的整数常数（当使用已预备的语句时除外）。
+
+使用两个自变量时，第一个自变量指定返回的第一行的偏移量，第二个自变量指定返回的行数的最大值。初始行的偏移量为0（不是1）：
+
+mysql> SELECT * FROM tbl LIMIT 5,10;  # Retrieve rows 6-15
+为了与PostgreSQL兼容，MySQL也支持LIMIT row_count OFFSET offset语法。
+
+如果要恢复从某个偏移量到结果集合的末端之间的所有的行，您可以对第二个参数是使用比较大的数。本语句可以恢复从第96行到最后的所有行：
+
+mysql> SELECT * FROM tbl LIMIT 95,18446744073709551615;
+使用1个自变量时，该值指定从结果集合的开头返回的行数：
+
+mysql> SELECT * FROM tbl LIMIT 5;     # Retrieve first 5 rows
+换句话说，LIMIT n与LIMIT 0,n等价。
+
+对于已预备的语句，您可以使用位置保持符。以下语句将从tb1表中返回一行：
+
+mysql> SET @a=1;
+mysql> PREPARE STMT FROM "SELECT * FROM tbl LIMIT ?";
+mysql> EXECUTE STMT USING @a;
+以下语句将从tb1表中返回第二到第六行：
+
+mysql> SET @skip=1; SET @numrows=5;
+mysql> PREPARE STMT FROM "SELECT * FROM tbl LIMIT ?, ?";
+mysql> EXECUTE STMT USING @skip, @numrows;
+·         SELECT...INTO OUTFILE 'file_name'形式的SELECT可以把被选择的行写入一个文件中。该文件被创建到服务器主机上，因此您必须拥有FILE权限，才能使用此语法。file_name不能是一个原有的文件。原有文件会阻止例如“/etc/passwd”的文件和数据库表被销毁。
+
+SELECT...INTO OUTFILE语句的主要作用是让您可以非常快速地把一个表转储到服务器机器上。如果您想要在服务器主机之外的部分客户主机上创建结果文件，您不能使用SELECT...INTO OUTFILE。在这种情况下，您应该在客户主机上使用比如“mysql –e "SELECT ..." > file_name”的命令，来生成文件。
+
+SELECT...INTO OUTFILE是LOAD DATA INFILE的补语；用于语句的exort_options部分的语法包括部分FIELDS和LINES子句，这些子句与LOAD DATA INFILE语句同时使用。请参见13.2.5节，“LOAD DATA INFILE语法”。
+
+FIELDS ESCAPED BY用于控制如何写入特殊字符。如果FIELDS ESCAPED BY字符不是空字符，则被用于在输出中对以下字符设前缀：
+
+o        FIELDS ESCAPED BY字符
+
+o        FIELDS [OPTIONALLY] ENCLOSED BY字符
+
+o        FIELDS TERMINATED BY和LINES TERMINATED BY值的第一个字符
+
+o        ASCII 0（在编写时接在转义符后面的是ASCII ‘0’，而不是一个零值字节）
+
+如果FIELDS ESCAPED BY字符是空字符，则没有字符被转义，并且NULL被作为NULL输出，而不是作为\N输出。指定一个空的转义符不是一个好的主意。特别是当您的数据中的字段值包含刚被给予的清单中的字符时，更是如此。
+
+其原因是您必须对所有FIELDS TERMINATED BY, ENCLOSED BY, ESCAPED BY或LINES TERMINATED BY字符进行转义，才能可靠地读取文件并返回。ASCII NUL被转义，以便更容易地使用调页程序观看。
+
+生成的文件不必符合SQL语法，所以没有其它的字符需要被转义。
+
+在下面的例子中，生成一个文件，各值用逗号隔开。这种格式可以被许多程序使用。
+
+SELECT a,b,a+b INTO OUTFILE '/tmp/result.text'
+FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"'
+LINES TERMINATED BY '\n'
+FROM test_table;
+·         如果您使用INTO DUMPFILE代替INTO OUTFILE，则MySQL只把一行写入到文件中，不对任何列或行进行终止，也不执行任何转义处理。如果您想要把一个BLOB值存储到文件中，则这个语句是有用的。
+
+·         注释：任何由INTO OUTFILE或INTO DUMPFILE创建的文件都可以被服务器主机上的所有用户编写。原因是，MySQL服务器不能创建这样的文件，即文件的所有者不是该文件运行时所属的用户（任何时候，您都不能出于此原因或出于其它原因把mysqld作为根段运行）。该文件必须是全局可写的，这样您就可以操作其中的内容。
+
+·         有的过程应在结果集合内处理数据。PROCEDURE子句用于对这些过程进行命名。要了解示例，请参见27.3.1节，“步骤分析”。
+
+·         存储引擎使用页面或行锁。如果您对存储引擎使用FOR UPDATE，则受到查询检验的行会被进行写锁定，直到当前事务结束为止。使用LOCK IN SHARE MODE可以设置一个共享锁。共享锁可以防止其它事务更新或删除被检验的行。请参见15.2.10.5节，“锁定读取SELECT ... FOR UPDATE和SELECT ... LOCK IN SHARE MODE”。
+
+在SELECT关键词的后面，您可以使用许多选项。这些选项可以影响语句的运行。
+
+ALL, DISTINCT和DISTINCTROW选项指定是否重复行应被返回。如果这些选项没有被给定，则默认值为ALL（所有的匹配行被返回）。DISTINCT和DISTINCTROW是同义词，用于指定结果集合中的重复行应被删除。
+
+HIGH_PRIORITY, STRAIGHT_JOIN和以SQL_为开头的选项是MySQL相对于标准SQL的扩展。
+
+·         HIGH_PRIORITY给予SELECT更高的优先权，高于用于更新表的语句。您应该只对查询使用HIGH_PRIORITY。查询速度非常快，而且立刻被执行。SELECT HIGH_PRIORITY查询在表被锁定用于读取时被发出。即使有一个新的语句正在等待表变为空闲，查询也会运行。
+
+HIGH_PRIORITY不能和SELECT语句同时使用。SELECT语句是UNION的一部分。
+
+·         STRAIGHT_JOIN用于促使优化符把表联合在一起，顺序按照这些表在FROM子句中排列的顺序。如果优化符联合表时顺序不佳，您可以使用STRAIGHT_JOIN来加快查询的速度。请参见7.2.1节，“EXPLAIN语法（获取关于SELECT的信息）”。STRAIGHT_JOIN也可以被用于table_references清单中。请参见13.2.7.1节，“JOIN语法”。
+
+·         SQL_BIG_RESULT可以与GROUP BY或DISTINCT同时使用，来告知优化符结果集合有很多行。在这种情况下，MySQL直接使用以磁盘为基础的临时表（如果需要的话）。在这种情况下，MySQL还会优先进行分类，不优先使用临时表。临时表对于GROUP BY组分带有关键字。
+
+·         SQL_BUFFER_RESULT促使结果被放入一个临时表中。这可以帮助MySQL提前解开表锁定，在需要花费较长时间的情况下，也可以帮助把结果集合发送到客户端中。
+
+·         SQL_SMALL_RESULT可以与GROUP BY或DISTINCT同时使用，来告知优化符结果集合是较小的。在此情况下，MySAL使用快速临时表来储存生成的表，而不是使用分类。在MySQL 5.1中，通常不需要这样。
+
+·         SQL_CALC_FOUND_ROWS告知MySQL计算有多少行应位于结果集合中，不考虑任何LIMIT子句。行的数目可以使用SELECT FOUND_ROWS()恢复。请参见12.9.3节，“信息函数”。
+
+·         如果您正在使用一个query_cache_type值，值为2或DEMAND，则SQL_CACHE告知MySQL把查询结果存储在查询缓存中。对于使用UNION的查询或子查询，本选项会影响查询中的所有SELECT。请参见5.13节，“MySQL查询高速缓冲”。
+
+·         SQL_NO_CACHE告知MySQL不要把查询结果存储在查询缓存中。请参见5.13节，“MySQL查询高速缓冲”。对于一个使用UNION或子查询的查询，本选项会影响查询中的SELECT。
+
+====
+13.2.7.1. JOIN语法
+MySQL支持以下JOIN语法。这些语法用于SELECT语句的table_references部分和多表DELETE和UPDATE语句：
+
+table_references:
+    table_reference [, table_reference] …
+
+table_reference:
+    table_factor
+  | join_table
+
+table_factor:
+    tbl_name [[AS] alias]
+        [{USE|IGNORE|FORCE} INDEX (key_list)]
+  | ( table_references )
+  | { OJ table_reference LEFT OUTER JOIN table_reference
+        ON conditional_expr }
+
+join_table:
+    table_reference [INNER | CROSS] JOIN table_factor [join_condition]
+  | table_reference STRAIGHT_JOIN table_factor
+  | table_reference STRAIGHT_JOIN table_factor ON condition
+  | table_reference LEFT [OUTER] JOIN table_reference join_condition
+  | table_reference NATURAL [LEFT [OUTER]] JOIN table_factor
+  | table_reference RIGHT [OUTER] JOIN table_reference join_condition
+  | table_reference NATURAL [RIGHT [OUTER]] JOIN table_factor
+
+join_condition:
+    ON conditional_expr
+  | USING (column_list)
+一个表引用还被称为一个联合表达式。
+
+与SQL标准相比，table_factor的语法被扩展了。SQL标准只接受table_reference，而不是圆括号内的一系列条目。
+
+如果我们把一系列table_reference条目中的每个逗号都看作相当于一个内部联合，则这是一个稳妥的扩展。例如：
+
+SELECT * FROM t1 LEFT JOIN (t2, t3, t4)
+                 ON (t2.a=t1.a AND t3.b=t1.b AND t4.c=t1.c)
+相当于：
+
+SELECT * FROM t1 LEFT JOIN (t2 CROSS JOIN t3 CROSS JOIN t4)
+                 ON (t2.a=t1.a AND t3.b=t1.b AND t4.c=t1.c)
+在MySQL中，CROSS JOIN从语法上说与INNER JOIN等同（两者可以互相替换。在标准SQL中，两者是不等同的。INNER JOIN与ON子句同时使用，CROSS JOIN以其它方式使用。
+
+通常，在只含有内部联合运行的联合表达式中，圆括号可以被忽略。MySQL也支持嵌套的联合（见7.2.10节，“MySQL如何优化嵌套Join”）。
+
+通常，您不应对ON部分有任何条件。ON部分用于限定在结果集合中您想要哪些行。但是，您应在WHERE子句中指定这些条件。这条规则有一些例外。
+
+在前面的清单中显示的{ OJ ... LEFT OUTER JOIN ...}语法的目的只是为了保持与ODBC的兼容性。语法中的花括号应按字面书写；该括号不是中间语法。中间语法用于语法描述的其它地方。
+
+·         表引用可以使用tbl_name AS alias_name或tbl_name alias_name指定别名：
+
+·                mysql> SELECT t1.name, t2.salary FROM employee AS t1, info AS t2
+·                    ->        WHERE t1.name = t2.name;
+·                mysql> SELECT t1.name, t2.salary FROM employee t1, info t2
+·                    ->        WHERE t1.name = t2.name;
+·         ON条件句是可以被用于WHERE子句的格式的任何条件表达式。
+
+·         如果对于在LEFT JOIN中的ON或USING部分中的右表没有匹配的记录，则所有列被设置为NULL的一个行被用于右表。如果一个表在其它表中没有对应部分，您可以使用这种方法在这种表中查找记录：
+
+·                mysql> SELECT table1.* FROM table1
+·                    ->        LEFT JOIN table2 ON table1.id=table2.id
+·                    ->        WHERE table2.id IS NULL;
+本例查找在table1中含有一个id值的所有行。同时，在table2中没有此id值（即，table1中的所有行在table2中没有对应的行）。本例假设table2.id被定义为NOT NULL。请参见7.2.9节，“MySQL如何优化LEFT JOIN和RIGHT JOIN”。
+
+·         USING(column_list)子句用于为一系列的列进行命名。这些列必须同时在两个表中存在。如果表a和表b都包含列c1, c2和c3，则以下联合会对比来自两个表的对应的列：
+
+·                a LEFT JOIN b USING (c1,c2,c3)
+·         两个表的NATURAL [LEFT] JOIN被定义为与INNER JOIN语义相同，或与使用USING子句的LEFT JOIN语义相同。USING子句用于为同时存在于两个表中的所有列进行命名。
+
+·         INNER JOIN和，（逗号）在无联合条件下是语义相同的：两者都可以对指定的表计算出笛卡儿乘积（也就是说，第一个表中的每一行被联合到第二个表中的每一行）。
+
+·         RIGHT JOIN的作用与LEFT JOIN的作用类似。要使代码可以在数据库内移植，建议您使用LEFT JOIN代替RIGHT JOIN。
+
+·         STRAIGHT_JOIN与JOIN相同。除了有一点不一样，左表会在右表之前被读取。STRAIGH_JOIN可以被用于这样的情况，即联合优化符以错误的顺序排列表。
+
+您可以提供提示，当从一个表中恢复信息时，MySQL应使用哪个索引。通过指定USE INDEX（key_list），您可以告知MySQL只使用一个索引来查找表中的行。另一种语法IGNORE INDEX（key_list）可以被用于告知MySQL不要使用某些特定的索引。如果EXPLAIN显示MySQL正在使用来自索引清单中的错误索引时，这些提示会有用处。
+
+您也可以使用FORCE INDEX，其作用接近USE INDEX（key_list），不过增加了一项作用，一次表扫描被假设为代价很高。换句话说，只有当无法使用一个给定的索引来查找表中的行时，才使用表扫描。
+
+USE KEY、IGNORE KEY和FORCE KEY是USE INDEX、IGNORE INDEX和FORCE INDEX的同义词。
+
+注释：当MySQL决定如何在表中查找行并决定如何进行联合时，使用USE INDEX、IGNORE INDEX和FORCE INDEX只会影响使用哪些索引。当分解一个ORDER BY或GROUP BY时，这些语句不会影响某个索引是否被使用。
+
+部分的联合示例：
+
+mysql> SELECT * FROM table1,table2 WHERE table1.id=table2.id;
+mysql> SELECT * FROM table1 LEFT JOIN table2 ON table1.id=table2.id;
+mysql> SELECT * FROM table1 LEFT JOIN table2 USING (id);
+mysql> SELECT * FROM table1 LEFT JOIN table2 ON table1.id=table2.id
+    ->          LEFT JOIN table3 ON table2.id=table3.id;
+mysql> SELECT * FROM table1 USE INDEX (key1,key2)
+    ->          WHERE key1=1 AND key2=2 AND key3=3;
+mysql> SELECT * FROM table1 IGNORE INDEX (key3)
+    ->          WHERE key1=1 AND key2=2 AND key3=3;
+见7.2.9节，“MySQL如何优化LEFT JOIN和RIGHT JOIN”。
+
+注释：自然联合和使用USING的联合，包括外部联合变量，依据SQL:2003标准被处理。这些变更时MySQL与标准SQL更加相符。不过，对于有些联合，这些变更会导致不同的输出列。另外，有些查询在旧版本（5.0.12以前）工作正常，但也必须重新编写，以符合此标准。对于有关当前联合处理和旧版本中的联合处理的效果的对比，以下列表提供了更详细的信息。
+
+·         NATURAL联合或USING联合的列会与旧版本不同。特别是，不再出现冗余的输出列，用于SELECT *扩展的列的顺序会与以前不同。
+
+示例：
+
+CREATE TABLE t1 (i INT, j INT);
+CREATE TABLE t2 (k INT, j INT);
+INSERT INTO t1 VALUES(1,1);
+INSERT INTO t2 VALUES(1,1);
+SELECT * FROM t1 NATURAL JOIN t2;
+SELECT * FROM t1 JOIN t2 USING (j);
+对于旧版本，语句会产生以下输出：
+
++------+------+------+------+
+| i    | j    | k    | j    |
++------+------+------+------+
+|    1 |    1 |    1 |    1 |
++------+------+------+------+
++------+------+------+------+
+| i    | j    | k    | j    |
++------+------+------+------+
+|    1 |    1 |    1 |    1 |
++------+------+------+------+
+在第一个SELECT语句中，列i同时出现在两个表中，为一个联合列，所以，依据标准SQL，该列在输出中只出现一次。与此类似，在第二个SELECT语句中，列j在USING子句中被命名，应在输出中只出现一次。但是，在两种情况下，冗余的列均没被消除。另外，依据标准SQL，列的顺序不正确。
+
+现在，语句产生如下输出：
+
++------+------+------+
+| j    | i    | k    |
++------+------+------+
+|    1 |    1 |    1 |
++------+------+------+
++------+------+------+
+| j    | i    | k    |
++------+------+------+
+|    1 |    1 |    1 |
++------+------+------+
+冗余的列被消除，并且依据标准SQL，列的顺序是正确的：
+
+o        第一，两表共有的列，按在第一个表中的顺序排列
+
+o        第二，第一个表中特有的列，按该表中的顺序排列
+
+o        第三，第二个表中特有的列，按该表中的顺序排列
+
+·         对多方式自然联合的估算会不同。方式要求重新编写查询。假设您有三个表t1(a,b), t2(c,b)和t3(a,c)，每个表有一行：t1(1,2), t2(10,2)和t3(7,10)。同时，假设这三个表具有NATURAL JOIN：
+
+·                SELECT … FROM t1 NATURAL JOIN t2 NATURAL JOIN t3;
+在旧版本中，第二个联合的左操作数被认为是t2，然而它应该为嵌套联合（t1 NATURAL JOIN t2）。结果，对t3的列进行检查时，只检查其在t2中的共有列。如果t3与t1有共有列，这些列不被用作equi-join列。因此，在旧版本的MySQL中，前面的查询被转换为下面的equi-join：
+
+SELECT … FROM t1, t2, t3
+  WHERE t1.b = t2.b AND t2.c = t3.c;
+此联合又省略了一个equi-join谓语（t1.a = t3.a）。结果是，该联合产生一个行，而不是空结果。正确的等价查询如下：
+
+SELECT … FROM t1, t2, t3
+  WHERE t1.b = t2.b AND t2.c = t3.c AND t1.a = t3.a;
+如果您要求在当前版本的MySQL中获得和旧版本中相同的查询结果，应把自然联合改写为第一个equi-join。
+
+·         在旧版本中，逗号操作符（，）和JOIN均有相同的优先权，所以联合表达式t1, t2 JOIN t3被理解为((t1, t2) JOIN t3)。现在，JOIN有更高的优先权，所以表达式被理解为(t1, (t2 JOIN t3))。这个变更会影响使用ON子句的语句，因为该子句只参阅联合操作数中的列。优先权的变更改变了对什么是操作数的理解。
+
+示例：
+
+CREATE TABLE t1 (i1 INT, j1 INT);
+CREATE TABLE t2 (i2 INT, j2 INT);
+CREATE TABLE t3 (i3 INT, j3 INT);
+INSERT INTO t1 VALUES(1,1);
+INSERT INTO t2 VALUES(1,1);
+INSERT INTO t3 VALUES(1,1);
+SELECT * FROM t1, t2 JOIN t3 ON (t1.i1 = t3.i3);
+在旧版本中，SELECT是合法的，因为t1, t2被隐含地归为(t1,t2)。现在，JOIN取得了优先权，因此用于ON子句的操作数是t2和t3。因为t1.i1不是任何一个操作数中的列，所以结果是出现在'on clause'中有未知列't1.i1'的错误。要使联合可以被处理，用使用圆括号把前两个表明确地归为一组，这样用于ON子句的操作数为(t1,t2)和t3：
+
+SELECT * FROM (t1, t2) JOIN t3 ON (t1.i1 = t3.i3);
+本变更也适用于INNER JOIN，CROSS JOIN，LEFT JOIN和RIGHT JOIN。
+
+·         在旧版本中，ON子句可以参阅在其右边命名的表中的列。现在，ON子句只能参阅操作数。
+
+示例：
+
+CREATE TABLE t1 (i1 INT);
+CREATE TABLE t2 (i2 INT);
+CREATE TABLE t3 (i3 INT);
+SELECT * FROM t1 JOIN t2 ON (i1 = i3) JOIN t3;
+在旧版本中，SELECT语句是合法的。现在该语句会运行失败，出现在'on clause'中未知列'i3'的错误。这是因为i3是t3中的一个表，而t3不是ON子句中的操作数。本语句应进行如下改写：
+
+SELECT * FROM t1 JOIN t2 JOIN t3 ON (i1 = i3);
+·         在旧版本中，一个USING子句可以被改写为一个ON子句。ON子句对比了相应的列。例如，以下两个子句具有相同的语义：
+
+·                a LEFT JOIN b USING (c1,c2,c3)
+·                a LEFT JOIN b ON a.c1=b.c1 AND a.c2=b.c2 AND a.c3=b.c3
+现在，这两个子句不再是一样的：
+
+o        在决定哪些行满足联合条件时，两个联合保持语义相同。
+
+o        在决定哪些列显示SELECT *扩展时，两个联合的语义不相同。USING联合选择对应列中的合并值，而ON联合选择所有表中的所有列。对于前面的USING联合，SELECT *选择这些值：
+
+o                     COALESCE(a.c1,b.c1), COALESCE(a.c2,b.c2), COALESCE(a.c3,b.c3)
+对于ON联合，SELECT *选择这些值：
+
+a.c1, a.c2, a.c3, b.c1, b.c2, b.c3
+使用内部联合时，COALESCE(a.c1,b.c1)与a.c1或b.c1相同，因为两列将具有相同的值。使用外部联合时（比如LEFT JOIN），两列中有一列可以为NULL。该列将会从结果中被忽略。
+
+====
+13.2.7.2. UNION语法
+ 
+SELECT ...
+UNION [ALL | DISTINCT]
+SELECT ...
+[UNION [ALL | DISTINCT]
+SELECT ...]
+UNION用于把来自许多SELECT语句的结果组合到一个结果集合中。
+
+列于每个SELECT语句的对应位置的被选择的列应具有相同的类型。（例如，被第一个语句选择的第一列应和被其它语句选择的第一列具有相同的类型。）在第一个SELECT语句中被使用的列名称也被用于结果的列名称。
+
+SELECT语句为常规的选择语句，但是受到如下的限定：
+
+·         只有最后一个SELECT语句可以使用INTO OUTFILE。
+
+·         HIGH_PRIORITY不能与作为UNION一部分的SELECT语句同时使用。如果您对第一个SELECT指定了HIGH_PRIORITY，则不会起作用。如果您对其它后续的SELECT语句指定了HIGH_PRIORITY，则会产生语法错误。
+
+如果您对UNION不使用关键词ALL，则所有返回的行都是唯一的，如同您已经对整个结果集合使用了DISTINCT。如果您指定了ALL，您会从所有用过的SELECT语句中得到所有匹配的行。
+
+DISTINCT关键词是一个自选词，不起任何作用，但是根据SQL标准的要求，在语法中允许采用。（在MySQL中，DISTINCT代表一个共用体的默认工作性质。）
+
+您可以在同一查询中混合UNION ALL和UNION DISTINCT。被混合的UNION类型按照这样的方式对待，即DISTICT共用体覆盖位于其左边的所有ALL共用体。DISTINCT共用体可以使用UNION DISTINCT明确地生成，或使用UNION（后面不加DISTINCT或ALL关键词）隐含地生成。
+
+如果您想使用ORDER BY或LIMIT子句来对全部UNION结果进行分类或限制，则应对单个地SELECT语句加圆括号，并把ORDER BY或LIMIT放到最后一个的后面。以下例子同时使用了这两个子句：
+
+(SELECT a FROM tbl_name WHERE a=10 AND B=1)
+UNION
+(SELECT a FROM tbl_name WHERE a=11 AND B=2)
+ORDER BY a LIMIT 10;
+这种ORDER BY不能使用包括表名称（也就是，采用tbl_name.col_name格式的名称）列引用。可以在第一个SELECT语句中提供一个列别名，并在ORDER BY中参阅别名，或使用列位置在ORDER BY中参阅列。（首选采用别名，因为不建议使用列位置。）
+
+另外，如果带分类的一列有别名，则ORDER BY子句必须引用别名，而不能引用列名称。以下语句中的第一个语句必须运行，但是第二个会运行失败，出现在'order clause'中有未知列'a'的错误：
+
+(SELECT a AS b FROM t) UNION (SELECT ...) ORDER BY b;
+(SELECT a AS b FROM t) UNION (SELECT ...) ORDER BY a;
+To apply ORDER BY or LIMIT to an individual SELECT, place the clause inside the parentheses that enclose the SELECT:   为了对单个SELECT使用ORDER BY或LIMIT，应把子句放入圆括号中。圆括号包含了SELECT：
+
+(SELECT a FROM tbl_name WHERE a=10 AND B=1 ORDER BY a LIMIT 10)
+UNION
+(SELECT a FROM tbl_name WHERE a=11 AND B=2 ORDER BY a LIMIT 10);
+圆括号中用于单个SELECT语句的ORDER BY只有当与LIMIT结合后，才起作用。否则，ORDER BY被优化去除。
+
+UNION结果集合中的列的类型和长度考虑了被所有SELECT语句恢复的数值。例如，考虑如下语句：
+
+mysql> SELECT REPEAT('a',1) UNION SELECT REPEAT('b',10);
++---------------+
+| REPEAT('a',1) |
++---------------+
+| a             |
+| bbbbbbbbbb    |
++---------------+
+（在部分早期版本的MySQL中，第二行已被删节到长度为1。）
+
+===========
+13.2.9. TRUNCATE语法
+TRUNCATE [TABLE] tbl_name
+TRUNCATE TABLE用于完全清空一个表。从逻辑上说，该语句与用于删除所有行的DELETE语句等同，但是在有些情况下，两者在使用上有所不同。
+
+对于InnoDB表，如果有需要引用表的外键限制，则TRUNCATE TABLE被映射到DELETE上；否则使用快速删减（取消和重新创建表）。使用TRUNCATE TABLE重新设置AUTO_INCREMENT计数器，设置时不考虑是否有外键限制。
+
+对于其它存储引擎，在MySQL 5.1中，TRUNCATE TABLE与DELETE FROM有以下几处不同：
+
+·         删减操作会取消并重新创建表，这比一行一行的删除行要快很多。
+
+·         删减操作不能保证对事务是安全的；在进行事务处理和表锁定的过程中尝试进行删减，会发生错误。
+
+·         被删除的行的数目没有被返回。
+
+·         只要表定义文件tbl_name.frm是合法的，则可以使用TRUNCATE TABLE把表重新创建为一个空表，即使数据或索引文件已经被破坏。
+
+·         表管理程序不记得最后被使用的AUTO_INCREMENT值，但是会从头开始计数。即使对于MyISAM和InnoDB也是如此。MyISAM和InnoDB通常不再次使用序列值。
+
+·         当被用于带分区的表时，TRUNCATE TABLE会保留分区；即，数据和索引文件被取消并重新创建，同时分区定义（.par）文件不受影响。
+
+TRUNCATE TABLE是在MySQL中采用的一个Oracle SQL扩展。
+
+=========
+13.2.10. UPDATE语法
+Single-table语法：
+
+UPDATE [LOW_PRIORITY] [IGNORE] tbl_name
+    SET col_name1=expr1 [, col_name2=expr2 ...]
+    [WHERE where_definition]
+    [ORDER BY ...]
+    [LIMIT row_count]
+Multiple-table语法：
+
+UPDATE [LOW_PRIORITY] [IGNORE] table_references
+    SET col_name1=expr1 [, col_name2=expr2 ...]
+    [WHERE where_definition]
+UPDATE语法可以用新值更新原有表行中的各列。SET子句指示要修改哪些列和要给予哪些值。WHERE子句指定应更新哪些行。如果没有WHERE子句，则更新所有的行。如果指定了ORDER BY子句，则按照被指定的顺序对行进行更新。LIMIT子句用于给定一个限值，限制可以被更新的行的数目。
+
+UPDATE语句支持以下修饰符：
+
+·         如果您使用LOW_PRIORITY关键词，则UPDATE的执行被延迟了，直到没有其它的客户端从表中读取为止。
+
+·         如果您使用IGNORE关键词，则即使在更新过程中出现错误，更新语句也不会中断。如果出现了重复关键字冲突，则这些行不会被更新。如果列被更新后，新值会导致数据转化错误，则这些行被更新为最接近的合法的值。
+
+如果您在一个表达式中通过tbl_name访问一列，则UPDATE使用列中的当前值。例如，以下语句把年龄列设置为比当前值多一：
+
+mysql> UPDATE persondata SET age=age+1;
+UPDATE赋值被从左到右评估。例如，以下语句对年龄列加倍，然后再进行增加：
+
+mysql> UPDATE persondata SET age=age*2, age=age+1;
+如果您把一列设置为其当前含有的值，则MySQL会注意到这一点，但不会更新。
+
+如果您把被已定义为NOT NULL的列更新为NULL，则该列被设置到与列类型对应的默认值，并且累加警告数。对于数字类型，默认值为0；对于字符串类型，默认值为空字符串('')；对于日期和时间类型，默认值为“zero”值。
+
+UPDATE会返回实际被改变的行的数目。Mysql_info() C API函数可以返回被匹配和被更新的行的数目，以及在UPDATE过程中产生的警告的数量。
+
+您可以使用LIMIT row_count来限定UPDATE的范围。LIMIT子句是一个与行匹配的限定。只要发现可以满足WHERE子句的row_count行，则该语句中止，不论这些行是否被改变。
+
+如果一个UPDATE语句包括一个ORDER BY子句，则按照由子句指定的顺序更新行。
+
+您也可以执行包括多个表的UPDATE操作。table_references子句列出了在联合中包含的表。该语法在13.2.7.1节，“JOIN语法”中进行了说明。以下是一个例子：
+
+UPDATE items,month SET items.price=month.price
+WHERE items.id=month.id;
+以上的例子显示出了使用逗号操作符的内部联合，但是multiple-table UPDATE语句可以使用在SELECT语句中允许的任何类型的联合，比如LEFT JOIN。
+
+注释：您不能把ORDER BY或LIMIT与multiple-table UPDATE同时使用。
+
+在一个被更改的multiple-table UPDATE中，有些列被引用。您只需要这些列的UPDATE权限。有些列被读取了，但是没被修改。您只需要这些列的SELECT权限。
+
+如果您使用的multiple-table UPDATE语句中包含带有外键限制的InnoDB表，则MySQL优化符处理表的顺序可能与上下层级关系的顺序不同。在此情况下，语句无效并被 回滚。同时，更新一个单一表，并且依靠ON UPDATE功能。该功能由InnoDB提供，用于对其它表进行相应的修改。请参见15.2.6.4节，“FOREIGN KEY约束”。
+
+目前，您不能在一个子查询中更新一个表，同时从同一个表中选择。
+
