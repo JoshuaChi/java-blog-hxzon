@@ -15,47 +15,75 @@ http://dev.mysql.com/doc/refman/5.1/zh/sql-syntax.html#data-manipulation
 
 ====
 13.2.1. DELETE语法
+
 单表语法：
 
 DELETE [LOW_PRIORITY] [QUICK] [IGNORE] FROM tbl_name
     [WHERE where_definition]
     [ORDER BY ...]
     [LIMIT row_count]
+
+（hxzon：可以排序，限制删除数量。）
+
 多表语法：
 
 DELETE [LOW_PRIORITY] [QUICK] [IGNORE]
     tbl_name[.*] [, tbl_name[.*] ...]
     FROM table_references
     [WHERE where_definition]
+
 或：
 
 DELETE [LOW_PRIORITY] [QUICK] [IGNORE]
     FROM tbl_name[.*] [, tbl_name[.*] ...]
     USING table_references
     [WHERE where_definition]
-tbl_name中有些行满足由where_definition给定的条件。DELETE用于删除这些行，并返回被删除的记录的数目。
 
-如果您编写的DELETE语句中没有WHERE子句，则所有的行都被删除。当您不想知道被删除的行的数目时，有一个更快的方法，即使用TRUNCATE TABLE。请参见13.2.9节，“TRUNCATE语法”。
+（hxzon：.*语法没有意义，只是为了与access兼容。）
 
-如果您删除的行中包括用于AUTO_INCREMENT列的最大值，则该值被重新用于BDB表，但是不会被用于MyISAM表或InnoDB表。如果您在AUTOCOMMIT模式下使用DELETE FROM tbl_name（不含WHERE子句）删除表中的所有行，则对于所有的表类型（除InnoDB和MyISAM外），序列重新编排。对于InnoDB表，此项操作有一些例外，在15.2.6.3节，“AUTO_INCREMENT列如何在InnoDB中运行”中进行了讨论。
+tbl_name中有些行满足由where_definition给定的条件。
+DELETE用于删除这些行，并返回被删除的记录的数目。
 
-对于MyISAM和BDB表，您可以把AUTO_INCREMENT次级列指定到一个多列关键字中。在这种情况下，从序列的顶端被删除的值被再次使用，甚至对于MyISAM表也如此。请参见3.6.9节，“使用AUTO_INCREMENT”。
+如果您编写的DELETE语句中没有WHERE子句，则所有的行都被删除。
+当您不想知道被删除的行的数目时，有一个更快的方法，即使用TRUNCATE TABLE。
+请参见13.2.9节，“TRUNCATE语法”。
+
+如果您删除的行中包括用于AUTO_INCREMENT列的最大值，则该值被重新用于BDB表，
+但是不会被用于MyISAM表或InnoDB表。
+如果您在AUTOCOMMIT模式下使用DELETE FROM tbl_name（不含WHERE子句）删除表中的所有行，
+则对于所有的表类型（除InnoDB和MyISAM外），序列重新编排。
+对于InnoDB表，此项操作有一些例外，
+在15.2.6.3节，“AUTO_INCREMENT列如何在InnoDB中运行”中进行了讨论。
+
+对于MyISAM和BDB表，您可以把AUTO_INCREMENT次级列指定到一个多列关键字中。
+在这种情况下，从序列的顶端被删除的值被再次使用，甚至对于MyISAM表也如此。
+请参见3.6.9节，“使用AUTO_INCREMENT”。
 
 DELETE语句支持以下修饰符：
 
 ·         如果您指定LOW_PRIORITY，则DELETE的执行被延迟，直到没有其它客户端读取本表时再执行。
 
-·         对于MyISAM表，如果您使用QUICK关键词，则在删除过程中，存储引擎不会合并索引端结点，这样可以加快部分种类的删除操作的速度。
+·         对于MyISAM表，如果您使用QUICK关键词，则在删除过程中，
+存储引擎不会合并索引端结点，这样可以加快部分种类的删除操作的速度。
 
-·         在删除行的过程中，IGNORE关键词会使MySQL忽略所有的错误。（在分析阶段遇到的错误会以常规方式处理。）由于使用本选项而被忽略的错误会作为警告返回。
+·         在删除行的过程中，IGNORE关键词会使MySQL忽略所有的错误。
+（在分析阶段遇到的错误会以常规方式处理。）由于使用本选项而被忽略的错误会作为警告返回。
 
 删除操作的速度会受到一些因素的影响，这些因素在7.2.18节，“DELETE语句的速度”中进行了讨论。
 
-在MyISAM表中，被删除的记录被保留在一个带链接的清单中，后续的INSERT操作会重新使用旧的记录位置。要重新使用未使用的空间并减小文件的尺寸，则使用OPTIMIZE TABLE语句或myisamchk应用程序重新编排表。OPTIMIZE TABLE更简便，但是myisamchk速度更快。请参见13.5.2.5节，“OPTIMIZE TABLE语法”和第7章：优化。
+在MyISAM表中，被删除的记录被保留在一个带链接的清单中，后续的INSERT操作会重新使用旧的记录位置。
+要重新使用未使用的空间并减小文件的尺寸，则使用OPTIMIZE TABLE语句或myisamchk应用程序重新编排表。
+OPTIMIZE TABLE更简便，但是myisamchk速度更快。
+请参见13.5.2.5节，“OPTIMIZE TABLE语法”和第7章：优化。
 
-QUICK修饰符会影响到在删除操作中索引端结点是否合并。当用于被删除的行的索引值被来自后插入的行的相近的索引值代替时，DELETE QUICK最为适用。在此情况下，被删除的值留下来的空穴被重新使用。
+QUICK修饰符会影响到在删除操作中索引端结点是否合并。
+当用于被删除的行的索引值被来自后插入的行的相近的索引值代替时，DELETE QUICK最为适用。
+在此情况下，被删除的值留下来的空穴被重新使用。
 
-未充满的索引块跨越某一个范围的索引值，会再次发生新的插入。当被删除的值导致出现未充满的索引块时，DELETE QUICK没有作用。在此情况下，使用QUICK会导致未利用的索引中出现废弃空间。下面是此种情况的举例说明：
+未充满的索引块跨越某一个范围的索引值，会再次发生新的插入。
+当被删除的值导致出现未充满的索引块时，DELETE QUICK没有作用。
+在此情况下，使用QUICK会导致未利用的索引中出现废弃空间。
+下面是此种情况的举例说明：
 
 1.    创建一个表，表中包含已编索引的AUTO_INCREMENT列。
 
@@ -63,108 +91,186 @@ QUICK修饰符会影响到在删除操作中索引端结点是否合并。当用
 
 3.    使用DELETE QUICK从列的低端处删除一组记录。
 
-在此情况下，与被删除的索引值相关的索引块变成未充满的状态，但是，由于使用了QUICK，这些索引块不会与其它索引块合并。当插入新值时，这些索引块仍为未充满的状态，原因是新记录不含有在被删除的范围内的索引值。另外，即使您此后使用DELETE时不包含QUICK，这些索引块也仍是未充满的，除非被删除的索引值中有一部分碰巧位于这些未充满的块的之中，或与这些块相邻。在这些情况下，如果要重新利用未使用的索引空间，需使用OPTIMIZE TABLE。
+在此情况下，与被删除的索引值相关的索引块变成未充满的状态，
+但是，由于使用了QUICK，这些索引块不会与其它索引块合并。
+当插入新值时，这些索引块仍为未充满的状态，原因是新记录不含有在被删除的范围内的索引值。
+另外，即使您此后使用DELETE时不包含QUICK，这些索引块也仍是未充满的，
+除非被删除的索引值中有一部分碰巧位于这些未充满的块的之中，或与这些块相邻。
+在这些情况下，如果要重新利用未使用的索引空间，需使用OPTIMIZE TABLE。
 
-如果您打算从一个表中删除许多行，使用DELETE QUICK再加上OPTIMIZE TABLE可以加快速度。这样做可以重新建立索引，而不是进行大量的索引块合并操作。
+如果您打算从一个表中删除许多行，使用DELETE QUICK再加上OPTIMIZE TABLE可以加快速度。
+这样做可以重新建立索引，而不是进行大量的索引块合并操作。
 
-用于DELETE的MySQL唯一的LIMIT row_count选项用于告知服务器在控制命令被返回到客户端前被删除的行的最大值。本选项用于确保一个DELETE语句不会占用过多的时间。您可以只重复DELETE语句，直到相关行的数目少于LIMIT值为止。
+用于DELETE的MySQL唯一的LIMIT row_count选项用于告知服务器在控制命令被返回到客户端前被删除的行的最大值。
+本选项用于确保一个DELETE语句不会占用过多的时间。
+您可以只重复DELETE语句，直到相关行的数目少于LIMIT值为止。
 
-如果DELETE语句包括一个ORDER BY子句，则各行按照子句中指定的顺序进行删除。此子句只在与LIMIT联用是才起作用。例如，以下子句用于查找与WHERE子句对应的行，使用timestamp_column进行分类，并删除第一（最旧的）行：
+如果DELETE语句包括一个ORDER BY子句，则各行按照子句中指定的顺序进行删除。
+此子句只在与LIMIT联用是才起作用。
+例如，以下子句用于查找与WHERE子句对应的行，使用timestamp_column进行分类，并删除第一（最旧的）行：
 
 DELETE FROM somelog
 WHERE user = 'jcole'
 ORDER BY timestamp_column
 LIMIT 1;
-您可以在一个DELETE语句中指定多个表，根据多个表中的特定条件，从一个表或多个表中删除行。不过，您不能在一个多表DELETE语句中使用ORDER BY或LIMIT。
 
-table_references部分列出了包含在联合中的表。此语法在13.2.7.1节，“JOIN语法”中进行了说明。
+您可以在一个DELETE语句中指定多个表，根据多个表中的特定条件，从一个表或多个表中删除行。
+不过，您不能在一个多表DELETE语句中使用ORDER BY或LIMIT。
 
-对于第一个语法，只删除列于FROM子句之前的表中的对应的行。对于第二个语法，只删除列于FROM子句之中（在USING子句之前）的表中的对应的行。作用是，您可以同时删除许多个表中的行，并使用其它的表进行搜索：
+table_references部分列出了包含在联合中的表。
+此语法在13.2.7.1节，“JOIN语法”中进行了说明。
+
+对于第一个语法，只删除列于FROM子句之前的表中的对应的行。
+对于第二个语法，只删除列于FROM子句之中（在USING子句之前）的表中的对应的行。
+作用是，您可以同时删除许多个表中的行，并使用其它的表进行搜索：
 
 DELETE t1, t2 FROM t1, t2, t3 WHERE t1.id=t2.id AND t2.id=t3.id;
+
 或：
 
 DELETE FROM t1, t2 USING t1, t2, t3 WHERE t1.id=t2.id AND t2.id=t3.id;
+
 当搜索待删除的行时，这些语句使用所有三个表，但是只从表t1和表t2中删除对应的行。
 
-以上例子显示了使用逗号操作符的内部联合，但是多表DELETE语句可以使用SELECT语句中允许的所有类型的联合，比如LEFT JOIN。
+以上例子显示了使用逗号操作符的内部联合，
+但是多表DELETE语句可以使用SELECT语句中允许的所有类型的联合，比如LEFT JOIN。
 
 本语法允许在名称后面加.*，以便与Access相容。
 
-如果您使用的多表DELETE语句包括InnoDB表，并且这些表受外键的限制，则MySQL优化程序会对表进行处理，改变原来的从属关系。在这种情况下，该语句出现错误并返回到前面的步骤。要避免此错误，您应该从单一表中删除，并依靠InnoDB提供的ON DELETE功能，对其它表进行相应的修改。
+如果您使用的多表DELETE语句包括InnoDB表，并且这些表受外键的限制，则MySQL优化程序会对表进行处理，改变原来的从属关系。
+在这种情况下，该语句出现错误并返回到前面的步骤。
+要避免此错误，您应该从单一表中删除，并依靠InnoDB提供的ON DELETE功能，对其它表进行相应的修改。
 
 注释：当引用表名称时，您必须使用别名（如果已给定）：
 
 DELETE t1 FROM test AS t1, test2 WHERE ...
+
 进行多表删除时支持跨数据库删除，但是在此情况下，您在引用表时不能使用别名。举例说明：
 
 DELETE test1.tmp1, test2.tmp2 FROM test1.tmp1, test2.tmp2 WHERE ...
+
 目前，您不能从一个表中删除，同时又在子查询中从同一个表中选择。
+
+（mysql5.7版：
+Subqueries
+Currently, you cannot delete from a table and select from the same table in a subquery.）
 
 ==========
 13.2.4. INSERT语法
+
 13.2.4.1. INSERT ... SELECT语法
 13.2.4.2. INSERT DELAYED语法
+
  INSERT [LOW_PRIORITY | DELAYED | HIGH_PRIORITY] [IGNORE]
     [INTO] tbl_name [(col_name,...)]
     VALUES ({expr | DEFAULT},...),(...),...
     [ ON DUPLICATE KEY UPDATE col_name=expr, ... ]
+
 或：
 
 INSERT [LOW_PRIORITY | DELAYED | HIGH_PRIORITY] [IGNORE]
     [INTO] tbl_name
     SET col_name={expr | DEFAULT}, ...
     [ ON DUPLICATE KEY UPDATE col_name=expr, ... ]
+
+（hxzon：注意上述语法。）
+
 或：
 
 INSERT [LOW_PRIORITY | HIGH_PRIORITY] [IGNORE]
     [INTO] tbl_name [(col_name,...)]
     SELECT ...
     [ ON DUPLICATE KEY UPDATE col_name=expr, ... ]
-INSERT用于向一个已有的表中插入新行。INSERT...VALUES和INSERT...SET形式的语句根据明确指定的值插入行。INSERT...SELECT形式的语句插入从其它表中选出的行。在13.2.4.1节，“INSERT ... SELECT语法”中对INSERT...SELECT进行了进一步的讨论。
 
-行应被插入到tbl_name表中。可以按以下方法指定列。本语句向这些列提供值。
+INSERT用于向一个已有的表中插入新行。
+INSERT...VALUES和INSERT...SET形式的语句根据明确指定的值插入行。
+INSERT...SELECT形式的语句插入从其它表中选出的行。
+在13.2.4.1节，“INSERT ... SELECT语法”中对INSERT...SELECT进行了进一步的讨论。
+
+行应被插入到tbl_name表中。可以按以下方法指定列。
+本语句向这些列提供值。
 
 ·         列名称清单或SET子句明确的指示了列。
 
-·         如果您不为INSERT...VALUES或INSERT...SELECT指定列的清单，则表中每列的值必须在VALUES清单中提供，或由SELECT提供。如果您不知道表中各列的顺序，则使用DESCRIBE tbl_name查询。
+·         如果您不为INSERT...VALUES或INSERT...SELECT指定列的清单，则表中每列的值必须在VALUES清单中提供，或由SELECT提供。
+如果您不知道表中各列的顺序，则使用DESCRIBE tbl_name查询。
 
 列值可以采用多种方法给定：
 
-·         如果不是在严格模式下运行，则所有没有明确给定值的列都被设置为默认值（明确的或隐含的）。例如，如果您指定了一个列清单，但此清单没有对表中所有的列进行命名，则未命名的各列被设置为默认值。默认值的赋值在13.1.5节，“CREATE TABLE语法”中进行了说明。也可参见1.8.6.2节，“对无效数据的约束”。
+·         如果不是在严格模式下运行，则所有没有明确给定值的列都被设置为默认值（明确的或隐含的）。
+例如，如果您指定了一个列清单，但此清单没有对表中所有的列进行命名，则未命名的各列被设置为默认值。
+默认值的赋值在13.1.5节，“CREATE TABLE语法”中进行了说明。
+也可参见1.8.6.2节，“对无效数据的约束”。
 
-有时候，您需要对所有没有默认值的列明确地指定值。如果您希望，在没有明确指定值时，INSERT语句可以生成错误信息，则您应该使用STRICT模式。请参见5.3.2节，“SQL服务器模式”。
+有时候，您需要对所有没有默认值的列明确地指定值。
+如果您希望，在没有明确指定值时，INSERT语句可以生成错误信息，则您应该使用STRICT模式。
+请参见5.3.2节，“SQL服务器模式”。
 
-·         使用关键词DEFAULT，明确地把列设置为默认值。这样，编写向所有列赋值的INSERT语句时可以更容易，因为使用DEFAULT可以避免编写出不完整的、未包含全部列值的VALUES清单。如果不使用DEFUALT，您必须编写一个列名称清单，与VALUES清单中的每个值对应。
+·         使用关键词DEFAULT，明确地把列设置为默认值。
+这样，编写向所有列赋值的INSERT语句时可以更容易，因为使用DEFAULT可以避免编写出不完整的、未包含全部列值的VALUES清单。
+如果不使用DEFUALT，您必须编写一个列名称清单，与VALUES清单中的每个值对应。
 
 您还可以使用DEFAULT(col_name)作为一种更通用的形式，在表达式中使用，用于生成一个列的默认值。
 
 ·         如果列清单和VALUES清单均为空清单，则INSERT会创建一个行，每个列都被设置为默认值：
 
 ·                mysql> INSERT INTO tbl_name () VALUES();
-在STRICT模式中，如果有一列没有默认值，则会出现错误。或者，MySQL会对所有没有明确定义默认值的列使用隐含的默认值。
+在STRICT模式中，如果有一列没有默认值，则会出现错误。
+或者，MySQL会对所有没有明确定义默认值的列使用隐含的默认值。
 
-·         您可以指定一个表达式expr来提供一个列值。如果表达式的类型与列值不匹配，这样做会造成类型转化。并且，给定值的转化会导致不同的插入值，插入何值由列类型而定。例如，向一个INT, FLOAT, DECIMAL(10,6)或YEAR列插入字符串'1999.0e-2'，插入值分别是1999，19.9921，19.992100和1999。存储在INT和YEAR列中的值为1999的原因是，在从字符串到整数的转化中，只把字符串的前面部分看作有效的整数或年份。对于浮点列和固定点列，在从字符串到浮点的转化中，把整个字符串均看作有效的浮点值。
+·         您可以指定一个表达式expr来提供一个列值。
+如果表达式的类型与列值不匹配，这样做会造成类型转化。
+并且，给定值的转化会导致不同的插入值，插入何值由列类型而定。
+例如，向一个INT, FLOAT, DECIMAL(10,6)或YEAR列插入字符串'1999.0e-2'，
+插入值分别是1999，19.9921，19.992100和1999。
+存储在INT和YEAR列中的值为1999的原因是，在从字符串到整数的转化中，只把字符串的前面部分看作有效的整数或年份。
+对于浮点列和固定点列，在从字符串到浮点的转化中，把整个字符串均看作有效的浮点值。
 
-表达式expr可以引用在值清单中已设置的所有列。例如，您可以这么操作，因为用于col2的值引用了col1，而col1已经被赋值：
+表达式expr可以引用在值清单中已设置的所有列。
+例如，您可以这么操作，因为用于col2的值引用了col1，而col1已经被赋值：
 
 mysql> INSERT INTO tbl_name (col1,col2) VALUES(15,col1*2);
+
 但是以下语句不合法，因为用于col1的值引用了col2，而col2在col1之后被赋值：
 
 mysql> INSERT INTO tbl_name (col1,col2) VALUES(col2*2,15);
-有一种例外情况，那就是含有AUTO_INCREMENT值的列。因为AUTO_INCREMENT值在其它值赋值之后被生成，所以任何在赋值时对AUTO_INCREMENT列的引用都会返回0。
+
+有一种例外情况，那就是含有AUTO_INCREMENT值的列。
+因为AUTO_INCREMENT值在其它值赋值之后被生成，所以任何在赋值时对AUTO_INCREMENT列的引用都会返回0。
+（hxzon：注意）
 
 INSERT语句支持下列修改符：
 
-·         如果您使用DELAYED关键字，则服务器会把待插入的行放到一个缓冲器中，而发送INSERT DELAYED语句的客户端会继续运行。如果表正在被使用，则服务器会保留这些行。当表空闲时，服务器开始插入行，并定期检查是否有新的读取请求。如果有新的读取请求，则被延迟的行被延缓执行，直到表再次空闲时为止。请参见13.2.4.2节，“INSERT DELAYED语法”。
+·         如果您使用DELAYED关键字，则服务器会把待插入的行放到一个缓冲器中，而发送INSERT DELAYED语句的客户端会继续运行。
+如果表正在被使用，则服务器会保留这些行。
+当表空闲时，服务器开始插入行，并定期检查是否有新的读取请求。
+如果有新的读取请求，则被延迟的行被延缓执行，直到表再次空闲时为止。
+请参见13.2.4.2节，“INSERT DELAYED语法”。
 
-·         如果您使用LOW_PRIORITY关键词，则INSERT的执行被延迟，直到没有其它客户端从表中读取为止。当原有客户端正在读取时，有些客户端刚开始读取。这些客户端也被包括在内。此时，INSERT LOW_PRIORITY语句等候。因此，在读取量很大的情况下，发出INSERT LOW_PRIORITY语句的客户端有可能需要等待很长一段时间（甚至是永远等待下去）。（这与INSERT DELAYED形成对比，INSERT DELAYED立刻让客户端继续执行。请参见13.2.4.2节，“INSERT DELAYED语法”。）注意LOW_PRIORITY通常不应用于MyISAM表，因为这么做会取消同时进行的插入。请参见15.1节，“MyISAM存储引擎”。
+·         如果您使用LOW_PRIORITY关键词，则INSERT的执行被延迟，直到没有其它客户端从表中读取为止。
+当原有客户端正在读取时，有些客户端刚开始读取。
+这些客户端也被包括在内。
+此时，INSERT LOW_PRIORITY语句等候。
+因此，在读取量很大的情况下，发出INSERT LOW_PRIORITY语句的客户端有可能需要等待很长一段时间（甚至是永远等待下去）。
+（这与INSERT DELAYED形成对比，INSERT DELAYED立刻让客户端继续执行。
+请参见13.2.4.2节，“INSERT DELAYED语法”。）
+注意LOW_PRIORITY通常不应用于MyISAM表，因为这么做会取消同时进行的插入。
+请参见15.1节，“MyISAM存储引擎”。
 
-·         如果您指定了HIGH_PRIORITY，同时服务器采用--low-priority-updates选项启动，则HIGH_PRIORITY将覆盖--low-priority-updates选项。这么做还会导致同时进行的插入被取消。
+·         如果您指定了HIGH_PRIORITY，同时服务器采用--low-priority-updates选项启动，
+则HIGH_PRIORITY将覆盖--low-priority-updates选项。
+这么做还会导致同时进行的插入被取消。
 
-·         使用mysql_affected_rows() C API函数，可以获得用于INSERT的受影响行的值。请参见25.2.3.1节，“mysql_affected_rows()”。
+·         使用mysql_affected_rows() C API函数，可以获得用于INSERT的受影响行的值。
+请参见25.2.3.1节，“mysql_affected_rows()”。
 
-·         如果您在一个INSERT语句中使用IGNORE关键词，在执行语句时出现的错误被当作警告处理。例如，没有使用IGNORE时，如果一个行复制了原有的UNIQUE索引或PRIMARY KEY值，会导致出现重复关键字错误，语句执行失败。使用IGNORE时，该行仍然未被插入，但是不会出现错误。IGNORE未被指定时，如果数据转化引发错误，则会使语句执行失败。使用IGNORE后，无效数据被调整到最接近的值，并被插入；此时，生成警告，但是语句执行不会失败。您可以使用mysql_info() C API函数测定有多少行被插入到表中。
+·         如果您在一个INSERT语句中使用IGNORE关键词，在执行语句时出现的错误被当作警告处理。
+例如，没有使用IGNORE时，如果一个行复制了原有的UNIQUE索引或PRIMARY KEY值，会导致出现重复关键字错误，语句执行失败。
+使用IGNORE时，该行仍然未被插入，但是不会出现错误。
+IGNORE未被指定时，如果数据转化引发错误，则会使语句执行失败。
+使用IGNORE后，无效数据被调整到最接近的值，并被插入；
+此时，生成警告，但是语句执行不会失败。
+您可以使用mysql_info() C API函数测定有多少行被插入到表中。
 
 如果您指定了ON DUPLICATE KEY UPDATE，并且插入行后会导致在一个UNIQUE索引或PRIMARY KEY中出现重复值，则执行旧行UPDATE。例如，如果列a被定义为UNIQUE，并且包含值1，则以下两个语句具有相同的效果：
 
@@ -212,7 +318,9 @@ Records: 100 Duplicates: 0 Warnings: 0
 
 如果您正在使用C API，则可以通过调用mysql_info()函数获取信息字符串。请参见25.2.3.34节，“mysql_info()”。
 
+====
 13.2.4.1. INSERT ... SELECT语法
+
 INSERT [LOW_PRIORITY | HIGH_PRIORITY] [IGNORE]
     [INTO] tbl_name [(col_name,...)]
     SELECT ...
@@ -242,7 +350,9 @@ INSERT INTO tbl_temp2 (fld_id)
 
 您可以使用REPLACE替代INSERT，来覆盖旧行。对于包含唯一关键字值，并复制了旧行的新行，在进行处理时，REPLACE可以作为INSERT IGNORE的同类子句：新行被用于替换旧行，而不是被丢弃。
 
+====
 13.2.4.2. INSERT DELAYED语法
+
  INSERT DELAYED ...
 用于INSERT语句的DELAYED选项是MySQL相对于标准SQL的扩展。如果您的客户端不能等待INSERT完成，则这个选项是非常有用的。当您使用MySQL进行日志编写时，这是非常常见的问题。您也可以定期运行SELECT和UPDATE语句，这些语句花费的时间较长。
 

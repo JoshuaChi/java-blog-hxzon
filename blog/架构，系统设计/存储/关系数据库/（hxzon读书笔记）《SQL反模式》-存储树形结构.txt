@@ -148,6 +148,37 @@ begin
 select desc_id,lvldiff from htree_tree where anc_id = p_myId and lvldiff=1;
 end//
 
+create procedure tree_tree(p_myId varchar(32), p_lvl int)
+begin
+	declare  no_more_descs int default 0;
+	declare l_desc_id varchar(255);
+	
+	declare c1 cursor for select desc_id from htree_tree 
+	where anc_id=p_myId and lvldiff = 1;
+
+	declare continue handler for not found set no_more_descs = 1;
+
+	SET @@max_sp_recursion_depth = 13;
+	open c1;
+	fetch c1 into l_desc_id;
+
+	repeat
+	call tree_tree(l_desc_id,p_lvl+1);
+	fetch c1 into l_desc_id;
+	until no_more_descs = 1
+	end repeat;
+
+	close c1;
+end//
+
+出错：
+Recursive limit 0 (as set by the max_sp_recursion_depth variable) was exceeded for routine
+解决：
+SET @@max_sp_recursion_depth = 100; 
+出错：
+Thread stack overrun:  71812 bytes used of a 196608 byte stack, and 128000 bytes needed.  
+Use 'mysqld --thread_stack=#' to specify a bigger stack.
+
 drop procedure if exists tree_insert;
 
 create procedure tree_insert(in p_myId varchar(32),in p_pId varchar(32))
@@ -186,28 +217,49 @@ drop procedure if exists tree_move;
 
 create procedure tree_move(in p_myId varchar(32),in p_npId varchar(32))
 begin
+	declare  no_more_descs int default 0;
+	declare l_desc_id varchar(255);
+	declare l_lvldiff int;
+	
+	declare c1 cursor for select desc_id,lvldiff from htree_tree 
+	where anc_id=p_myId and lvldiff > 0;
+
+	declare continue handler for not found set no_more_descs = 1;
+
 	delete from htree_tree
 	where desc_id in
 	(select tmp1.desc_id from
 	(select desc_id from htree_tree where anc_id = p_myId) as tmp1)
 	and anc_id in
 	(select tmp2.anc_id from
-	(select anc_id from htree_tree where desc_id = p_myId and anc_id != desc_id) as tmp2); 
+	(select anc_id from htree_tree where desc_id = p_myId and anc_id != p_myId) as tmp2); 
 	
-	insert into htree_tree(anc_id,desc_id)
-	select tmp3.anc_id, tmp3.desc_id from (
-	select supertree.anc_id anc_id ,subtree.desc_id desc_id
-	from htree_tree supertree
-	cross join htree_tree subtree
-	where supertree.desc_id = p_npId
-	and subtree.anc_id = p_myId ) as tmp3;
+	delete from htree_tree where anc_id = p_myId and desc_id = p_myId;
+	call tree_insert(p_myId,p_npId);
+	
+	open c1;
+	fetch c1 into l_desc_id,l_lvldiff;
+
+	repeat
+	insert into htree_tree(anc_id,desc_id,lvldiff)
+	select anc_id, l_desc_id,lvldiff+l_lvldiff 
+	from (
+	select anc_id,lvldiff
+	from htree_tree where desc_id = p_myId and lvldiff > 0) as tmp1;
+
+	fetch c1 into l_desc_id,l_lvldiff;
+	until no_more_descs = 1
+	end repeat;
+
+	close c1;
 end//
 
 如何计算 lvldiff ?
+为了计算 lvldiff ，插入时没有使用前文的笛卡尔积方式。
 
-delimiter ;
-
-====
+create procedure tree_test()
+begin
+delete from htree_tree;
 call tree_insert('a1',null);
 call tree_insert('b1','a1');
 call tree_insert('b2','a1');
@@ -239,6 +291,27 @@ call tree_insert('d8','c4');
 
 call tree_insert('d9','c5');
 call tree_insert('d10','c6');
+
+call tree_insert('e1','d5');
+call tree_insert('e2','d5');
+end//
+
+delimiter ;
+
+====
+
+
+call tree_find_parent('c3');
+
+call tree_find_ancs('c3');
+
+call tree_find_children('c3');
+
+call tree_find_descs('c3');
+
+call tree_find_descs('b1');
+
+call tree_find_descs('b3');
 
 call tree_move('c3','b3');
 
