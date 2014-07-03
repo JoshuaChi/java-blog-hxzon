@@ -323,3 +323,21 @@ delimiter //
 ====
 5，
 
+delete from htree_tree
+where desc_id in
+(select desc_id from htree_tree where anc_id = p_myId);
+
+因为mysql的限制，所以上述语句会抛出异常：
+
+You can't specify target table 'htree_tree' for update in FROM clause
+不能先select出一张表中的某些值，再update这张表(在同一语句中)
+
+改成如下：
+
+delete from htree_tree
+where desc_id in
+(select desc_id from
+(select desc_id from htree_tree where anc_id = p_myId ) as tmp);
+
+同时，子查询必须命名，即便没用到。
+

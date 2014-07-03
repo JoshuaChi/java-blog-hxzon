@@ -1,0 +1,1033 @@
+﻿MySQL 5.1参考手册-20. 存储程序和函数
+http://dev.mysql.com/doc/refman/5.1/zh/stored-procedures.html
+
+修订部分字眼by hxzon
+====
+前言
+1. 一般信息
+2. 安装MySQL
+3. 教程
+4. MySQL程序概述
+5. 数据库管理
+6. mysql中的复制
+7. 优化
+8. 客户端和实用工具程序
+9.语言结构
+10. 字符集支持
+11. 列类型
+12. 函数和操作符
+13. SQL语句语法
+14. 插件式存储引擎体系结构
+15. 存储引擎和表类型
+16. 编写自定义存储引擎
+17. MySQL簇
+18. 分区
+19. mysql中的空间扩展
+20. 存储程序和函数
+21. 触发程序
+22. 视图
+23. INFORMATION_SCHEMA信息数据库
+24. 精度数学
+25. API和库
+26. 连接器
+27. 扩展MySQL
+
+A. 问题和常见错误
+B. 错误代码和消息
+C. 感谢
+D. MySQL变更史
+E. 移植到其他系统
+F. 环境变量
+G. 正则表达式
+H. Limits in MySQL
+I. 特性限制
+J. GNU通用公共许可
+K. MySQL FLOSS许可例外
+索引
+
+=============
+第20章：存储程序和函数
+目录
+
+20.1. 存储程序和授权表
+
+--
+20.2. 存储程序的语法
+
+20.2.1. CREATE PROCEDURE和CREATE FUNCTION
+
+20.2.2. ALTER PROCEDURE和ALTER FUNCTION
+
+20.2.3. DROP PROCEDURE和和DROP FUNCTION
+
+20.2.4. SHOW CREATE PROCEDURE和SHOW CREATE FUNCTION
+
+20.2.5. SHOW PROCEDURE STATUS和SHOW FUNCTION STATUS
+
+20.2.6. CALL语句
+
+20.2.7. BEGIN ... END复合语句
+
+20.2.8. DECLARE语句
+
+20.2.9. 存储程序中的变量
+
+20.2.10. 条件和处理程序
+
+20.2.11. 光标
+
+20.2.12. 流程控制构造
+
+--
+20.3. 存储程序、函数、触发程序和复制：常见问题
+
+20.4. 存储子程序和触发程序的二进制日志功能
+
+=======
+MySQL 5.1版支持存储程序和函数。
+一个存储程序是可以被存储在服务器中的一套SQL语句。
+一旦它被存储了，客户端不需要再重新发布单独的语句，而是可以引用存储程序来替代。
+
+下面一些情况下存储程序尤其有用：
+
+·         当用不同语言编写多客户应用程序，或多客户应用程序在不同平台上运行且需要执行相同的数据库操作之时。
+
+·         安全极为重要之时。比如，银行对所有普通操作使用存储程序。这提供一个坚固而安全的环境，程序可以确保每一个操作都被妥善记入日志。在这样一个设置中，应用程序和用户不可能直接访问数据库表，但是仅可以执行指定的存储程序。
+
+存储程序可以提供改良后的性能，因为只有较少的信息需要在服务器和客户算之间传送。代价是增加数据库服务器系统的负荷，因为更多的工作在服务器这边完成，更少的在客户端（应用程序）那边完成上。如果许多客户端机器（比如网页服务器）只由一个或少数几个数据库服务器提供服务，可以考虑一下存储程序。
+
+存储程序也允许你在数据库服务器上有函数库。这是一个被现代应用程序语言共享的特征，它允许这样的内部设计，比如通过使用类。使用这些客户端应用程序语言特征对甚至于数据库使用范围以外的编程人员都有好处。
+
+MySQL为存储程序遵循SQL:2003语法，这个语法也被用在IBM的DB2数据库上。
+
+MySQL对存储程序的实现还在进度中。所有本章叙述的语法都被支持，在有限制或扩展的地方会恰当地指出来。有关使用 存储程序的限制的更多讨论在附录 I, 特性限制里提到。
+
+如20.4节，“存储子程序和触发程序的二进制日志功能”里所说的， 存储子程序的二进制日志功能已经完成。
+
+20.1. 存储程序和授权表
+存储程序需要在mysql数据库中有proc表。这个表在MySQL 5.1安装过程中创建。如果你从早期的版本升级到MySQL 5.1 ，请确定更新你的授权表以确保proc表的存在。请参阅2.10.2节 “升级授权表”。
+
+在MySQL 5.1中，授权系统如下考虑存储子程序：
+
+·         创建存储子程序需要CREATE ROUTINE权限。
+
+·         提醒或移除存储子程序需要ALTER ROUTINE权限。这个权限自动授予子程序的创建者。
+
+·         执行子程序需要EXECUTE权限。然而，这个权限自动授予 子程序的创建者。同样，子程序默认的SQL SECURITY 特征是DEFINER，它允许用该子程序访问数据库的用户与执行子程序联系到一起。
+
+=============
+20.2. 存储程序的语法
+
+20.2.1. CREATE PROCEDURE和CREATE FUNCTION
+
+20.2.2. ALTER PROCEDURE和ALTER FUNCTION
+
+20.2.3. DROP PROCEDURE和DROP FUNCTION
+
+20.2.4. SHOW CREATE PROCEDURE和SHOW CREATE FUNCTION
+
+20.2.5. SHOW PROCEDURE STATUS和SHOW FUNCTION STATUS
+
+20.2.6. CALL语句
+
+20.2.7. BEGIN ... END复合语句
+
+20.2.8. DECLARE语句
+
+20.2.9. 存储程序中的变量
+
+20.2.10. 条件和处理程序
+
+20.2.11. 光标
+
+20.2.12. 流程控制构造
+
+
+存储程序和函数是用CREATE PROCEDURE和CREATE FUNCTION语句创建的子程序。
+一个子程序要么是一个程序要么是一个函数。
+使用CALL语句来调用 程序，程序只能用输出变量传回值。
+就像别其它函数调用一样，函数可以被从语句外调用（即通过引用函数名），函数能返回标量值。 
+存储子程序也可以调用其它存储子程序。
+
+在MySQL 5.1中，一个存储子程序或函数与特定的数据库相联系。
+这里有几个意思：
+
+·         当一个子程序被调用时，一个隐含的USE db_name 被执行（当子程序终止时停止执行）。
+存储子程序内的USE语句时不允许的。
+
+·         你可以使用数据库名限定子程序名。
+这可以被用来引用一个不在当前数据库中的子程序。
+比如，要引用一个与test数据库关联的存储程序p或函数f，你可以说CALL test.p()或test.f()。
+
+·         数据库移除的时候，与它关联的所有存储子程序也都被移除。
+
+MySQL 支持非常有用的扩展，即它允许在存储程序中使用常规的SELECT语句（那就是说，不使用光标或 局部变量）。
+这个一个查询的结果包被简单地直接送到客户端。
+多SELECT语句生成多个结果包，所以客户端必须使用支持多结果包的MySQL客户端库。
+这意味这客户端必须 使用至少MySQL 4.1以来的近期版本上的客户端库。
+
+下面一节描述用来创建，改变，移除和查询存储程序和函数的语法。
+
+====
+20.2.1. CREATE PROCEDURE和CREATE FUNCTION
+
+CREATE PROCEDURE sp_name ([proc_parameter[,...]])
+    [characteristic ...] routine_body
+ 
+CREATE FUNCTION sp_name ([func_parameter[,...]])
+    RETURNS type
+    [characteristic ...] routine_body
+    
+    proc_parameter:
+    [ IN | OUT | INOUT ] param_name type
+    
+    func_parameter:
+    param_name type
+ 
+type:
+    Any valid MySQL data type
+ 
+characteristic:
+    LANGUAGE SQL
+  | [NOT] DETERMINISTIC
+  | { CONTAINS SQL | NO SQL | READS SQL DATA | MODIFIES SQL DATA }
+  | SQL SECURITY { DEFINER | INVOKER }
+  | COMMENT 'string'
+ 
+routine_body:
+    Valid SQL procedure statement or statements
+
+这些语句创建存储子程序。
+要在MySQL 5.1中创建子程序，必须具有CREATE ROUTINE权限，
+并且ALTER ROUTINE和EXECUTE权限被自动授予它的创建者。
+如果二进制日志功能被允许，你也可能需要SUPER权限，请参阅20.4节，“存储子程序和触发程序的二进制日志功能”。
+
+默认地，子程序与当前数据库关联。
+要明确地把子程序与一个给定数据库关联起来，可以在创建子程序的时候指定其名字为db_name.sp_name。
+
+如果子程序名和内建的SQL函数名一样，定义子程序时，
+你需要在这个名字和随后括号中间插入一个空格，否则发生语法错误。（hxzon：注意）
+当你随后调用子程序的时候也要插入。
+为此，即使有可能出现这种情况，我们还是建议最好避免给你自己的 存储子程序取与存在的SQL函数一样的名字。
+
+由括号包围的参数列必须总是存在。
+如果没有参数，也该使用一个空参数列()。
+每个参数 默认都是一个IN参数。
+要指定为其它参数，可在参数名之前使用关键词 OUT或INOUT
+
+注意: 指定参数为IN, OUT, 或INOUT 只对PROCEDURE是合法的。
+（FUNCTION参数总是被认为是IN参数）
+
+RETURNS字句只能对FUNCTION做指定，对函数而言这是强制的。
+它用来指定函数的返回类型，而且函数体必须包含一个RETURN value语句。
+
+routine_body 包含合法的SQL过程语句。
+可以使用复合语句语法，请参阅20.2.7节，“BEGIN ... END复合语句”。
+复合语句可以包含 声明，循环和其它控制结构语句。
+这些语句的语法在本章后免介绍，举例，请参阅20.2.8节，“DECLARE语句”和20.2.12节，“流程控制构造”。
+
+CREATE FUNCTION语句被用在更早的MySQL版本上以支持UDF （自定义函数）。
+请参阅27.2节，“给MySQL添加新函数”。 
+UDF继续被支持，即使现在 有了存储函数。
+UDF会被认为一个外部存储函数。
+然而，不要让存储函数与UDF函数共享名字空间。
+
+外部存储程序的框架将在不久的将来引入。
+这将允许你用SQL之外的语言编写存储程序。
+最可能的是，第一个被支持语言是PHP，因为核心PHP引擎很小，线程安全，且可以被方便地嵌入。
+因为框架是公开的，它希望许多其它语言也能被支持。
+
+如果程序或线程总是对同样的输入参数产生同样的结果，则被认为它是“确定的”，否则就是“非确定”的。
+如果既没有给定DETERMINISTIC也没有给定NOT DETERMINISTIC，默认的就是NOT DETERMINISTIC。
+
+为进行复制，使用NOW()函数（或它的同义词）或RAND()函数会不必要地使得一个子程序非确定。
+对NOW()而言，二进制日志包括时间戳并被正确复制。
+RAND() 只要在一个子程序被内应用一次也会被正确复制。
+（你可以把子程序执行时间戳和随机数种子认为强制输入，它们在主从上是同样的。）
+
+当前来讲，DETERMINISTIC特征被接受，但还没有被优化程序所使用。
+然而如果二进制日志功能被允许了，这个特征影响到MySQL是否会接受子程序定义。
+请参阅20.4节，“存储子程序和触发程序的二进制日志功能”。
+
+一些特征提供子程序使用数据的内在信息。
+CONTAINS SQL表示子程序不包含读或写数据的语句。
+NO SQL表示子程序不包含SQL语句。
+READS SQL DATA表示子程序包含读数据的语句，但不包含写数据的语句。
+MODIFIES SQL DATA表示子程序包含写数据的语句。
+如果这些特征没有明确给定，默认的是CONTAINS SQL。
+
+SQL SECURITY特征可以用来指定 子程序该用创建子程序者的许可来执行，还是使用调用者的许可来执行。
+默认值是DEFINER。
+在SQL:2003中者是一个新特性。
+创建者或调用者必须由访问 子程序关联的数据库的许可。
+在MySQL 5.1中，必须有EXECUTE权限才能执行子程序。
+必须拥有这个权限的用户要么是定义者，要么是调用者，这取决于SQL SECURITY特征是如何设置的。
+
+MySQL存储sql_mode系统变量设置，这个设置在子程序被创建的时候起作用，MySQL总是强制使用这个设置来执行 子程序。
+
+COMMENT子句是一个MySQL的扩展，它可以被用来描述 存储程序。
+这个信息被SHOW CREATE PROCEDURE和 SHOW CREATE FUNCTION语句来显示。
+
+MySQL允许子程序包含DDL语句，如CREATE和DROP。
+MySQL也允许存储程序（但不是 存储函数）包含SQL 交互语句，如COMMIT。
+存储函数不可以包含那些做明确的和绝对的提交或者做回滚的语。
+SQL标准不要求对这些语句的支持，SQL标准声明每个DBMS提供商可以决定是否允许支持这些语句。
+
+存储子程序不能使用LOAD DATA INFILE。
+
+返回结果包的语句不能被用在存储函数中。
+这包括不使用INTO给变量读取 列值的SELECT语句，SHOW 语句，及其它诸如EXPLAIN这样的语句。
+对于可在函数定义时间被决定要返回一个结果包的语句，
+发生一个允许从函数错误返回结果包的Not（ER_SP_NO_RETSET_IN_FUNC）。
+对于只可在运行时决定要返回一个结果包的语句，
+发生一个不能在给定上下文错误返回结果包的PROCEDURE %s （ER_SP_BADSELECT)。
+
+下面是一个使用OUT参数的简单的存储程序的例子。
+例子为，在 程序被定义的时候，用mysql客户端delimiter命令来把语句定界符从 ;变为//。
+这就允许用在 程序体中的;定界符被传递到服务器而不是被mysql自己来解释。
+
+mysql> delimiter //
+ 
+mysql> CREATE PROCEDURE simpleproc (OUT param1 INT)
+    -> BEGIN
+    ->   SELECT COUNT(*) INTO param1 FROM t;
+    -> END
+    -> //
+Query OK, 0 rows affected (0.00 sec)
+ 
+mysql> delimiter ;
+ 
+mysql> CALL simpleproc(@a);
+Query OK, 0 rows affected (0.00 sec)
+ 
+mysql> SELECT @a;
++------+
+| @a   |
++------+
+| 3    |
++------+
+1 row in set (0.00 sec)
+
+当使用delimiter命令时，你应该避免使用反斜杠(‘\’)字符，因为那是MySQL的 转义字符。
+
+下列是一个例子，一个采用参数的函数使用一个SQL函数执行一个操作，并返回结果：
+
+mysql> delimiter //
+ 
+mysql> CREATE FUNCTION hello (s CHAR(20)) RETURNS CHAR(50)
+    -> RETURN CONCAT('Hello, ',s,'!');
+    -> //
+Query OK, 0 rows affected (0.00 sec)
+ 
+mysql> delimiter ;
+ 
+mysql> SELECT hello('world');
++----------------+
+| hello('world') |
++----------------+
+| Hello, world!  |
++----------------+
+1 row in set (0.00 sec)
+
+如果在存储函数中的RETURN语句返回一个类型不同于在函数的RETURNS子句中指定类型的值，返回值被强制为恰当的类型。
+比如，如果一个函数返回一个ENUM或SET值，但是RETURN语句返回一个整数，
+对于SET成员集的相应的ENUM成员，从函数返回的值是字符串。
+
+====
+20.2.2. ALTER PROCEDURE和ALTER FUNCTION
+
+ALTER {PROCEDURE | FUNCTION} sp_name [characteristic ...]
+ 
+characteristic:
+    { CONTAINS SQL | NO SQL | READS SQL DATA | MODIFIES SQL DATA }
+  | SQL SECURITY { DEFINER | INVOKER }
+  | COMMENT 'string'
+
+这个语句可以被用来改变一个存储程序或函数的特征。
+在MySQL 5.1中，你必须用ALTER ROUTINE权限才可用此子程序。
+这个权限被自动授予子程序的创建者。
+如20.4节，“存储子程序和触发程序的二进制日志功能”中所述， 如果二进制日志功能被允许了，你可能也需要SUPER权限。
+
+在ALTER PROCEDURE和ALTER FUNCTION语句中，可以指定超过一个的改变。
+
+====
+20.2.3. DROP PROCEDURE和DROP FUNCTION
+
+DROP {PROCEDURE | FUNCTION} [IF EXISTS] sp_name
+
+这个语句被用来移除一个存储程序或函数。
+即，从服务器移除一个制定的子程序。
+在MySQL 5.1中，你必须有ALTER ROUTINE权限才可用此子程序。
+这个权限被自动授予子程序的创建者。
+
+IF EXISTS 子句是一个MySQL的扩展。
+如果程序或函数不存储，它防止发生错误。
+产生一个可以用SHOW WARNINGS查看的警告。
+
+====
+20.2.4. SHOW CREATE PROCEDURE和SHOW CREATE FUNCTION
+
+SHOW CREATE {PROCEDURE | FUNCTION} sp_name
+
+这个语句是一个MySQL的扩展。
+类似于SHOW CREATE TABLE，它返回一个可用来重新创建已命名 子程序的确切字符串。
+
+mysql> SHOW CREATE FUNCTION test.hello\G
+*************************** 1. row ***************************
+       Function: hello
+       sql_mode:
+Create Function: CREATE FUNCTION `test`.`hello`(s CHAR(20)) RETURNS CHAR(50)
+RETURN CONCAT('Hello, ',s,'!')
+
+====
+20.2.5. SHOW PROCEDURE STATUS和SHOW FUNCTION STATUS
+
+SHOW {PROCEDURE | FUNCTION} STATUS [LIKE 'pattern']
+
+这个语句是一个MySQL的扩展。
+它返回子程序的特征，如数据库，名字，类型，创建者及创建和修改日期。
+如果没有指定样式，根据你使用的语句，所有 存储程序和所有存储函数的信息都被列出。
+
+mysql> SHOW FUNCTION STATUS LIKE 'hello'\G
+*************************** 1. row ***************************
+           Db: test
+         Name: hello
+         Type: FUNCTION
+      Definer: testuser@localhost
+     Modified: 2004-08-03 15:29:37
+      Created: 2004-08-03 15:29:37
+Security_type: DEFINER
+      Comment:
+
+你可以从INFORMATION_SCHEMA中的ROUTINES表获得有关存储子程序的信息。
+请参阅23.1.14节，“INFORMATION_SCHEMA ROUTINES 表”。
+
+====
+20.2.6. CALL语句
+
+CALL sp_name([parameter[,...]])
+
+CALL语句调用一个先前用CREATE PROCEDURE创建的程序。
+
+CALL语句可以用 声明为OUT或的INOUT参数的参数给它的调用者传回值。
+它也“返回”受影响的行数，客户端程序可以在SQL级别通过调用ROW_COUNT()函数获得这个数，
+从C中是调用the mysql_affected_rows() C API函数来获得。
+
+====
+20.2.7. BEGIN ... END复合语句
+
+[begin_label:] BEGIN
+    [statement_list]
+END [end_label]
+
+存储子程序可以使用BEGIN ... END复合语句来包含多个语句。
+statement_list 代表一个或多个语句的列表。
+statement_list之内每个语句都必须用分号（；）来结尾。
+
+复合语句可以被标记。
+除非begin_label存在,否则end_label不能被给出,并且如果二者都存在,他们必须是同样的。
+
+请注意，可选的[NOT] ATOMIC子句现在还不被支持。
+这意味着在指令块的开始没有交互的存储点被设置，并且在上下文中用到的BEGIN子句对当前交互动作没有影响。
+
+使用多重语句需要客户端能发送包含语句定界符;的查询字符串。
+这个符号在命令行客户端被用delimiter命令来处理。
+改变查询结尾定界符;（比如改变为//）使得; 可被用在子程序体中。
+
+====
+20.2.8. DECLARE语句
+
+DECLARE语句被用来把不同项目局域到一个 子程序：
+局部变量（请参阅20.2.9节，“存储程序中的变量”)，
+条件和 处理程序（请参阅20.2.10节，“条件和处理程序”) 
+及光标（请参阅20.2.11节，“光标”)。
+SIGNAL和RESIGNAL语句当前还不被支持。
+
+DECLARE仅被用在BEGIN ... END复合语句里，并且必须在复合语句的开头，在任何其它语句之前。
+
+光标必须在声明处理程序之前被声明，并且变量和条件必须在声明光标或处理程序之前被声明。
+
+====
+20.2.9. 存储程序中的变量
+
+20.2.9.1. DECLARE局部变量
+
+20.2.9.2. 变量SET语句
+
+20.2.9.3. SELECT ... INTO语句
+
+你可以在子程序中声明并使用变量。
+
+20.2.9.1. DECLARE局部变量
+
+DECLARE var_name[,...] type [DEFAULT value]
+
+这个语句被用来声明局部变量。
+要给变量提供一个默认值，请包含一个DEFAULT子句。
+值可以被指定为一个表达式，不需要为一个常数。
+如果没有DEFAULT子句，初始值为NULL。
+
+局部变量的作用范围在它被声明的BEGIN ... END块内。
+它可以被用在嵌套的块中，除了那些用相同名字 声明变量的块。
+
+20.2.9.2. 变量SET语句
+
+SET var_name = expr [, var_name = expr] ...
+
+在存储程序中的SET语句是一般SET语句的扩展版本。
+被参考变量可能是子程序内声明的变量，或者是全局服务器变量。
+
+在存储程序中的SET语句作为预先存在的SET语法的一部分来实现。
+这允许SET a=x, b=y, ...这样的扩展语法。
+其中不同的变量类型（局域 声明变量及全局和集体变量）可以被混合起来。
+这也允许把局部变量和一些只对系统变量有意义的选项合并起来。
+在那种情况下，此选项被识别，但是被忽略了。
+
+20.2.9.3. SELECT ... INTO语句
+
+SELECT col_name[,...] INTO var_name[,...] table_expr
+
+这个SELECT语法把选定的列直接存储到变量。
+因此，只有单一的行可以被取回。
+
+SELECT id,data INTO x,y FROM test.t1 LIMIT 1;
+
+注意，用户变量名在MySQL 5.1中是对大小写不敏感的。
+请参阅9.3节，“用户变量”。
+
+重要: SQL变量名不能和列名一样。
+如果SELECT ... INTO这样的SQL语句包含一个对列的参考，
+并包含一个与列相同名字的 局部变量，
+MySQL当前把参考解释为一个变量的名字。
+
+例如，在下面的语句中，xname 被解释为到xname variable 的参考而不是到xname column的：
+
+CREATE PROCEDURE sp1 (x VARCHAR(5))
+  BEGIN
+    DECLARE xname VARCHAR(5) DEFAULT 'bob';
+    DECLARE newname VARCHAR(5);
+    DECLARE xid INT;
+    
+    SELECT xname,id INTO newname,xid 
+      FROM table1 WHERE xname = xname;
+    SELECT newname;
+  END;
+
+当这个程序被调用的时候，无论table.xname列的值是什么，变量newname将返回值‘bob’。
+
+请参阅I.1节，“存储子程序和触发程序的限制”。
+
+====
+20.2.10. 条件和处理程序
+
+20.2.10.1. DECLARE条件
+
+20.2.10.2. DECLARE处理程序
+
+特定条件需要特定处理。这些条件可以联系到错误，以及子程序中的一般流程控制。
+
+20.2.10.1. DECLARE条件
+
+DECLARE condition_name CONDITION FOR condition_value
+ 
+condition_value:
+    SQLSTATE [VALUE] sqlstate_value
+  | mysql_error_code
+
+这个语句指定需要特殊处理的条件。
+它将一个名字和指定的错误条件关联起来。
+这个名字可以随后被用在DECLARE HANDLER语句中。
+请参阅20.2.10.2节，“DECLARE处理程序”。
+
+除了SQLSTATE值，也支持MySQL错误代码。
+
+20.2.10.2. DECLARE处理程序
+
+DECLARE handler_type HANDLER FOR condition_value[,...] sp_statement
+ 
+handler_type:
+    CONTINUE
+  | EXIT
+  | UNDO
+ 
+condition_value:
+    SQLSTATE [VALUE] sqlstate_value
+  | condition_name
+  | SQLWARNING
+  | NOT FOUND
+  | SQLEXCEPTION
+  | mysql_error_code
+
+这个语句指定每个可以处理一个或多个条件的处理程序。
+如果产生一个或多个条件，指定的语句被执行。
+
+对一个CONTINUE处理程序，当前子程序的执行在执行 处理程序语句之后继续。
+对于EXIT处理程序，当前BEGIN...END复合语句的执行被终止。
+UNDO 处理程序类型语句还不被支持。
+
+·         SQLWARNING是对所有以01开头的SQLSTATE代码的速记。
+
+·         NOT FOUND是对所有以02开头的SQLSTATE代码的速记。
+
+·         SQLEXCEPTION是对所有没有被SQLWARNING或NOT FOUND捕获的SQLSTATE代码的速记。
+
+除了SQLSTATE值，MySQL错误代码也不被支持。
+
+例如:
+
+mysql> CREATE TABLE test.t (s1 int,primary key (s1));
+Query OK, 0 rows affected (0.00 sec)
+ 
+mysql> delimiter //
+ 
+mysql> CREATE PROCEDURE handlerdemo ()
+    -> BEGIN
+    ->   DECLARE CONTINUE HANDLER FOR SQLSTATE '23000' SET @x2 = 1;
+    ->   SET @x = 1;
+    ->   INSERT INTO test.t VALUES (1);
+    ->   SET @x = 2;
+    ->   INSERT INTO test.t VALUES (1);
+    ->   SET @x = 3;
+    -> END;
+    -> //
+Query OK, 0 rows affected (0.00 sec)
+ 
+mysql> CALL handlerdemo()//
+Query OK, 0 rows affected (0.00 sec)
+ 
+mysql> SELECT @x//
+    +------+
+    | @x   |
+    +------+
+    | 3    |
+    +------+
+    1 row in set (0.00 sec)
+
+注意到，@x是3，这表明MySQL被执行到程序的末尾。
+如果DECLARE CONTINUE HANDLER FOR SQLSTATE '23000' SET @x2 = 1; 这一行不在，
+第二个INSERT因PRIMARY KEY强制而失败之后,MySQL可能已经采取 默认(EXIT)路径，
+并且SELECT @x可能已经返回2。
+
+====
+20.2.11. 光标
+
+20.2.11.1.声明光标
+
+20.2.11.2. 光标OPEN语句
+
+20.2.11.3. 光标FETCH语句
+
+20.2.11.4. 光标CLOSE语句
+
+简单光标在存储程序和函数内被支持。语法如同在嵌入的SQL中。
+光标当前是不敏感的，只读的及不滚动的。
+不敏感意为服务器可以活不可以复制它的结果表。（hxzon？）
+
+光标必须在声明处理程序之前被声明，并且变量和条件必须在声明光标或处理程序之前被声明。
+
+例如：
+
+CREATE PROCEDURE curdemo()
+BEGIN
+  DECLARE done INT DEFAULT 0;
+  DECLARE a CHAR(16);
+  DECLARE b,c INT;
+  DECLARE cur1 CURSOR FOR SELECT id,data FROM test.t1;
+  DECLARE cur2 CURSOR FOR SELECT i FROM test.t2;
+  DECLARE CONTINUE HANDLER FOR SQLSTATE '02000' SET done = 1;
+ 
+  OPEN cur1;
+  OPEN cur2;
+ 
+  REPEAT
+    FETCH cur1 INTO a, b;
+    FETCH cur2 INTO c;
+    IF NOT done THEN
+       IF b < c THEN
+          INSERT INTO test.t3 VALUES (a,b);
+       ELSE
+          INSERT INTO test.t3 VALUES (a,c);
+       END IF;
+    END IF;
+  UNTIL done END REPEAT;
+ 
+  CLOSE cur1;
+  CLOSE cur2;
+END
+
+20.2.11.1.声明光标
+
+DECLARE cursor_name CURSOR FOR select_statement
+
+这个语句声明一个光标。
+也可以在子程序中定义多个光标，但是一个块中的每一个光标必须有唯一的名字。
+
+SELECT语句不能有INTO子句。
+
+20.2.11.2. 光标OPEN语句
+
+OPEN cursor_name
+
+这个语句打开先前声明的光标。
+
+20.2.11.3. 光标FETCH语句
+
+FETCH cursor_name INTO var_name [, var_name] ...
+
+这个语句用指定的打开光标读取下一行（如果有下一行的话），并且前进光标指针。
+
+20.2.11.4. 光标CLOSE语句
+
+CLOSE cursor_name
+
+这个语句关闭先前打开的光标。
+
+如果未被明确地关闭，光标在它被声明的复合语句的末尾被关闭。
+
+（hxzon：光标（游标）不支持参数。）
+
+====
+20.2.12. 流程控制构造
+
+20.2.12.1. IF语句
+
+20.2.12.2. CASE语句
+
+20.2.12.3. LOOP语句
+
+20.2.12.4. LEAVE语句
+
+20.2.12.5. ITERATE语句
+
+20.2.12.6. REPEAT语句
+
+20.2.12.7. WHILE语句
+
+IF, CASE, LOOP, WHILE, ITERATE, 及 LEAVE 构造被完全实现。
+
+这些构造可能每个包含要么一个单独语句，要么是使用BEGIN ... END复合语句的一块语句。
+构造可以被嵌套。
+
+目前还不支持FOR循环。
+
+20.2.12.1. IF语句
+
+IF search_condition THEN statement_list
+    [ELSEIF search_condition THEN statement_list] ...
+    [ELSE statement_list]
+END IF
+
+IF实现了一个基本的条件构造。
+如果search_condition求值为真，相应的SQL语句列表被执行。
+如果没有search_condition匹配，在ELSE子句里的语句列表被执行。
+statement_list可以包括一个或多个语句。
+
+请注意，也有一个IF() 函数，它不同于这里描述的IF语句。请参阅12.2节，“控制流程函数”。
+
+20.2.12.2. CASE语句
+
+CASE case_value
+    WHEN when_value THEN statement_list
+    [WHEN when_value THEN statement_list] ...
+    [ELSE statement_list]
+END CASE
+
+Or:
+
+CASE
+    WHEN search_condition THEN statement_list
+    [WHEN search_condition THEN statement_list] ...
+    [ELSE statement_list]
+END CASE
+
+存储程序的CASE语句实现一个复杂的条件构造。
+如果search_condition 求值为真，相应的SQL被执行。
+如果没有搜索条件匹配，在ELSE子句里的语句被执行。
+
+注意：这里介绍的用在 存储程序里的CASE语句
+与12.2节，“控制流程函数”里描述的SQL CASE表达式的CASE语句有轻微不同。
+这里的CASE语句不能有ELSE NULL子句，并且用END CASE替代END来终止。
+
+====
+20.2.12.3. LOOP语句
+
+[begin_label:] LOOP
+    statement_list
+END LOOP [end_label]
+
+LOOP允许某特定语句或语句群的重复执行，实现一个简单的循环构造。
+在循环内的语句一直重复直到循环被退出，退出通常伴随着一个LEAVE 语句。
+
+LOOP语句可以被标注。
+除非begin_label存在，否则end_label不能被给出，并且如果两者都出现，它们必须是同样的。
+
+20.2.12.4. LEAVE语句
+
+LEAVE label
+
+这个语句被用来退出任何被标注的流程控制构造。
+它和BEGIN ... END或循环一起被使用。
+
+20.2.12.5. ITERATE语句
+
+ITERATE label
+
+ITERATE只可以出现在LOOP, REPEAT, 和WHILE语句内。ITERATE意思为：“再次循环。”
+
+例如：
+
+CREATE PROCEDURE doiterate(p1 INT)
+BEGIN
+  label1: LOOP
+    SET p1 = p1 + 1;
+    IF p1 < 10 THEN ITERATE label1; END IF;
+    LEAVE label1;
+  END LOOP label1;
+  SET @x = p1;
+END
+
+20.2.12.6. REPEAT语句
+
+[begin_label:] REPEAT
+    statement_list
+UNTIL search_condition
+END REPEAT [end_label]
+
+REPEAT语句内的语句或语句群被重复，直至search_condition 为真。
+
+REPEAT 语句可以被标注。 
+除非begin_label也存在，end_label才能被用，如果两者都存在，它们必须是一样的。
+
+例如：
+
+mysql> delimiter //
+ 
+mysql> CREATE PROCEDURE dorepeat(p1 INT)
+    -> BEGIN
+    ->   SET @x = 0;
+    ->   REPEAT SET @x = @x + 1; UNTIL @x > p1 END REPEAT;
+    -> END
+    -> //
+Query OK, 0 rows affected (0.00 sec)
+ 
+mysql> CALL dorepeat(1000)//
+Query OK, 0 rows affected (0.00 sec)
+ 
+mysql> SELECT @x//
++------+
+| @x   |
++------+
+| 1001 |
++------+
+1 row in set (0.00 sec)
+
+20.2.12.7. WHILE语句
+
+[begin_label:] WHILE search_condition DO
+    statement_list
+END WHILE [end_label]
+
+WHILE语句内的语句或语句群被重复，直至search_condition 为真。
+
+WHILE语句可以被标注。 
+除非begin_label也存在，end_label才能被用，如果两者都存在，它们必须是一样的。
+
+例如：
+
+CREATE PROCEDURE dowhile()
+BEGIN
+  DECLARE v1 INT DEFAULT 5;
+ 
+  WHILE v1 > 0 DO
+    ...
+    SET v1 = v1 - 1;
+  END WHILE;
+END
+
+==========
+20.3. 存储程序 、函数、触发程序及复制：常见问题
+
+MySQL 5.1存储程序和函数对复制起作用吗？ 
+是的，在存储程序和函数中被执行标准行为被从主MySQL服务器复制到从服务器。
+有少数限制，它们在20.4节，“存储子程序和 触发程序二进制日志功能”中详述。
+
+在主服务器上创建的存储程序和函数可以被复制到从服务器上么？
+是的，通过一般DDL语句执行的存储程序和函数，
+其在主服务器上的创建被复制到从服务器，所以目标将存在两个服务器上。
+对存储程序和函数的ALTER 和DROP语句也被复制。
+
+行为如何在已复制的存储程序和函数里发生？
+MySQL纪录每个发生在存储程序和函数里的DML事件，并复制这些单独的行为到从服务器。
+执行存储程序和函数的切实调用不被复制。
+
+对一起使用存储程序，函数和复制有什么特别的安全要求么？
+是的，因为一个从服务器有权限来执行任何读自主服务器的二进制日志的语句，
+指定的安全约束因与复制一起使用的存储程序和函数而存在。
+如果复制或二进制日志大体上是激活的（为point-in-time恢复的目的），
+那么MySQL DBA 有两个安全选项可选：
+
+任何想创建存储程序的用户必须被赋予SUPER权限。
+作为选择，一个DBA可以设置log_bin_trust_routine_creators系统变量为1，
+它将会允许有标准CREATE ROUTINE权限的人来创建一个存储程序和函数。
+ 
+对复制存储程序和函数的行为有什么限制？
+嵌入到存储程序中的不确定（随机）或时基行不能适当地复制。
+随机产生的结果，仅因其本性，是你可预测的和不能被确实克隆的。
+因此，复制到从服务器的随机行为将不会镜像那些产生在主服务器上的。
+注意， 声明存储程序或函数为DETERMINISTIC或者在log_bin_trust_routine_creators中设置系统变量为0 将会允许随即值操作被调用。
+
+此外，时基行为不能在从服务器上重新产生，
+因为在存储程序中通过对复制使用的二进制日志来计时这样的时基行为是不可重新产生的，
+因为该二进制日志仅纪录DML事件且不包括计时约束。
+
+最后，在大型DML行为（如大批插入）中非交互表发生错误，该非交互表可能经历复制，
+在复制版的非交互表中主服务器可以被部分地从DML行为更新。
+但是因为发生的那个错误，对从服务器没有更新。 
+对函数的DML行为，工作区将被用IGNORE关键词来执行，
+以便于在主服务器上导致错误的更新被忽略，并且不会导致错误的更新被复制到从服务器。
+
+ 
+
+上述的限制会影响MySQL作 point-in-time恢复的能力吗？
+影响复制的同一限制会影响point-in-time恢复。
+
+ MySQL要做什么来改正前述的限制呢？
+将来发行的MySQL预期有一个功能去选择复制该如何被处理：
+
+基于语句的复制（当前实现）。
+行级别复制（它将解决所有早先描述的限制）。
+
+触发程序对复制起作用么？
+MySQL 5.1中的触发程序和复制象在大多数其它数据库引擎中一样工作，
+在那些引擎中，通过触发程序在主服务器上执行的行为不被复制到从服务器。
+取而代之的是，位于主MySQL服务器的表中的 触发程序需要在那些存在于任何MySQL从服务器上的表内被创建，
+以便于触发程序可以也可以在从服务器上被激活。
+
+ 
+
+ 一个行为如何通过从主服务器上复制到从服务器上的触发程序来执行呢？
+首先，主服务器上的触发程序必须在从服务器上重建。
+一旦重建了，复制流程就象其它参与到复制中的标准DML语句一样工作。
+例如：考虑一个已经插入触发程序AFTER的EMP表，它位于主MySQL服务器上。
+同样的EMP表和AFTER插入 触发程序也存在于从服务器上。复制流程可能是：
+
+1.    对EMP做一个INSERT语句。
+
+2.   EMP上的AFTER触发程序激活。
+
+3.    INSERT语句被写进二进制日志。
+
+4.    从服务器上的复制拾起INSERT语句给EMP表，并在从服务器上执行它。
+
+5.    位于从服务器EMP上的AFTER触发程序激活。
+
+===========
+20.4. 存储子程序和触发程序的二进制日志功能
+
+这一节介绍MySQL 5.1如何考虑二进制日志功能来处理存储子程序（程序和函数） 。
+这一节也适用于触发程序。
+
+二进制日志包含修改数据库内容的SQL语句的信息。
+这个信息以描述修改的事件的形式保存起来。
+
+二进制日志有两个重要目的：
+
+·         复制的基础是主服务器发送包含在二进制日志里的事件到从服务器，从服务器执行这些事件来造成与对主服务器造成的同样的数据改变，请参阅6.2节，“复制概述”。
+
+·         特定的数据恢复操作许要使用二进制日志。备份的文件被恢复之后，备份后纪录的二进制日志里的事件被重新执行。这些事件把数据库带从备份点的日子带到当前。请参阅5.9.2.2节，“使用备份恢复”。
+
+MySQL中，以存储子程序的二进制日志功能引发了很多问题，这些在下面讨论中列出，作为参考信息。
+
+除了要另外注意的之外，这些谈论假设你已经通过用--log-bin选项启动服务器允许了二进制日志功能。（如果二进制日志功能不被允许，复制将不可能，为数据恢复的二进制日志也不存在。）请参阅5.11.3节，“二进制日志”。
+
+对存储子程序语句的二进制日志功能的特征在下面列表中描述。一些条目指出你应该注意到的问题。但是在一些情况下，有你可以更改的妇五七设置或你可以用来处理它们的工作区。
+
+·         CREATE PROCEDURE, CREATE FUNCTION, ALTER PROCEDURE,和ALTER FUNCTION 语句被写进二进制日志，CALL, DROP PROCEDURE, 和DROP FUNCTION 也一样。
+
+尽管如此，对复制有一个安全暗示：要创建一个子程序，用户必须有CREATE ROUTINE权限,但有这个权限的用户不能写一个 子程序在从服务器上执行任何操作。因为在从服务器上的SQL线程用完全权限来运行。例如，如果主服务器和从服务器分别有服务器ID值1和2，在主服务器上的用户可能创建并调用如下一个 程序：
+
+mysql> delimiter //
+mysql> CREATE PROCEDURE mysp ()
+    -> BEGIN
+    ->   IF @@server_id=2 THEN DROP DATABASE accounting; END IF;
+    -> END;
+    -> //
+mysql> delimiter ;
+mysql> CALL mysp();
+CREATE PROCEDURE和CALL语句将被写进二进制日志，所以从服务器将执行它们。因为从SQL线程有完全权限，它将移除accounting数据库。
+
+要使允许二进制日志功能的服务器避免这个危险，MySQL 5.1已经要求 存储程序和函数的创建者除了通常需要的CREATE ROUTINE的权限外，还必须有SUPER 权限。类似地，要使用ALTER PROCEDURE或ALTER FUNCTION，除了ALTER ROUTINE权限外你必须有SUPER权限。没有SUPER权限，将会发生一个错误：
+
+ERROR 1419 (HY000): You do not have the SUPER privilege and
+binary logging is enabled (you *might* want to use the less safe
+log_bin_trust_routine_creators variable)
+你可能不想强制要求子程序创建者必须有SUPER权限。例如，你系统上所有有CREATE ROUTINE权限的用户可能是有经验的应用程序开发者。要禁止掉对SUPER权限的要求，设置log_bin_trust_routine_creators 全局系统变量为1。默认地，这个变量值为0，但你可以象这样改变这样：
+
+mysql> SET GLOBAL log_bin_trust_routine_creators = 1;
+你也可以在启动服务器之时用--log-bin-trust-routine-creators选项来设置允许这个变量。
+
+如果二进制日志功能不被允许，log_bin_trust_routine_creators 没有被用上，子程序创建需要SUPER权限。
+
+·         一个执行更新的非确定子程序是不可重复的，它能有两个不如意的影响：
+
+o        它会使得从服务器不同于主服务器。
+
+-        恢复的数据与原始数据不同。
+
+要解决这些问题，MySQL强制做下面要求：在主服务器上，除非子程序被声明为确定性的或者不更改数据，否则创建或者替换子程序将被拒绝。这意味着当你创建一个子程序的时候，你必须要么声明它是确定性的，要么它不改变数据。两套子程序特征在这里适用：
+
+-        DETERMINISTIC和NOT DETERMINISTIC指出一个子程序是否对给定的输入总是产生同样的结果。如果没有给定任一特征，默认是NOT DETERMINISTIC，所以你必须明确指定DETERMINISTIC来 声明一个 子程序是确定性的。
+
+使用NOW() 函数（或它的同义）或者RAND() 函数不是必要地使也一个子程序非确定性。对NOW()而言，二进制日志包括时间戳并正确复制。RAND()只要在一个 子程序内被调用一次也可以正确复制。（你可以认为子程序执行时间戳和随机数种子作为毫无疑问地输入，它们在主服务器和从服务器上是一样的。）
+
+-        CONTAINS SQL, NO SQL, READS SQL DATA, 和 MODIFIES SQL数据提供子程序是读还是写数据的信息。无论NO SQL 还是READS SQL DATA i都指出，子程序没有改变数据，但你必须明白地指明这些中的一个，因为如果任何这些特征没有被给出， 默认的特征是CONTAINS SQL。
+
+默认地，要一个CREATE PROCEDURE 或 CREATE FUNCTION 语句被接受，DETERMINISTIC 或 NO SQL与READS SQL DATA 中的一个必须明白地指定，否则会产生如下错误：
+
+ERROR 1418 (HY000): This routine has none of DETERMINISTIC, NO SQL,
+or READS SQL DATA in its declaration and binary logging is enabled
+(you *might* want to use the less safe log_bin_trust_routine_creators
+variable)
+如果设置log_bin_trust_routine_creators 为1, 移除对子程序必须是确定的或不修改数据的要求。
+
+注意，子程序本性的评估是基于创建者的“诚实度” ：MySQL不检查声明为确定性的子程序是否不含产生非确定性结果的语句。
+
+·         如果子程序返回无错，CALL语句被写进二进制日志，否则就不写。当一个子程序修改数据失败了，你会得到这样的警告：
+
+·                ERROR 1417 (HY000): A routine failed and has neither NO SQL nor
+·                READS SQL DATA in its declaration and binary logging is enabled; if
+·                non-transactional tables were updated, the binary log will miss their
+·                changes
+这个记日志行为潜在地导致问题.如果一个子程序部分地修改一个非交互表（比如一个MyISAM表able）并且返回一个错误，二进制日志将反映这些变化。要防止这种情况，你应该在 子程序中使用交互表并且在交互动作内修改表。
+
+在一个子程序内，如果你在INSERT, DELETE, 或者UPDATE里使用IGNORE关键词来忽略错误，可能发生一个部分更新，但没有错误产生。这样的语句被记录日志，且正常复制。
+
+·         如果一个存储函数在一个如SELECT这样不修改数据的语句内被调用，即使函数本身更改数据，函数的执行也将不被写进二进制日志里。这个记录日志的行为潜在地导致问题。假设函数myfunc()如下定义：
+
+·                CREATE FUNCTION myfunc () RETURNS INT
+·                BEGIN
+·                  INSERT INTO t (i) VALUES(1);
+·                  RETURN 0;
+·                END;
+按照上面定义，下面的语句修改表t，因为myfunc()修改表t, 但是语句不被写进二进制日志，因为它是一个SELECT语句：
+
+SELECT myfunc();
+对这个问题的工作区将调用在做更新的语句里做更新的函数。注意，虽然DO语句有时为了其估算表达式的副效应而被执行，DO在这里不是一个工作区，因为它不被写进二进制日志。
+
+·         在一个子程序内执行的语句不被写进二进制日志。假如你发布下列语句：
+
+·                CREATE PROCEDURE mysp INSERT INTO t VALUES(1);
+·                CALL mysp;
+对于这个例子来说，CREATE PROCEDURE 和CALL语句出现在二进制日志里，但INSERT语句并未出现。
+
+·         在从服务器上，当决定复制哪个来自主服务器的事件时，下列限制被应用：--replicate-*-table规则不适用于CALL语句或子程序内的语句：在这些情况下，总是返回“复制！”
+
+触发程序类似于存储函数，所以前述的评论也适用于触发程序，除了下列情况： CREATE TRIGGER没有可选的DETERMINISTIC特征，所以触发程序被假定为总是确定性的。然而，这个假设在一些情况下是非法的。比如，UUID()函数是非确定性的（不能复制）。你应该小心在 触发程序中使用这个函数。
+
+触发程序目前不能更新表，但是在将来会支持。因为这个原因，如果你没有SUPER权限且log_bin_trust_routine_creators 被设为0，得到的错误信息类似于存储子程序与CREATE TRIGGER产生的错误信息。
+
+在本节中叙述的问题来自发生在SQL语句级别的二进制日志记录的事实。未来发行的MySQL期望能实现行级的二进制日志记录，记录发生在更 细致的级别并且指出哪个改变作为执行SQL的结果对单个记录而做。
+
+这是MySQL参考手册的翻译版本，关于MySQL参考手册，请访问dev.mysql.com。
+原始参考手册为英文版，与英文版参考手册相比，本翻译版可能不是最新的。
+
