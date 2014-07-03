@@ -1,0 +1,260 @@
+﻿（hxzon）mysql存储树形结构（闭包表）
+
+by hxzon
+=======
+需存储节点到自身的行，否则根（没有父亲）无法存在。
+注意，存储过长的参数，varchar必须指明长度。
+
+create table if not exists htree_tree(
+anc_id varchar(32),
+desc_id varchar(32),
+lvldiff int
+);
+
+delimiter //
+
+====
+drop procedure if exists tree_find_ancs//
+
+create procedure tree_find_ancs(in p_myId varchar(32))
+begin
+select anc_id,lvldiff from htree_tree where desc_id = p_myId order by lvldiff desc;
+end//
+
+drop procedure tree_find_descs//
+create procedure tree_find_descs(in p_myId varchar(32))
+begin
+select desc_id,lvldiff from htree_tree where anc_id = p_myId order by lvldiff asc;
+end//
+
+drop procedure tree_find_parent//
+create procedure tree_find_parent(in p_myId varchar(32))
+begin
+select anc_id,lvldiff from htree_tree where desc_id = p_myId and lvldiff=1;
+end//
+
+drop procedure tree_find_children//
+create procedure tree_find_children(in p_myId varchar(32))
+begin
+select desc_id,lvldiff from htree_tree where anc_id = p_myId and lvldiff=1;
+end//
+
+====
+树形显示
+
+如何由应用程序自行组织成树？
+通过find_descs(myId)可查出所有子孙，但是每个节点都不知道自己的父亲。
+
+根a入队，当前点为a
+找到a的还未入队的孩子b，b入队，当前点为b
+找到b的还未入队的孩子c，c入队，当前点为c
+重复，直到
+找不到c的还未入队的孩子，退回到b
+
+----
+使用递归，受限制。
+
+create procedure tree_tree(p_myId varchar(32), p_lvl int)
+begin
+	declare  no_more_descs int default 0;
+	declare l_desc_id varchar(255);
+	
+	declare c1 cursor for select desc_id from htree_tree 
+	where anc_id=p_myId and lvldiff = 1;
+
+	declare continue handler for not found set no_more_descs = 1;
+
+	SET @@max_sp_recursion_depth = 13;
+	open c1;
+	fetch c1 into l_desc_id;
+
+	repeat
+	call tree_tree(l_desc_id,p_lvl+1);
+	fetch c1 into l_desc_id;
+	until no_more_descs = 1
+	end repeat;
+
+	close c1;
+end//
+
+出错：
+Recursive limit 0 (as set by the max_sp_recursion_depth variable) was exceeded for routine
+解决：
+SET @@max_sp_recursion_depth = 100; 
+出错：
+Thread stack overrun:  71812 bytes used of a 196608 byte stack, and 128000 bytes needed.  
+Use 'mysqld --thread_stack=#' to specify a bigger stack.
+
+====
+插入
+
+drop procedure if exists tree_insert;
+
+create procedure tree_insert(in p_myId varchar(32),in p_pId varchar(32))
+begin
+	insert into htree_tree(anc_id,desc_id,lvldiff)
+	select t.anc_id,p_myId,lvldiff+1
+	from htree_tree t
+	where t.desc_id = p_pId
+	union all
+	select p_myId,p_myId,0;
+end//
+
+====
+删除
+
+create procedure tree_delete(in p_myId varchar(32))
+begin
+delete from htree_tree
+where desc_id in
+(select desc_id from htree_tree where anc_id = p_myId);
+end//
+
+因为mysql的限制，所以上述语句会抛出异常：
+
+You can't specify target table 'htree_tree' for update in FROM clause
+不能先select出一张表中的某些值，再update这张表(在同一语句中)
+
+----
+drop procedure if exists tree_delete;
+
+create procedure tree_delete(in p_myId varchar(32))
+begin
+delete from htree_tree
+where desc_id in
+(select desc_id from
+(select desc_id from htree_tree where anc_id = p_myId ) as tmp);
+end//
+
+====
+移动
+
+不许移动到自己的孩子下。
+
+drop procedure if exists tree_move;
+
+create procedure tree_move(in p_myId varchar(32),in p_npId varchar(32))
+begin
+	delete from htree_tree
+	where desc_id in
+	(select tmp1.desc_id from
+	(select desc_id from htree_tree where anc_id = p_myId) as tmp1)
+	and anc_id in
+	(select tmp2.anc_id from
+	(select anc_id from htree_tree where desc_id = p_myId and anc_id != p_myId) as tmp2); 
+	
+	insert into htree_tree(anc_id,desc_id,lvldiff)
+	select supertree.anc_id,subtree.desc_id,
+	(select lvldiff from htree_tree where anc_id = p_myId and desc_id = subtree.desc_id)
+	+ (select lvldiff from htree_tree where desc_id = p_npId and anc_id = supertree.anc_id) +1
+	from htree_tree supertree
+	cross join htree_tree subtree
+	where supertree.desc_id = p_npId
+	and subtree.anc_id = p_myId;
+end//
+
+如何计算 lvldiff ?
+为了计算 lvldiff ，插入时没有使用前文的笛卡尔积方式。
+
+create procedure tree_test()
+begin
+	delete from htree_tree;
+	call tree_insert('a1',null);
+	call tree_insert('b1','a1');
+	call tree_insert('b2','a1');
+	call tree_insert('b3','a1');
+	
+	call tree_insert('c1','b1');
+	call tree_insert('c2','b1');
+	call tree_insert('c3','b1');
+	
+	call tree_insert('c4','b2');
+	call tree_insert('c5','b2');
+	call tree_insert('c6','b2');
+	
+	call tree_insert('c7','b3');
+	call tree_insert('c8','b3');
+	call tree_insert('c9','b3');
+	
+	call tree_insert('d1','c1');
+	call tree_insert('d2','c1');
+	
+	call tree_insert('d3','c2');
+	call tree_insert('d4','c2');
+	
+	call tree_insert('d5','c3');
+	call tree_insert('d6','c3');
+	
+	call tree_insert('d7','c4');
+	call tree_insert('d8','c4');
+	
+	call tree_insert('d9','c5');
+	call tree_insert('d10','c6');
+	
+	call tree_insert('e1','d5');
+	call tree_insert('e2','d5');
+end//
+
+delimiter ;
+
+====
+call tree_find_parent('c3');
+
+call tree_find_ancs('c3');
+
+call tree_find_children('c3');
+
+call tree_find_descs('c3');
+
+call tree_find_descs('b1');
+
+call tree_find_descs('b3');
+
+call tree_move('c3','b3');
+
+==========
+备份
+
+create procedure tree_move(in p_myId varchar(32),in p_npId varchar(32))
+begin
+	declare  no_more_descs int default 0;
+	declare l_desc_id varchar(255);
+	declare l_lvldiff int;
+	
+	declare c1 cursor for select desc_id,lvldiff from htree_tree 
+	where anc_id=p_myId and lvldiff > 0;
+
+	declare continue handler for not found set no_more_descs = 1;
+
+	delete from htree_tree
+	where desc_id in
+	(select tmp1.desc_id from
+	(select desc_id from htree_tree where anc_id = p_myId) as tmp1)
+	and anc_id in
+	(select tmp2.anc_id from
+	(select anc_id from htree_tree where desc_id = p_myId and anc_id != p_myId) as tmp2); 
+	
+	delete from htree_tree where anc_id = p_myId and desc_id = p_myId;
+	call tree_insert(p_myId,p_npId);
+	
+	open c1;
+	fetch c1 into l_desc_id,l_lvldiff;
+
+	repeat
+	insert into htree_tree(anc_id,desc_id,lvldiff)
+	select anc_id, l_desc_id,lvldiff+l_lvldiff 
+	from (
+	select anc_id,lvldiff
+	from htree_tree where desc_id = p_myId and lvldiff > 0) as tmp1;
+
+	fetch c1 into l_desc_id,l_lvldiff;
+	until no_more_descs = 1
+	end repeat;
+
+	close c1;
+end//
+
+如何计算 lvldiff ?
+为了计算 lvldiff ，插入时没有使用前文的笛卡尔积方式。
+
+

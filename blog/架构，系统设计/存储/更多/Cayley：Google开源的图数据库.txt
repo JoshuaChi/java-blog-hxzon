@@ -1,0 +1,46 @@
+﻿Cayley：Google开源的图数据库
+作者 郭蕾 发布于 2014年6月30日 |
+http://www.infoq.com/cn/news/2014/06/google-cayley
+
+近日，Google开源了图数据库Cayley。
+Cayley是受Freebase和Google的Knowledge Graph背后的图数据库graphd所启发，
+由Google工程师Barak Michener开发的一款开源图数据库。
+图数据库是一种NoSQL数据库，适合处理大量复杂、互连接、低结构化的数据。
+图数据库与其他数据库不同，它更擅长描述数据之间的关系，
+所以被大量用于社交网络、推荐系统等专注于构建关系图谱的系统。
+
+Cayley使用Go语言编写，创始人Barak在博客中解释了选择Go的原因，
+“Cayley需要支持高速且大并发的存取，Go看起来是不错的选择。
+基于官方提供的标准包以及社区开源的包，
+开发过程中的一些大的障碍已经得以解决，
+再结合Go的并发模式，开发一个比graphd性能更高的图数据库成为可能。”
+
+Cayley的目标是成为开发者在Linked Data 和图数据（语义网络、社交网络等）的工具之一。
+初步性能测试表明，在普通PC硬件和硬盘上，
+基于LevelDB存储的Cayley跑1.34亿三元组毫无压力，
+多跳交叉查询（比如有X和Y两位影星同时出演的电影）只需150ms。Cayley的主要特点如下：
+
+Go语言实现
+运行简单（三四条命令）
+RESTful API（或者REPL）
+内置查询编辑器和可视化工具
+支持多种查询语言：JavaScript、MQL
+多种后端存储数据库：LevelDB（单机）、MongoDB或者内存
+模块化设计，容易扩展
+良好的测试覆盖
+速度快
+
+值得注意的是，虽然Cayley在GitHub上放在Google名下，但它却不是Google官方项目，
+只是得到了Google的许可，由其员工创建并维护，
+类似的项目也有很多，比如Protocol Buffers、AngularJS。
+
+目前社区中比较成熟的图数据库是Neo4j，它是一个用Java实现、完全兼容ACID的图形数据库。
+Cayley与Neo4j相比最大的优势可能就是免费（Neo4j不完全免费，使用全部功能需要有商业许可），
+关于二者性能的比较目前社区中还没有，相信接下来会有比较多的对比类文章。
+另外，在Hacker News上有开发者也提到另外一款图数据库 Orly，
+从其GitHub状态来看，发展势头也不错。
+
+感兴趣的读者可以观看Google IO大会上《构建一个小的知识图谱》主题演讲来了解Cayley。
+在GAE上也运行了一个Cayley的案例，包括30000部电影以及它们的演员、角色、导演信息，
+读者可以测试学习。
+

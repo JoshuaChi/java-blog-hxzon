@@ -1,0 +1,82 @@
+﻿花瓣网李忠：ReactiveCocoa是Cocoa的未来
+作者 郭蕾 发布于 2014年7月2日 |
+http://www.infoq.com/cn/news/2014/07/reactiveCocoa-cocoa
+
+ReactiveCocoa（其简称为RAC）是由Github工程师们开发的一个应用于iOS和OS X开发的函数响应式编程新框架。ReactiveCocoa为开发者带来了函数式编程和响应式编程的思想，被Mattt Thompson称为开启一个新Objective-C纪元。InfoQ此次专访了花瓣网移动开发主管李忠，另外作为ArchSummit深圳2014大会《移动互联网，一浪高过一浪》专题的讲师，李忠将会分享ReactiveCocoa在花瓣客户端的实践。
+
+InfoQ：使用ReactiveCocoa与直接使用 Cocoa框架相比，性能上（事件的响应速度、回调速度）是否会有影响？
+
+李忠：ReactiveCocoa底层的实现是比较复杂的，在性能上确实会有一定的影响。一个简单的 [signal subscribeNext: ^(id x){}] 就会有造成很深的callback stack(近40次的调用)，相比纯KVO不到10次的调用，速度上慢了至少1个数量级。不过尽管如此，只要subscribe的次数不要过多，性能上还是可以接受的。
+
+在事件响应上，RAC比KVO慢了大概5倍，不过问题不大，在iPhone5上测了下，也就1ms多一点，绝大多数的使用场景都不会有问题。
+
+在开发Mac App时，可以使用Cocoa Bindings，但iOS却不支持，可能也是出于性能上的考虑。既然RAC的性能不如直接使用原生的高，还有必要用它么？我觉得还是有的，性能是我们选择框架的一个参考因素，但不是决定性的因素。开发者在足够了解RAC的情况下，RAC可以提高开发效率并帮助开发者编写更易维护的代码，这两点就值得我们去研究、使用它。
+
+InfoQ：使用ReactiveCocoa等于是放弃了xib或StoryBoard，这样的话在开发界面的时候就需要通过代码去控制，这是否会降低开发效率？
+
+李忠：iOS开发UI界面主要有3种方式，手写UI代码、使用xibs来组织UI、使用StoryBoard来组织xibs，3种方式各有优缺点。
+
+手写UI代码(也是我目前采用的方式) 既然xib可以做的事情，代码都可以做到，而且xib做不了的事情，代码也可以做到，那为什么不直接用代码来写呢。很多人担心开发效率上会是一个很大的问题，我觉得或许会慢一点，但问题不大，尤其是结合了这样的UIView Helper之后。还有就是涉及到多人开发时，可以减少冲突，尤其是每个人负责各自的模块，基本不会出现这个情况。
+
+使用xibs来组织UI 这也是不少开发者采用的模式，跟手写UI相比，最大的好处是直观且高效。Xcode4的xib文件结构复杂且臃肿，很容易产生冲突，不过好在Xcode5对它进行了很大的改进，结构更加简单且易读。不过由于UI既可以在xib里调整，也可以在代码里调整，甚至是代码的不同地方进行调整，调试和维护都容易出现问题。
+
+使用StoryBoard 好处很明显：非常直观。一共有多少个页面，每个页面是做什么的，页面之间如何关联都可以看得很清楚。问题也很大：多人协作，很容易出现冲突，要频繁地解决冲突还是挺影响效率的。当然如果只是一个人开发，那就没有问题了。
+
+所以三种方式各有优劣，而使用RAC并不会强制你使用代码去构建UI，依然可以用xib/StoryBoard，它改变的是编程模式，对UI的影响其实不大。另外RAC还提供了一套UIKit Extension，很多需要Delegate/Target-Action的UI，可以直接使用RAC的方法，这也带来了很大的便利。
+
+InfoQ：苹果每年都会有新的工具、新的API开放出来，比如iOS 6之后可以实现界面元素的相对布局等等，ReactiveCocoa可以支持新的功能么？或者是能否基于ReactiveCocoa进行自定义扩展？
+
+李忠：好比有一座房子，房子的主人每年都会对里面的家具做一些调整，如灯泡从白炽灯变成节能灯，洗衣机从半自动变成了全自动等等，也会新添置一些器材，如为了更爽地看世界杯，买了个投影仪，或为了更方便地打扫房间，买了个iRobot等等。
+
+这座房子就好像Cocoa，对家具的调整就好比新的API，新的工具好比新的器材。而RAC并不会对现有的家具造成影响，它改变的只是墙体的结构，让它更稳固。
+
+以AutoLayout为例，它可以实现界面的相对布局，比如 [NSLayoutConstraint constraintsWithVisualFormat:options:metrics:views:]，RAC并不会干扰这一过程。 但AutoLayout的一个特点：描述View之间的关系，而不是动态的去计算，是挺符合RAC的理念的，所以RAC也可以用来做这件事情。比如有两个View：parentView和childView，假如当parentView的bounds改变时，childView也要跟着改变，就可以这么做：
+
+[RACObserve(parentView, layer.bounds) subscribeNext:^(id bounds){ childView.frame = CGRectInset(bounds, 5, 5); }];
+
+RAC的开发者觉得这样可行，于是就有了ReactiveCocoaLayout，所以是否有必要基于RAC进行自定义扩展，需要看是否符合RAC的理念。
+
+InfoQ：使用ReactiveCocoa 带给你和你的团队最大的好处是什么？ 最大的弊端是什么？
+
+李忠：先来说说弊端吧，RAC最大的问题在于它跟正常的编程模式太不一样了，就像第一次穿上溜冰鞋，很多人都会觉得不习惯，然后各种摔跤，因为不能再用“走路”的模式去实践了。所以学习成本是个很大的挑战。
+
+其次RAC没有被大规模采纳，很少有人分享Best Practices，或相关的文章，这时“贸然”地用到项目里，如果影响了开发效率怎么办？项目不能如期交付怎么办？其他团队成员不够熟悉怎么办？遇到问题找不到解决方案怎么办？这些都是要考虑的因素，所以如果要使用，必须对它有相当程度的了解，因此潜在的风险也是个大问题。
+
+有一天同事Dismory说他已经用RAC开发了一个App，并且感觉很不错，于是就决定在开发花瓣时用一下。因为我们是模块化开发，每个人会分到多个模块，所以也并不要求每个人都使用RAC，可以按照自己最熟悉的方式去写，这也进一步降低了风险。
+
+以前没有用RAC写过一个完整的项目，自然会遇到不少问题。最大的问题是：如何用RAC的理念去思考？因为不够熟悉，所以代码往往两不像，既不像RAC，也不像Cocoa。于是我就开始翻issues列表，看RAC作者写的App以及各类文章，慢慢地有点get the point了，写起来也顺手了。也会跟团队成员分享经验，讨论遇到的问题。开发效率的提升，代码复杂度降低这两点就是最大的好处。
+
+InfoQ：今年的WWDC大会上苹果发布了Swift语言，未来苹果应该会大力支持swift， 你认为ReactiveCocoa是否会基于Swift开发新版本？难度大吗？
+
+李忠：由于ObjectiveC语言自身的限制，也影响到了RAC的一些特性，比如无法根据一个Signal得知它的sendNext value的类型，这是很不方便的，要么推断它的类型，要么去看接口说明，如果没有说明，那只能看源码。而Swift的Generic特性正好可以弥补这点。
+
+除此之外，因为Swift没有KVO，而RAC又是基于KVO实现的，所以如果要用Swift来重写，底层的改动还是挺大的。不过看起来他们正打算这么做。
+
+这就会带来一些问题，如果项目是用ObjectiveC写的，那么就无法调用Swift的Generic方法，或者其他Swift具备的特性。另外目前Swift语言还没有到稳定版，接口和使用上也存在变动的可能。
+
+我觉得他们应该是认同Swift，且相信它会在将来成为主力开发语言，所以不如一次性地支持到位。如果还是使用OC，那么可以用RAC2，如果使用Swift，那么就可以用RAC3。
+
+RAC3借鉴了.NET的Rx思想，通过Observer / Observable / Enumerator / Enumerable 这4个基础类来实现push/pull driven streams，架构上也更清晰了，使用Swift来实现这些特性应该也没什么问题。至于难度么，Just trust the github guys。
+
+InfoQ：使用 ReactiveCocoa 需要时间成本，你认为值吗？是否建议新手直接使用 ReactiveCocoa 开发程序？
+
+李忠：相比于其他的框架，ReactiveCocoa的学习曲线更加陡峭，也就意味着需要花更多的时间。如果对Cocoa的设计模式、理念和常用Framework都已经很熟悉，也做过了几个成熟的App，那么可以去更深入地了解下，比如如何用RAC的方式去解决Cococa编程遇到的问题，如何写出更RAC的代码等等。
+
+有两种方法可以写出bug-free的代码。 1) 使用那些让bug更少的技术 2) 用自己熟悉的技术。如果对第一点吃不准，那么只使用第二点也没什么问题。
+
+不建议新手直接使用RAC去开发程序，如果能做到这点，已经不是新手了，至少有不错的编程基础。如果只是自己做Side Project还行，涉及到多人合作，说服别人使用也是个难题，毕竟RAC不够popular，且有着不可控的风险，而且将来别人来维护代码也会是个问题。
+
+Cocoa编程还有很多的挑战，这些不是学会了RAC就能解决的，对于大多数人我还是建议先看看，不用急着就在项目里使用，等RAC3.0出来后再考虑也不迟。
+
+InfoQ：ReactiveCocoa为iOS 开发者带来了函数响应式编程， 统一了消息传递机制，你认为ReactiveCocoa还有哪些需要完善的地方？
+
+李忠：ReactiveCocoa需要完善的地方包括：
+
+性能 跟pure KVO相比，还是差了不少。比如光是subscribNext就慢了1个数量级，接收到新的value也慢了5倍左右。如果signal一多，subscription也会跟着多起来，性能问题就会慢慢浮出水面。
+
+signal的sendNext value类型未知 感觉回到了脚本语言。只能根据signal名字去推断，或是看源码，不够cool，且影响效率，还有出错的可能（比如正常应该发送Number的，忽然发送了String），不过使用Swift应该能够解决这个问题。
+
+调试 目前的callback stack实在是深了点，最简单的[signal subscribeNext^(id x){}]就会有近40次的调用，项目跑起来，如果挂在了某个地方，往前追溯就得绕过那「厚厚」的一层RAC调用，真心累啊。
+
+命名 作为编程界的两大难题之一，RAC在这块也有改进的空间，比如他们内部就会讨论subscribe这个名字是不是有问题，再想想RACChannel的命名等等，如果名字能够让使用者一看就明白，也算是降低了学习成本。
+
