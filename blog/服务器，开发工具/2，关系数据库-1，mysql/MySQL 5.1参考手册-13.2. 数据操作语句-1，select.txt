@@ -1,113 +1,128 @@
 ﻿MySQL 5.1参考手册-13.2. 数据操作语句-1，select
 http://dev.mysql.com/doc/refman/5.1/zh/sql-syntax.html#data-manipulation
 
-13.2. 数据操作语句
-
-13.2.1. DELETE语法
-
-13.2.4. INSERT语法
-
-13.2.7. SELECT语法
-
-13.2.9. TRUNCATE语法
-
-13.2.10. UPDATE语法
-
-（以下见《续》）
-13.2.2. DO语法
-
-13.2.3. HANDLER语法
-
-13.2.5. LOAD DATA INFILE语法
-
-13.2.6. REPLACE语法
-
-13.2.8. Subquery语法
-
 ===========
 13.2.7. SELECT语法
 
 13.2.7.1. JOIN语法
 13.2.7.2. UNION语法
- 
+
+====
+
  SELECT
-    [ALL | DISTINCT | DISTINCTROW ]
-      [HIGH_PRIORITY]
-      [STRAIGHT_JOIN]
-      [SQL_SMALL_RESULT] [SQL_BIG_RESULT] [SQL_BUFFER_RESULT]
+    [ALL | DISTINCT | DISTINCTROW ]  是否去重
+      [HIGH_PRIORITY] 执行时使用高优先级
+      [STRAIGHT_JOIN] 优化提示，严格按关联表的书写顺序来关联
+      [SQL_SMALL_RESULT] [SQL_BIG_RESULT] [SQL_BUFFER_RESULT] 优化提示，提示数据量大小
       [SQL_CACHE | SQL_NO_CACHE] [SQL_CALC_FOUND_ROWS]
     select_expr, ...
-    [INTO OUTFILE 'file_name' export_options
+    [INTO OUTFILE 'file_name' export_options 导出到文件
       | INTO DUMPFILE 'file_name']
     [FROM table_references
     [WHERE where_definition]
-    [GROUP BY {col_name | expr | position}
-      [ASC | DESC], ... [WITH ROLLUP]]
-    [HAVING where_definition]
-    [ORDER BY {col_name | expr | position}
+    [GROUP BY {col_name | expr | position} 分组
+      [ASC | DESC], ... [WITH ROLLUP]] 分组排序
+    [HAVING where_definition] 分组的过滤条件
+    [ORDER BY {col_name | expr | position} 排序
       [ASC | DESC] , ...]
-    [LIMIT {[offset,] row_count | row_count OFFSET offset}]
-    [PROCEDURE procedure_name(argument_list)]
-    [FOR UPDATE | LOCK IN SHARE MODE]]
-SELECT用于恢复从一个或多个表中选择的行，并可以加入UNION语句和子查询。请参见13.2.7.2节，“UNION语法
-”和13.2.8节，“Subquery语法”。
+    [LIMIT {[offset,] row_count | row_count OFFSET offset}] 分页
+    [PROCEDURE procedure_name(argument_list)] 存储过程
+    [FOR UPDATE | LOCK IN SHARE MODE]] 锁
+
+====
+SELECT用于恢复从一个或多个表中选择的行，并可以加入UNION语句和子查询。
+请参见13.2.7.2节，“UNION语法”和13.2.8节，“Subquery语法”。
 
 ·         每个select_expr都指示一个您想要恢复的列。
 
-·         table_references指示行从哪个表或哪些表中被恢复。在13.2.7.1节，“JOIN语法”中对该语法进行了说明。
+·         table_references指示行从哪个表或哪些表中被恢复。
+在13.2.7.1节，“JOIN语法”中对该语法进行了说明。
 
-·         where_definition包括关键词WHERE，后面接一个表达式。该表达式指示被选择的行必须满足的条件。
+·         where_definition包括关键词WHERE，后面接一个表达式。
+该表达式指示被选择的行必须满足的条件。
 
-有的行在计算时未引用任何表。SELECT也可以用于恢复这类行。
+有的行在计算时未引用任何表。
+SELECT也可以用于恢复这类行。
 
 举例说明：
 
 mysql> SELECT 1 + 1;
         -> 2
-所有被使用的子句必须按语法说明中显示的顺序严格地排序。例如，一个HAVING子句必须位于GROUP BY子句之后，并位于ORDER BY子句之前。
 
-·         使用AS alias_name可以为select_expr给定一个别名。此别名用作表达式的列名，可以用于GROUP BY、ORDER BY或HAVING子句。例如：
+所有被使用的子句必须按语法说明中显示的顺序严格地排序。
+例如，一个HAVING子句必须位于GROUP BY子句之后，并位于ORDER BY子句之前。
+
+====
+·         使用AS alias_name可以为select_expr给定一个别名。
+此别名用作表达式的列名，可以用于GROUP BY、ORDER BY或HAVING子句。例如：
 
 ·                mysql> SELECT CONCAT(last_name,', ',first_name) AS full_name
 ·                    -> FROM mytable ORDER BY full_name;
+
 在为select_expr给定别名时，AS关键词是自选的。前面的例子可以这样编写：
 
 mysql> SELECT CONCAT(last_name,', ',first_name) full_name
     -> FROM mytable ORDER BY full_name;
-因为AS是自选的，如果您忘记在两个select_expr表达式之间加逗号，则会出现一个小问题：MySQL会把第二个表达式理解为一个别名。例如，在以下语句中，columnb被作为别名对待：
+
+因为AS是自选的，如果您忘记在两个select_expr表达式之间加逗号，则会出现一个小问题：
+MySQL会把第二个表达式理解为一个别名。
+例如，在以下语句中，columnb被作为别名对待：
 
 mysql> SELECT columna columnb FROM mytable;
+
 因此，使用AS明确地指定列的别名，把它作为习惯，是一个良好的操作规范。
 
-·         在一个WHERE子句中使用列别名是不允许的，因为当执行WHERE子句时，列值可能还没有被确定。请参见A.5.4节，“与列别名有关的问题”。
+·         在一个WHERE子句中使用列别名是不允许的，因为当执行WHERE子句时，列值可能还没有被确定。
+请参见A.5.4节，“与列别名有关的问题”。
 
-·         FROM table_references子句指示行从哪些表中被恢复。如果您命名的表多于一个，则您在进行一个联合操作。要了解有关联合语法的说明，请参见13.2.7.1节，“JOIN语法”。对于每一个被指定的表，您可以自选地指定一个别名。
+====
+·         FROM table_references子句指示行从哪些表中被恢复。
+如果您命名的表多于一个，则您在进行一个联合操作。
+要了解有关联合语法的说明，请参见13.2.7.1节，“JOIN语法”。
+对于每一个被指定的表，您可以自选地指定一个别名。
 
 ·                tbl_name [[AS] alias]
 ·                    [{USE|IGNORE|FORCE} INDEX (key_list)]
-使用USE INDEX、IGNORE INDEX、FORCE INDEX可以向优化符提示如何选择索引。这部分内容在13.2.7.1节，“JOIN语法”中进行了讨论。
 
-您可以使用SET max_seeks_for_key=value作为一种替代方法，来促使MySQL优先采用关键字扫描，替代表扫描。
+使用USE INDEX、IGNORE INDEX、FORCE INDEX可以向优化符提示如何选择索引。
+这部分内容在13.2.7.1节，“JOIN语法”中进行了讨论。
 
-·         您可以把当前数据库中的一个表作为tbl_name（在当前数据库中）引用，或作为db_name.tbl_name引用，来明确地指定一个数据库。您可以把一列作为col_name, tbl_name.col_name引用或作为db_name.tbl_name.col_name引用。您不需要对一个列引用指定一个tbl_name或db_name.tbl_name前缀，除非此引用意义不明确。意义不明确时，要求指定明确的列引用格式。有关示例见9.2节，“数据库、表、索引、列和别名”。
+您可以使用SET max_seeks_for_key=value作为一种替代方法，
+来促使MySQL优先采用关键字扫描，替代表扫描。（hxzon：注意）
+
+====
+·         您可以把当前数据库中的一个表作为tbl_name（在当前数据库中）引用，
+或作为db_name.tbl_name引用，来明确地指定一个数据库。
+您可以把一列作为col_name, tbl_name.col_name引用或作为db_name.tbl_name.col_name引用。
+您不需要对一个列引用指定一个tbl_name或db_name.tbl_name前缀，除非此引用意义不明确。
+意义不明确时，要求指定明确的列引用格式。
+有关示例见9.2节，“数据库、表、索引、列和别名”。
 
 ·         在没有表被引用的情况下，允许您指定DUAL作为一个假的表名。
 
 ·                mysql> SELECT 1 + 1 FROM DUAL;
 ·                        -> 2
-有些服务器要求一个FROM子句。DUAL仅用于与这些服务器兼容。如果没有表被引用，则MySQL不要求该子句，前面的语句可以按以下方法编写：
+
+有些服务器要求一个FROM子句。DUAL仅用于与这些服务器兼容。
+如果没有表被引用，则MySQL不要求该子句，前面的语句可以按以下方法编写：
 
 mysql> SELECT 1 + 1;
         -> 2
+
 ·         使用tbl_name AS alias_name或tbl_name alias_name可以为一个表引用起别名：
 
 ·                mysql> SELECT t1.name, t2.salary FROM employee AS t1, info AS t2
 ·                    ->     WHERE t1.name = t2.name;
 ·                mysql> SELECT t1.name, t2.salary FROM employee t1, info t2
 ·                    ->     WHERE t1.name = t2.name;
-·         在WHERE子句中，您可以使用MySQL支持的所有函数，不过总计（总结）函数除外。请参见第12章：函数和操作符。
 
-·         被选择的用于输出的列可以使用列名称、列别名或列位置被引用到ORDER BY和GROUP BY子句中。列位置为整数，从1开始：
+====
+·         在WHERE子句中，您可以使用MySQL支持的所有函数，不过总计（总结）函数除外。
+请参见第12章：函数和操作符。
+
+====
+·         被选择的用于输出的列可以使用列名称、列别名或列位置被引用到ORDER BY和GROUP BY子句中。
+列位置为整数，从1开始：（hxzon：注意）
 
 ·                mysql> SELECT college, region, seed FROM tournament
 ·                    ->     ORDER BY region, seed;
@@ -115,70 +130,110 @@ mysql> SELECT 1 + 1;
 ·                    ->     ORDER BY r, s;
 ·                mysql> SELECT college, region, seed FROM tournament
 ·                    ->     ORDER BY 2, 3;
-要以相反的顺序进行分类，应把DESC（降序）关键字添加到ORDER BY子句中的列名称中。默认值为升序；该值可以使用ASC关键词明确地指定。
 
-不建议使用列位置，因为该语法已经从SQL标准中删除。
+要以相反的顺序进行分类，应把DESC（降序）关键字添加到ORDER BY子句中的列名称中。
+默认值为升序；该值可以使用ASC关键词明确地指定。
 
-·         如果您使用GROUP BY，则输出行根据GROUP BY列进行分类，如同您对相同的列进行了ORDER BY。MySQL对GROUP BY进行了扩展，因此您可以在各列（在子句中进行命名）的后面指定ASC和DESC：
+不建议使用列位置，因为该语法已经从SQL标准中删除。（hxzon：注意）
+
+====
+·         如果您使用GROUP BY，则输出行根据GROUP BY列进行分类，如同您对相同的列进行了ORDER BY。
+MySQL对GROUP BY进行了扩展，因此您可以在各列（在子句中进行命名）的后面指定ASC和DESC：（hxzon：注意）
 
 ·                SELECT a, COUNT(b) FROM test_table GROUP BY a DESC
-·         MySQL对GROUP BY的使用进行了扩展，允许选择在GROUP BY子句中没有被提到的字段。如果您没有得到预期的结果，请阅读GROUP BY的说明，请参见12.10节，“与GROUP BY子句同时使用的函数和修改程序”。
 
-·         GROUP BY允许一个WITH ROLLUP修饰符。请参见12.10.2节，“GROUP BY修改程序”。
+·         MySQL对GROUP BY的使用进行了扩展，允许选择在GROUP BY子句中没有被提到的字段。
+如果您没有得到预期的结果，请阅读GROUP BY的说明，
+请参见12.10节，“与GROUP BY子句同时使用的函数和修改程序”。
 
-·         HAVING子句基本上是最后使用，只位于被发送给客户端的条目之前，没有进行优化。（LIMIT用于HAVING之后。）
+·         GROUP BY允许一个WITH ROLLUP修饰符。
+请参见12.10.2节，“GROUP BY修改程序”。
 
-SQL标准要求HAVING必须引用GROUP BY子句中的列或用于总计函数中的列。不过，MySQL支持对此工作性质的扩展，并允许HAVING因为SELECT清单中的列和外部子查询中的列。
+====
+·         HAVING子句基本上是最后使用，只位于被发送给客户端的条目之前，没有进行优化。
+（LIMIT用于HAVING之后。）
 
-如果HAVING子句引用了一个意义不明确的列，则会出现警告。在下面的语句中，col2意义不明确，因为它既作为别名使用，又作为列名使用：
+SQL标准要求HAVING必须引用GROUP BY子句中的列或用于总计函数中的列。
+不过，MySQL支持对此工作性质的扩展，并允许HAVING因为SELECT清单中的列和外部子查询中的列。
+
+如果HAVING子句引用了一个意义不明确的列，则会出现警告。
+在下面的语句中，col2意义不明确，因为它既作为别名使用，又作为列名使用：
 
 mysql> SELECT COUNT(col1) AS col2 FROM t GROUP BY col2 HAVING col2 = 2;
-标准SQL工作性质具有优先权，因此如果一个HAVING列名既被用于GROUP BY，又被用作输出列清单中的起了别名的列，则优先权被给予GROUP BY列中的列。
+
+标准SQL工作性质具有优先权，因此如果一个HAVING列名既被用于GROUP BY，
+又被用作输出列清单中的起了别名的列，
+则优先权被给予GROUP BY列中的列。
 
 ·         HAVING不能用于应被用于WHERE子句的条目。例如，不能编写如下语句：
 
 ·                mysql> SELECT col_name FROM tbl_name HAVING col_name > 0;
+
 而应这么编写：
 
 mysql> SELECT col_name FROM tbl_name WHERE col_name > 0;
+
 ·         HAVING子句可以引用总计函数，而WHERE子句不能引用：
 
 ·                mysql> SELECT user, MAX(salary) FROM users
 ·                    ->     GROUP BY user HAVING MAX(salary)>10;
+
 （在有些较早版本的MySQL中，本语句不运行。）
 
-·         LIMIT子句可以被用于限制被SELECT语句返回的行数。LIMIT取一个或两个数字自变量，自变量必须是非负的整数常数（当使用已预备的语句时除外）。
+====
+·         LIMIT子句可以被用于限制被SELECT语句返回的行数。
+LIMIT取一个或两个数字自变量，自变量必须是非负的整数常数（当使用已预备的语句时除外）。
 
-使用两个自变量时，第一个自变量指定返回的第一行的偏移量，第二个自变量指定返回的行数的最大值。初始行的偏移量为0（不是1）：
+使用两个自变量时，第一个自变量指定返回的第一行的偏移量，
+第二个自变量指定返回的行数的最大值。
+初始行的偏移量为0（不是1）：
 
 mysql> SELECT * FROM tbl LIMIT 5,10;  # Retrieve rows 6-15
+
 为了与PostgreSQL兼容，MySQL也支持LIMIT row_count OFFSET offset语法。
 
-如果要恢复从某个偏移量到结果集合的末端之间的所有的行，您可以对第二个参数是使用比较大的数。本语句可以恢复从第96行到最后的所有行：
+如果要恢复从某个偏移量到结果集合的末端之间的所有的行，您可以对第二个参数是使用比较大的数。
+本语句可以恢复从第96行到最后的所有行：
 
 mysql> SELECT * FROM tbl LIMIT 95,18446744073709551615;
+
 使用1个自变量时，该值指定从结果集合的开头返回的行数：
 
 mysql> SELECT * FROM tbl LIMIT 5;     # Retrieve first 5 rows
+
 换句话说，LIMIT n与LIMIT 0,n等价。
 
-对于已预备的语句，您可以使用位置保持符。以下语句将从tb1表中返回一行：
+对于已预备的语句，您可以使用位置保持符。
+以下语句将从tb1表中返回一行：
 
 mysql> SET @a=1;
 mysql> PREPARE STMT FROM "SELECT * FROM tbl LIMIT ?";
 mysql> EXECUTE STMT USING @a;
+
 以下语句将从tb1表中返回第二到第六行：
 
 mysql> SET @skip=1; SET @numrows=5;
 mysql> PREPARE STMT FROM "SELECT * FROM tbl LIMIT ?, ?";
 mysql> EXECUTE STMT USING @skip, @numrows;
-·         SELECT...INTO OUTFILE 'file_name'形式的SELECT可以把被选择的行写入一个文件中。该文件被创建到服务器主机上，因此您必须拥有FILE权限，才能使用此语法。file_name不能是一个原有的文件。原有文件会阻止例如“/etc/passwd”的文件和数据库表被销毁。
 
-SELECT...INTO OUTFILE语句的主要作用是让您可以非常快速地把一个表转储到服务器机器上。如果您想要在服务器主机之外的部分客户主机上创建结果文件，您不能使用SELECT...INTO OUTFILE。在这种情况下，您应该在客户主机上使用比如“mysql –e "SELECT ..." > file_name”的命令，来生成文件。
 
-SELECT...INTO OUTFILE是LOAD DATA INFILE的补语；用于语句的exort_options部分的语法包括部分FIELDS和LINES子句，这些子句与LOAD DATA INFILE语句同时使用。请参见13.2.5节，“LOAD DATA INFILE语法”。
+====
+·         SELECT...INTO OUTFILE 'file_name'形式的SELECT可以把被选择的行写入一个文件中。
+该文件被创建到服务器主机上，因此您必须拥有FILE权限，才能使用此语法。
+file_name不能是一个原有的文件。
+原有文件会阻止例如“/etc/passwd”的文件和数据库表被销毁。
 
-FIELDS ESCAPED BY用于控制如何写入特殊字符。如果FIELDS ESCAPED BY字符不是空字符，则被用于在输出中对以下字符设前缀：
+SELECT...INTO OUTFILE语句的主要作用是让您可以非常快速地把一个表转储到服务器机器上。
+如果您想要在服务器主机之外的部分客户主机上创建结果文件，您不能使用SELECT...INTO OUTFILE。
+在这种情况下，您应该在客户主机上使用比如“mysql –e "SELECT ..." > file_name”的命令，来生成文件。
+
+SELECT...INTO OUTFILE是LOAD DATA INFILE的补语；
+用于语句的exort_options部分的语法包括部分FIELDS和LINES子句，
+这些子句与LOAD DATA INFILE语句同时使用。
+请参见13.2.5节，“LOAD DATA INFILE语法”。
+
+FIELDS ESCAPED BY用于控制如何写入特殊字符。
+如果FIELDS ESCAPED BY字符不是空字符，则被用于在输出中对以下字符设前缀：
 
 o        FIELDS ESCAPED BY字符
 
@@ -188,53 +243,107 @@ o        FIELDS TERMINATED BY和LINES TERMINATED BY值的第一个字符
 
 o        ASCII 0（在编写时接在转义符后面的是ASCII ‘0’，而不是一个零值字节）
 
-如果FIELDS ESCAPED BY字符是空字符，则没有字符被转义，并且NULL被作为NULL输出，而不是作为\N输出。指定一个空的转义符不是一个好的主意。特别是当您的数据中的字段值包含刚被给予的清单中的字符时，更是如此。
+如果FIELDS ESCAPED BY字符是空字符，则没有字符被转义，
+并且NULL被作为NULL输出，而不是作为\N输出。
+指定一个空的转义符不是一个好的主意。
+特别是当您的数据中的字段值包含刚被给予的清单中的字符时，更是如此。
 
-其原因是您必须对所有FIELDS TERMINATED BY, ENCLOSED BY, ESCAPED BY或LINES TERMINATED BY字符进行转义，才能可靠地读取文件并返回。ASCII NUL被转义，以便更容易地使用调页程序观看。
+其原因是您必须对所有FIELDS TERMINATED BY, 
+ENCLOSED BY, ESCAPED BY或LINES TERMINATED BY字符进行转义，
+才能可靠地读取文件并返回。
+ASCII NUL被转义，以便更容易地使用调页程序观看。
 
 生成的文件不必符合SQL语法，所以没有其它的字符需要被转义。
 
-在下面的例子中，生成一个文件，各值用逗号隔开。这种格式可以被许多程序使用。
+在下面的例子中，生成一个文件，各值用逗号隔开。
+这种格式可以被许多程序使用。
 
 SELECT a,b,a+b INTO OUTFILE '/tmp/result.text'
 FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"'
 LINES TERMINATED BY '\n'
 FROM test_table;
-·         如果您使用INTO DUMPFILE代替INTO OUTFILE，则MySQL只把一行写入到文件中，不对任何列或行进行终止，也不执行任何转义处理。如果您想要把一个BLOB值存储到文件中，则这个语句是有用的。
-
-·         注释：任何由INTO OUTFILE或INTO DUMPFILE创建的文件都可以被服务器主机上的所有用户编写。原因是，MySQL服务器不能创建这样的文件，即文件的所有者不是该文件运行时所属的用户（任何时候，您都不能出于此原因或出于其它原因把mysqld作为根段运行）。该文件必须是全局可写的，这样您就可以操作其中的内容。
-
-·         有的过程应在结果集合内处理数据。PROCEDURE子句用于对这些过程进行命名。要了解示例，请参见27.3.1节，“步骤分析”。
-
-·         存储引擎使用页面或行锁。如果您对存储引擎使用FOR UPDATE，则受到查询检验的行会被进行写锁定，直到当前事务结束为止。使用LOCK IN SHARE MODE可以设置一个共享锁。共享锁可以防止其它事务更新或删除被检验的行。请参见15.2.10.5节，“锁定读取SELECT ... FOR UPDATE和SELECT ... LOCK IN SHARE MODE”。
-
-在SELECT关键词的后面，您可以使用许多选项。这些选项可以影响语句的运行。
-
-ALL, DISTINCT和DISTINCTROW选项指定是否重复行应被返回。如果这些选项没有被给定，则默认值为ALL（所有的匹配行被返回）。DISTINCT和DISTINCTROW是同义词，用于指定结果集合中的重复行应被删除。
-
-HIGH_PRIORITY, STRAIGHT_JOIN和以SQL_为开头的选项是MySQL相对于标准SQL的扩展。
-
-·         HIGH_PRIORITY给予SELECT更高的优先权，高于用于更新表的语句。您应该只对查询使用HIGH_PRIORITY。查询速度非常快，而且立刻被执行。SELECT HIGH_PRIORITY查询在表被锁定用于读取时被发出。即使有一个新的语句正在等待表变为空闲，查询也会运行。
-
-HIGH_PRIORITY不能和SELECT语句同时使用。SELECT语句是UNION的一部分。
-
-·         STRAIGHT_JOIN用于促使优化符把表联合在一起，顺序按照这些表在FROM子句中排列的顺序。如果优化符联合表时顺序不佳，您可以使用STRAIGHT_JOIN来加快查询的速度。请参见7.2.1节，“EXPLAIN语法（获取关于SELECT的信息）”。STRAIGHT_JOIN也可以被用于table_references清单中。请参见13.2.7.1节，“JOIN语法”。
-
-·         SQL_BIG_RESULT可以与GROUP BY或DISTINCT同时使用，来告知优化符结果集合有很多行。在这种情况下，MySQL直接使用以磁盘为基础的临时表（如果需要的话）。在这种情况下，MySQL还会优先进行分类，不优先使用临时表。临时表对于GROUP BY组分带有关键字。
-
-·         SQL_BUFFER_RESULT促使结果被放入一个临时表中。这可以帮助MySQL提前解开表锁定，在需要花费较长时间的情况下，也可以帮助把结果集合发送到客户端中。
-
-·         SQL_SMALL_RESULT可以与GROUP BY或DISTINCT同时使用，来告知优化符结果集合是较小的。在此情况下，MySAL使用快速临时表来储存生成的表，而不是使用分类。在MySQL 5.1中，通常不需要这样。
-
-·         SQL_CALC_FOUND_ROWS告知MySQL计算有多少行应位于结果集合中，不考虑任何LIMIT子句。行的数目可以使用SELECT FOUND_ROWS()恢复。请参见12.9.3节，“信息函数”。
-
-·         如果您正在使用一个query_cache_type值，值为2或DEMAND，则SQL_CACHE告知MySQL把查询结果存储在查询缓存中。对于使用UNION的查询或子查询，本选项会影响查询中的所有SELECT。请参见5.13节，“MySQL查询高速缓冲”。
-
-·         SQL_NO_CACHE告知MySQL不要把查询结果存储在查询缓存中。请参见5.13节，“MySQL查询高速缓冲”。对于一个使用UNION或子查询的查询，本选项会影响查询中的SELECT。
 
 ====
+·         如果您使用INTO DUMPFILE代替INTO OUTFILE，
+则MySQL只把一行写入到文件中，不对任何列或行进行终止，也不执行任何转义处理。
+如果您想要把一个BLOB值存储到文件中，则这个语句是有用的。
+
+·         注释：任何由INTO OUTFILE或INTO DUMPFILE创建的文件都可以被服务器主机上的所有用户编写。
+原因是，MySQL服务器不能创建这样的文件，即文件的所有者不是该文件运行时所属的用户
+（任何时候，您都不能出于此原因或出于其它原因把mysqld作为根段运行）。
+该文件必须是全局可写的，这样您就可以操作其中的内容。
+
+====
+·         有的过程应在结果集合内处理数据。
+PROCEDURE子句用于对这些过程进行命名。
+要了解示例，请参见27.3.1节，“步骤分析”。
+
+====
+·         存储引擎使用页面或行锁。
+如果您对存储引擎使用FOR UPDATE，则受到查询检验的行会被进行写锁定，直到当前事务结束为止。
+
+使用LOCK IN SHARE MODE可以设置一个共享锁。
+共享锁可以防止其它事务更新或删除被检验的行。
+请参见15.2.10.5节，“锁定读取SELECT ... FOR UPDATE和SELECT ... LOCK IN SHARE MODE”。
+
+========
+在SELECT关键词的后面，您可以使用许多选项。
+这些选项可以影响语句的运行。
+
+====
+ALL, DISTINCT和DISTINCTROW选项指定是否重复行应被返回。
+如果这些选项没有被给定，则默认值为ALL（所有的匹配行被返回）。
+DISTINCT和DISTINCTROW是同义词，用于指定结果集合中的重复行应被删除。
+
+====
+HIGH_PRIORITY, STRAIGHT_JOIN和以SQL_为开头的选项是MySQL相对于标准SQL的扩展。
+
+·         HIGH_PRIORITY给予SELECT更高的优先权，高于用于更新表的语句。
+您应该只对查询使用HIGH_PRIORITY。
+查询速度非常快，而且立刻被执行。
+SELECT HIGH_PRIORITY查询在表被锁定用于读取时被发出。
+即使有一个新的语句正在等待表变为空闲，查询也会运行。
+
+HIGH_PRIORITY不能和SELECT语句同时使用。SELECT语句是UNION的一部分。
+（hxzon：此处翻译含糊，见后文。
+应为“HIGH_PRIORITY不能在union中的select语句中使用”）
+
+====
+·         STRAIGHT_JOIN用于促使优化符把表联合在一起，顺序按照这些表在FROM子句中排列的顺序。
+如果优化符联合表时顺序不佳，您可以使用STRAIGHT_JOIN来加快查询的速度。（hxzon：注意。优化技巧。）
+请参见7.2.1节，“EXPLAIN语法（获取关于SELECT的信息）”。
+STRAIGHT_JOIN也可以被用于table_references清单中。请参见13.2.7.1节，“JOIN语法”。
+
+====
+·         SQL_BIG_RESULT可以与GROUP BY或DISTINCT同时使用，来告知优化符结果集合有很多行。
+在这种情况下，MySQL直接使用以磁盘为基础的临时表（如果需要的话）。
+在这种情况下，MySQL还会优先进行分类，不优先使用临时表。
+临时表对于GROUP BY组分带有关键字。
+
+·         SQL_BUFFER_RESULT促使结果被放入一个临时表中。
+这可以帮助MySQL提前解开表锁定，在需要花费较长时间的情况下，也可以帮助把结果集合发送到客户端中。
+
+·         SQL_SMALL_RESULT可以与GROUP BY或DISTINCT同时使用，来告知优化符结果集合是较小的。
+在此情况下，MySAL使用快速临时表来储存生成的表，而不是使用分类。
+在MySQL 5.1中，通常不需要这样。
+
+·         SQL_CALC_FOUND_ROWS告知MySQL计算有多少行应位于结果集合中，不考虑任何LIMIT子句。
+行的数目可以使用SELECT FOUND_ROWS()恢复。请参见12.9.3节，“信息函数”。
+
+====
+·         如果您正在使用一个query_cache_type值，值为2或DEMAND，则SQL_CACHE告知MySQL把查询结果存储在查询缓存中。
+对于使用UNION的查询或子查询，本选项会影响查询中的所有SELECT。
+请参见5.13节，“MySQL查询高速缓冲”。
+
+·         SQL_NO_CACHE告知MySQL不要把查询结果存储在查询缓存中。
+请参见5.13节，“MySQL查询高速缓冲”。
+对于一个使用UNION或子查询的查询，本选项会影响查询中的SELECT。
+
+==============
 13.2.7.1. JOIN语法
-MySQL支持以下JOIN语法。这些语法用于SELECT语句的table_references部分和多表DELETE和UPDATE语句：
+
+MySQL支持以下JOIN语法。
+这些语法用于SELECT语句的table_references部分和多表DELETE和UPDATE语句：
 
 table_references:
     table_reference [, table_reference] …
@@ -262,25 +371,37 @@ join_table:
 join_condition:
     ON conditional_expr
   | USING (column_list)
+
 一个表引用还被称为一个联合表达式。
 
-与SQL标准相比，table_factor的语法被扩展了。SQL标准只接受table_reference，而不是圆括号内的一系列条目。
+与SQL标准相比，table_factor的语法被扩展了。
+SQL标准只接受table_reference，而不是圆括号内的一系列条目。
 
 如果我们把一系列table_reference条目中的每个逗号都看作相当于一个内部联合，则这是一个稳妥的扩展。例如：
 
 SELECT * FROM t1 LEFT JOIN (t2, t3, t4)
                  ON (t2.a=t1.a AND t3.b=t1.b AND t4.c=t1.c)
+
 相当于：
 
 SELECT * FROM t1 LEFT JOIN (t2 CROSS JOIN t3 CROSS JOIN t4)
                  ON (t2.a=t1.a AND t3.b=t1.b AND t4.c=t1.c)
-在MySQL中，CROSS JOIN从语法上说与INNER JOIN等同（两者可以互相替换。在标准SQL中，两者是不等同的。INNER JOIN与ON子句同时使用，CROSS JOIN以其它方式使用。
 
-通常，在只含有内部联合运行的联合表达式中，圆括号可以被忽略。MySQL也支持嵌套的联合（见7.2.10节，“MySQL如何优化嵌套Join”）。
+在MySQL中，CROSS JOIN从语法上说与INNER JOIN等同（两者可以互相替换。
+在标准SQL中，两者是不等同的。
+INNER JOIN与ON子句同时使用，CROSS JOIN以其它方式使用。
 
-通常，您不应对ON部分有任何条件。ON部分用于限定在结果集合中您想要哪些行。但是，您应在WHERE子句中指定这些条件。这条规则有一些例外。
+通常，在只含有内部联合运行的联合表达式中，圆括号可以被忽略。
+MySQL也支持嵌套的联合（见7.2.10节，“MySQL如何优化嵌套Join”）。
 
-在前面的清单中显示的{ OJ ... LEFT OUTER JOIN ...}语法的目的只是为了保持与ODBC的兼容性。语法中的花括号应按字面书写；该括号不是中间语法。中间语法用于语法描述的其它地方。
+通常，您不应对ON部分有任何条件。
+ON部分用于限定在结果集合中您想要哪些行。
+但是，您应在WHERE子句中指定这些条件。
+这条规则有一些例外。（hxzon：注意）
+
+在前面的清单中显示的{ OJ ... LEFT OUTER JOIN ...}语法的目的只是为了保持与ODBC的兼容性。
+语法中的花括号应按字面书写；该括号不是中间语法。
+中间语法用于语法描述的其它地方。
 
 ·         表引用可以使用tbl_name AS alias_name或tbl_name alias_name指定别名：
 
@@ -288,33 +409,53 @@ SELECT * FROM t1 LEFT JOIN (t2 CROSS JOIN t3 CROSS JOIN t4)
 ·                    ->        WHERE t1.name = t2.name;
 ·                mysql> SELECT t1.name, t2.salary FROM employee t1, info t2
 ·                    ->        WHERE t1.name = t2.name;
+
 ·         ON条件句是可以被用于WHERE子句的格式的任何条件表达式。
 
-·         如果对于在LEFT JOIN中的ON或USING部分中的右表没有匹配的记录，则所有列被设置为NULL的一个行被用于右表。如果一个表在其它表中没有对应部分，您可以使用这种方法在这种表中查找记录：
+·         如果对于在LEFT JOIN中的ON或USING部分中的右表没有匹配的记录，则所有列被设置为NULL的一个行被用于右表。
+如果一个表在其它表中没有对应部分，您可以使用这种方法在这种表中查找记录：
 
 ·                mysql> SELECT table1.* FROM table1
 ·                    ->        LEFT JOIN table2 ON table1.id=table2.id
 ·                    ->        WHERE table2.id IS NULL;
-本例查找在table1中含有一个id值的所有行。同时，在table2中没有此id值（即，table1中的所有行在table2中没有对应的行）。本例假设table2.id被定义为NOT NULL。请参见7.2.9节，“MySQL如何优化LEFT JOIN和RIGHT JOIN”。
 
-·         USING(column_list)子句用于为一系列的列进行命名。这些列必须同时在两个表中存在。如果表a和表b都包含列c1, c2和c3，则以下联合会对比来自两个表的对应的列：
+本例查找在table1中含有一个id值的所有行。
+同时，在table2中没有此id值（即，table1中的所有行在table2中没有对应的行）。
+本例假设table2.id被定义为NOT NULL。
+请参见7.2.9节，“MySQL如何优化LEFT JOIN和RIGHT JOIN”。
+
+·         USING(column_list)子句用于为一系列的列进行命名。这些列必须同时在两个表中存在。
+如果表a和表b都包含列c1, c2和c3，则以下联合会对比来自两个表的对应的列：
 
 ·                a LEFT JOIN b USING (c1,c2,c3)
-·         两个表的NATURAL [LEFT] JOIN被定义为与INNER JOIN语义相同，或与使用USING子句的LEFT JOIN语义相同。USING子句用于为同时存在于两个表中的所有列进行命名。
 
-·         INNER JOIN和，（逗号）在无联合条件下是语义相同的：两者都可以对指定的表计算出笛卡儿乘积（也就是说，第一个表中的每一行被联合到第二个表中的每一行）。
+·         两个表的NATURAL [LEFT] JOIN被定义为与INNER JOIN语义相同，或与使用USING子句的LEFT JOIN语义相同。
+USING子句用于为同时存在于两个表中的所有列进行命名。
 
-·         RIGHT JOIN的作用与LEFT JOIN的作用类似。要使代码可以在数据库内移植，建议您使用LEFT JOIN代替RIGHT JOIN。
+·         INNER JOIN和，（逗号）在无联合条件下是语义相同的：两者都可以对指定的表计算出笛卡儿乘积
+（也就是说，第一个表中的每一行被联合到第二个表中的每一行）。
 
-·         STRAIGHT_JOIN与JOIN相同。除了有一点不一样，左表会在右表之前被读取。STRAIGH_JOIN可以被用于这样的情况，即联合优化符以错误的顺序排列表。
+·         RIGHT JOIN的作用与LEFT JOIN的作用类似。
+要使代码可以在数据库内移植，建议您使用LEFT JOIN代替RIGHT JOIN。
 
-您可以提供提示，当从一个表中恢复信息时，MySQL应使用哪个索引。通过指定USE INDEX（key_list），您可以告知MySQL只使用一个索引来查找表中的行。另一种语法IGNORE INDEX（key_list）可以被用于告知MySQL不要使用某些特定的索引。如果EXPLAIN显示MySQL正在使用来自索引清单中的错误索引时，这些提示会有用处。
+·         STRAIGHT_JOIN与JOIN相同。
+除了有一点不一样，左表会在右表之前被读取。
+STRAIGH_JOIN可以被用于这样的情况，即联合优化符以错误的顺序排列表。
 
-您也可以使用FORCE INDEX，其作用接近USE INDEX（key_list），不过增加了一项作用，一次表扫描被假设为代价很高。换句话说，只有当无法使用一个给定的索引来查找表中的行时，才使用表扫描。
+您可以提供提示，当从一个表中恢复信息时，MySQL应使用哪个索引。
+通过指定USE INDEX（key_list），您可以告知MySQL只使用一个索引来查找表中的行。
+另一种语法IGNORE INDEX（key_list）可以被用于告知MySQL不要使用某些特定的索引。
+如果EXPLAIN显示MySQL正在使用来自索引清单中的错误索引时，这些提示会有用处。
 
-USE KEY、IGNORE KEY和FORCE KEY是USE INDEX、IGNORE INDEX和FORCE INDEX的同义词。
+您也可以使用FORCE INDEX，其作用接近USE INDEX（key_list），
+不过增加了一项作用，一次表扫描被假设为代价很高。
+换句话说，只有当无法使用一个给定的索引来查找表中的行时，才使用表扫描。
 
-注释：当MySQL决定如何在表中查找行并决定如何进行联合时，使用USE INDEX、IGNORE INDEX和FORCE INDEX只会影响使用哪些索引。当分解一个ORDER BY或GROUP BY时，这些语句不会影响某个索引是否被使用。
+USE KEY、IGNORE KEY和FORCE KEY
+是USE INDEX、IGNORE INDEX和FORCE INDEX的同义词。
+
+注释：当MySQL决定如何在表中查找行并决定如何进行联合时，使用USE INDEX、IGNORE INDEX和FORCE INDEX只会影响使用哪些索引。
+当分解一个ORDER BY或GROUP BY时，这些语句不会影响某个索引是否被使用。
 
 部分的联合示例：
 
@@ -327,11 +468,17 @@ mysql> SELECT * FROM table1 USE INDEX (key1,key2)
     ->          WHERE key1=1 AND key2=2 AND key3=3;
 mysql> SELECT * FROM table1 IGNORE INDEX (key3)
     ->          WHERE key1=1 AND key2=2 AND key3=3;
+
 见7.2.9节，“MySQL如何优化LEFT JOIN和RIGHT JOIN”。
 
-注释：自然联合和使用USING的联合，包括外部联合变量，依据SQL:2003标准被处理。这些变更时MySQL与标准SQL更加相符。不过，对于有些联合，这些变更会导致不同的输出列。另外，有些查询在旧版本（5.0.12以前）工作正常，但也必须重新编写，以符合此标准。对于有关当前联合处理和旧版本中的联合处理的效果的对比，以下列表提供了更详细的信息。
+注释：自然联合和使用USING的联合，包括外部联合变量，依据SQL:2003标准被处理。
+这些变更时MySQL与标准SQL更加相符。
+不过，对于有些联合，这些变更会导致不同的输出列。
+另外，有些查询在旧版本（5.0.12以前）工作正常，但也必须重新编写，以符合此标准。
+对于有关当前联合处理和旧版本中的联合处理的效果的对比，以下列表提供了更详细的信息。
 
-·         NATURAL联合或USING联合的列会与旧版本不同。特别是，不再出现冗余的输出列，用于SELECT *扩展的列的顺序会与以前不同。
+·         NATURAL联合或USING联合的列会与旧版本不同。
+特别是，不再出现冗余的输出列，用于SELECT *扩展的列的顺序会与以前不同。
 
 示例：
 
@@ -341,6 +488,7 @@ INSERT INTO t1 VALUES(1,1);
 INSERT INTO t2 VALUES(1,1);
 SELECT * FROM t1 NATURAL JOIN t2;
 SELECT * FROM t1 JOIN t2 USING (j);
+
 对于旧版本，语句会产生以下输出：
 
 +------+------+------+------+
@@ -353,7 +501,11 @@ SELECT * FROM t1 JOIN t2 USING (j);
 +------+------+------+------+
 |    1 |    1 |    1 |    1 |
 +------+------+------+------+
-在第一个SELECT语句中，列i同时出现在两个表中，为一个联合列，所以，依据标准SQL，该列在输出中只出现一次。与此类似，在第二个SELECT语句中，列j在USING子句中被命名，应在输出中只出现一次。但是，在两种情况下，冗余的列均没被消除。另外，依据标准SQL，列的顺序不正确。
+
+在第一个SELECT语句中，列i同时出现在两个表中，为一个联合列，所以，依据标准SQL，该列在输出中只出现一次。
+与此类似，在第二个SELECT语句中，列j在USING子句中被命名，应在输出中只出现一次。
+但是，在两种情况下，冗余的列均没被消除。
+另外，依据标准SQL，列的顺序不正确。
 
 现在，语句产生如下输出：
 
@@ -367,6 +519,7 @@ SELECT * FROM t1 JOIN t2 USING (j);
 +------+------+------+
 |    1 |    1 |    1 |
 +------+------+------+
+
 冗余的列被消除，并且依据标准SQL，列的顺序是正确的：
 
 o        第一，两表共有的列，按在第一个表中的顺序排列
@@ -375,20 +528,34 @@ o        第二，第一个表中特有的列，按该表中的顺序排列
 
 o        第三，第二个表中特有的列，按该表中的顺序排列
 
-·         对多方式自然联合的估算会不同。方式要求重新编写查询。假设您有三个表t1(a,b), t2(c,b)和t3(a,c)，每个表有一行：t1(1,2), t2(10,2)和t3(7,10)。同时，假设这三个表具有NATURAL JOIN：
+·         对多方式自然联合的估算会不同。方式要求重新编写查询。
+假设您有三个表t1(a,b), t2(c,b)和t3(a,c)，每个表有一行：t1(1,2), t2(10,2)和t3(7,10)。
+同时，假设这三个表具有NATURAL JOIN：
 
 ·                SELECT … FROM t1 NATURAL JOIN t2 NATURAL JOIN t3;
-在旧版本中，第二个联合的左操作数被认为是t2，然而它应该为嵌套联合（t1 NATURAL JOIN t2）。结果，对t3的列进行检查时，只检查其在t2中的共有列。如果t3与t1有共有列，这些列不被用作equi-join列。因此，在旧版本的MySQL中，前面的查询被转换为下面的equi-join：
+
+在旧版本中，第二个联合的左操作数被认为是t2，然而它应该为嵌套联合（t1 NATURAL JOIN t2）。
+结果，对t3的列进行检查时，只检查其在t2中的共有列。
+如果t3与t1有共有列，这些列不被用作equi-join列。
+因此，在旧版本的MySQL中，前面的查询被转换为下面的equi-join：
 
 SELECT … FROM t1, t2, t3
   WHERE t1.b = t2.b AND t2.c = t3.c;
-此联合又省略了一个equi-join谓语（t1.a = t3.a）。结果是，该联合产生一个行，而不是空结果。正确的等价查询如下：
+
+此联合又省略了一个equi-join谓语（t1.a = t3.a）。
+结果是，该联合产生一个行，而不是空结果。
+正确的等价查询如下：
 
 SELECT … FROM t1, t2, t3
   WHERE t1.b = t2.b AND t2.c = t3.c AND t1.a = t3.a;
+
 如果您要求在当前版本的MySQL中获得和旧版本中相同的查询结果，应把自然联合改写为第一个equi-join。
 
-·         在旧版本中，逗号操作符（，）和JOIN均有相同的优先权，所以联合表达式t1, t2 JOIN t3被理解为((t1, t2) JOIN t3)。现在，JOIN有更高的优先权，所以表达式被理解为(t1, (t2 JOIN t3))。这个变更会影响使用ON子句的语句，因为该子句只参阅联合操作数中的列。优先权的变更改变了对什么是操作数的理解。
+·         在旧版本中，逗号操作符（，）和JOIN均有相同的优先权，
+所以联合表达式t1, t2 JOIN t3被理解为((t1, t2) JOIN t3)。
+现在，JOIN有更高的优先权，所以表达式被理解为(t1, (t2 JOIN t3))。
+这个变更会影响使用ON子句的语句，因为该子句只参阅联合操作数中的列。
+优先权的变更改变了对什么是操作数的理解。（hxzon：注意）
 
 示例：
 
@@ -399,12 +566,18 @@ INSERT INTO t1 VALUES(1,1);
 INSERT INTO t2 VALUES(1,1);
 INSERT INTO t3 VALUES(1,1);
 SELECT * FROM t1, t2 JOIN t3 ON (t1.i1 = t3.i3);
-在旧版本中，SELECT是合法的，因为t1, t2被隐含地归为(t1,t2)。现在，JOIN取得了优先权，因此用于ON子句的操作数是t2和t3。因为t1.i1不是任何一个操作数中的列，所以结果是出现在'on clause'中有未知列't1.i1'的错误。要使联合可以被处理，用使用圆括号把前两个表明确地归为一组，这样用于ON子句的操作数为(t1,t2)和t3：
+
+在旧版本中，SELECT是合法的，因为t1, t2被隐含地归为(t1,t2)。
+现在，JOIN取得了优先权，因此用于ON子句的操作数是t2和t3。
+因为t1.i1不是任何一个操作数中的列，所以结果是出现在'on clause'中有未知列't1.i1'的错误。
+要使联合可以被处理，用使用圆括号把前两个表明确地归为一组，这样用于ON子句的操作数为(t1,t2)和t3：
 
 SELECT * FROM (t1, t2) JOIN t3 ON (t1.i1 = t3.i3);
+
 本变更也适用于INNER JOIN，CROSS JOIN，LEFT JOIN和RIGHT JOIN。
 
-·         在旧版本中，ON子句可以参阅在其右边命名的表中的列。现在，ON子句只能参阅操作数。
+·         在旧版本中，ON子句可以参阅在其右边命名的表中的列。
+现在，ON子句只能参阅操作数。
 
 示例：
 
@@ -412,26 +585,38 @@ CREATE TABLE t1 (i1 INT);
 CREATE TABLE t2 (i2 INT);
 CREATE TABLE t3 (i3 INT);
 SELECT * FROM t1 JOIN t2 ON (i1 = i3) JOIN t3;
-在旧版本中，SELECT语句是合法的。现在该语句会运行失败，出现在'on clause'中未知列'i3'的错误。这是因为i3是t3中的一个表，而t3不是ON子句中的操作数。本语句应进行如下改写：
+
+在旧版本中，SELECT语句是合法的。现在该语句会运行失败，出现在'on clause'中未知列'i3'的错误。
+这是因为i3是t3中的一个表，而t3不是ON子句中的操作数。
+本语句应进行如下改写：
 
 SELECT * FROM t1 JOIN t2 JOIN t3 ON (i1 = i3);
-·         在旧版本中，一个USING子句可以被改写为一个ON子句。ON子句对比了相应的列。例如，以下两个子句具有相同的语义：
+
+·         在旧版本中，一个USING子句可以被改写为一个ON子句。
+ON子句对比了相应的列。
+例如，以下两个子句具有相同的语义：
 
 ·                a LEFT JOIN b USING (c1,c2,c3)
 ·                a LEFT JOIN b ON a.c1=b.c1 AND a.c2=b.c2 AND a.c3=b.c3
+
 现在，这两个子句不再是一样的：
 
 o        在决定哪些行满足联合条件时，两个联合保持语义相同。
 
-o        在决定哪些列显示SELECT *扩展时，两个联合的语义不相同。USING联合选择对应列中的合并值，而ON联合选择所有表中的所有列。对于前面的USING联合，SELECT *选择这些值：
+o        在决定哪些列显示SELECT *扩展时，两个联合的语义不相同。
+USING联合选择对应列中的合并值，而ON联合选择所有表中的所有列。
+对于前面的USING联合，SELECT *选择这些值：
 
 o                     COALESCE(a.c1,b.c1), COALESCE(a.c2,b.c2), COALESCE(a.c3,b.c3)
+
 对于ON联合，SELECT *选择这些值：
 
 a.c1, a.c2, a.c3, b.c1, b.c2, b.c3
-使用内部联合时，COALESCE(a.c1,b.c1)与a.c1或b.c1相同，因为两列将具有相同的值。使用外部联合时（比如LEFT JOIN），两列中有一列可以为NULL。该列将会从结果中被忽略。
 
-====
+使用内部联合时，COALESCE(a.c1,b.c1)与a.c1或b.c1相同，因为两列将具有相同的值。
+使用外部联合时（比如LEFT JOIN），两列中有一列可以为NULL。该列将会从结果中被忽略。
+
+============
 13.2.7.2. UNION语法
  
 SELECT ...
@@ -439,42 +624,64 @@ UNION [ALL | DISTINCT]
 SELECT ...
 [UNION [ALL | DISTINCT]
 SELECT ...]
+
 UNION用于把来自许多SELECT语句的结果组合到一个结果集合中。
 
-列于每个SELECT语句的对应位置的被选择的列应具有相同的类型。（例如，被第一个语句选择的第一列应和被其它语句选择的第一列具有相同的类型。）在第一个SELECT语句中被使用的列名称也被用于结果的列名称。
+列于每个SELECT语句的对应位置的被选择的列应具有相同的类型。
+（例如，被第一个语句选择的第一列应和被其它语句选择的第一列具有相同的类型。）
+在第一个SELECT语句中被使用的列名称也被用于结果的列名称。
 
 SELECT语句为常规的选择语句，但是受到如下的限定：
 
 ·         只有最后一个SELECT语句可以使用INTO OUTFILE。
 
-·         HIGH_PRIORITY不能与作为UNION一部分的SELECT语句同时使用。如果您对第一个SELECT指定了HIGH_PRIORITY，则不会起作用。如果您对其它后续的SELECT语句指定了HIGH_PRIORITY，则会产生语法错误。
+·         HIGH_PRIORITY不能与作为UNION一部分的SELECT语句同时使用。
+如果您对第一个SELECT指定了HIGH_PRIORITY，则不会起作用。
+如果您对其它后续的SELECT语句指定了HIGH_PRIORITY，则会产生语法错误。（hxzon：注意）
 
-如果您对UNION不使用关键词ALL，则所有返回的行都是唯一的，如同您已经对整个结果集合使用了DISTINCT。如果您指定了ALL，您会从所有用过的SELECT语句中得到所有匹配的行。
+如果您对UNION不使用关键词ALL，则所有返回的行都是唯一的，
+如同您已经对整个结果集合使用了DISTINCT。
+如果您指定了ALL，您会从所有用过的SELECT语句中得到所有匹配的行。（hxzon：注意）
 
-DISTINCT关键词是一个自选词，不起任何作用，但是根据SQL标准的要求，在语法中允许采用。（在MySQL中，DISTINCT代表一个共用体的默认工作性质。）
+DISTINCT关键词是一个自选词，不起任何作用，但是根据SQL标准的要求，在语法中允许采用。
+（在MySQL中，DISTINCT代表一个共用体的默认工作性质。）
 
-您可以在同一查询中混合UNION ALL和UNION DISTINCT。被混合的UNION类型按照这样的方式对待，即DISTICT共用体覆盖位于其左边的所有ALL共用体。DISTINCT共用体可以使用UNION DISTINCT明确地生成，或使用UNION（后面不加DISTINCT或ALL关键词）隐含地生成。
+您可以在同一查询中混合UNION ALL和UNION DISTINCT。
+被混合的UNION类型按照这样的方式对待，即DISTICT共用体覆盖位于其左边的所有ALL共用体。
+DISTINCT共用体可以使用UNION DISTINCT明确地生成，或使用UNION（后面不加DISTINCT或ALL关键词）隐含地生成。
 
-如果您想使用ORDER BY或LIMIT子句来对全部UNION结果进行分类或限制，则应对单个地SELECT语句加圆括号，并把ORDER BY或LIMIT放到最后一个的后面。以下例子同时使用了这两个子句：
+如果您想使用ORDER BY或LIMIT子句来对全部UNION结果进行分类或限制，
+则应对单个地SELECT语句加圆括号，并把ORDER BY或LIMIT放到最后一个的后面。（hxzon：注意）
+以下例子同时使用了这两个子句：
 
 (SELECT a FROM tbl_name WHERE a=10 AND B=1)
 UNION
 (SELECT a FROM tbl_name WHERE a=11 AND B=2)
 ORDER BY a LIMIT 10;
-这种ORDER BY不能使用包括表名称（也就是，采用tbl_name.col_name格式的名称）列引用。可以在第一个SELECT语句中提供一个列别名，并在ORDER BY中参阅别名，或使用列位置在ORDER BY中参阅列。（首选采用别名，因为不建议使用列位置。）
 
-另外，如果带分类的一列有别名，则ORDER BY子句必须引用别名，而不能引用列名称。以下语句中的第一个语句必须运行，但是第二个会运行失败，出现在'order clause'中有未知列'a'的错误：
+这种ORDER BY不能使用包括表名称（也就是，采用tbl_name.col_name格式的名称）列引用。
+可以在第一个SELECT语句中提供一个列别名，并在ORDER BY中参阅别名，或使用列位置在ORDER BY中参阅列。
+（首选采用别名，因为不建议使用列位置。）
+
+另外，如果带分类的一列有别名，则ORDER BY子句必须引用别名，而不能引用列名称。
+以下语句中的第一个语句必须运行，但是第二个会运行失败，出现在'order clause'中有未知列'a'的错误：
 
 (SELECT a AS b FROM t) UNION (SELECT ...) ORDER BY b;
 (SELECT a AS b FROM t) UNION (SELECT ...) ORDER BY a;
-To apply ORDER BY or LIMIT to an individual SELECT, place the clause inside the parentheses that enclose the SELECT:   为了对单个SELECT使用ORDER BY或LIMIT，应把子句放入圆括号中。圆括号包含了SELECT：
+
+To apply ORDER BY or LIMIT to an individual SELECT, place the clause inside the parentheses that enclose the SELECT:   
+为了对单个SELECT使用ORDER BY或LIMIT，应把子句放入圆括号中。（hxzon：注意）
+圆括号包含了SELECT：
 
 (SELECT a FROM tbl_name WHERE a=10 AND B=1 ORDER BY a LIMIT 10)
 UNION
 (SELECT a FROM tbl_name WHERE a=11 AND B=2 ORDER BY a LIMIT 10);
-圆括号中用于单个SELECT语句的ORDER BY只有当与LIMIT结合后，才起作用。否则，ORDER BY被优化去除。
 
-UNION结果集合中的列的类型和长度考虑了被所有SELECT语句恢复的数值。例如，考虑如下语句：
+圆括号中用于单个SELECT语句的ORDER BY只有当与LIMIT结合后，才起作用。
+否则，ORDER BY被优化去除。（hxzon：注意）
+
+UNION结果集合中的列的类型和长度考虑了被所有SELECT语句恢复的数值。
+例如，考虑如下语句：
 
 mysql> SELECT REPEAT('a',1) UNION SELECT REPEAT('b',10);
 +---------------+
@@ -483,5 +690,6 @@ mysql> SELECT REPEAT('a',1) UNION SELECT REPEAT('b',10);
 | a             |
 | bbbbbbbbbb    |
 +---------------+
+
 （在部分早期版本的MySQL中，第二行已被删节到长度为1。）
 

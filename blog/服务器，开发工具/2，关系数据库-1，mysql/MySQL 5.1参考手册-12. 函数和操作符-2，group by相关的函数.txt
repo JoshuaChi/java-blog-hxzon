@@ -1,0 +1,484 @@
+﻿MySQL 5.1参考手册-12. 函数和操作符-2，group by相关的函数
+
+12.10. 与GROUP BY子句同时使用的函数和修改程序
+
+12.10.1. GROUP BY（聚合）函数
+12.10.2. GROUP BY修改程序
+12.10.3. 具有隐含字段的GROUP BY
+
+=======
+12.10.1. GROUP BY（聚合）函数
+
+
+本章论述了用于一组数值操作的 group (集合)函数。
+除非另作说明， group 函数会忽略 NULL 值。
+
+假如你在一个不包含 ROUP BY子句的语句中使用一个 group函数 ，它相当于对所有行进行分组。
+
+====
+AVG([DISTINCT] expr)
+
+返回expr 的平均值。 
+DISTINCT 选项可用于返回 expr的不同值的平均值。
+
+若找不到匹配的行，则AVG()返回 NULL 。
+
+mysql> SELECT student_name, AVG(test_score)
+
+    ->        FROM student
+
+    ->        GROUP BY student_name;
+
+====
+BIT_AND(expr)
+
+返回expr中所有比特的 bitwise AND 。
+计算执行的精确度为64比特(BIGINT) 。
+
+若找不到匹配的行，则这个函数返回 18446744073709551615 。
+(这是无符号 BIGINT 值，所有比特被设置为 1）。
+
+====
+BIT_OR(expr)
+
+返回expr 中所有比特的bitwise OR。
+计算执行的精确度为64比特(BIGINT) 。
+
+若找不到匹配的行，则函数返回 0 。
+
+====
+BIT_XOR(expr)
+
+返回expr 中所有比特的bitwise XOR。
+计算执行的精确度为64比特(BIGINT) 。
+
+若找不到匹配的行，则函数返回 0 。
+
+====
+COUNT(expr)
+
+返回SELECT语句检索到的行中非NULL值的数目。  
+
+若找不到匹配的行，则COUNT() 返回 0 。
+
+mysql> SELECT student.student_name,COUNT(*)
+
+    ->        FROM student,course
+
+    ->        WHERE student.student_id=course.student_id
+
+    ->        GROUP BY student_name;
+
+COUNT(*) 的稍微不同之处在于，它返回检索行的数目， 不论其是否包含 NULL值。
+
+SELECT 从一个表中检索，而不检索其它的列，并且没有 WHERE子句时， COUNT(*)被优化到最快的返回速度。例如：
+
+mysql> SELECT COUNT(*) FROM student;
+
+这个优化仅适用于 MyISAM表, 原因是这些表类型会储存一个函数返回记录的精确数量，而且非常容易访问。
+对于事务型的存储引擎(InnoDB, BDB), 存储一个精确行数的问题比较多，
+原因是可能会发生多重事物处理, 而每个都可能会对行数产生影响。
+
+====
+COUNT(DISTINCT expr,[expr...])
+
+返回不同的非NULL值数目。
+
+若找不到匹配的项，则COUNT(DISTINCT)返回 0 。
+
+mysql> SELECT COUNT(DISTINCT results) FROM student;
+
+在MySQL中, 你通过给定一个表达式列表而获取不包含NULL 不同表达式组合的数目。
+在标准 SQL中,你将必须在COUNT(DISTINCT ...)中连接所有表达式。
+
+====
+GROUP_CONCAT(expr)
+
+该函数返回带有来自一个组的连接的非NULL值的字符串结果。
+其完整的语法如下所示： 
+
+GROUP_CONCAT([DISTINCT] expr [,expr ...]
+
+             [ORDER BY {unsigned_integer | col_name | expr}
+
+                 [ASC | DESC] [,col_name ...]]
+
+             [SEPARATOR str_val])
+
+mysql> SELECT student_name,
+
+    ->     GROUP_CONCAT(test_score)
+
+    ->     FROM student
+
+    ->     GROUP BY student_name;
+
+Or:
+
+mysql> SELECT student_name,
+
+    ->     GROUP_CONCAT(DISTINCT test_score
+
+    ->               ORDER BY test_score DESC SEPARATOR ' ')
+
+    ->     FROM student
+
+    ->     GROUP BY student_name;
+
+在MySQL中,你可以获取表达式组合的连接值。
+你可以使用DISTINCT删去重复值。
+假若你希望多结果值进行排序，则应该使用  ORDER BY子句。
+若要按相反顺序排列，将 DESC (递减) 关键词添加到你要用ORDER BY 子句进行排序的列名称中。
+默认顺序为升序；可使用ASC将其明确指定。   
+SEPARATOR 后面跟随应该被插入结果的值中间的字符串值。默认为逗号 (‘,’)。
+通过指定SEPARATOR '' ，你可以删除所有分隔符。
+
+使用group_concat_max_len系统变量，你可以设置允许的最大长度。  
+程序中进行这项操作的语法如下，其中 val 是一个无符号整数：
+
+SET [SESSION | GLOBAL] group_concat_max_len = val;
+
+若已经设置了最大长度， 则结果被截至这个最大长度。
+
+====
+MIN([DISTINCT] expr), MAX([DISTINCT] expr)
+
+返回expr 的最小值和最大值。 
+MIN() 和 MAX() 的取值可以是一个字符串参数；
+在这些情况下， 它们返回最小或最大字符串值。
+请参见7.4.5节，“MySQL如何使用索引”。  
+DISTINCT关键词可以被用来查找expr 的不同值的最小或最大值，
+然而，这产生的结果与省略DISTINCT 的结果相同。
+
+若找不到匹配的行，MIN()和MAX()返回 NULL 。
+
+mysql> SELECT student_name, MIN(test_score), MAX(test_score)
+
+    ->        FROM student
+
+    ->        GROUP BY student_name;
+
+对于MIN()、 MAX()和其它集合函数， 
+MySQL当前按照它们的字符串值而非字符串在集合中的相关位置比较 ENUM和 SET 列。
+这同ORDER BY比较二者的方式有所不同。
+这一点应该在MySQL的未来版本中得到改善。 
+
+====
+STD(expr) 
+STDDEV(expr)
+
+返回expr 的总体标准偏差。这是标准 SQL 的延伸。
+这个函数的STDDEV() 形式用来提供和Oracle 的兼容性。
+可使用标准SQL函数 STDDEV_POP() 进行代替。
+
+若找不到匹配的行，则这些函数返回 NULL 。
+
+====
+STDDEV_POP(expr)
+
+返回expr 的总体标准偏差(VAR_POP()的平方根)。
+你也可以使用  STD() 或STDDEV(), 它们具有相同的意义，然而不是标准的 SQL。
+
+若找不到匹配的行，则STDDEV_POP()返回 NULL。
+
+====
+STDDEV_SAMP(expr)
+
+返回expr 的样本标准差 ( VAR_SAMP()的平方根)。
+
+若找不到匹配的行，则STDDEV_SAMP() 返回 NULL 。
+
+====
+SUM([DISTINCT] expr)
+
+返回expr 的总数。 
+若返回集合中无任何行，则 SUM() 返回NULL。
+DISTINCT 关键词可用于 MySQL 5.1 中，求得expr 不同值的总和。
+
+若找不到匹配的行，则SUM()返回 NULL。
+
+====
+VAR_POP(expr)
+
+返回expr 总体标准方差。
+它将行视为总体，而不是一个样本， 所以它将行数作为分母。
+你也可以使用 VARIANCE(),它具有相同的意义然而不是 标准的 SQL。
+
+若找不到匹配的项，则VAR_POP()返回NULL。
+
+====
+VAR_SAMP(expr)
+
+返回expr 的样本方差。
+更确切的说，分母的数字是行数减去1。  
+
+若找不到匹配的行，则VAR_SAMP()返回NULL。
+
+====
+VARIANCE(expr)
+
+返回expr 的总体标准方差。这是标准SQL 的延伸。
+可使用标准SQL 函数 VAR_POP() 进行代替。
+
+若找不到匹配的项，则VARIANCE()返回NULL。
+
+==========
+12.10.2. GROUP BY修改程序
+
+GROUP BY子句允许一个将额外行添加到简略输出端 WITH ROLLUP 修饰符。
+这些行代表高层(或高聚集)简略操作。
+ROLLUP 因而允许你在多层分析的角度回答有关问询的问题。
+例如，它可以用来向OLAP (联机分析处理) 操作提供支持。
+
+设想一个名为sales 的表具有年份、国家、产品及记录销售利润的利润列：
+
+CREATE TABLE sales
+
+(
+
+    year    INT NOT NULL,
+
+    country VARCHAR(20) NOT NULL,
+
+    product VARCHAR(32) NOT NULL,
+
+    profit  INT
+
+);
+
+可以使用这样的简单GROUP BY，每年对表的内容做一次总结：
+
+mysql> SELECT year, SUM(profit) FROM sales GROUP BY year;
+
++------+-------------+
+
+| year | SUM(profit) |
+
++------+-------------+
+
+| 2000 |        4525 |
+
+| 2001 |        3010 |
+
++------+-------------+
+
+这个输出结果显示了每年的总利润， 但如果你也想确定所有年份的总利润，你必须自己累加每年的单个值或运行一个加法询问。
+
+或者你可以使用 ROLLUP, 它能用一个问询提供双层分析。
+将一个 WITH ROLLUP修饰符添加到GROUP BY 语句，
+使询问产生另一行结果，该行显示了所有年份的总价值：（hxzon：用途）
+
+mysql> SELECT year, SUM(profit) FROM sales GROUP BY year WITH ROLLUP;
+
++------+-------------+
+
+| year | SUM(profit) |
+
++------+-------------+
+
+| 2000 |        4525 |
+
+| 2001 |        3010 |
+
+| NULL |        7535 |
+
++------+-------------+
+
+总计高聚集行被年份列中的NULL值标出。
+
+当有多重 GROUP BY 列时，ROLLUP产生的效果更加复杂。
+这时，每次在除了最后一个分类列之外的任何列出现一个 “break” (值的改变) ，则问讯会产生一个高聚集累计行。
+
+例如，在没有 ROLLUP的情况下，一个以年、国家和产品为基础的关于 sales 表的一览表可能如下所示：
+
+mysql> SELECT year, country, product, SUM(profit)
+
+    -> FROM sales
+
+    -> GROUP BY year, country, product;
+
++------+---------+------------+-------------+
+
+| year | country | product    | SUM(profit) |
+
++------+---------+------------+-------------+
+
+| 2000 | Finland | Computer   |        1500 |
+
+| 2000 | Finland | Phone      |         100 |
+
+| 2000 | India   | Calculator |         150 |
+
+| 2000 | India   | Computer   |        1200 |
+
+| 2000 | USA     | Calculator |          75 |
+
+| 2000 | USA     | Computer   |        1500 |
+
+| 2001 | Finland | Phone      |          10 |
+
+| 2001 | USA     | Calculator |          50 |
+
+| 2001 | USA     | Computer   |        2700 |
+
+| 2001 | USA     | TV         |         250 |
+
++------+---------+------------+-------------+
+
+表示总值的输出结果仅位于年/国家/产品的分析级别。
+当添加了 ROLLUP后， 问询会产生一些额外的行：
+
+mysql> SELECT year, country, product, SUM(profit)
+
+    -> FROM sales
+
+    -> GROUP BY year, country, product WITH ROLLUP;
+
++------+---------+------------+-------------+
+
+| year | country | product    | SUM(profit) |
+
++------+---------+------------+-------------+
+
+| 2000 | Finland | Computer   |        1500 |
+
+| 2000 | Finland | Phone      |         100 |
+
+| 2000 | Finland | NULL       |        1600 |
+
+| 2000 | India   | Calculator |         150 |
+
+| 2000 | India   | Computer   |        1200 |
+
+| 2000 | India   | NULL       |        1350 |
+
+| 2000 | USA     | Calculator |          75 |
+
+| 2000 | USA     | Computer   |        1500 |
+
+| 2000 | USA     | NULL       |        1575 |
+
+| 2000 | NULL    | NULL       |        4525 |
+
+| 2001 | Finland | Phone      |          10 |
+
+| 2001 | Finland | NULL       |          10 |
+
+| 2001 | USA     | Calculator |          50 |
+
+| 2001 | USA     | Computer   |        2700 |
+
+| 2001 | USA     | TV         |         250 |
+
+| 2001 | USA     | NULL       |        3000 |
+
+| 2001 | NULL    | NULL       |        3010 |
+
+| NULL | NULL    | NULL       |        7535 |
+
++------+---------+------------+-------------+
+
+对于这个问询， 添加ROLLUP 子句使村输出结果包含了四层分析的简略信息，
+而不只是一个下面是怎样解释  ROLLUP输出：
+
+一组给定的年份和国家的每组产品行后面, 会产生一个额外的总计行， 显示所有产品的总值。这些行将产品列设置为 NULL。
+
+一组给定年份的行后面，会产生一个额外的总计行，显示所有国家和产品的总值。这些行将国家和产品列设置为  NULL。
+
+最后, 在所有其它行后面，会产生一个额外的总计列，显示所有年份、国家及产品的总值。 这一行将年份、国家和产品列设置为 NULL。
+
+====
+使用ROLLUP 时的其它注意事项
+
+以下各项列出了一些MySQL执行ROLLUP的特殊状态： 
+
+当你使用 ROLLUP时, 你不能同时使用 ORDER BY子句进行结果排序。
+换言之， ROLLUP 和ORDER BY 是互相排斥的。
+然而，你仍可以对排序进行一些控制。
+在 MySQL中， GROUP BY 可以对结果进行排序，
+而且你可以在GROUP BY列表指定的列中使用明确的 ASC和DESC关键词，从而对个别列进行排序。 
+(不论如何排序被ROLLUP添加的较高级别的总计行仍出现在它们被计算出的行后面）。
+
+LIMIT可用来限制返回客户端的行数。
+LIMIT 用在 ROLLUP后面, 因此这个限制 会取消被ROLLUP添加的行。例如:
+
+mysql> SELECT year, country, product, SUM(profit)
+
+    -> FROM sales
+
+    -> GROUP BY year, country, product WITH ROLLUP
+
+    -> LIMIT 5;
+
++------+---------+------------+-------------+
+
+| year | country | product    | SUM(profit) |
+
++------+---------+------------+-------------+
+
+| 2000 | Finland | Computer   |        1500 |
+
+| 2000 | Finland | Phone      |         100 |
+
+| 2000 | Finland | NULL       |        1600 |
+
+| 2000 | India   | Calculator |         150 |
+
+| 2000 | India   | Computer   |        1200 |
+
++------+---------+------------+-------------+
+
+将ROLLUP同 LIMIT一起使用可能会产生更加难以解释的结果，原因是对于理解高聚集行，你所掌握的上下文较少。
+
+在每个高聚集行中的NULL 指示符会在该行被送至客户端时产生。
+服务器会查看最左边的改变值后面的GROUP BY子句指定的列。
+对于任何结果集合中的，有一个词匹配这些名字的列, 其值被设为 NULL。
+(若你使用列数字指定了分组列，则服务器会通过数字确定将哪个列设置为 NULL）。
+
+由于在高聚集行中的 NULL值在问询处理阶段被放入结果集合中，
+你无法将它们在问询本身中作为NULL值检验。
+例如，你无法将 HAVING product IS NULL 添加到问询中，从而在输出结果中删去除了高聚集行以外的部分。 
+
+另一方面, NULL值在客户端不以 NULL 的形式出现， 因而可以使用任何MySQL客户端编程接口进行检验。
+
+========
+12.10.3. 具有隐含字段的GROUP BY
+
+MySQL 扩展了 GROUP BY的用途，因此你可以使用SELECT 列表中不出现在GROUP BY语句中的列或运算。
+这代表 “对该组的任何可能值 ”。
+你可以通过避免排序和对不必要项分组的办法得到它更好的性能。
+例如，在下列问询中，你无须对customer.name 进行分组：
+
+mysql> SELECT order.custid, customer.name, MAX(payments)
+
+    ->        FROM order,customer
+
+    ->        WHERE order.custid = customer.custid
+
+    ->        GROUP BY order.custid;
+
+在标准SQL中, 你必须将 customer.name添加到 GROUP BY子句中。
+在MySQL中, 假如你不在ANSI模式中运行，则这个名字就是多余的。
+
+假如你从 GROUP BY 部分省略的列在该组中不是唯一的，那么不要使用这个功能! 你会得到非预测性结果。
+
+在有些情况下,你可以使用MIN()和MAX() 获取一个特殊的列值，即使他不是唯一的。
+下面给出了来自包含排序列中最小值的列中的值：
+
+SUBSTR(MIN(CONCAT(RPAD(sort,6,' '),column)),7)
+
+See 3.6.4节，“拥有某个字段的组间最大值的行”.
+
+注意，假如你正在尝试遵循标准 SQL, 你不能使用GROUP BY或 ORDER BY子句中的表达式。
+你可以通过使用表达式的别名绕过这一限制： 
+
+mysql> SELECT id,FLOOR(value/100) AS val
+
+    -> FROM tbl_name
+
+    -> GROUP BY id, val ORDER BY val;
+
+然而, MySQL允许你使用GROUP BY 及 ORDER BY 子句中的表达式。例如：
+
+mysql> SELECT id, FLOOR(value/100) FROM tbl_name ORDER BY RAND();
+

@@ -1,0 +1,308 @@
+﻿MySQL 5.1参考手册-12. 函数和操作符-1，流程控制，cast
+
+目录
+
+12.1. 操作符
+12.1.1. 操作符优先级
+12.1.2. 圆括号
+12.1.3. 比较函数和操作符
+12.1.4. 逻辑操作符
+
+12.2. 控制流程函数
+
+12.3. 字符串函数
+12.3.1. 字符串比较函数
+
+12.4. 数值函数
+12.4.1. 算术操作符
+12.4.2. 数学函数
+
+12.5. 日期和时间函数
+12.6. MySQL使用什么日历？
+
+12.7. 全文搜索功能
+12.7.1. 布尔全文搜索
+12.7.2. 全文搜索带查询扩展
+12.7.3. 全文停止字
+12.7.4. 全文限定条件
+12.7.5. 微调MySQL全文搜索
+
+12.8. Cast函数和操作符
+
+12.9. 其他函数
+12.9.1. 位函数
+12.9.2. 加密函数
+12.9.3. 信息函数
+12.9.4. 其他函数
+
+12.10. 与GROUP BY子句同时使用的函数和修改程序
+12.10.1. GROUP BY（聚合）函数
+12.10.2. GROUP BY修改程序
+12.10.3. 具有隐含字段的GROUP BY
+
+======
+12.2. 控制流程函数
+
+====
+CASE value 
+WHEN [compare-value] THEN result 
+[WHEN [compare-value] THEN result ...] 
+[ELSE result] END CASE 
+
+WHEN [condition] THEN result 
+[WHEN [condition] THEN result ...] 
+[ELSE result] END
+
+在第一个方案的返回结果中， value=compare-value。
+而第二个方案的返回结果是第一种情况的真实结果。
+如果没有匹配的结果值，则返回结果为ELSE后的结果，如果没有ELSE 部分，则返回值为 NULL。
+
+mysql> SELECT CASE 1 WHEN 1 THEN 'one'
+
+    ->     WHEN 2 THEN 'two' ELSE 'more' END;
+
+        -> 'one'
+
+mysql> SELECT CASE WHEN 1>0 THEN 'true' ELSE 'false' END;
+
+        -> 'true'
+
+mysql> SELECT CASE BINARY 'B'
+
+    ->     WHEN 'a' THEN 1 WHEN 'b' THEN 2 END;
+
+        -> NULL
+
+一个CASE表达式的默认返回值类型是任何返回值的相容集合类型，但具体情况视其所在语境而定。
+如果用在字符串语境中，则返回结果为字符串。
+如果用在数字语境中，则返回结果为十进制值、实值或整数值。 
+
+====
+IF(expr1,expr2,expr3)
+
+如果 expr1 是TRUE (expr1 <> 0 and expr1 <> NULL)，则 IF()的返回值为expr2; 
+否则返回值则为 expr3。
+IF() 的返回值为数字值或字符串值，具体情况视其所在语境而定。
+
+mysql> SELECT IF(1>2,2,3);
+
+        -> 3
+
+mysql> SELECT IF(1<2,'yes ','no');
+
+        -> 'yes'
+
+mysql> SELECT IF(STRCMP('test','test1'),'no','yes');
+
+        -> 'no'
+
+如果expr2 或expr3中只有一个明确是 NULL，则IF() 函数的结果类型 为非NULL表达式的结果类型。
+
+expr1 作为一个整数值进行计算，就是说，
+假如你正在验证浮点值或字符串值，   那么应该使用比较运算进行检验。
+
+mysql> SELECT IF(0.1,1,0);
+
+        -> 0
+
+mysql> SELECT IF(0.1<>0,1,0);
+
+        -> 1
+
+在所示的第一个例子中，IF(0.1)的返回值为0，原因是 0.1 被转化为整数值，从而引起一个对 IF(0)的检验。
+这或许不是你想要的情况。
+在第二个例子中，比较检验了原始浮点值，目的是为了了解是否其为非零值。
+比较结果使用整数。
+
+IF() (这一点在其被储存到临时表时很重要 ) 的默认返回值类型按照以下方式计算：
+
+表达式
+
+返回值
+
+expr2 或expr3 返回值为一个字符串。
+
+字符串
+
+expr2 或expr3 返回值为一个浮点值。
+
+浮点
+
+expr2 或 expr3 返回值为一个整数。 
+
+整数
+
+假如expr2 和expr3 都是字符串，且其中任何一个字符串区分大小写，则返回结果是区分大小写。
+
+====
+IFNULL(expr1,expr2)
+
+假如expr1 不为 NULL，则 IFNULL() 的返回值为 expr1; 否则其返回值为 expr2。
+IFNULL()的返回值是数字或是字符串，具体情况取决于其所使用的语境。
+
+mysql> SELECT IFNULL(1,0);
+
+        -> 1
+
+mysql> SELECT IFNULL(NULL,10);
+
+        -> 10
+
+mysql> SELECT IFNULL(1/0,10);
+
+        -> 10
+
+mysql> SELECT IFNULL(1/0,'yes');
+
+        -> 'yes'
+
+IFNULL(expr1,expr2)的默认结果值为两个表达式中更加“通用”的一个，顺序为STRING、 REAL或 INTEGER。
+假设一个基于表达式的表的情况，  或MySQL必须在内存储器中储存一个临时表中IFNULL()的返回值：
+
+CREATE TABLE tmp SELECT IFNULL(1,'test') AS test；
+
+在这个例子中，测试列的类型为 CHAR(4)。
+
+====
+NULLIF(expr1,expr2)
+
+如果expr1 = expr2  成立，那么返回值为NULL，否则返回值为 expr1。
+这和CASE WHEN expr1 = expr2 THEN NULL ELSE expr1 END相同。
+
+mysql> SELECT NULLIF(1,1);
+
+        -> NULL
+
+mysql> SELECT NULLIF(1,2);
+
+        -> 1
+
+注意，如果参数不相等，则 MySQL 两次求得的值为  expr1 。
+
+=============
+12.8. Cast函数和操作符
+
+BINARY
+
+BINARY操作符将后面的字符串抛给一个二进制字符串。
+这是一种简单的方式来促使逐字节而不是逐字符的进行列比较。
+这使得比较区分大小写，即使该列不被定义为 BINARY或 BLOB。
+BINARY也会产生结尾空白，从而更加显眼。
+
+mysql> SELECT 'a' = 'A';
+
+        -> 1
+
+mysql> SELECT BINARY 'a' = 'A';
+
+        -> 0
+
+mysql> SELECT 'a' = 'a ';
+
+        -> 1
+
+mysql> SELECT BINARY 'a' = 'a ';
+
+        -> 0
+
+BINARY影响整个比较；它可以在任何操作数前被给定，而产生相同的结果。
+
+BINARY str 是CAST(str AS BINARY)的缩略形式。
+
+注意，在一些语境中，假如你将一个编入索引的列派给BINARY, MySQL 将不能有效使用这个索引。
+
+====
+假如你想要将一个 BLOB值或其它二进制字符串进行区分大小写的比较，
+你可利用二进制字符串没有字符集这一事实实现这个目的，这样就不会有文书夹的概念。
+为执行一个区分大小写的比较，可使用  CONVERT()函数将一个字符串值转化为一个不区分大小写的字符集。
+其结果为一个非二进制字符串，因此 LIKE 操作也不会区分大小写：
+
+SELECT 'A' LIKE CONVERT(blob_col USING latin1) FROM tbl_name;
+
+若要使用一个不同的字符集, 替换其在上述语句中的latin1名。
+
+CONVERT()一般可用于比较出现在不同字符集中的字符串。
+
+CAST(expr AS type), CONVERT(expr,type) , CONVERT(expr USING transcoding_name)
+
+CAST() 和CONVERT() 函数可用来获取一个类型的值，并产生另一个类型的值。
+
+这个类型 可以是以下值其中的 一个： 
+
+BINARY[(N)]
+CHAR[(N)]
+DATE
+DATETIME
+DECIMAL
+SIGNED [INTEGER]
+TIME
+UNSIGNED [INTEGER]
+
+BINARY 产生一个二进制字符串。
+关于它怎样影响比较结果的说明见本章中 BINARY操作符项。
+
+假如给定了随意长度N，则 BINARY[N] 使 cast使用该参数的不多于 N 个字节。
+同样的， CHAR[N]会使 cast 使用该参数的不多于N 个字符。
+
+CAST() and CONVERT(... USING ...) 是标准 SQL语法。
+CONVERT()的非USING 格式是ofis ODBC语法。
+
+带有USING的CONVERT() 被用来在不同的字符集之间转化数据。
+在 MySQL中, 自动译码名和相应的字符集名称相同。
+例如， 这个语句将服务器的默认字符集中的字符串 'abc'转化为utf8字符集中相应的字符串： 
+
+SELECT CONVERT('abc' USING utf8);
+
+当你想要在一个CREATE ... SELECT 语句中创建一个特殊类型的列，则cast函数会很有用：
+
+CREATE TABLE new_table SELECT CAST('2000-01-01' AS DATE);
+
+该函数也用于ENUM 列按词法顺序的排序。
+通常ENUM列的排序在使用内部数值时发生。
+将这些值按照词法顺序派给 CHAR 结果：
+
+SELECT enum_col FROM tbl_name ORDER BY CAST(enum_col AS CHAR);
+
+CAST(str AS BINARY)和BINARY str相同。 
+CAST(expr AS CHAR) 将表达式视为一个带有默认字符集的字符串。
+
+若用于一个诸如 CONCAT('Date: ',CAST(NOW() AS DATE))这样的比较复杂的表达式的一部分，CAST()也会改变结果。
+
+你不应在不同的格式中使用 CAST() 来析取数据，
+但可以使用诸如LEFT() 或 EXTRACT() 的样的字符串函数来代替。
+请参见12.5节，“日期和时间函数”。
+
+若要在数值语境中将一个字符串派给一个数值, 通常情况下，除了将字符串值作为数字使用外，你不需要做任何事：
+
+mysql> SELECT 1+'1';
+
+       -> 2
+
+若要在一个字符串语境中使用一个数字，该数字会被自动转化为一个BINARY 字符串。
+
+mysql> SELECT CONCAT('hello you ',2);
+
+        -> 'hello you 2'
+
+MySQL 支持带符号和无符号的64比特值的运算。
+若你正在使用数字操作符  (如 +) 而其中一个操作数为无符号整数，则结果为无符号。
+可使用SIGNED 和UNSIGNED cast 操作符来覆盖它。
+将运算分别派给带符号或无符号64比特整数。
+
+mysql> SELECT CAST(1-2 AS UNSIGNED)
+
+        -> 18446744073709551615
+
+mysql> SELECT CAST(CAST(1-2 AS UNSIGNED) AS SIGNED);
+
+        -> -1
+
+注意，假如任意一个操作数为一个浮点值，则结果为一个浮点值， 且不会受到上述规则影响 (关于这一点, DECIMAL 列值被视为浮点值）。
+
+mysql> SELECT CAST(1 AS UNSIGNED) - 2.0;
+
+        -> -1.0
+
+若你在一个算术运算中使用了一个字符串，它会被转化为一个浮点数。 
+
+
