@@ -190,7 +190,11 @@ numbered_tree
 
 当我们为树状结构编号时，我们从左到右，一次一层，为节点赋予right值前，
 先从左到右遍历其子节点并为子节点赋left和right值。
-这种方法被称为预排序遍历算法。
+这种方法被称为预排序遍历算法。（hxzon：重点理解）
+
+a(1,18)
+b1(2,9) c1(3,4) c2(5,6) c3(7,8)
+b2(10,17) c4(11,12) c5(13,14) c6(15,16)
 
 检索整树
 
@@ -224,7 +228,8 @@ ORDER BY node.lft;
 检索所有叶子节点
 
 在Nested Set模型中检索叶子节点比在Adjacency List模型中使用LEFT JOIN方法还要简单。
-如果你注意观察过nested_category表，你应该注意到了，叶子节点的lft和rgt值是连续的。
+如果你注意观察过nested_category表，你应该注意到了，
+叶子节点的lft和rgt值是连续的。
 要找到他们，我们只要找到满足rgt = lft + 1的节点即可。
 
 SELECT name
@@ -253,6 +258,8 @@ WHERE node.lft BETWEEN parent.lft AND parent.rgt
         AND node.name = 'FLASH'
 ORDER BY node.lft;
 
+（hxzon：左右两边夹住自己的节点，即为自己的祖先。）
+
 +----------------------+
 | name                 |
 +----------------------+
@@ -274,6 +281,8 @@ FROM nested_category AS node,
 WHERE node.lft BETWEEN parent.lft AND parent.rgt
 GROUP BY node.name
 ORDER BY node.lft;
+
+（hxzon：某节点有多少个祖先，就是多少层。）
 
 +----------------------+-------+
 | name                 | depth |
@@ -299,6 +308,8 @@ WHERE node.lft BETWEEN parent.lft AND parent.rgt
 GROUP BY node.name
 ORDER BY node.lft;
 
+（hxzon：lft的妙用，在父亲的弟弟之前。）
+
 +-----------------------+
 | name                  |
 +-----------------------+
@@ -319,7 +330,8 @@ Web开发者们遍历该树，随着深度的变化，增加 * 和标签。
 
 子树的深度
 
-当我们需要一个子树的深度信息时，我们无法在自联接查询中限制node表或者parent表，因为这会破坏我们的查询结果。
+当我们需要一个子树的深度信息时，
+我们无法在自联接查询中限制node表或者parent表，因为这会破坏我们的查询结果。
 因此我们增加第三个自联接，通过一个子查询获得我们子树新起点的深度值。
 
 SELECT node.name, (COUNT(parent.name) - (sub_tree.depth + 1)) AS depth
@@ -356,8 +368,10 @@ ORDER BY node.lft;
 
 检索直属的子节点
 
-设想你在一个零售商的网站上展示电子产品的分类。当一个用户点击该分类时，你会显示出该分类下的商品，
+设想你在一个零售商的网站上展示电子产品的分类。
+当一个用户点击该分类时，你会显示出该分类下的商品，
 同时列出直属与该分类的子类目，而不是该分类下的所有类目。
+
 为了实现该功能，我们需要能够显示一个节点的直属子节点，而不呈现更深层的子节点。
 比如，到显示PORTABLE ELECTRONICS这个分类时，
 我们想要显示MP3 PLAYERS, CD PLAYERS和2 WAY RADIOS这些分类，而不包括FLASH这个分类。
@@ -454,7 +468,8 @@ ORDER BY node.lft;
 | 2 WAY RADIOS         |                   1 |
 +----------------------+---------------------+
 
-这条查询语句在检索整树的查询语句上增加了COUNT和GROUP BY子句，同时在WHERE子句中引用了product表和一个自连接。
+这条查询语句在检索整树的查询语句上增加了COUNT和GROUP BY子句，
+同时在WHERE子句中引用了product表和一个自连接。
 
 新增节点
 
@@ -636,7 +651,8 @@ ORDER BY node.lft;
 +-----------------------+
 
 有时，我们希望仅仅删除父节点，而不删除它的子节点。
-有时你可能只是想改变节点的名字，让他变成一个占位符，直到新的替代名字出现，比如你需要开除一个主管。
+有时你可能只是想改变节点的名字，让他变成一个占位符，
+直到新的替代名字出现，比如你需要开除一个主管。
 还有些情况，子节点要全部移动到被删除的父节点对应的层级：
 
 LOCK TABLE nested_category WRITE;
@@ -685,7 +701,8 @@ ORDER BY node.lft;
 我希望这篇文章对你有所帮助，SQL中的嵌套集合的观念大约有十年的历史了，
 在网上和一些书中都能找到许多相关信息。
 在我看来，讲述分层数据的管理最全面的，是来自一本名叫《Joe Celko’s Trees and Hierarchies in SQL for Smarties》的书，
-此书的作者是在高级SQL领域倍受尊敬的Joe Celko。Joe Celko被认为是嵌套集合模型的创造者，
+此书的作者是在高级SQL领域倍受尊敬的Joe Celko。
+Joe Celko被认为是嵌套集合模型的创造者，
 更是该领域内的多产作家。
 我把Celko的书当作无价之宝，并极力地推荐它。
 在这本书中涵盖了在此文中没有提及的一些高级话题，

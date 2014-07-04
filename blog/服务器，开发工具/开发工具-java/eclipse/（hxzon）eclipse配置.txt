@@ -7,8 +7,30 @@ by hxzon
 General-Content Types
 选中树Text-XML和XML(Illformed)，添加对应的后缀。
 
-2，
+====
+2，颜色配置
+
+2.1，实体（变量，方法，类等）的突出颜色
+
+preferences->java->Editor->Mark Occurences
+preferences -> java ->editor-> Writer occurences
+
+test as 可以选择box，即在文本周围加方框。
 
 
+2.2，编辑器背景色
 
+general -> editors -> text editors 右下方
+
+background color 编辑器背景色
+
+current line highlight 当前行背景色
+
+2.3，其它配置
+
+java -> editor 右下方
+
+general -> appearance -> colors and fonts
+
+General--->Editors----->Test Editors------>Annotations
 
