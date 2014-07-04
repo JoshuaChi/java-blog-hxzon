@@ -1,0 +1,610 @@
+﻿MySQL 5.1参考手册-13.2. 数据操作语句-5，子查询
+http://dev.mysql.com/doc/refman/5.1/zh/sql-syntax.html#data-manipulation
+
+=============
+13.2.8. Subquery语法
+
+13.2.8.1. 子查询作为标量操作数
+13.2.8.2. 使用子查询进行比较
+13.2.8.3. 使用ANY, IN和SOME进行子查询
+13.2.8.4. 使用ALL进行子查询
+
+13.2.8.5. 行子查询
+
+13.2.8.6. EXISTS和NOT EXISTS
+
+13.2.8.7. 关联子查询
+
+13.2.8.8. FROM子句中的子查询
+
+13.2.8.9. 子查询错误
+13.2.8.10. 优化子查询
+13.2.8.11. 把子查询作为用于早期MySQL版本的联合进行改写
+
+====
+子查询是另一个语句中的一个SELECT语句。
+
+MySQL支持SQL标准要求的所有子查询格式和操作，也支持MySQL特有的几种特性。
+
+以下是一个子查询的例子：
+
+SELECT * FROM t1 WHERE column1 = (SELECT column1 FROM t2);
+
+在本例中，SELECT * FROM t1...是外部查询（或外部语句）,
+（SELECT column1 FROM t2）是子查询。
+
+我们可以说子查询嵌套在外部查询中。
+实际上，子查询也可以嵌套在其它子查询中，嵌套程度可以很深。
+子查询必须要位于圆括号中。
+
+子查询的主要优势为：
+
+·         子查询允许结构化的查询，这样就可以把一个语句的每个部分隔离开。
+
+·         有些操作需要复杂的联合和关联。
+子查询提供了其它的方法来执行这些操作。
+
+·         在许多人看来，子查询是可读的。
+实际上，子查询给予人们调用早期SQL“结构化查询语言”的原本的想法，这是子查询的创新。
+
+以下是一个示例语句。
+该语句显示了有关子查询语法的要点。
+子查询语法由SQL标准指定并被MySQL支持。
+
+DELETE FROM t1
+WHERE s11 > ANY
+(SELECT COUNT(*) /* no hint */ FROM t2
+WHERE NOT EXISTS
+(SELECT * FROM t3
+WHERE ROW(5*t2.s1,77)=
+(SELECT 50,11*s1 FROM t4 UNION SELECT 50,77 FROM
+(SELECT * FROM t5) AS t5)));
+
+一个子查询会返回一个标量（单一值）、一个行、一个列或一个表（一行或多行及一列或多列）。
+这些子查询被称为标量、列、行和表子查询。
+可返回一个特定种类结果的子查询经常只被用于特定的语境中，在后面各节中有说明。
+
+有些语句可以使用子查询。对这些语句的类型基本没有限定。
+子查询可以包括普通SELECT可以包括的任何关键词或子句：
+DISTINCT, GROUP BY, ORDER BY, LIMIT, 联合, 索引提示, UNION结构化, 评注和函数等。
+
+有一个限定是，一个子查询的外部语句必须是以下语句之一：
+SELECT, INSERT, UPDATE, DELETE, SET或DO。
+
+还有一个限定是，
+目前，您不能在一个子查询中修改一个表，又在同一个表中选择。
+这适用于DELETE, INSERT, REPLACE和UPDATE语句。
+在附录I：特性限制中给出了对子查询使用的更综合的讨论。（hxzon：注意）
+
+====
+13.2.8.1. 子查询作为标量操作数
+
+子查询最简单的形式是返回单一值的标量子查询。
+标量子查询是一个单一操作数。
+只要单一列值或文字是合法的，并且您希望子查询具有所有操作数都具有的特性，则您就可以使用子查询。
+操作数具有的特性包括：一个数据类型、一个长度、一个指示是否可以为NULL的标志等。
+举例说明：
+
+CREATE TABLE t1 (s1 INT, s2 CHAR(5) NOT NULL);
+INSERT INTO t1 VALUES(100, 'abcde');
+SELECT (SELECT s2 FROM t1);
+
+在本SELECT中的子查询返回一个单一值('abcde')。
+该单一值的数据类型为CHAR，长度为5，字符集和整序与在CREATE TABLE时有效的默认值相同，
+并有一个指示符号，指示列中的值可以为NULL。
+实际上，基本上所有的子查询都为NULL。
+如果在本例中使用的表为空表，则子查询的值应为NULL。（hxzon：注意）
+
+在有些情况下，标量子查询不能使用。
+如果一个语句只允许一个文字值，您不能使用子查询。
+例如，LIMIT要求文字整数自变量，
+LOAD DATA要求一个文字字符串文件名。
+您不能使用子查询来提供这些值。
+
+后面各节包括更简练的结构（SELECT column1 FROM t1）。
+当您在这些章节中观看例子时，请设想一下您自己的代码包含更多样、更复杂的结构。
+
+举例说明，假设我们制作两个表：
+
+CREATE TABLE t1 (s1 INT);
+INSERT INTO t1 VALUES (1);
+CREATE TABLE t2 (s1 INT);
+INSERT INTO t2 VALUES (2);
+
+然后执行一个SELECT：
+
+SELECT (SELECT s1 FROM t2) FROM t1;
+结果为2，因为t2中有一行包含s1，s1有一个值为2。
+
+一个标量子查询可以为一个表达式的一部分。不要忘记圆括号。
+即使是子查询是一个为函数提供自变量的操作数时，也不要忘记圆括号。（hxzon：注意）
+举例说明：
+
+SELECT UPPER((SELECT s1 FROM t1)) FROM t2;
+
+====
+13.2.8.2. 使用子查询进行比较
+
+子查询最常见的一种使用方式如下：
+
+non_subquery_operand comparison_operator (subquery)
+
+当comparison_operator是以下 操作符之一时：
+
+=  >  <  >=  <=  <>
+
+例如：
+
+  ... 'a' = (SELECT column1 FROM t1)
+有时，子查询的合法位置只能在比较式的右侧，
+您可以发现，在有些旧的DBMSs中仍保持这一点。
+
+以下是一个常见格式的子查询比较的例子。
+您不能使用联合进行此类比较。
+表t1中有些值与表t2中的最大值相同。
+该比较可以查找出所有这类值：
+
+SELECT column1 FROM t1
+WHERE column1 = (SELECT MAX(column2) FROM t2);
+
+下面还有另一个例子，该例子也不可能使用联合，因为该例子涉及对其中一个表进行总计。
+表t1中的有些行含有的值会在给定的列中出现两次。
+该例子可以查找出所有这些行：
+
+SELECT * FROM t1 AS t
+WHERE 2 = (SELECT COUNT(*) FROM t1 WHERE t1.id = t.id);
+
+对于采用这些操作符之一进行的比较，子查询必须返回一个标量。
+有一个例外，那就是＝可以和行子查询同时使用。
+请参见13.2.8.5节，“行子查询”。
+
+====
+13.2.8.3. 使用ANY, IN和SOME进行子查询
+
+语法：
+
+operand comparison_operator ANY (subquery)
+
+operand IN (subquery)
+
+operand comparison_operator SOME (subquery)
+
+ANY关键词必须后面接一个比较操作符。
+ANY关键词的意思是“对于在子查询返回的列中的任一数值，如果比较结果为TRUE的话，则返回TRUE”。例如：
+
+SELECT s1 FROM t1 WHERE s1 > ANY (SELECT s1 FROM t2);
+
+假设表t1中有一行包含（10）。
+如果表t2包含（21，14，7），则表达式为TRUE，因为t2中有一个值为7，该值小于10。
+如果表t2包含（20，10），或者如果表t2为空表，则表达式为FALSE。
+如果表t2包含（NULL, NULL, NULL），则表达式为UNKNOWN。（hxzon：注意）
+
+词语IN是＝ANY的别名。因此，这两个语句是一样的：（hxzon：注意）
+
+SELECT s1 FROM t1 WHERE s1 = ANY (SELECT s1 FROM t2);
+SELECT s1 FROM t1 WHERE s1 IN    (SELECT s1 FROM t2);
+
+不过，NOT IN不是<> ANY的别名，但是是<> ALL的别名。（hxzon：注意）
+请参见13.2.8.4节，“使用ALL进行子查询”。
+
+词语SOME是ANY的别名。因此，这两个语句是一样的：（hxzon：注意）
+
+SELECT s1 FROM t1 WHERE s1 <> ANY  (SELECT s1 FROM t2);
+SELECT s1 FROM t1 WHERE s1 <> SOME (SELECT s1 FROM t2);
+
+使用词语SOME的机会很少，但是本例显示了为什么SOME是有用的。
+对于多数人来说，英语短语“a is not equal to any b”的意思是“没有一个b与a相等”，
+但是在SQL语法中不是这个意思。
+该语法的意思是“有部分b与a不相等”。
+使用<> SOME有助于确认每个人都理解该查询的真正含义。（hxzon：注意）
+
+====
+13.2.8.4. 使用ALL进行子查询
+
+语法：
+operand comparison_operator ALL (subquery)
+
+词语ALL必须接在一个比较操作符的后面。
+ALL的意思是“对于子查询返回的列中的所有值，如果比较结果为TRUE，则返回TRUE。”例如：
+
+SELECT s1 FROM t1 WHERE s1 > ALL (SELECT s1 FROM t2);
+
+假设表1中有一行包含（10）。
+如果表t2包含（-5，0，＋5），则表达式为TRUE，因为10比t2中的所有三个值都大。
+如果表t2包含（12，6，NULL，－100），则表达式为FALSE，因为表t2中有一个值12大于10。
+如果表t2包含（0，NULL，1），则表达式为unknown。（hxzon：注意）
+
+最后，如果表t2为空表，则结果为TRUE。（hxzon：注意）
+因此，当表t2为空表时，以下语句为TRUE：
+
+SELECT * FROM t1 WHERE 1 > ALL (SELECT s1 FROM t2);
+
+但是，当表t2为空表时，本语句为NULL：
+
+SELECT * FROM t1 WHERE 1 > (SELECT s1 FROM t2);
+
+另外，当表t2为空表时，以下语句为NULL：
+
+SELECT * FROM t1 WHERE 1 > ALL (SELECT MAX(s1) FROM t2);
+
+通常，包含NULL值的表和空表为“边缘情况”。
+当编写子查询代码时，都要考虑您是否把这两种可能性计算在内。
+
+NOT IN是<> ALL的别名。因此，以下两个语句是相同的：
+
+SELECT s1 FROM t1 WHERE s1 <> ALL (SELECT s1 FROM t2);
+
+SELECT s1 FROM t1 WHERE s1 NOT IN (SELECT s1 FROM t2);
+
+====
+13.2.8.5. 行子查询
+
+对于本点的讨论属于标量或列子查询，即返回一个单一值或一列值的子查询。
+行子查询是一个能返回一个单一行的子查询变量，因此可以返回一个以上的列值。
+
+以下是两个例子：（hxzon：注意以下语法）
+
+SELECT * FROM t1 WHERE (1,2) = (SELECT column1, column2 FROM t2);
+
+SELECT * FROM t1 WHERE ROW(1,2) = (SELECT column1, column2 FROM t2);
+
+如果在表t2的一个行中，column1=1并且column2=2，则查询结果均为TRUE。
+
+表达式（1，2）和ROW（1，2）有时被称为行构造符。
+两者是等同的，在其它的语境中，也是合法的。
+例如，以下两个语句在语义上是等同的（但是目前只有第二个语句可以被优化）：
+
+  SELECT * FROM t1 WHERE (column1,column2) = (1,1);
+  SELECT * FROM t1 WHERE column1 = 1 AND column2 = 1;
+
+行构造符通常用于与对能返回两个或两个以上列的子查询进行比较。
+例如，以下查询可以答复请求，“在表t1中查找同时也存在于表t2中的所有的行”：
+
+SELECT column1,column2,column3
+FROM t1
+WHERE (column1,column2,column3) IN
+(SELECT column1,column2,column3 FROM t2);
+
+====
+13.2.8.6. EXISTS和NOT EXISTS
+
+如果一个子查询返回任何的行，则EXISTS subquery为FALSE。
+例如：
+
+SELECT column1 FROM t1 WHERE EXISTS (SELECT * FROM t2);
+
+过去，EXISTS子查询以SELECT *为开始，
+但是可以以SELECT 5或SELECT column1或其它的为开始。
+MySQL在这类子查询中忽略了SELECT清单，因此没有区别。
+
+对于前面的例子，如果t2包含任何行，即使是只含有NULL值的行，EXISTS条件也为TRUE。
+这实际上是一个不可能的例子，因为基本上所有的[NOT] EXISTS子查询均包含关联。
+
+以下是一些更现实的例子：
+
+·         哪些种类的商店出现在一个或多个城市里？
+
+·                SELECT DISTINCT store_type FROM stores
+·                  WHERE EXISTS (SELECT * FROM cities_stores
+·                                WHERE cities_stores.store_type = stores.store_type);
+
+·         哪些种类的商店没有出现在任何城市里？
+
+·                SELECT DISTINCT store_type FROM stores
+·                  WHERE NOT EXISTS (SELECT * FROM cities_stores
+·                                    WHERE cities_stores.store_type = stores.store_type);
+
+·         哪些种类的商店出现在所有城市里？
+
+·                SELECT DISTINCT store_type FROM stores s1
+·                  WHERE NOT EXISTS (
+·                    SELECT * FROM cities WHERE NOT EXISTS (
+·                      SELECT * FROM cities_stores
+·                       WHERE cities_stores.city = cities.city
+·                       AND cities_stores.store_type = stores.store_type));
+
+（hxzon：双重否定。选择商店类型，该类型不存在这样的城市，城市没有这种类型的商店。）
+
+最后一个例子是一个双嵌套NOT EXISTS查询。
+也就是，该查询包含一个NOT EXISTS子句，该子句又包含在一个NOT EXISTS子句中。
+该查询正式地回答了这个问题，“是否有某个城市拥有没有列在Stores中的商店？”。
+可以比较容易的说，一个带嵌套的NOT EXISTS可以回答这样的问题，“是否对于所有的y，x都为TRUE？”
+
+====
+13.2.8.7. 关联子查询
+
+相关联的子查询是一个包含“对表的引用”的子查询。
+该表也显示在外部查询中。（hxzon：注意）
+
+例如：
+
+SELECT * FROM t1 WHERE column1 = ANY
+(SELECT column1 FROM t2 WHERE t2.column2 = t1.column2);
+
+注意，即使子查询的FROM子句不提及表t1，该子查询也会包含一个对t1中一列的引用。
+所以，MySQL看上去位于子查询的外部，并在外部查询中查找t1。
+
+假设表t1包含一行，在此行中column1=5并且column2=6；
+同时，表t2包含一行，在此行中column1=5并且column2=7。
+简单的表达式... WHERE column1 = ANY (SELECT column1 FROM t2)会为TRUE。
+
+但是在本例中，在子查询中的WHERE子句为FALSE（因为（5，6）不等于（5，7）），所以子查询总体上为FALSE。
+
+范围划分规则：MySQL从内到外进行评估。
+例如：
+
+SELECT column1 FROM t1 AS x
+WHERE x.column1 = (SELECT column1 FROM t2 AS x
+WHERE x.column1 = (SELECT column1 FROM t3
+WHERE x.column2 = t3.column1));
+
+在本语句中，x.column2必须是表t2中的列，
+因为SELECT column1 FROM t2 AS x ...对t2进行了重命名。
+它不是表t1中的列，因为SELECT column1 FROM t1 ...是一个更靠外的外部查询。（hxzon：注意。尽量别同名，易错。）
+
+对于HAVING或ORDER BY子句中的子查询，
+MySQL也会在外部选择清单中寻找列名称。
+
+对于特定的情况，相关联的子查询被优化。
+例如：
+
+val IN (SELECT key_val FROM tbl_name WHERE correlated_condition)
+
+否则，这些子查询效率不高，可能速度会慢。
+把查询作为联合进行改写可能会改进效率。
+
+相关联的子查询不能从外部查询中引用总计函数的结果。（hxzon：注意）
+
+====
+13.2.8.8. FROM子句中的子查询
+
+在SELECT语句的FROM子句中，子查询是合法的。
+实际的语法是：
+
+SELECT ... FROM (subquery) [AS] name ...
+
+[AS] name子句是强制性的，因为FROM子句中的每个表必须有一个名称。（hxzon：注意，必须有名称。）
+在子查询选择列表中的任何列都必须有唯一的名称。
+您可以在本手册中的其它地方找到对本语法的说明。
+在该处，所用的词语是“导出表”。
+
+为了进行详细说明，假设您有如下一个表：
+
+CREATE TABLE t1 (s1 INT, s2 CHAR(5), s3 FLOAT);
+
+下面使用了示例表，解释了在FROM子句中如何使用子查询：
+
+INSERT INTO t1 VALUES (1,'1',1.0);
+INSERT INTO t1 VALUES (2,'2',2.0);
+
+SELECT sb1,sb2,sb3
+FROM (SELECT s1 AS sb1, s2 AS sb2, s3*2 AS sb3 FROM t1) AS sb
+WHERE sb1 > 1;
+
+结果：2, '2', 4.0。
+
+下面是另一个例子：假设您想了解一个分类后的表的一组和的平均值。
+采用如下操作：
+
+SELECT AVG(SUM(column1)) FROM t1 GROUP BY column1;
+
+（hxzon：上述语句有误？）
+
+不过，本查询提供所需的信息：
+（hxzon：先分组，算出每个组的c1的总和sc1，接着算所有组sc1的平均值。）
+
+SELECT AVG(sum_column1)
+FROM (SELECT SUM(column1) AS sum_column1
+FROM t1 GROUP BY column1) AS t1;
+
+注意，在子查询中使用的列名称（sum_column1）被整理到外部查询中。
+
+FROM子句中的子查询可以返回标量、列、行或表。
+FROM子句中的子查询不能为有关联的子查询。
+
+即使对EXPLAIN语句（即建立临时导出表），FROM子句中的子查询也会被执行。
+这是因为在优化过程中，上一级的查询需要有关所有表的信息。
+
+====
+13.2.8.9. 子查询错误
+
+以下错误只适用于子查询。
+本节把这些错误归在一起。
+
+·         来自子查询的列的数目不正确
+
+·                ERROR 1241 (ER_OPERAND_COL)
+·                SQLSTATE = 21000
+·                Message = "Operand should contain 1 column(s)"
+
+在出现以下情况时，发生此错误：
+
+SELECT (SELECT column1, column2 FROM t2) FROM t1;
+
+如果您的目的是进行比较，您可以使用能返回多个列的子查询。
+请参见13.2.8.5节，“行子查询”。
+不过，在其它的语境下，子查询必须为标量操作数。
+
+·         来自子查询的行的数目不正确：
+
+·                ERROR 1242 (ER_SUBSELECT_NO_1_ROW)
+·                SQLSTATE = 21000
+·                Message = "Subquery returns more than 1 row"
+
+如果在语句中，子查询返回的行多于一个，则发生此错误。
+请考虑以下例子：
+
+SELECT * FROM t1 WHERE column1 = (SELECT column1 FROM t2);
+
+如果SELECT column1 FROM t2只返回一行，则将执行以前的查询。
+如果子查询返回的行多于一个，则将出现错误1242。
+在这种情况下，该查询将被改写为：
+
+SELECT * FROM t1 WHERE column1 = ANY (SELECT column1 FROM t2);
+
+·         在子查询中表格使用不正确：
+
+·                Error 1093 (ER_UPDATE_TABLE_USED)
+·                SQLSTATE = HY000
+·                Message = "You can't specify target table 'x'
+·                for update in FROM clause"
+
+在如下情况下，发生该错误：
+
+
+UPDATE t1 SET column2 = (SELECT MAX(column1) FROM t1);
+
+和SELECT语句一样，在UPDATE和DELETE语句中，子查询是合法的。
+所以您可以在UPDATE语句中使用子查询进行赋值。
+不过，您不能把同一个表（在本例中为表t1）既用于子查询的FROM子句，又用于更新目标。
+
+对于事务存储引擎，子查询的错误会导致整个语句失效。
+对于非事务存储引擎，在遇到错误之前进行的数据修订会被保留。
+
+====
+13.2.8.10. 优化子查询
+
+开发过程不断进展，所以从长远来看，没有一个可靠的优化技巧。
+有些技巧您可能会感兴趣，并原意采用：
+
+·         有些子句会影响在子查询中的行的数量和顺序。使用这类子句。例如：
+
+·                SELECT * FROM t1 WHERE t1.column1 IN
+·                (SELECT column1 FROM t2 ORDER BY column1);
+·                SELECT * FROM t1 WHERE t1.column1 IN
+·                (SELECT DISTINCT column1 FROM t2);
+·                SELECT * FROM t1 WHERE EXISTS
+·                (SELECT * FROM t2 LIMIT 1);
+
+·         用子查询替换联合。例如，试进行如下操作：
+
+·                SELECT DISTINCT column1 FROM t1 WHERE t1.column1 IN (
+·                SELECT column1 FROM t2);
+
+代替如下操作：（hxzon：能避免下边的笛卡尔积？）
+
+SELECT DISTINCT t1.column1 FROM t1, t2
+WHERE t1.column1 = t2.column1;
+
+·         部分子查询可以被转换为联合，以便与不支持子查询的旧版本的MySQL相兼容。
+不过，在有些情况下，把子查询转化为联合可以提高效果。
+请参见13.2.8.11节，“把子查询作为用于早期MySQL版本的联合进行改写”。
+
+·         把子句从子查询的外部转移到内部。
+例如，使用此查询：
+
+·                SELECT * FROM t1
+·                WHERE s1 IN (SELECT s1 FROM t1 UNION ALL SELECT s1 FROM t2);
+
+代替此查询：（hxzon：上边，先合并得出s1的集合，下边，两个s1集合）
+
+SELECT * FROM t1
+WHERE s1 IN (SELECT s1 FROM t1) OR s1 IN (SELECT s1 FROM t2);
+
+另一个例子是，使用此查询：
+
+SELECT (SELECT column1 + 5 FROM t1) FROM t2;
+
+代替此查询：（hxzon：将计算移入内部。为何更优？）
+
+SELECT (SELECT column1 FROM t1) + 5 FROM t2;
+
+·         使用行子查询，代替关联子查询。
+举例说明，使用此查询：
+
+·                SELECT * FROM t1
+·                WHERE (column1,column2) IN (SELECT column1,column2 FROM t2);
+
+代替此查询：
+
+SELECT * FROM t1
+WHERE EXISTS (SELECT * FROM t2 WHERE t2.column1=t1.column1
+AND t2.column2=t1.column2);
+·         Use NOT (a = ANY (...)) rather than a <> ALL (...).
+
+·         Use x = ANY (table containing (1,2)) rather than x=1 OR x=2.
+
+·         Use = ANY rather than EXISTS.
+
+
+·         对于“只返回一行”的“无关联”子查询，IN的速度慢于＝。
+举例说明，使用此查询：
+
+·                SELECT * FROM t1 WHERE t1.col_name
+·                = (SELECT a FROM t2 WHERE b = some_const);
+
+代替此查询：
+
+SELECT * FROM t1 WHERE t1.col_name
+IN (SELECT a FROM t2 WHERE b = some_const);
+
+使用这些技巧可以使程序更快或更慢。
+使用BENCHMARK()函数等MySQL工具，您可以了解到在您所处的情况下，哪些技巧会有帮助。
+
+MySQL本身进行的部分优化包括：
+
+·         MySQL只执行一次无关联子查询。
+使用EXPLAIN确认给定的子查询确实是无关联的。
+
+·         MySQL改写IN, ALL, ANY和SOME子查询，
+目的是如果子查询中的select-list列已编制索引，则能发挥出此优势。
+
+·         MySQL使用index-lookup函数代替以下格式的子查询。
+EXPLAIN把此函数描述为特殊的联合类型（unique_subquery或index_subquery）：
+
+·                ... IN (SELECT indexed_column FROM single_table ...)
+
+·         当表达式中不包含NULL值或空集时，MySQL使用一个包含MIN()或MAX()的表达式，
+对以下格式的表达式进行扩展：
+
+·                value {ALL|ANY|SOME} {> | < | >= | <=} (non-correlated subquery)
+
+例如，本WHERE子句：
+
+WHERE 5 > ALL (SELECT x FROM t)
+
+可以用优化符进行如下处理：
+
+WHERE 5 > (SELECT MAX(x) FROM t)
+
+在MySQL内部手册中有一章名为“MySQL如何转换子查询”，
+可以从http://dev.mysql.com/doc/获取。
+
+====
+13.2.8.11. 把子查询作为用于“早期MySQL版本”的联合进行改写
+
+在较早版本的MySQL中（早于MySQL 4.1），
+只支持INSERT...SELECT和REPLACE...SELECT...格式的带嵌套的查询。
+虽然在MySQL 5.1中没有这种情况，但有时，仍然有其它的方法测试一组值的从属关系。
+并且，在有些情况下，不仅可以在没有子查询时对查询进行改写，
+而且有时使用这些方法比使用子查询效率更高。这些方法之一是IN()结构：
+
+举例说明，本查询：
+
+SELECT * FROM t1 WHERE id IN (SELECT id FROM t2);
+
+可以被改写为：
+
+SELECT DISTINCT t1.* FROM t1, t2 WHERE t1.id=t2.id;
+
+以下查询：
+
+SELECT * FROM t1 WHERE id NOT IN (SELECT id FROM t2);
+
+SELECT * FROM t1 WHERE NOT EXISTS (SELECT id FROM t2 WHERE t1.id=t2.id);
+
+也可以使用IN()进行改写：
+
+SELECT table1.* FROM table1 LEFT JOIN table2 ON table1.id=table2.id
+WHERE table2.id IS NULL;
+
+LEFT [OUTER] JOIN可以比对应的子查询更快，
+因为服务器可能对其进行更好的优化——这一点对于单独的MySQL服务器并不明确。
+在SQL-92之前，不存在外部联合，因此在做某些事情时，子查询是唯一的方法。
+现在，MySQL服务器和其它许多先进的数据库系统都能提供多种的外部联合类型。
+
+MySQL支持multiple-table DELETE语句，该语句可以被用于高效地删除行。
+删除时依据来自一个表或同时来自多个表的信息。
+同时也支持Multiple-table UPDATE语句。（hxzon：注意）
+
+

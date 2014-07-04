@@ -1,0 +1,57 @@
+﻿Gradle 2.0发布：简单、快速、支持Java 8
+作者 郭蕾 发布于 2014年7月3日 |
+http://www.infoq.com/cn/news/2014/07/gradle-2-0
+
+7月2日，Gradle 2.0正式发布。
+Gradle是一款基于Groovy语言的构建工具，它既保持了Maven的优点，
+又通过使用Groovy定义的DSL克服了Maven中使用XML繁冗以及不灵活的缺点。
+Gradle 2.0是Gradle版本发展史上的一个重要里程碑，
+大版本的发布意味着Gradle更加成熟。
+
+新版本的Gradle除修复了大量Bug外，还移除了很多已经过时的特性以及API，
+并引入了依赖管理系统，并加入对Java 8的支持。
+
+具体更新如下：
+
+更新到Groovy 2.3.2 
+Gradle 2.0使用Groovy 2.3.2编译和运行脚本以及插件，
+而Gradle 1.x系列的最新发布版Gradle 1.12使用Groovy 1.8.6。
+Gradle 2.0选择了高版本的Groovy也就暗示着构建脚本以及插件、任务可以使用Groovy语言的所有最新特性。
+
+支持Java 8 
+不再支持Java 5并开始支持Java 8。
+
+新的获取构件源代码以及javadoc的API 
+引入了新的构件解析API，提供了单独的组件和构件解析API，
+新的‘构件查询’API的入口点是dependencies.createArtifactResolutionQuery()。
+
+从组件的元数据规则中获取Ivy的附加信息
+
+通过plugins.withId()与插件交互 
+在之前，插件中执行一些配置只能通过plugins.withType(Class)实现，
+现在可以通过更简便的方法plugins.withId(String)来完成，只需要传递插件的ID即可。
+
+Ivy和Maven仓库支持SFTP协议 
+除了file、HTTP、HTTPS外，
+Ivy和Maven仓库开始支持SFTP传输协议。
+但是目前SFTP的认证只支持用户名和密码认证。
+
+改进了Gradle Tooling API 
+Gradle Tooling API提供了一种程序化的方式与Gradle互动，这使得IDE和构建系统的集成上升到了更高的层次。
+
+支持C和C++ 
+Gradle对C和C++的支持，使得Gradle的构建、测试和提交工作
+不仅限于基于JVM的系统。
+
+从2012年6月发布1.0以来，Gradle一直以八周一个新版本的速率稳步升级，
+从1.0到2.0，Gradle也逐渐成熟。
+Gradle 2.0在性能和内存利用率上进行了巨大改进。
+具体的版本更新信息可以参考官方的Release Notes。
+读者可以在这里下载最新版本的Gradle。
+另外Gradle基于Groovy，
+Groovy是一门基于JVM的敏捷开发语言，它结合了Python、Ruby和Smalltalk的许多强大的特性。
+关于Groovy的介绍读者可以看下这个视频。
+
+gradle中文文档 欢迎参与
+github.com/pkaq/gradledoc
+

@@ -1,0 +1,41 @@
+﻿Ampersand.js：与Backbone.js相媲美的一套全新的“不像框架的框架”
+作者 Zef Hemel ，译者 李彬 发布于 2014年7月3日 |
+http://www.infoq.com/cn/news/2014/07/ampersandjs
+
+&yet发布了用于构建JavaScript应用的“不像框架”的框架Ampersand.js。
+其灵感主要来自Backbone.js，但与Backbone.js的主要不同之处在于，
+Ampersand.js更加模块化，并添加了更多的（完全可选的）特性。
+
+在其博客上的发布公告中，&yet谈到了他们在Backbone.js方面的深度投入，以及为何他们最终决定摆脱Backbone.js，构建自己的框架：
+
+我们在&yet所遇到的问题之一——特别是在开发大型Backbone应用时——是缺乏健全的方式，来记录模型应该包含的属性的类型。
+
+在默认条件下，Backbone的模型并不强制要求任何结构。我们无须在任何地方声明我们将要存储哪些属性。因此，毫无疑问人们将会在视图里的某个地方，把各种混杂的属性保存到模型里。而这将不利于新接手的开发人员阅读模型，并确切地掌握正在跟踪哪些状态。
+
+为了解决这个问题并强制运用结构，我编写了一个名为“HumanModel”的替代模型。该模型与《Human JavaScript》一书中全面探索的哲学一致。现在，它已经演变为Ampersand模型(ampersand-model)。它会强制要求开发者声明将要存储的属性，同时允许开发者声明衍生的属性。
+
+最初，我们在Backbone的集合里使用我们的替换模型，但是在这一过程中我们逐渐遇到了问题。一般来说，Backbone认为开发者将把Backbone.Model模型存储到集合中。因此如果视图将实例化模型存储在集合中，Backbone将无法将它识别为模型。我对Backbone打补丁并解决了该问题，但我还希望在其他许多领域里获得更高的灵活性。
+
+对于Backbone，&yet认为一个关键问题是它的特性捆绑：&yet的应用需要更高的灵活性，以便切入、切出特性。于是在Ampersand.js中，每个功能片都被组织到其自身的CommonJS模块中。这些模块通过node.js的包管理器npm分发和管理，并使用Browserify来将它们“编译”成单独的（或许也是最小化的）JavaScript文件，以便在浏览器中运行。因此，任何应用都可以只选择自己需要的模块，并且能够轻易地与来自NPM的任何其他模块结合。
+
+目前，Ampersand.js由大约二十几个独立特性组成，托管在Github上面独立的代码仓库中，同时它还提供了一套命令行工具，能够便捷地使用&yet的推荐结构来创建Ampersand.js项目，并为表单、视图、集合和模型生成额外的页面框架（脚手架）。
+
+Ampersand.js中最重要的模块（它们的文档或许也是最完善的）包括：
+
+ampersand-state：与Backbone.js的模型类似，但它们没有与RESTful服务进行任何形式的绑定。这一功能被添加在ampersand-model中。开发者可以对状态类中的属性赋予类型，并在赋值的时候检查这些类型。
+
+ampersand-model：通过添加与服务器交互，来处理加载、保存和对象同步的方法，对ampersand-state进行扩展。
+
+ampersand-collection：除了不提供加载或保存集合的方法外，它与Backbone.js的集合等价。
+
+ampersand-rest-collection：扩展了ampersand-collection，增加了将某个集合加载并保存到某个RESTful服务的方法。
+
+ampersand-view：类似于Backbone.js的视图，它是一套用于将模型绑定到DOM节点的机制。
+
+ampersand-form-view：用于便捷地使用数据绑定来构建一致的表单的模块。
+
+ampersand-router：用于更新浏览器中的URL的模型，而且它的更新并不会实际加载页面。该模块中的许多代码来自Backbone.js，并做了一些扩展。
+
+对任何熟悉Backbone.js的人来说，Ampersand.js都应该很容易上手。它在Github 和NPM 上基于MIT许可发布。
+
+查看英文原文：Ampersand.js: a New "Non-Frameworky Framework" to Rival Backbone.js

@@ -1,17 +1,13 @@
-﻿MySQL 5.1参考手册-13.2. 数据操作语句（续）
+﻿MySQL 5.1参考手册-13.2. 数据操作语句-6，更多
 http://dev.mysql.com/doc/refman/5.1/zh/sql-syntax.html#data-manipulation
 
 13.2. 数据操作语句
-13.2.1. DELETE语法
+
 13.2.2. DO语法
 13.2.3. HANDLER语法
-13.2.4. INSERT语法
+
 13.2.5. LOAD DATA INFILE语法
 13.2.6. REPLACE语法
-13.2.7. SELECT语法
-13.2.8. Subquery语法
-13.2.9. TRUNCATE语法
-13.2.10. UPDATE语法
 
 ======
 13.2.2. DO语法
@@ -19,6 +15,7 @@ DO expr [, expr] ...
 DO用于执行表达式，但是不返回任何结果。DO是SELECT expr的简化表达方式。DO有一个优势，就是如果您不太关心结果的话，DO的速度稍快。
 DO主要用于执行有副作用的函数，比如RELEASE_LOCK()。
 
+=======
 13.2.3. HANDLER语法
 HANDLER tbl_name OPEN [ AS alias ]
 HANDLER tbl_name READ index_name { = | >= | <= | < } (value1,value2,...)
@@ -70,6 +67,7 @@ o        管理程序接口不需要提供外观一致的数据（例如，允�
 
 ========
 13.2.5. LOAD DATA INFILE语法
+
  LOAD DATA [LOW_PRIORITY | CONCURRENT] [LOCAL] INFILE 'file_name.txt'
     [REPLACE | IGNORE]
     INTO TABLE tbl_name
@@ -364,6 +362,7 @@ Records: 1  Deleted: 0  Skipped: 0  Warnings: 0
 
 ========
 13.2.6. REPLACE语法
+
  REPLACE [LOW_PRIORITY | DELAYED]
     [INTO] tbl_name [(col_name,...)]
     VALUES ({expr | DEFAULT},...),(...),...
