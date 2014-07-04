@@ -1,0 +1,97 @@
+﻿MySQL递归层次查询
+
+CREATE TABLE htree_tree2 (  
+  id int(11) NOT NULL,  
+  name varchar(50) DEFAULT NULL,  
+  pid int(11) DEFAULT '0',  
+  PRIMARY KEY (id)  
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;  
+
+插入数据如下：
+
+create procedure tree2_test()
+begin
+INSERT INTO htree_tree2 VALUES ('1', 'A', '0');  
+INSERT INTO htree_tree2 VALUES ('2', 'B', '1');  
+INSERT INTO htree_tree2 VALUES ('3', 'C', '1');  
+INSERT INTO htree_tree2 VALUES ('4', 'D', '2');  
+INSERT INTO htree_tree2 VALUES ('5', 'E', '2');  
+INSERT INTO htree_tree2 VALUES ('6', 'F', '3');  
+INSERT INTO htree_tree2 VALUES ('7', 'G', '6');  
+INSERT INTO htree_tree2 VALUES ('8', 'H', '0');  
+INSERT INTO htree_tree2 VALUES ('9', 'I', '8');  
+INSERT INTO htree_tree2 VALUES ('10', 'J', '8');  
+INSERT INTO htree_tree2 VALUES ('11', 'K', '8');  
+INSERT INTO htree_tree2 VALUES ('12', 'L', '9');  
+INSERT INTO htree_tree2 VALUES ('13', 'M', '9');  
+INSERT INTO htree_tree2 VALUES ('14', 'N', '12');  
+INSERT INTO htree_tree2 VALUES ('15', 'O', '12');  
+INSERT INTO htree_tree2 VALUES ('16', 'P', '15');  
+INSERT INTO htree_tree2 VALUES ('17', 'Q', '15');  
+end
+
+递归层次查询函数：
+
+CREATE FUNCTION tree2_find_descs(rId int) RETURNS varchar(500)  
+BEGIN  
+
+DECLARE sTemp VARCHAR(500) default '$';  
+DECLARE stempChd VARCHAR(500);  
+
+#调用cast函数将int转换为char  
+SET stempChd = CAST(rId AS CHAR);  
+
+#递归拼接  
+WHILE stempChd is not NULL DO   
+#存储每次递归结果  
+SET sTemp = CONCAT(sTemp,',',stempChd);  
+#将参数作为pid，然后查询其子id，然后将子id作为pid，  
+#查询以子id为pid的子id，依次循环下去，直到所有节点都为叶子节点  
+ SELECT GROUP_CONCAT(id) INTO stempChd FROM tree where FIND_IN_SET(pid,stempChd)>0;  
+END WHILE;  
+    RETURN sTemp;  
+END;  
+
+这个函数功能是返回以给定参数作为父节点的所有子节点的字符串。
+
+使用示例：
+
+mysql> select tree2_find_descs(1); 
++-----------------+ 
+| tree2_find_descs(1)  | 
++-----------------+ 
+| $,1,2,3,4,5,6,7 | 
++-----------------+ 
+
+==========================
+
+mysql> select * from htree_tree2 where FIND_IN_SET(id, tree2_find_descs(1)); 
++----+----------+------+ 
+| id | name | pid  | 
++----+----------+------+ 
+|  1 | A        |    0 | 
+|  2 | B        |    1 | 
+|  3 | C        |    1 | 
+|  4 | D        |    2 | 
+|  5 | E        |    2 | 
+|  6 | F        |    3 | 
+|  7 | G        |    6 | 
++----+----------+------+ 
+
+select b.id,b.name,b.pid 
+from htree_tree2 as a, htree_tree2 as b 
+where 
+a.id=b.pid and (a.id=1 or a.pid =1)
+
+查找指定节点的孩子和孙子（仅孩子的孩子）。
+
++----+------+-----+
+| id | name | pid |
++----+------+-----+
+|  2 | B    |   1 |
+|  3 | C    |   1 |
+|  4 | D    |   2 |
+|  5 | E    |   2 |
+|  6 | F    |   3 |
++----+------+-----+
+

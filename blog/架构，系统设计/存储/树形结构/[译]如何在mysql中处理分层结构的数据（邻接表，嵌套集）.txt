@@ -1,0 +1,699 @@
+﻿[译]如何在mysql中处理分层结构的数据（邻接表，嵌套集）
+By 南柯一梦 in PHPer
+ 2013 年 1 月 7 日
+http://www.lfyzjck.com/managing-hierarchical-data-in-mysql/
+
+图见原文。
+
+原文地址：http://mikehillyer.com/articles/managing-hierarchical-data-in-mysql，
+很老的一篇文章了，但是很经典，翻译来分享给大家
+
+介绍
+
+大部分用户都曾在SQL型数据库中处理过分层结构的数据，并且都毫无疑问的发现，关系型数据库并不擅长此类工作。
+关系型数据库中的表不是分层的（如XML），而是一个平面化的列表，
+所以分层数据中的父-子关系并不能在关系型数据库中自然的表现。
+
+对于我们来说，分层结构数据就是一系列有父子关系数据的集合，
+每一项都有一个单一的父亲，并且可能有很多儿子。（根节点没有父亲）。
+分层结构数据应用于很多数据库应用中，包括论坛和邮件列表，商业组织图表，内容管理系统在中的文章分类等等。
+下面将会用一个虚构的电子商店中的商品分类来举例说明这个问题。
+
+categorys 这些分类形式上和我们之前引用的一些例子是相同的。
+这篇文章中，我们分析2中在MYSQL中处理分层结构的模型，先从最传统的一种开始说起吧。
+
+====
+邻接表模型(The Adjacency List Model)
+
+上面提到的分类，在数据库中一般会被储存成以下形式。
+（我会提供所有的CREATE语句和INSERT语句，你可以依照这些语句来实践）
+
+CREATE TABLE category(
+    category_id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(20) NOT NULL,
+    parent INT DEFAULT NULL
+);
+
+INSERT INTO category VALUES(1,'ELECTRONICS',NULL),(2,'TELEVISIONS',1),(3,'TUBE',2),
+    (4,'LCD',2),(5,'PLASMA',2),(6,'PORTABLE ELECTRONICS',1),(7,'MP3 PLAYERS',6),(8,'FLASH',7),
+    (9,'CD PLAYERS',6),(10,'2 WAY RADIOS',6);
+
+SELECT * FROM category ORDER BY category_id;
++-------------+----------------------+--------+
+| category_id | name                 | parent |
++-------------+----------------------+--------+
+|           1 | ELECTRONICS          |   NULL |
+|           2 | TELEVISIONS          |      1 |
+|           3 | TUBE                 |      2 |
+|           4 | LCD                  |      2 |
+|           5 | PLASMA               |      2 |
+|           6 | PORTABLE ELECTRONICS |      1 |
+|           7 | MP3 PLAYERS          |      6 |
+|           8 | FLASH                |      7 |
+|           9 | CD PLAYERS           |      6 |
+|          10 | 2 WAY RADIOS         |      6 |
++-------------+----------------------+--------+
+10 rows in set (0.00 sec)
+
+在邻接表模型中，每一项都有一个指针指向父节点，最顶端的节点（跟节点）的父亲是NULL。
+邻接表模型的优势是他足够简单，比如我们能很容易看出FALSH是MP3下的一个子类，
+而MP3又是PORTABLE ELECTRONICS下的一个子类。
+邻接表模型能够轻松的被客户端代码处理，但是在使用纯SQL处理时会有很多问题。
+
+检索整树
+
+处理分层数据一个最通用的任务就是显示完整的树，通过通过一些缩进来表示层级。
+用纯SQL方式实现时最常见的做法是使用自联接：
+
+SELECT t1.name AS lev1, t2.name as lev2, t3.name as lev3, t4.name as lev4
+FROM category AS t1
+LEFT JOIN category AS t2 ON t2.parent = t1.category_id
+LEFT JOIN category AS t3 ON t3.parent = t2.category_id
+LEFT JOIN category AS t4 ON t4.parent = t3.category_id
+WHERE t1.name = 'ELECTRONICS';
+
++-------------+----------------------+--------------+-------+
+| lev1        | lev2                 | lev3         | lev4  |
++-------------+----------------------+--------------+-------+
+| ELECTRONICS | TELEVISIONS          | TUBE         | NULL  |
+| ELECTRONICS | TELEVISIONS          | LCD          | NULL  |
+| ELECTRONICS | TELEVISIONS          | PLASMA       | NULL  |
+| ELECTRONICS | PORTABLE ELECTRONICS | MP3 PLAYERS  | FLASH |
+| ELECTRONICS | PORTABLE ELECTRONICS | CD PLAYERS   | NULL  |
+| ELECTRONICS | PORTABLE ELECTRONICS | 2 WAY RADIOS | NULL  |
++-------------+----------------------+--------------+-------+
+6 rows in set (0.00 sec)
+
+检索所有叶子节点
+
+我们可以使用一个LEFT JOIN查询来获取所有的叶子节点：
+
+SELECT t1.name FROM
+category AS t1 LEFT JOIN category as t2
+ON t1.category_id = t2.parent
+WHERE t2.category_id IS NULL;
+
++--------------+
+| name         |
++--------------+
+| TUBE         |
+| LCD          |
+| PLASMA       |
+| FLASH        |
+| CD PLAYERS   |
+| 2 WAY RADIOS |
++--------------+
+
+检索单一路径
+
+通过自连接，我们也可以检索出单一路径：
+
+SELECT t1.name AS lev1, t2.name as lev2, t3.name as lev3, t4.name as lev4
+FROM category AS t1
+LEFT JOIN category AS t2 ON t2.parent = t1.category_id
+LEFT JOIN category AS t3 ON t3.parent = t2.category_id
+LEFT JOIN category AS t4 ON t4.parent = t3.category_id
+WHERE t1.name = 'ELECTRONICS' AND t4.name = 'FLASH';
+
++-------------+----------------------+-------------+-------+
+| lev1        | lev2                 | lev3        | lev4  |
++-------------+----------------------+-------------+-------+
+| ELECTRONICS | PORTABLE ELECTRONICS | MP3 PLAYERS | FLASH |
++-------------+----------------------+-------------+-------+
+1 row in set (0.01 sec)
+
+这种做法的局限在于你需要为每一层数据都增加一个self-join，
+随着层次的增加，自联接越来越复杂，性能也自然的下降。
+
+邻接表模型的局限
+
+用纯SQL的方式处理邻接表模型有点困难。
+在我们获取获得一个完整路径的时候，必须知道当前节点归属于哪一层。
+另外，还需要特别关注节点的删除，
+因为有潜在的风险会产生孤立的子树（比如删除portable electronics这个分类，它的所有字节点将被孤立）。
+
+上面提到的一些限制是可以通过客户端的代码来处理的。
+通过程序，我们可以自底向上获得整个树或者单一的路径。
+通过程序，我们同样可以删除一个节点同时避免它的子节点孤立，比如将这些字节点指向一个新的父节点。
+
+====
+嵌套集合模型（The Nested Set Model）
+
+我在这篇文章中重点想说明的是一种完全不同的方法，通常被成为Nested Set Model。
+在Nested Set Model中，我们可以通过一种新的方式来看待我们的分层数据，
+不是通过节点和表示父子关系的线，而是一个嵌套的容器。
+下面的图片可以说明这种方式。
+
+nested_categorys
+
+注意我们的层次是如何表示的，父节点包裹着他的儿子节点。
+我们使用left和right值来在数据库的表中表示这层次。
+
+CREATE TABLE nested_category (
+        category_id INT AUTO_INCREMENT PRIMARY KEY,
+        name VARCHAR(20) NOT NULL,
+        lft INT NOT NULL,
+        rgt INT NOT NULL
+);
+
+INSERT INTO nested_category VALUES(1,'ELECTRONICS',1,20),(2,'TELEVISIONS',2,9),(3,'TUBE',3,4),
+ (4,'LCD',5,6),(5,'PLASMA',7,8),(6,'PORTABLE ELECTRONICS',10,19),(7,'MP3 PLAYERS',11,14),(8,'FLASH',12,13),
+ (9,'CD PLAYERS',15,16),(10,'2 WAY RADIOS',17,18);
+
+SELECT * FROM nested_category ORDER BY category_id;
+
++-------------+----------------------+-----+-----+
+| category_id | name                 | lft | rgt |
++-------------+----------------------+-----+-----+
+|           1 | ELECTRONICS          |   1 |  20 |
+|           2 | TELEVISIONS          |   2 |   9 |
+|           3 | TUBE                 |   3 |   4 |
+|           4 | LCD                  |   5 |   6 |
+|           5 | PLASMA               |   7 |   8 |
+|           6 | PORTABLE ELECTRONICS |  10 |  19 |
+|           7 | MP3 PLAYERS          |  11 |  14 |
+|           8 | FLASH                |  12 |  13 |
+|           9 | CD PLAYERS           |  15 |  16 |
+|          10 | 2 WAY RADIOS         |  17 |  18 |
++-------------+----------------------+-----+-----+
+
+我们用lft和rgt是因为left和right是MySQL的保留字，要查看MySQL所有保留字，参见：
+
+那么我们该如何确定left和right的值呢？
+我们从最左边的外界点开始编号，一直到最右边结束，参见下图：
+
+nested_numbered
+
+这种设计同样适用于典型的树结构：
+
+numbered_tree
+
+当我们为树状结构编号时，我们从左到右，一次一层，为节点赋予right值前，
+先从左到右遍历其子节点并为子节点赋left和right值。
+这种方法被称为预排序遍历算法。
+
+检索整树
+
+我们可以通过自连接把父节点连接到子节点上来检索整树，是因为子节点的lft值总是在其父节点的lft值和rgt值之间：
+
+SELECT node.name
+FROM nested_category AS node,
+        nested_category AS parent
+WHERE node.lft BETWEEN parent.lft AND parent.rgt
+        AND parent.name = 'ELECTRONICS'
+ORDER BY node.lft;
+
++----------------------+
+| name                 |
++----------------------+
+| ELECTRONICS          |
+| TELEVISIONS          |
+| TUBE                 |
+| LCD                  |
+| PLASMA               |
+| PORTABLE ELECTRONICS |
+| MP3 PLAYERS          |
+| FLASH                |
+| CD PLAYERS           |
+| 2 WAY RADIOS         |
++----------------------+
+
+不像先前邻接表模型的例子，这个查询不论数据有多少层都能工作。
+我们不在我们的BETWEEN语句中使用rgt值因为他会产生和lft值相同的查询结果。
+
+检索所有叶子节点
+
+在Nested Set模型中检索叶子节点比在Adjacency List模型中使用LEFT JOIN方法还要简单。
+如果你注意观察过nested_category表，你应该注意到了，叶子节点的lft和rgt值是连续的。
+要找到他们，我们只要找到满足rgt = lft + 1的节点即可。
+
+SELECT name
+FROM nested_category
+WHERE rgt = lft + 1;
+
++--------------+
+| name         |
++--------------+
+| TUBE         |
+| LCD          |
+| PLASMA       |
+| FLASH        |
+| CD PLAYERS   |
+| 2 WAY RADIOS |
++--------------+
+
+检索单一路径
+
+在Nested Set模型中，我们不需要使用很多自联接就能找到一个单一的路径。
+
+SELECT parent.name
+FROM nested_category AS node,
+        nested_category AS parent
+WHERE node.lft BETWEEN parent.lft AND parent.rgt
+        AND node.name = 'FLASH'
+ORDER BY node.lft;
+
++----------------------+
+| name                 |
++----------------------+
+| ELECTRONICS          |
+| PORTABLE ELECTRONICS |
+| MP3 PLAYERS          |
+| FLASH                |
++----------------------+
+
+检索节点的深度
+
+我们已经知道如何去呈现一颗整树，但是为了更好的标识出节点在树中的层次，
+我们怎样才能同时知道节点在树中的深度呢？
+这个可以通过在我们已经有的查询语句的基础上，增加一个COUNT函数和GROUP BY函数来实现。
+
+SELECT node.name, (COUNT(parent.name) - 1) AS depth
+FROM nested_category AS node,
+        nested_category AS parent
+WHERE node.lft BETWEEN parent.lft AND parent.rgt
+GROUP BY node.name
+ORDER BY node.lft;
+
++----------------------+-------+
+| name                 | depth |
++----------------------+-------+
+| ELECTRONICS          |     0 |
+| TELEVISIONS          |     1 |
+| TUBE                 |     2 |
+| LCD                  |     2 |
+| PLASMA               |     2 |
+| PORTABLE ELECTRONICS |     1 |
+| MP3 PLAYERS          |     2 |
+| FLASH                |     3 |
+| CD PLAYERS           |     2 |
+| 2 WAY RADIOS         |     2 |
++----------------------+-------+
+
+通过CONCAT函数和REPEAT函数，我们可以用刚刚的深度值来缩进分类的名字。
+
+SELECT CONCAT( REPEAT(' ', COUNT(parent.name) - 1), node.name) AS name
+FROM nested_category AS node,
+        nested_category AS parent
+WHERE node.lft BETWEEN parent.lft AND parent.rgt
+GROUP BY node.name
+ORDER BY node.lft;
+
++-----------------------+
+| name                  |
++-----------------------+
+| ELECTRONICS           |
+|  TELEVISIONS          |
+|   TUBE                |
+|   LCD                 |
+|   PLASMA              |
+|  PORTABLE ELECTRONICS |
+|   MP3 PLAYERS         |
+|    FLASH              |
+|   CD PLAYERS          |
+|   2 WAY RADIOS        |
++-----------------------+
+
+当然，在客户端应用中，我们更倾向于直接使用深度值来显示层次。
+Web开发者们遍历该树，随着深度的变化，增加 * 和标签。
+
+子树的深度
+
+当我们需要一个子树的深度信息时，我们无法在自联接查询中限制node表或者parent表，因为这会破坏我们的查询结果。
+因此我们增加第三个自联接，通过一个子查询获得我们子树新起点的深度值。
+
+SELECT node.name, (COUNT(parent.name) - (sub_tree.depth + 1)) AS depth
+FROM nested_category AS node,
+        nested_category AS parent,
+        nested_category AS sub_parent,
+        (
+                SELECT node.name, (COUNT(parent.name) - 1) AS depth
+                FROM nested_category AS node,
+                nested_category AS parent
+                WHERE node.lft BETWEEN parent.lft AND parent.rgt
+                AND node.name = 'PORTABLE ELECTRONICS'
+                GROUP BY node.name
+                ORDER BY node.lft
+        )AS sub_tree
+WHERE node.lft BETWEEN parent.lft AND parent.rgt
+        AND node.lft BETWEEN sub_parent.lft AND sub_parent.rgt
+        AND sub_parent.name = sub_tree.name
+GROUP BY node.name
+ORDER BY node.lft;
+
++----------------------+-------+
+| name                 | depth |
++----------------------+-------+
+| PORTABLE ELECTRONICS |     0 |
+| MP3 PLAYERS          |     1 |
+| FLASH                |     2 |
+| CD PLAYERS           |     1 |
+| 2 WAY RADIOS         |     1 |
++----------------------+-------+
+
+这个方法可以检索出任意子树的深度值，包括根节点。
+这里的深度值跟你指定的节点有关。
+
+检索直属的子节点
+
+设想你在一个零售商的网站上展示电子产品的分类。当一个用户点击该分类时，你会显示出该分类下的商品，
+同时列出直属与该分类的子类目，而不是该分类下的所有类目。
+为了实现该功能，我们需要能够显示一个节点的直属子节点，而不呈现更深层的子节点。
+比如，到显示PORTABLE ELECTRONICS这个分类时，
+我们想要显示MP3 PLAYERS, CD PLAYERS和2 WAY RADIOS这些分类，而不包括FLASH这个分类。
+
+这个需要可以通过在上一个查询语句中增加HAVING条件来实现。
+
+SELECT node.name, (COUNT(parent.name) - (sub_tree.depth + 1)) AS depth
+FROM nested_category AS node,
+        nested_category AS parent,
+        nested_category AS sub_parent,
+        (
+                SELECT node.name, (COUNT(parent.name) - 1) AS depth
+                FROM nested_category AS node,
+                        nested_category AS parent
+                WHERE node.lft BETWEEN parent.lft AND parent.rgt
+                        AND node.name = 'PORTABLE ELECTRONICS'
+                GROUP BY node.name
+                ORDER BY node.lft
+        )AS sub_tree
+WHERE node.lft BETWEEN parent.lft AND parent.rgt
+        AND node.lft BETWEEN sub_parent.lft AND sub_parent.rgt
+        AND sub_parent.name = sub_tree.name
+GROUP BY node.name
+HAVING depth < = 1
+ORDER BY node.lft;
+
++----------------------+-------+
+| name                 | depth |
++----------------------+-------+
+| PORTABLE ELECTRONICS |     0 |
+| MP3 PLAYERS          |     1 |
+| CD PLAYERS           |     1 |
+| 2 WAY RADIOS         |     1 |
++----------------------+-------+
+
+如果你想显示父节点，把HAVING depth <= 1改成HAVING depth = 1即可。
+
+集合函数在Nested Set模型中的应用
+
+让我们新建一个product表来演示集合函数的应用。
+
+CREATE TABLE product
+(
+        product_id INT AUTO_INCREMENT PRIMARY KEY,
+        name VARCHAR(40),
+        category_id INT NOT NULL
+);
+
+INSERT INTO product(name, category_id) VALUES('20" TV',3),('36" TV',3),
+('Super-LCD 42"',4),('Ultra-Plasma 62"',5),('Value Plasma 38"',5),
+('Power-MP3 5gb',7),('Super-Player 1gb',8),('Porta CD',9),('CD To go!',9),
+('Family Talk 360',10);
+
+SELECT * FROM product;
+
++------------+-------------------+-------------+
+| product_id | name              | category_id |
++------------+-------------------+-------------+
+|          1 | 20" TV            |           3 |
+|          2 | 36" TV            |           3 |
+|          3 | Super-LCD 42"     |           4 |
+|          4 | Ultra-Plasma 62"  |           5 |
+|          5 | Value Plasma 38"  |           5 |
+|          6 | Power-MP3 128mb   |           7 |
+|          7 | Super-Shuffle 1gb |           8 |
+|          8 | Porta CD          |           9 |
+|          9 | CD To go!         |           9 |
+|         10 | Family Talk 360   |          10 |
++------------+-------------------+-------------+
+
+现在来写个查询，找出我们所有的分类，并统计出每个分类下的商品的数量。
+
+SELECT parent.name, COUNT(product.name)
+FROM nested_category AS node ,
+        nested_category AS parent,
+        product
+WHERE node.lft BETWEEN parent.lft AND parent.rgt
+        AND node.category_id = product.category_id
+GROUP BY parent.name
+ORDER BY node.lft;
+
++----------------------+---------------------+
+| name                 | COUNT(product.name) |
++----------------------+---------------------+
+| ELECTRONICS          |                  10 |
+| TELEVISIONS          |                   5 |
+| TUBE                 |                   2 |
+| LCD                  |                   1 |
+| PLASMA               |                   2 |
+| PORTABLE ELECTRONICS |                   5 |
+| MP3 PLAYERS          |                   2 |
+| FLASH                |                   1 |
+| CD PLAYERS           |                   2 |
+| 2 WAY RADIOS         |                   1 |
++----------------------+---------------------+
+
+这条查询语句在检索整树的查询语句上增加了COUNT和GROUP BY子句，同时在WHERE子句中引用了product表和一个自连接。
+
+新增节点
+
+我们已经学会了如何检索一个树，现在我们通过增加节点的例子来看看我们该如何更新树。
+让我们再回顾一下Nested Set的示例图。
+
+nested_numbered
+
+如果我们想在TELEVISIONS和PORTABLE ELECTRONICS 之间增加一个新节点，
+那这个新节点的lft和rgt值应该分别为10和11，并且新节点右边所有节点的lft和rgt的值都应当加2。
+然后我们就可以用得到的lft和rgt值去插入这个新节点了。
+在MySQL 5中，这个任务可以通过储存过程来完成。
+我假设当前大部分读者使用的是MySQL 4.1版本，因为这是最新的稳定版本。
+所以，我使用了锁表（LOCK TABLES）语句来隔离查询：
+
+LOCK TABLE nested_category WRITE;
+
+SELECT @myRight := rgt FROM nested_category
+WHERE name = 'TELEVISIONS';
+
+UPDATE nested_category SET rgt = rgt + 2 WHERE rgt > @myRight;
+UPDATE nested_category SET lft = lft + 2 WHERE lft > @myRight;
+
+INSERT INTO nested_category(name, lft, rgt) VALUES('GAME CONSOLES', @myRight + 1, @myRight + 2);
+
+UNLOCK TABLES;
+We can then check our nesting with our indented tree query:
+
+SELECT CONCAT( REPEAT( ' ', (COUNT(parent.name) - 1) ), node.name) AS name
+FROM nested_category AS node,
+        nested_category AS parent
+WHERE node.lft BETWEEN parent.lft AND parent.rgt
+GROUP BY node.name
+ORDER BY node.lft;
+
++-----------------------+
+| name                  |
++-----------------------+
+| ELECTRONICS           |
+|  TELEVISIONS          |
+|   TUBE                |
+|   LCD                 |
+|   PLASMA              |
+|  GAME CONSOLES        |
+|  PORTABLE ELECTRONICS |
+|   MP3 PLAYERS         |
+|    FLASH              |
+|   CD PLAYERS          |
+|   2 WAY RADIOS        |
++-----------------------+
+
+如果我们想要在叶子节点下增加节点，我们得稍微修改一下查询语句。
+让我们在2 WAYRADIOS叶子节点下添加FRS节点吧：
+
+LOCK TABLE nested_category WRITE;
+
+SELECT @myLeft := lft FROM nested_category
+
+WHERE name = '2 WAY RADIOS';
+
+UPDATE nested_category SET rgt = rgt + 2 WHERE rgt > @myLeft;
+UPDATE nested_category SET lft = lft + 2 WHERE lft > @myLeft;
+
+INSERT INTO nested_category(name, lft, rgt) VALUES('FRS', @myLeft + 1, @myLeft + 2);
+
+UNLOCK TABLES;
+
+在这个例子中，我们扩大了新产生的父节点(2 WAY RADIOS节点）的右值及其所有它的右边节点的左右值，
+之后置新增节点于新父节点之下。
+正如你所看到的，我们新增的节点已经完全融入了嵌套集合中：
+
+SELECT CONCAT( REPEAT( ' ', (COUNT(parent.name) - 1) ), node.name) AS name
+FROM nested_category AS node,
+        nested_category AS parent
+WHERE node.lft BETWEEN parent.lft AND parent.rgt
+GROUP BY node.name
+ORDER BY node.lft;
+
++-----------------------+
+| name                  |
++-----------------------+
+| ELECTRONICS           |
+|  TELEVISIONS          |
+|   TUBE                |
+|   LCD                 |
+|   PLASMA              |
+|  GAME CONSOLES        |
+|  PORTABLE ELECTRONICS |
+|   MP3 PLAYERS         |
+|    FLASH              |
+|   CD PLAYERS          |
+|   2 WAY RADIOS        |
+|    FRS                |
++-----------------------+
+
+删除节点
+
+使用Nested Sets的最后一个基本任务是节点的删除。
+删除节点的过程跟节点所在的层次有关;
+删除一个叶子节点就要比删除一个有子节点的节点要容易，因为我们不得不处理孤立节点。
+
+删除一个叶子节点的过程，跟新增节点的过程正好相反。
+该节点右边的所有节点的左右值，都应该减去该节点的宽度。
+
+LOCK TABLE nested_category WRITE;
+
+SELECT @myLeft := lft, @myRight := rgt, @myWidth := rgt - lft + 1
+FROM nested_category
+WHERE name = 'GAME CONSOLES';
+
+DELETE FROM nested_category WHERE lft BETWEEN @myLeft AND @myRight;
+
+UPDATE nested_category SET rgt = rgt - @myWidth WHERE rgt > @myRight;
+UPDATE nested_category SET lft = lft - @myWidth WHERE lft > @myRight;
+
+UNLOCK TABLES;
+
+让我们再一次检验一下节点已经成功删除,而且没有打乱数据的层次：
+
+SELECT CONCAT( REPEAT( ' ', (COUNT(parent.name) - 1) ), node.name) AS name
+FROM nested_category AS node,
+        nested_category AS parent
+WHERE node.lft BETWEEN parent.lft AND parent.rgt
+GROUP BY node.name
+ORDER BY node.lft;
+
++-----------------------+
+| name                  |
++-----------------------+
+| ELECTRONICS           |
+|  TELEVISIONS          |
+|   TUBE                |
+|   LCD                 |
+|   PLASMA              |
+|  PORTABLE ELECTRONICS |
+|   MP3 PLAYERS         |
+|    FLASH              |
+|   CD PLAYERS          |
+|   2 WAY RADIOS        |
+|    FRS                |
++-----------------------+
+
+下面的方法可以完美的删除一个节点及其所有子节点。
+
+LOCK TABLE nested_category WRITE;
+
+SELECT @myLeft := lft, @myRight := rgt, @myWidth := rgt - lft + 1
+FROM nested_category
+WHERE name = 'MP3 PLAYERS';
+
+DELETE FROM nested_category WHERE lft BETWEEN @myLeft AND @myRight;
+
+UPDATE nested_category SET rgt = rgt - @myWidth WHERE rgt > @myRight;
+UPDATE nested_category SET lft = lft - @myWidth WHERE lft > @myRight;
+
+UNLOCK TABLES;
+
+再一次，我们来验证下是否成功删除了整个子树：
+
+SELECT CONCAT( REPEAT( ' ', (COUNT(parent.name) - 1) ), node.name) AS name
+FROM nested_category AS node,
+        nested_category AS parent
+WHERE node.lft BETWEEN parent.lft AND parent.rgt
+GROUP BY node.name
+ORDER BY node.lft;
+
++-----------------------+
+| name                  |
++-----------------------+
+| ELECTRONICS           |
+|  TELEVISIONS          |
+|   TUBE                |
+|   LCD                 |
+|   PLASMA              |
+|  PORTABLE ELECTRONICS |
+|   CD PLAYERS          |
+|   2 WAY RADIOS        |
+|    FRS                |
++-----------------------+
+
+有时，我们希望仅仅删除父节点，而不删除它的子节点。
+有时你可能只是想改变节点的名字，让他变成一个占位符，直到新的替代名字出现，比如你需要开除一个主管。
+还有些情况，子节点要全部移动到被删除的父节点对应的层级：
+
+LOCK TABLE nested_category WRITE;
+
+SELECT @myLeft := lft, @myRight := rgt, @myWidth := rgt - lft + 1
+FROM nested_category
+WHERE name = 'PORTABLE ELECTRONICS';
+
+DELETE FROM nested_category WHERE lft = @myLeft;
+
+UPDATE nested_category SET rgt = rgt - 1, lft = lft - 1 WHERE lft BETWEEN @myLeft AND @myRight;
+UPDATE nested_category SET rgt = rgt - 2 WHERE rgt > @myRight;
+UPDATE nested_category SET lft = lft - 2 WHERE lft > @myRight;
+
+UNLOCK TABLES;
+
+在这个例子中，我们对该节点所有右边节点的左右值都减去了2（因为不考虑其子节点，该节点的宽度为2），
+对该节点的子节点的左右值都减去了1（弥补由于失去父节点的左值造成的裂缝）。
+我们再一次确认，那些节点是否都晋升了：
+
+SELECT CONCAT( REPEAT( ' ', (COUNT(parent.name) - 1) ), node.name) AS name
+FROM nested_category AS node,
+        nested_category AS parent
+WHERE node.lft BETWEEN parent.lft AND parent.rgt
+GROUP BY node.name
+ORDER BY node.lft;
+
++---------------+
+| name          |
++---------------+
+| ELECTRONICS   |
+|  TELEVISIONS  |
+|   TUBE        |
+|   LCD         |
+|   PLASMA      |
+|  CD PLAYERS   |
+|  2 WAY RADIOS |
+|   FRS         |
++---------------+
+
+有时，当删除节点的时候，把该节点的一个子节点挂载到该节点的父节点下，
+而其他节点挂到该节点父节点的兄弟节点下，考虑到篇幅这种情况不在这里解说了。
+
+最后的思考
+
+我希望这篇文章对你有所帮助，SQL中的嵌套集合的观念大约有十年的历史了，
+在网上和一些书中都能找到许多相关信息。
+在我看来，讲述分层数据的管理最全面的，是来自一本名叫《Joe Celko’s Trees and Hierarchies in SQL for Smarties》的书，
+此书的作者是在高级SQL领域倍受尊敬的Joe Celko。Joe Celko被认为是嵌套集合模型的创造者，
+更是该领域内的多产作家。
+我把Celko的书当作无价之宝，并极力地推荐它。
+在这本书中涵盖了在此文中没有提及的一些高级话题，
+也提到了其他一些关于邻接表和嵌套集合模型下管理分层数据的方法。
+
+在随后的参考书目章节中，我列出了一些网络资源，也许对你研究分层数据的管理会有所帮助，
+其中包括一些PHP相关的资源（处理嵌套集合的PHP库）。
+如果你还在使用邻接表模型，你该去试试嵌套集合模型了，
+在Storing Hierarchical Data in a Database文中下方列出的一些资源链接中能找到一些样例代码，
+可以去试验一下。
+
