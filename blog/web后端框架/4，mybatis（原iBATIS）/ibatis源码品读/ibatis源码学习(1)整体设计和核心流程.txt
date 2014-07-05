@@ -1,0 +1,354 @@
+﻿ibatis源码学习(1)整体设计和核心流程
+
+http://learnworld.iteye.com/blog/1447284
+
+2012-03-09 08:48
+
+本文主要从ibatis框架的基本代码骨架进行切入，理解ibatis框架的整体设计思路，各组件的实现细节将在后文进行分析。 
+
+背景 
+介绍ibatis实现之前，先来看一段jdbc代码: 
+
+
+
+Class.forName("com.mysql.jdbc.Driver");  
+String url = "jdbc:mysql://localhost:3306/learnworld";  
+Connection con = DriverManager.getConnection(url, "root","learnworld");           
+String sql = "select * from test";  
+PreparedStatement ps = con.prepareStatement(sql);             
+ResultSet rs = ps.executeQuery();  
+while(rs.next()){  
+    System.out.println("id=" + rs.getInt(1)+". score=" + rs.getInt(2));  
+}  
+上面这段代码大家比较熟悉，这是一个典型的jdbc方式处理流程: 建立连接->传递参数->sql执行->处理结果->关闭连接。 
+
+问题 
+上面的代码中包含了很多不稳定的因素，可能会经常发生修改: 
+1. 数据源和事务管理等 
+2. sql语句 
+3. 入参和结果处理 
+如果这些发生变化，我们需要直接修改代码，重新编译、打包、发布等。 
+
+DIY 
+下面从我们自己DIY的视角来考虑如何设计框架，应对这些问题。框架的核心思想是抽取共性，封装可能出现的变化。 
+如何处理数据源变化？ 
+将数据源连接等过程固定，将数据源中易变的信息封装在一起(如driverClassName, url等)，放在配置文件中。 
+
+如何处理sql语句的变化？ 
+将sql语句统一放在配置文件中，为每条sql语句设置标识，在代码中使用标识进行调用。 
+
+如何应对入参和结果处理的变化？ 
+将参数传递，结果映射到java bean等统一封装在配置文件中。 
+
+结论: 将不变的流程固化到代码中，将变化的信息封装在配置文件中。 
+
+
+核心接口 
+ibatis抽取了以下几个重要接口: 
+
+1. SqlMapExecutor 
+该接口是对SQL操作行为的抽象，提供了SQL单条执行和批处理涉及的所有操作方法。 
+ 
+
+
+2. SqlMapTransactionManager 
+该接口是对事务行为的抽象，提供了事务执行过程中的涉及的所有方法。 
+ 
+
+3. SqlMapClient 
+该接口定位是SQL执行客户端，是线程安全的，用于处理多个线程的sql执行。它继承了上面两个接口，这意味着该接口具有SQL执行、批处理和事务处理的能力，如果你拥有该接口的实现类，意味着执行任何SQL语句对你来说是小菜一碟。该接口的核心实现类是SqlMapClientImpl。 
+
+4. SqlMapSession 
+该接口在继承关系上和SqlMapClient一致，但它的定位是保存单线程sql执行过程的session信息。该接口的核心实现类是SqlMapSessionImpl。 
+
+5. MappedStatement 
+该接口定位是单条SQL执行时的上下文环境信息，如SQL标识、SQL、参数信息、返回结果、操作行为等。 
+
+6. ParameterMap/ResultMap 
+该接口用于在SQL执行的前后提供参数准备和执行结果集的处理。 
+
+以上接口的类图关系如下(部分): 
+ 
+
+这里必须要强调SqlMapExecutorDelegate这个类，他是一个执行代理类，在ibatis框架中地位非常重要，因为他耦合了用户端的操作行为和执行环境，他持有执行操作的所需要的所有数据，同时管理着执行操作依赖的环境。 
+
+初始化过程 
+1. 读取和解析sqlmap配置文件。 
+2. 注册Statement对象。 
+3. 创建SqlMapClientImpl对象。 
+
+下面是一个Spring中sqlMapClient的bean配置: 
+
+
+
+<bean id="sqlMapClient" class="org.springframework.orm.ibatis.SqlMapClientFactoryBean">  
+    <property name="dataSource" ref="dataSource" />  
+    <property name="configLocation" value="classpath/sqlmap/sqlmap-ibatis.xml" />  
+</bean>  
+下面看一下SqlMapClientFactoryBean的初始化方法afterPropertiesSet()，用于构建sqlMapClient对象: 
+
+
+
+public void afterPropertiesSet() throws Exception {  
+    ...  
+  
+    this.sqlMapClient = buildSqlMapClient(this.configLocations, this.mappingLocations, this.sqlMapClientProperties);   //初始化核心方法，构建sqlMapClient对象  
+  
+    ...  
+}  
+看一下buildSqlMapClient()的实现: 
+
+
+
+protected SqlMapClient buildSqlMapClient(  
+        Resource[] configLocations, Resource[] mappingLocations, Properties properties)  
+        throws IOException {  
+               ...  
+    SqlMapClient client = null;  
+    SqlMapConfigParser configParser = new SqlMapConfigParser();  
+    for (int i = 0; i < configLocations.length; i++) {  
+        InputStream is = configLocations[i].getInputStream();  
+        try {  
+            client = configParser.parse(is, properties); //通过SqlMapConfigParser解析配置文件，生成SQLMapClientImpl对象  
+        }  
+        catch (RuntimeException ex) {  
+            throw new NestedIOException("Failed to parse config resource: " + configLocations[i], ex.getCause());  
+        }  
+    }  
+    ...  
+    return client;  
+}  
+SQL执行过程 
+下面以一个select语句的执行过程，分析一下以上各ibatis核心接口相互如何配合。 
+1. dao调用SqlMapClientTemplate的query()方法： 
+
+
+
+public Object queryForObject(final String statementName, final Object parameterObject)  
+        throws DataAccessException {  
+  
+    return execute(new SqlMapClientCallback() {  
+        public Object doInSqlMapClient(SqlMapExecutor executor) throws SQLException {  
+            return executor.queryForObject(statementName, parameterObject);  
+        }  
+    });  
+}  
+2. execute()方法中展示了执行过程中的核心逻辑：获取session -> 获取connection -> 执行sql ->释放connection -> 关闭session。 
+部分源码如下： 
+
+
+
+public Object execute(SqlMapClientCallback action) throws DataAccessException {  
+                ...  
+        SqlMapSession session = this.sqlMapClient.openSession(); //获取session信息  
+          
+        Connection ibatisCon = null;     //获取Connection  
+  
+        try {  
+            Connection springCon = null;  
+            DataSource dataSource = getDataSource();  
+            boolean transactionAware = (dataSource instanceof TransactionAwareDataSourceProxy);  
+  
+            try {  
+                ibatisCon = session.getCurrentConnection();  
+                if (ibatisCon == null) {  
+                    springCon = (transactionAware ?  
+                            dataSource.getConnection() : DataSourceUtils.doGetConnection(dataSource));  
+                    session.setUserConnection(springCon);  
+                ...  
+                }  
+            }  
+            ...  
+  
+            // Execute given callback...  
+            try {  
+                return action.doInSqlMapClient(session); //执行SQL  
+            }  
+            ...  
+            finally {  
+                        // 关闭Connection  
+                try {  
+                    if (springCon != null) {  
+                        if (transactionAware) {  
+                            springCon.close();   
+                        }  
+                        else {  
+                            DataSourceUtils.doReleaseConnection(springCon, dataSource);  
+                        }  
+                    }  
+                }  
+                  
+            if (ibatisCon == null) {  
+                session.close(); //关闭session  
+            }  
+        }  
+3. action.doInSqlMapClient(session)调用SqlMapSessionImpl().queryForObject()方法。 
+注意: 这里调用对象主体为SqlMapSessionImpl，表示在线程session中执行sql(session是ThreadLocal的)，而不在负责整体协调的SqlMapClientImpl中执行sql语句。 
+源码如下： 
+
+
+
+public Object queryForObject(final String statementName, final Object parameterObject)  
+        throws DataAccessException {  
+  
+    return execute(new SqlMapClientCallback() {  
+       //这里的SqlMapExecutor对象类型为SqlMapSessionImpl  
+        public Object doInSqlMapClient(SqlMapExecutor executor) throws SQLException {  
+            return executor.queryForObject(statementName, parameterObject);  
+        }  
+    });  
+}  
+4. SqlMapSessionImpl().queryForObject()的方法很简单，直接交给代理对象SqlMapExecutorDelegate处理: 
+
+
+
+public Object queryForObject(String id, Object paramObject) throws SQLException {  
+  return delegate.queryForObject(session, id, paramObject);  
+}  
+5. SqlMapExecutorDelegate的queryForObject()方法代码如下: 
+
+
+
+public Object queryForObject(SessionScope session, String id, Object paramObject, Object resultObject) throws SQLException {  
+  Object object = null;  
+  
+  MappedStatement ms = getMappedStatement(id); //MappedStatement对象集是上文中提及的初始化方法SqlMapClientFactoryBean.afterPropertiesSet()中，由配置文件构建而成  
+  Transaction trans = getTransaction(session); // 用于事务执行  
+  boolean autoStart = trans == null;  
+  
+  try {  
+    trans = autoStartTransaction(session, autoStart, trans);  
+  
+    RequestScope request = popRequest(session, ms);  // 从RequestScope池中获取该次sql执行中的上下文环境RequestScope   
+    try {  
+      object = ms.executeQueryForObject(request, trans, paramObject, resultObject);   // 执行sql  
+    } finally {  
+      pushRequest(request);  //归还RequestScope  
+    }  
+  
+    autoCommitTransaction(session, autoStart);  
+  } finally {  
+    autoEndTransaction(session, autoStart);  
+  }  
+  
+  return object;  
+}  
+6. MappedStatement携带了SQL语句和执行过程中的相关信息，MappedStatement.executeQueryForObject()方法部分源码如下: 
+
+
+
+public Object executeQueryForObject(RequestScope request, Transaction trans, Object parameterObject, Object resultObject)  
+    throws SQLException {  
+  try {  
+    Object object = null;  
+  
+    DefaultRowHandler rowHandler = new DefaultRowHandler();  
+    executeQueryWithCallback(request, trans.getConnection(), parameterObject, resultObject, rowHandler, SqlExecutor.NO_SKIPPED_RESULTS, SqlExecutor.NO_MAXIMUM_RESULTS); //执行sql语句  
+      
+    //结果处理，返回结果  
+    List list = rowHandler.getList();   
+    if (list.size() > 1) {  
+      throw new SQLException("Error: executeQueryForObject returned too many results.");  
+    } else if (list.size() > 0) {  
+      object = list.get(0);  
+    }  
+  
+    return object;  
+  }   
+  ....  
+}  
+7. MappedStatement.executeQueryWithCallback()方法包含了参数值映射、sql准备和sql执行等关键过程，部分源码如下: 
+
+
+
+protected void executeQueryWithCallback(RequestScope request, Connection conn, Object parameterObject, Object resultObject, RowHandler rowHandler, int skipResults, int maxResults)  
+    throws SQLException {  
+    ...  
+  try {  
+    parameterObject = validateParameter(parameterObject);  //验证入参  
+  
+    Sql sql = getSql();  //获取SQL对象  
+  
+    errorContext.setMoreInfo("Check the parameter map.");  
+    ParameterMap parameterMap = sql.getParameterMap(request, parameterObject);// 入参映射  
+  
+    errorContext.setMoreInfo("Check the result map.");  
+    ResultMap resultMap = sql.getResultMap(request, parameterObject); //结果映射  
+  
+    request.setResultMap(resultMap);  
+    request.setParameterMap(parameterMap);  
+  
+    errorContext.setMoreInfo("Check the parameter map.");  
+    Object[] parameters = parameterMap.getParameterObjectValues(request, parameterObject);  //获取参数值  
+  
+    errorContext.setMoreInfo("Check the SQL statement.");  
+    String sqlString = sql.getSql(request, parameterObject);  //获取拼装后的sql语句  
+  
+    errorContext.setActivity("executing mapped statement");  
+    errorContext.setMoreInfo("Check the SQL statement or the result map.");  
+    RowHandlerCallback callback = new RowHandlerCallback(resultMap, resultObject, rowHandler);  
+    sqlExecuteQuery(request, conn, sqlString, parameters, skipResults, maxResults, callback);  //sql执行  
+  
+    errorContext.setMoreInfo("Check the output parameters.");  
+    if (parameterObject != null) {  
+      postProcessParameterObject(request, parameterObject, parameters);  
+    }  
+  
+    errorContext.reset();  
+    sql.cleanup(request);  
+    notifyListeners();  
+    ....  
+}  
+8. 到了执行中最核心的一步，也是最后一步: MappedStatement.sqlExecuteQuery()方法，它负责sql的最后执行，内部调用了SqlExecutor.executeQuery()方法，部分源码如下: 
+
+
+
+public void executeQuery(RequestScope request, Connection conn, String sql, Object[] parameters, int skipResults, int maxResults, RowHandlerCallback callback) throws SQLException {  
+  ...  
+  PreparedStatement ps = null;  
+  ResultSet rs = null;  
+  setupResultObjectFactory(request);  
+  try {  
+    errorContext.setMoreInfo("Check the SQL Statement (preparation failed).");  
+    Integer rsType = request.getStatement().getResultSetType();  
+    //初始化PreparedStatement，设置sql、参数值等  
+    if (rsType != null) {  
+      ps = prepareStatement(request.getSession(), conn, sql, rsType);  
+    } else {  
+      ps = prepareStatement(request.getSession(), conn, sql);  
+    }  
+    setStatementTimeout(request.getStatement(), ps);  
+    Integer fetchSize = request.getStatement().getFetchSize();  
+    if (fetchSize != null) {  
+      ps.setFetchSize(fetchSize.intValue());  
+    }  
+    errorContext.setMoreInfo("Check the parameters (set parameters failed).");  
+    request.getParameterMap().setParameters(request, ps, parameters);  
+    errorContext.setMoreInfo("Check the statement (query failed).");  
+    ps.execute(); //执行  
+    errorContext.setMoreInfo("Check the results (failed to retrieve results).");  
+  
+    // ResultSet处理  
+    rs = handleMultipleResults(ps, request, skipResults, maxResults, callback);  
+  } finally {  
+    try {  
+      closeResultSet(rs);  
+    } finally {  
+      closeStatement(request.getSession(), ps);  
+    }  
+  }  
+  
+}  
+上面这段代码大家会非常熟悉，和本文开始处的代码很相似，ibatis归根到底，是对JDBC操作一定程度上的封装而已。 
+
+下面在总体上概括sql的一般执行过程: 
+SqlMapClientImpl接到请求后，创建SqlMapSessionImpl对象(ThreadLocal，保证线程安全)，SqlMapSessionImpl交由内部的代理类SqlMapExecutorDelegate执行，代理类获取相应的MappedStatement，交由MappedStatement对象执行，MappedStatement交由SqlExecutor执行，最终使用JDBC方式执行sql。 
+
+小结 
+ibatis源码规模较小，整体设计思路清晰，阅读ibatis源码可以按以下思路进行: 
+1. 了解ibatis框架的整体目标，用于解决哪些问题。 
+2. ibatis如何解决这些问题，带着问题去学习。 
+3. 了解ibatis框架的核心接口和整体设计思路。 
+4. 抓住ibatis核心流程: 初始化和请求处理流程。 
+5. 详细ibatis框架的关键细节实现，如ibatis中的配置文件解析，参数和结果映射等。
+

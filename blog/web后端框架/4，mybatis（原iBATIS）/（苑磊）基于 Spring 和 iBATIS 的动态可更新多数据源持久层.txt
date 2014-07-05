@@ -1,0 +1,144 @@
+﻿（苑磊）基于 Spring 和 iBATIS 的动态可更新多数据源持久层
+苑 磊, 软件工程师, IBM
+发布日期： 2012 年 2 月 09 日 
+http://www.ibm.com/developerworks/cn/java/j-lo-dynamicpersist/index.html?ca=drs-
+
+简介： 当开发拥有多重数据源的项目时，常常会遇到这样一种需求：用户希望能够通过 UI 来自己动态配置数据源。但实现这种需求通常会遇到三个问题，1, 应用程序需要重新发布来更新数据连接。2，数据源个数上限不能动态增长。3，数据源的维护和修改需要专业人员在后台操作。本文提出了一种创新性的解决方案，通过使用 Spring+iBATIS 的框架，来实现可动态更新的多重数据源的持久层。对于解决以上问题具有一定的参考价值。
+
+前言
+我们时常会遇到一些 web 项目，需要从不同的数据源中抓取数据来进行分析，而这些数据源是有可能变化的，需要用户来进行动态的维护和添加。可是，大多数的 web 程序使用了应用服务器或者容器中间件来管理数据源的生命周期，因此数据源的变化自然不能够独立于程序，而需要由专业人士去进行维护，必要时还需要重新发布程序来适应数据源的变化，而且数据源的个数、数据库的类型也都会有所限制。
+那么怎样才可以突破以上这些局限，彻底实现由用户远程对数据源进行维护和管理的需求呢？本文提出了一个有效的解决方案，该方案的大体思路如下：将数据源的配置信息保存在一个地址相对固定的数据库或本地文件系统中，系统将依据这些配置信息自动生成数据源（每当数据信息发生变化时，系统将重新生成新数据源），然后通过工厂模式的持久层将这些数据源自动分配给对应的类对象使用。如此，只需要一个用户界面，来对此数据源的配置信息进行管理，就可以实现由用户自主维护数据源系统的目的了。下文将以一个 Spring+iBATIS 框架的实例，来详细描述该解决方案的实现。
+
+相关技术介绍
+iBATIS
+Apache iBATIS 是 Clinton Begin 开发，现在由 Apache 基金会支持的用于加快 JDBC 编程的经过泛化的框架，是当前 IT 项目中使用很广泛的一个半自动 ORM 框架，区别于 Hibernate 之类的全自动框架，iBATIS 对数据库的操作拥有更加灵活的控制，对于那些经常需要调用本地数据库函数自定义 SQL 语句，或是喜欢自己优化 SQL 执行效率的开发者来说，iBATIS 是一个非常不错的选择。而得到广泛应用的开源企业架构 Spring Framework，也很好的将 iBATIS 进行了集成，使得 iBATIS 在 Spring 中的使用更加便利、快捷。下面是 iBATIS 的一些关键组件：
+SqlMapClient：是 iBATIS 的重要接口，是线程安全的。这个接口涉及到对 SQL 映射的执行和批处理。
+Sqlmap-config.xml：是使用 iBATIS 的起点，负责把所有的 SQL 映射文件（sqlmap.xml）组合在一起。该配置文件可以告诉 iBATIS 如何连接数据库，以及获取哪些 SQL 映射文件（sqlmap.xml）。
+sqlmap.xml包含了我们将要运行的 SQL 语句，被 Sqlmap-config.xml 文件所引用。
+
+图 1.iBATIS 架构图
+图 1.iBATIS 架构图 
+我们之所以选用 iBATIS 而不是 Hibernate 来作为本解决方案的开发框架，主要是因为相比 Hibernate 来说 iBATIS 更具灵活性，可以更为方便地对其结构进行改写。尤其是在对不同数据库结构的封装方面，iBATIS 更适用于对实现相同逻辑的不同数据库结构的支持。反观 Hibernate 则需要对数据库结构进行封装，这就意味着对不同的数据库结构要生成不同的 PO 类，这会使开发工作变得繁琐。当然用户也可以选择使用 Hibernate 来作为框架，其理念是相同的，不同的只是实现手段。
+Spring 对 iBATIS 的支持
+Spring 通过 DAO 模式，提供了对 iBATIS 的良好支持。
+SqlMapClient：是 iBATIS 中的主要接口，通过 xml 配置文件可以让 Spring 容器来管理 SqlMapClient 对象的创建，Spring 提供了 SqlMapClientFactoryBean 来生成该对象。
+SqlMapClientFactoryBean：SqlMapClientFactoryBean 是由 Spring 所提供的，用来生成 SqlMapClient 对象的一个工厂类。当使用 Spring 配置文件将 SqlMapClientFactoryBean 作为一个 SqlMapClient 的实现类进行注入时，Spring 容器将根据接口里的定义来调用其 getObject 方法，最终返回一个 SqlMapClient 接口的实现类。SqlMapClientFactoryBean 生成的对象拥有两个重要属性，configLocation 属性用来确定 sqlmap-config.xml，dataSource 属性用来确定数据源。
+SqlMapClientDaoSupport：Spring 提供的数据库操作类，应用程序的持久层 DAO 则可以继承这个类。SqlMapClientDaoSupport 需要 Spring 为其注入 SqlMapClient 接口的实现对象，来确定使用何种数据源和使用何种 sqlmap-config.xml。
+持久层的架构和设计
+如上节所述可知，如果要使传统的 Spring+iBATIS 框架支持动态的多数据源持久层，则需要对其进行改良。而数据源是由 SqlMapClient 对象的属性所定义的，所以要想办法通过变更 SqlMapClient 接口的实现对象来达到目的。Spring 是使用 XML 配置文件来存储 SqlMapClient 对象的信息，因此只需要能够根据数据源配置信息来动态生成该 XML 配置文件，来实现对 SqlMapClient 接口的动态注入即可。
+
+图 2. 持久层架构流程图（查看大图）
+图 2. 持久层架构流程图 
+持久层架构的具体处理流程如上图所示：
+1.创建配置文件生成类 SqlMapClientFactory，当应用服务器启动时，Spring 框架将启动 SqlMapClientFactory 类的 init 方法（每当数据源配置信息发生变化时也重新启动此方法），该方法将读取数据库或本地文件系统中存储的数据源配置信息，然后动态的生成 Spring XML 配置文件。在此 XML 配置文件中，根据不同的数据源定义了很多不同的 SqlMapClient 对象，并定义了其相对应的数据源和 sqlmap-config 文件。
+2.创建 SqlMapClient 接口的实现类 RoutingSqlMapClient，并通过 Spring 将生成的所有 SqlMapClient 对象以 Map 的结构形式注入到 RoutingSqlMapClient 中，当其被调用时将根据要求使用相应的 SqlMapClient 实现对象来对 RoutingSqlMapClient 的方法进行重写。
+3.将 RoutingSqlMapClient 注入到所有继承了 SqlMapClientDaoSupport 的 DAO 实现类中，DAO 将根据实际需求决定使用哪个数据源。
+持久层的具体实现
+使用 SqlMapClientFactory 类生成 XML 配置文件
+如上文的描述，第一步应该创建 SqlMapClientFactory 类，并创建一个用来生成 SqlMapClient 的 XML 配置文件的方法。然后配置 Spring，使其能在程序启动时自动调用 SqlMapClient 的该方法。该方法要从本地文件系统或地址相对固定的数据库系统中读取数据源配置信息，SqlMapClientFactory 所读取的数据源配置信息的主要字段如下：
+注：<hostname> 是数据库所在的服务器地址，<portNum> 是数据库所用服务端口号，<databaseName> 是数据库名称，<userName> 是数据库用户名，<password> 是该用户的密码
+
+表 1 数据源配置信息
+ID	Name	Connection	User	Password	DBType
+00001	PROJECTA	jdbc:db2://<hostname>:<portNum>/<databaseName>	<userName>	<password>	DB2
+00002	PROJECTB	jdbc:microsoft:sqlserver://<hostname>:
+<portNum>;DatabaseName=<databaseName>	<userName>	<password>	sqlserver
+00003	PROJECTC	jdbc:db2://<hostname>:<portNum>/<databaseName>	<userName>	<password>	DB2
+00004	PROJECTD	jdbc:db2://<hostname>:<portNum>/<databaseName>	<userName>	<password>	DB2
+
+SqlMapClientFactory 将根据这些配置信息生成相应的 SqlMapClient 对象的 XML 配置文件。下面详细介绍一下该 XML 配置文件的主要构成。
+1，根据数据源配置信息的 ID 和 Name，生成所有 SqlMapClient 接口实现对象的 Map 列表。
+
+清单 1. routingSqlMapClient 配置
+				 
+ <bean id="routingSqlMapClient" class="com.ibm.mbps.tsd.dao.RoutingSqlMapClient"> 
+  <property name="targetSqlMapClients"> 
+ <map key-type="java.lang.String"> 
+ <entry key="PROJECTA" value-ref="sqlmapClient_00001"/> 
+ <entry key="PROJECTB" value-ref="sqlmapClient_00002"/> 
+ <entry key="PROJECTC" value-ref="sqlmapClient_00003"/> 
+ <entry key="PROJECTD" value-ref="sqlmapClient_00004"/> 
+		……
+    </map> 
+ </property> 
+ </bean> 
+
+2，为每个 SqlMapClient 接口实现对象创建数据源，数据源根据上文的配置信息生成。
+
+清单 2. data source 配置示例
+				 
+ <bean id="datasource_00001" class="org.apache.commons.dbcp.BasicDataSource"> 
+ <property name="driverClassName"> 
+    <value>com.ibm.db2.jcc.DB2Driver</value> 
+  </property> 
+  <property name="url"> 
+    <value> jdbc:db2://hostname:portNum/databaseName</value> 
+  </property> 
+  <property name="username"> 
+    <Value>userName</value> 
+  </property> 
+  <property name="password"> 
+    <value>password</value> 
+ </property> 
+ </bean> 
+
+3，为每个 SqlMapClient 对象注入数据源和 sqlmap-config 配置文件，应该注意的是该 sqlmap-config 配置文件是针对某一类数据源的，比如多个数据源的数据库类型和数据库内容都相同，那么就应该使用同一张配置文件。
+
+清单 3. SqlMapClient 对象配置示例
+				 
+ <bean id=" sqlmapClient_00001" class="org.springframework.orm.ibatis.SqlMapClient 
+ FactoryBean"> 
+ <property name="configLocation" value="classpath:/sqlmap/db2/sql-map-config.xml"/> 
+    <property name="dataSource"> 
+      <ref local=" datasource_00001"/> 
+    </property> 
+ </bean> 
+
+重写 SqlMapClient 接口的实现类 RoutingSqlMapClient
+生成了 SqlMapClient 对象后，我们还要创建一个 RoutingSqlMapClient 的实现类用来重写相应的 SqlMapClient 接口方法。RoutingSqlMapClient 将创建一个 Map 变量去承接上文生成的 SqlMapClient 实现对象的 Map 列表，然后根据关键字来判断用哪个实现对象来动态的重写 RoutingSqlMapClient 类。RoutingSqlMapClient 使用变量 targetSqlMapClients 来接收 SqlMapClient 对象列表。
+
+清单 4. RoutingSqlMapClient 类的代码片段
+				 
+ public class RoutingSqlMapClient implements SqlMapClient { 
+ private Map<String, SqlMapClient> targetSqlMapClients; 
+ public void flushDataCache() 
+ { 
+ targetSqlMapClients.get(getDSType()).flushDataCache(); 
+ } 
+ public SqlMapSession getSession() 
+ { 
+ return targetSqlMapClients.get(getDSType()).getSession(); 
+ } 
+ public int delete(String id, Object parameterObject) throws SQLException 
+ { 
+ return targetSqlMapClients.get(getDSType()).delete(id,parameterObject); 
+ } 
+ public Object insert(String id, Object parameterObject) throws SQLException 
+ { 
+ return targetSqlMapClients.get(getDSType()).insert(id,parameterObject); 
+ } 
+ public List queryForList(String id, Object parameterObject) throws SQLException { 
+ return targetSqlMapClients.get(getDSType()).queryForList(id,parameterObject); 
+ } 
+……
+ } 
+
+创建继承 SqlMapClientDaoSupport 的 DAO 类
+我们选择使用 RoutingSqlMapClient 重写 SqlMapClient 的实现方法，而不是将 SqlMapClient 实现对象直接注入到对应 DAO 中的原因是：一个 DAO 类有可能对应多个数据源，如果将只包含一个数据源的 SqlMapClient 实现对象直接注入 DAO，那将严重限制 DAO 的可重用性。因此我们将整个 SqlMapClient 实现对象的列表装载入 RoutingSqlMapClient 类，在逻辑层定义使用哪一个 SqlMapClient 对象对 RoutingSqlMapClient 进行重写，持久层的 DAO 架构如下图所示：
+
+图 3. 持久层 DAO 架构图（查看大图）
+图 3. 持久层 DAO 架构图 
+DAO 实体类继承 SqlMapClientDaoSupport 并实现相应不同的接口。如图所示，不同的接口对应不同的上层逻辑，而实现其逻辑的 DAO 实现类引用了不同的数据源和 sqlmap-config.xml，这些数据源和 XML 定义在 SqlMapClient 对象内，当我们调用持久层 DAO 类对数据库进行操作时需要先调用 RoutingSqlMapClient 内的 setDSType() 方法来确定使用哪个数据源，并使用对应的 SqlMapClient 实现对象对 RoutingSqlMapClient 进行重写，这样就可以把对应此数据源的 SqlMapClient 以 RoutingSqlMapClient 对象的形式传入到 DAO 内，实现多数据源并存的结构了。
+支持动态更新的多数据源持久层开发完毕后，还应该为用户开发一套 UI 组件来使用户能够对数据源信息进行更新和维护。而每次用户更新完毕都要调用 SqlMapClientFactory 类的 init 方法，来重新生成 SqlMapClient 的 XML 配置文件，这样就可以不重新启动服务器而实现数据源的动态更新和添加了。
+总结
+本文描述了，可动态更新的多数据源持久层系统的一种实现方式，对于开发类似项目的开发者有一定的借鉴作用。但是由于本文的主要目的是阐述一种理念方法而不是具体实现，所以一些相关技术及具体实现没有写出，但开发者可以根据本文的思路选用自己喜欢的方式来进行实现，此外对于一些名词和 iBATIS 及 Spring 的功能没有予以详细介绍，建议对 iBATIS 架构不熟的读者能够自行参考其它教程。本文选用 Spring+iBATIS 框架仅作为示例，但仅仅是建议使用，不对使用结果和效果做任何保证。（本文内容仅代表作者个人观点）
+
+参考资料
+学习
+访问 iBATIS 官方网站，来学习 iBATIS 相关知识。 
+
+访问 http://www.jactiongroup.net/reference/html/index.html，学习 Spring 相关知识。 
+
+访问 Apache Geronimo 和 Spring 框架，第 3 部分 : 集成 DAO 与 ORM，来学习 Spring+iBATIS 框架的实例。 
+苑磊，软件工程硕士，2010 年 7 月进入 IBM中国研发中心（CDL）从事软件开发工作，具有多年的 J2EE 开发经验。
+

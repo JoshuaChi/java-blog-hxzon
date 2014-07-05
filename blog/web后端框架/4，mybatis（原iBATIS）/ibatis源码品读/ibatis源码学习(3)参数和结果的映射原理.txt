@@ -1,0 +1,278 @@
+﻿ibatis源码学习(3)参数和结果的映射原理
+
+http://learnworld.iteye.com/blog/1457162
+
+2012-03-18 23:10
+
+        在ibatis整体设计和核心流程一文中，我们提到了ibatis框架中sql的执行过程，sql执行前后有两个重要步骤: 参数对象映射到sql执行参数，sql执行结果映射到结果对象。本文将深入分析ibatis框架中参数和结果的映射原理。
+
+问题 
+在详细介绍ibatis参数和结果映射原理之前，让我们先来思考几个问题。 
+1. 为什么需要参数和结果的映射？ 
+相对于全自动的orm，ibatis一个重要目标是，通过维护POJO与SQL之间的映射关系，让我们执行 SQL时对输入输出的数据管理更加方便。也就是说，ibatis并不会为程序员在运行期自动生成SQL 执行，具体的 SQL 需要程序员编写，然后通过映射配置文件，将SQL所需的参数，以及返回的结果字段映射到指定POJO。 
+
+2. 如何维护参数和结果的映射关系？ 
+对于变化的数据，当然是通过配置文件的方式，在sqlMap映射文件中配置参数和结果对象与SQL的映射关系。 
+
+3. 如何执行参数和结果与SQL的映射？ 
+初始化时读取配置文件，将参数和结果与SQL的映射关系维护在SqlMapClientImpl中；处理请求时，通过配置的映射关系，构建sql参数和结果对象，可以采用反射等方式读取和写入对象的属性值。 
+
+SQL执行环境 
+        在ibatis整体设计和核心流程一文的SQL执行过程中，SqlMapExecutorDelegate首先获取初始化时构建好的MappedStatement (初始化过程见初始化和配置文件解析)，再通过MappedStatement执行SQL，参数和结果与SQL的映射正是在MappedStatement的SQL执行过程中进行处理。在介绍参数和结果与SQL的映射原理之前，我们先看一下MappedStatement的相关类图: 
+点击查看原始大小图片
+上面的这张类图需说明两点: 
+1. 从纵向上体现了Statement类的整体继承关系，MappedStatement接口提供了SQL执行上下文信息和执行操作，如ParameterMap、ResultMap、SQL、Timeout等上下文信息和executeQueryForList等操作信息；BaseStatement抽象类提供了MappedStatement的初步实现，它组合了MappedStatement需要的上下文信息；GeneralStatement实现类提供了MappedStatement的执行操作的基本实现；InsertStatement、SelectStatement等实现类提供了针对不同类型SQL操作的特定实现。 
+2. 从横向上体现了Statement类的初始化数据和请求处理数据的分离。 类图中的第一行对象(ParameterMap/ResultMap/SQL等)在初始化过程中会构造完毕，请求处理时直接获取即可； 类图中的第三行对象(RequestScope)在请求处理时才会创建，通过执行方法的参数传入，再进行后续处理。 
+
+映射主要类图 
+参数和结果映射的主要类图如下: 
+点击查看原始大小图片
+1. ParameterMap 
+该接口提供了和参数处理相关的方法，如根据参数对象生成sql参数数组，为PrepareStatement设置参数等。它的默认实现类是BasicParameterMap，其内部组合了多个ParameterMapping对象。 
+
+2. ResultMap 
+该接口提供了和结果处理相关的方法，如根据ResultSet生成结果对象等。它的默认实现类是BasicResultMap，其内部组合了多个ResultMapping对象。 
+
+3. ParameterMapping/ResultMapping 
+该接口用于维护参数对象和结果对象中每个属性的详细映射信息，如propertyName、jdbcType、javaType、nullValue等，以及针对该属性类型的TypeHandler。 
+
+4. DataExchange 
+该接口是映射的核心接口，执行具体的映射操作，默认实现是BaseDataExchange，针对不同的参数和结果类型有不同的实现类，如JavaBeanDataExchange、MapDataExchange、ListDataExchange、PrimitiveDataExchange等，这些对象统一由DataExchangeFactory创建和管理。 
+
+下面以查询操作为例，分析ibatis执行过程中参数和结果的映射原理。 
+参数映射过程 
+1. SqlMapExecutorDelegate调用GeneralStatement.executeQueryWithCallback()方法，执行sql语句。 
+
+protected void executeQueryWithCallback(RequestScope request, Connection conn, Object parameterObject, Object resultObject, RowHandler rowHandler, int skipResults, int maxResults)  
+    throws SQLException {  
+ ...  
+    parameterObject = validateParameter(parameterObject);  //校验输入参数  
+  
+    Sql sql = getSql();   //获取sql对象  
+  
+    errorContext.setMoreInfo("Check the parameter map.");  
+    ParameterMap parameterMap = sql.getParameterMap(request, parameterObject);     //从sql对象中获取ParameterMap   
+  
+    errorContext.setMoreInfo("Check the result map.");  
+    ResultMap resultMap = sql.getResultMap(request, parameterObject); //从sql对象中获取ResultMap  
+  
+    request.setResultMap(resultMap);  
+    request.setParameterMap(parameterMap);  
+  
+    Object[] parameters = parameterMap.getParameterObjectValues(request, parameterObject); //重要，目的是通过参数映射获取参数值  
+  
+    errorContext.setMoreInfo("Check the SQL statement.");  
+    String sqlString = sql.getSql(request, parameterObject); //获取sql语句  
+  
+    errorContext.setActivity("executing mapped statement");  
+    errorContext.setMoreInfo("Check the SQL statement or the result map.");  
+    RowHandlerCallback callback = new RowHandlerCallback(resultMap, resultObject, rowHandler);  
+    sqlExecuteQuery(request, conn, sqlString, parameters, skipResults, maxResults, callback);  // 重要，执行sql操作  
+    ...  
+该方法执行过程中，有非常重要的两步: 根据参数对象生成sql执行参数数组，该步在parameterMap.getParameterObjectValues()中完成；通过参数数组为PrepareStatement设置参数，该步在sqlExecuteQuery()方法中完成。下面重点看一下这两个的方法的实现。 
+
+2. BasicParameterMap.getParameterObjectValues()的实现如下: 
+
+public Object[] getParameterObjectValues(RequestScope request, Object parameterObject) {  
+  return dataExchange.getData(request, this, parameterObject);  
+}  
+可以看出，参数对象映射主要交给dataExchange对象完成，针对不同的parameterClass，BasicParameterMap初始化时会创建不同的dataExchange对象。这里以MapDataExchange对象为例，说明参数的映射过程。 
+
+3. MapDataExchange.getData()的实现如下: 
+
+public Object[] getData(RequestScope request, ParameterMap parameterMap, Object parameterObject) {  
+    if (!(parameterObject instanceof Map)) {  
+      throw new RuntimeException("Error.  Object passed into MapDataExchange was not an instance of Map.");  
+    }  
+  
+    Object[] data = new Object[parameterMap.getParameterMappings().length];  
+    Map map = (Map) parameterObject;  
+    ParameterMapping[] mappings = parameterMap.getParameterMappings();  
+    for (int i = 0; i < mappings.length; i++) {  
+      data[i] = map.get(mappings[i].getPropertyName());  
+    }  
+    return data;  
+  }  
+可以看出，map参数对象的映射方式是，通过循环处理每一个ParameterMapping对象获得属性名称，再从map参数中获取对应的属性值，最终放入参数数组中。有兴趣的同学可以看一下JavaBeanDataExchange的实现，其内部通过组合AccessPlan对象，使用反射方式生成参数数组。 
+
+4. 通过上面两步已经获得了sql执行参数数组，sqlExecuteQuery()方法将通过参数数组为PrepareStatement设置参数。sqlExecuteQuery()方法内部调用SqlExecutor.executeQuery()进行查询，部分源码如下: 
+
+public void executeQuery(RequestScope request, Connection conn, String sql, Object[] parameters, int skipResults, int maxResults, RowHandlerCallback callback) throws SQLException {  
+  ...  
+  PreparedStatement ps = null;  
+  ResultSet rs = null;  
+  setupResultObjectFactory(request);  
+  try {  
+    errorContext.setMoreInfo("Check the SQL Statement (preparation failed).");  
+    Integer rsType = request.getStatement().getResultSetType();  
+    //准备PrepareStatement  
+    if (rsType != null) {  
+      ps = prepareStatement(request.getSession(), conn, sql, rsType);  
+    } else {  
+      ps = prepareStatement(request.getSession(), conn, sql);  
+    }  
+    setStatementTimeout(request.getStatement(), ps);  
+    Integer fetchSize = request.getStatement().getFetchSize();  
+    if (fetchSize != null) {  
+      ps.setFetchSize(fetchSize.intValue());  
+    }  
+    errorContext.setMoreInfo("Check the parameters (set parameters failed).");  
+    request.getParameterMap().setParameters(request, ps, parameters); //为PrepareStatement设置参数  
+    errorContext.setMoreInfo("Check the statement (query failed).");  
+    ps.execute(); //执行  
+    errorContext.setMoreInfo("Check the results (failed to retrieve results).");  
+  
+    // Begin ResultSet Handling  
+    rs = handleMultipleResults(ps, request, skipResults, maxResults, callback);  //处理结果  
+    ...  
+}  
+上面方法中通过调用getParameterMap().setParameters(request, ps, parameters)为PrepareStatement设置参数，其中BasicParameterMap().setParameters()源码如下: 
+
+public void setParameters(RequestScope request, PreparedStatement ps, Object[] parameters)  
+    throws SQLException {  
+  ....  
+  if (parameterMappings != null) {  
+    for (int i = 0; i < parameterMappings.length; i++) {  
+      BasicParameterMapping mapping = (BasicParameterMapping) parameterMappings[i];  
+      errorContext.setMoreInfo(mapping.getErrorString());  
+      if (mapping.isInputAllowed()) {  
+        setParameter(ps, mapping, parameters, i); //循环处理每一个参数  
+      }  
+    }  
+  }  
+}  
+在前面参数数组生成时我们看到，parameterMappings和参数数组是一一对应关系，并且保证前后顺序，这里再循环处理每一个parameterMappings和相应参数值，为PrepareStatement设置参数。 其中setParameter()方法如下: 
+
+protected void setParameter(PreparedStatement ps, BasicParameterMapping mapping, Object[] parameters, int i) throws SQLException {  
+  Object value = parameters[i];  
+  // 设置空值  
+  String nullValueString = mapping.getNullValue();  
+  if (nullValueString != null) {  
+    TypeHandler handler = mapping.getTypeHandler();  
+    if (handler.equals(value, nullValueString)) {  
+      value = null;  
+    }  
+  }  
+  
+  // 设置Parameter  
+  TypeHandler typeHandler = mapping.getTypeHandler();  
+  if (value != null) {  
+    typeHandler.setParameter(ps, i + 1, value, mapping.getJdbcTypeName());  
+  } else if (typeHandler instanceof CustomTypeHandler) {  
+    typeHandler.setParameter(ps, i + 1, value, mapping.getJdbcTypeName());  
+  } else {  
+    int jdbcType = mapping.getJdbcType();  
+    if (jdbcType != JdbcTypeRegistry.UNKNOWN_TYPE) {  
+      ps.setNull(i + 1, jdbcType);  
+    } else {  
+      ps.setNull(i + 1, Types.OTHER);  
+    }  
+  }  
+}  
+上面的方法最终调用TypeHandler进行参数设置，下面以BigDecimalTypeHandler为例，看一下setParameter()方法实现: 
+
+public void setParameter(PreparedStatement ps, int i, Object parameter, String jdbcType)  
+    throws SQLException {  
+  ps.setBigDecimal(i, ((BigDecimal) parameter));  
+}  
+到这里，谜底已经揭开了。 
+
+总结一下上面整个过程: 初始化时通过配置文件构建ParameterMap；请求处理时再通过ParameterMap构建出对应的sql参数数组，这个构建过程通过调用dataExchange对象完成；最后通过sql参数数组为PrepareStatement设置参数。 
+
+结果映射过程 
+1. 在参数映射过程的第4步中，最后一行代码是handleMultipleResults()，正是这里进行结果映射，部分源码如下: 
+
+private ResultSet handleMultipleResults(PreparedStatement ps, RequestScope request, int skipResults, int maxResults, RowHandlerCallback callback) throws SQLException {  
+  ResultSet rs;  
+  rs = getFirstResultSet(ps);  
+  if (rs != null) {  
+    handleResults(request, rs, skipResults, maxResults, callback);  
+  }  
+  ...  
+2. handleResults()方法的实现如下: 
+
+private void handleResults(RequestScope request, ResultSet rs, int skipResults, int maxResults, RowHandlerCallback callback) throws SQLException {  
+   try {  
+       request.setResultSet(rs);  
+       ResultMap resultMap = request.getResultMap();        
+  
+       ...  
+       int resultsFetched = 0;  
+       while ((maxResults == SqlExecutor.NO_MAXIMUM_RESULTS || resultsFetched < maxResults) && rs.next()) {  
+         Object[] columnValues = resultMap.resolveSubMap(request, rs).getResults(request, rs);  //获取每条记录的各个属性值  
+         callback.handleResultObject(request, columnValues, rs); //通过属性值组装结果对象  
+         resultsFetched++;  
+       }  
+     }  
+   } finally {  
+     request.setResultSet(null);  
+   }  
+ }  
+上面方法中依次处理ResultSet的每条记录，首先获取该记录的属性值数组，该步通过BasicResultMap.getResults()方法实现；再将属性值数组装换成结果对象，该步通过RowHandlerCallback.handleResultObject()方法实现；最后存储在RowHandlerCallback对象中，最终结果在GeneralStatement中通过rowHandler.getList()返回。下面分别看一下这两个方法的具体实现。 
+
+3. BasicResultMap.getResults()的部分源码如下: 
+
+public Object[] getResults(RequestScope request, ResultSet rs)  
+    throws SQLException {  
+  ...  
+  boolean foundData = false;  
+  Object[] columnValues = new Object[getResultMappings().length];  
+  
+  // 依次处理ResultMappings，设置每个属性值  
+  for (int i = 0; i < getResultMappings().length; i++) {  
+    BasicResultMapping mapping = (BasicResultMapping) getResultMappings()[i];  
+    if (mapping.getStatementName() != null) {  
+      if (resultClass == null) {  
+        throw new SqlMapException("The result class was null when trying to get results for ResultMap named " + getId() + ".");  
+      } else if (Map.class.isAssignableFrom(resultClass)) {  
+        Class javaType = mapping.getJavaType();  
+        if (javaType == null) {  
+          javaType = Object.class;  
+        }  
+        columnValues[i] = getNestedSelectMappingValue(request, rs, mapping, javaType);  
+      } else if (DomTypeMarker.class.isAssignableFrom(resultClass)) {  
+        Class javaType = mapping.getJavaType();  
+        if (javaType == null) {  
+          javaType = DomTypeMarker.class;  
+        }  
+        columnValues[i] = getNestedSelectMappingValue(request, rs, mapping, javaType);  
+      } else {  
+        Probe p = ProbeFactory.getProbe(resultClass);  
+        Class type = p.getPropertyTypeForSetter(resultClass, mapping.getPropertyName());  
+        columnValues[i] = getNestedSelectMappingValue(request, rs, mapping, type);  
+      }  
+      foundData = foundData || columnValues[i] != null;  
+    } else if (mapping.getNestedResultMapName() == null) {  
+      columnValues[i] = getPrimitiveResultMappingValue(rs, mapping);  
+      if (columnValues[i] == null) {  
+        columnValues[i] = doNullMapping(columnValues[i], mapping);  
+      }  
+      else  {  
+        foundData = true;  
+      }  
+    }  
+  }  
+  request.setRowDataFound(foundData);  
+  
+  return columnValues;  
+}  
+上面的代码依次处理ResultMappings，设置每个属性值，最后统一放入columnValues数组中。 
+
+4. RowHandlerCallback.handleResultObject()方法的实现如下: 
+
+public void handleResultObject(RequestScope request, Object[] results, ResultSet rs) throws SQLException {  
+   Object object;  
+  
+   request.setCurrentNestedKey(null);  
+   object = resultMap.resolveSubMap(request, rs).setResultObjectValues(request, resultObject, results);  //生成结果对象  
+   ...  
+   rowHandler.handleRow(object); // 将object加入rowHandler内部的list中  
+   }  
+ }  
+该方法内部实现调用BasicResultMap.setResultObjectValues()生成结果对象，再将结果对象保存在RowHandler中。setResultObjectValues()方法目标是将属性值设置到对象中，部分场景是借助上文提及的dataExchange对象实现，这里就不再详述。 
+
+小结 
+最后，以一张图总结参数和结果的映射整体流程: 
+ 
+每个映射过程都主要拆分为两步，为什么需要这样的设计？一个核心的原因是实现职责分离，不同阶段借助不同的处理方式(dataExchange,typeHandler等)，使整个处理逻辑更清晰。
+

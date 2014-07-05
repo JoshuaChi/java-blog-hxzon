@@ -1,0 +1,438 @@
+﻿iBATIS 3 内的新特性
+将 iBATIS 用作应用程序内的一种持久框架
+Nathan A. Good, 高级顾问，自由开发人员, Enterprise Frameworks
+发布日期： 2010 年 4 月 06 日 
+http://www.ibm.com/developerworks/cn/opensource/os-ibatis3/
+
+简介： iBATIS 是一个项目，主要用于数据访问对象（data access object，DAO）和对象关系映射（object-relational mapping，ORM）。您可以使用它来轻松处理 Java™ 对象和数据库。对 iBATIS 3 beta 9 的更新在 2010 年 1 月 23 日发布。iBATIS 3 是 iBATIS 的完全重写版并包括了一些重大更新。本文将介绍 iBATIS 3 内的一些新特性。
+
+如果您编写 Java 代码的时间已经不短，那么您可能会回忆起这样一些日子：您编写了许多包含逻辑方法的类，这些方法会将 Java 对象内的数据映射到关系型数据库管理系统（RDBMS）内的数据或从 RDBMS 内的数据映射到 Java 对象内的数据。而现在，对于大多数情况，这种人工干预是不受鼓励的，而是推荐您使用 ORM 工具作为一种最佳实践。
+ORM 工具让您可以配置关系数据库内的数据元素与 Java 对象属性之间的映射。配置好后，这些工具让您可以安心使用 Java 对象，而无需担心 Java 类的属性内的数据是如何存储的或是如何检索的，从而把您从大量重复代码的编写、调试和错误处理中解放了出来。
+本文介绍了 iBATIS 3 内的新特性，iBATIS 3 是来自 Apache Foundation 的一个 ORM 工具，可用来构建连接到数据库的 Java 应用程序。要最大程度地利用本文，建议使用 Java Development Kit (JDK) V5 或更新版本；Eclipse V3.4 或更新版本。本文使用的是 iBATIS 3 beta 9。iBATIS 站点表明该 beta 9 非常接近于通用版本 (GA)，所以在 GA 版本可用后，本文中的例子也应适用于 GA 版本。
+由于 iBATIS 的主要目的是进行对 RDBMS 的映射，所以还需要一个数据库以便获得这些例子的全貌。本文中的这个例子选择使用 Apache Derby 作为数据库。有一点很值得注意，除了将您从编写使用 Java Database Connectivity (JDBC) 的重复 Java 代码中解放出来，ORM 工具的另一个优势是能提供更好的数据层抽象。只需对 iBATIS 配置稍作更改以及对正确的 JDBC 库加以引用，您就可以将本文中的例子用于其他的数据库。
+iBATIS 概览
+iBATIS 3 是一个持久框架，可用来配置 Java 类的属性和 RDBMS 内的表列之间的映射。在配置时，此框架负责处理 JDBC 连接和分配。可以使用 XML 文件配置 iBATIS 3。iBATIS 可以从 iBATIS 站点（参见 参考资料）以压缩归档文件（ZIP）的格式下载得到。在这个归档文件内是一个 Java Archive (JAR) 文件，可将其包括在 Java 对象内来提供所需的类。
+清单 1 内所示的是一个在示例应用程序内使用的 Java 类。
+
+清单 1. 示例应用程序内使用的 Automobile 类
+				
+package com.ibm.developerWorks.examples.ibatis.model;
+
+public class Automobile {
+
+    private int id;
+    private String make;
+    private String model;
+    private int year;
+
+    public Automobile() {
+        super();
+    }
+
+    public Automobile(final int id, final String make, final String model, 
+        final int year) {
+
+        super();
+        this.id = id;
+        this.make = make;
+        this.model = model;
+        this.year = year;
+    }
+
+    public int getId() {
+        return id;
+    }
+
+    public String getMake() {
+        return make;
+    }
+
+    public String getModel() {
+        return model;
+    }
+
+    public int getYear() {
+        return year;
+    }
+
+    public void setId(final int id) {
+        this.id = id;
+    }
+
+    public void setMake(final String make) {
+        this.make = make;
+    }
+
+    public void setModel(final String model) {
+        this.model = model;
+    }
+
+    public void setYear(final int year) {
+        this.year = year;
+    }
+
+    @Override
+    public String toString() {
+        return "Automobile [id=" + id + ", make=" + make + ", model=" + model + ", 
+				    year=" + year + "]";
+    }
+}
+            
+
+这个 Automobile 类是一个简单的 Java 对象（plain old Java object，POJO），包含了应用程序所用的数据。iBATIS 框架在配置后就能将这个对象持久化到数据库或作为一个方法（用来从数据库选择此对象）的结果返回此对象。
+清单 2 中展示的这个 SQL 脚本创建了示例数据库表。
+
+清单 2. 用来创建 automobiles 表的 SQL 脚本
+				
+CREATE TABLE automobiles (
+    id INT NOT NULL,
+    make VARCHAR(255) NOT NULL,
+    model VARCHAR(255) NOT NULL,
+    model_year INT NOT NULL
+);
+            
+
+执行这个数据库脚本就能在数据库内创建这个表。若使用 Derby 作为数据库，就可以使用 Derby 附带的位于 bin 文件夹内的命令行实用工具运行此脚本（参见清单 3）。在运行这个例子之前，请确保将 DERBY_HOME 变量指定为 Derby 安装到的那个目录的完整路径，并将这个 SQL 脚本保存到名为 create.sql 的一个文件内。
+
+清单 3. 使用 Derby 命令行 ij 工具来运行 create.sql
+				
+$ cd $DERBY_HOME/bin
+$ ./ij
+> connect 'jdbc:derby:/tmp/MyDB';
+> run create.sql
+            
+
+清单 4 内所示的这个 XML 映射文件允许您将 Java 类内的属性映射到数据表内的数据列。
+
+清单 4. XML 映射文件（automobile-mapper.xml）
+				
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+    PUBLIC "-//ibatis.apache.org//DTD Mapper 3.0//EN"
+    "http://ibatis.apache.org/dtd/ibatis-3-mapper.dtd">
+<mapper namespace="com.ibm.developerWorks.examples.ibatis.model.Automobile">
+    <resultMap type="Automobile" id="automobileResult">
+        <result column="id" property="id" />
+        <result column="make" property="make" />
+        <result column="model" property="model" />
+        <result column="model_year" property="year" />
+    </resultMap>
+    <select id="select" parameterType="int" resultType="Automobile"
+        resultMap="automobileResult">
+        select * from
+        automobiles where id = #{id}
+  </select>
+    <insert id="insert" parameterType="Automobile">
+        insert into automobiles (id,
+        model, make, model_year)
+        values (#{id}, #{model}, #{make}, #{year})
+    </insert>
+    <delete id="delete" parameterType="int">
+        delete from automobiles where
+        id = #{id}
+  </delete>
+    <delete id="deleteAll">
+        delete from automobiles
+  </delete>
+</mapper>
+            
+
+这个 XML 映射文件包含 <select>、 <insert> 和 <delete> 元素，三个元素内包含的代码看上去像是常规的 ANSI SQL。这些 XML 元素名对应于 SQL 语句的类型 — <insert> 元素对应于 SQL INSERT 语句，以此类推。参数在 SQL 代码内由 #{parameter} 定义，其中parameter 是 Java 类内字段的名字。比如，Automobile 对象具有一个名为 make 的字段，所以可以使用 #{make} 将此字段内存储的值传递到这个 SQL 语句。
+iBATIS 3 的一个新特性是在 Java 接口使用注释能够执行相同的配置。我将在稍后介绍如何使用 Java 5 注释来代替 XML 配置文件（参见 Java 5 特性）。
+最后，清单 5 展示了 iBATIS 3 的这个 XML 配置文件，其中指定了数据库的名称、要使用的驱动程序的类型以及其他的一些数据库属性，比如凭证。映射文件的名称，比如 清单 4 内所示的名称，是在配置文件的 <mappers> 元素中列出的。
+
+清单 5. XML 配置文件（ibatis-config.xml）
+				
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE configuration
+  PUBLIC "-//ibatis.apache.org//DTD Config 3.0//EN"
+  "http://ibatis.apache.org/dtd/ibatis-3-config.dtd">
+<configuration>
+    <typeAliases>
+        <typeAlias type="com.ibm.developerWorks.examples.ibatis.model.Automobile"
+            alias="Automobile" />
+    </typeAliases>
+    <environments default="development">
+        <environment id="development">
+            <transactionManager type="JDBC" />
+            <dataSource type="POOLED">
+                <property name="driver" 
+                    value="org.apache.derby.jdbc.EmbeddedDriver" />
+                <property name="url" value="jdbc:derby:/tmp/MyDB" />
+            </dataSource>
+        </environment>
+    </environments>
+    <mappers>
+        <mapper resource="automobile-mapper.xml" />
+    </mappers>
+</configuration>
+            
+
+如果您使用 Java 注释方法来定义对象和数据库之间的映射，那么您将无需这个配置文件，因为 iBATIS 3 提供了一个 Java 应用程序编程接口（API），让您可以以编程方式完成此配置。
+使用 iBATIS 的好处
+使用 iBATIS 的一个好处是 XML 配置让它得以成为一个很好的可用来将对象映射到现有关系数据库的 ORM 框架。有了 Mapper 类以及映射文件，重点就变成了将对象映射到现有的数据结构，而不是使一个数据结构遵从这个对象的结构。虽然配置成本要比使用一个使开发人员更独立于数据结构的框架多了一些，但是单独设计数据库和对象模型的确有其自身的优势。优秀的关系数据库人员和对象模型设计者可能具有相互竞争的目标，从而使得其各自的实现也具有很大的差异。
+过去，我也曾在项目中大量使用过 iBATIS，这些项目中的数据库使用的是关系结构和存储过程，并且开发人员对数据库的设计也没有多少控制。
+创建示例 Java 项目
+要测试本文中的这些例子，需要创建一个空的 Java 项目。在这个新的 Java 项目内，创建一个包括了 main() 方法的类，如清单 6 所示。
+
+清单 6. Main 类
+				
+package com.ibm.developerWorks.examples.ibatis;
+
+import java.io.IOException;
+
+import javax.sql.DataSource;
+
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.GnuParser;
+import org.apache.commons.cli.OptionBuilder;
+import org.apache.commons.cli.Options;
+import org.apache.derby.jdbc.EmbeddedDataSource;
+import org.apache.ibatis.mapping.Environment;
+import org.apache.ibatis.session.Configuration;
+import org.apache.ibatis.session.SqlSession;
+import org.apache.ibatis.session.SqlSessionFactory;
+import org.apache.ibatis.session.SqlSessionFactoryBuilder;
+import org.apache.ibatis.transaction.TransactionFactory;
+import org.apache.ibatis.transaction.jdbc.JdbcTransactionFactory;
+
+import com.ibm.developerWorks.examples.ibatis.data.AutomobileMapper;
+import com.ibm.developerWorks.examples.ibatis.model.Automobile;
+
+public class Main {
+
+    private static final String CREATE = "create";
+    private static final String DELETE = "delete";
+    private static final String IBATIS_CONFIG = "ibatis-config.xml";
+    private static final String SHOW = "show";
+
+    @SuppressWarnings("static-access")
+    private static Options createOptions() {
+        Options options = new Options();
+        options.addOption(CREATE, false, "creates the objects in the database");
+        options.addOption(OptionBuilder.withArgName(SHOW).hasArg().withDescription(
+                "shows the specified automobile").withLongOpt(SHOW).create());
+        options.addOption(DELETE, false, "deletes all of the objects in database");
+        return options;
+    }
+
+    private static SqlSessionFactory createSqlMapper() throws IOException {
+        Reader reader = Resources.getResourceAsReader(IBATIS_CONFIG);
+        return new SqlSessionFactoryBuilder().build(reader);
+    }
+
+    public static void main(final String[] args) {
+        Options options = createOptions();
+        try {
+            CommandLine cmd = new GnuParser().parse(options, args);
+
+            SqlSession session = createSqlMapper().openSession();
+            
+            try {
+                if (cmd.hasOption(CREATE)) {
+                    System.out.println("Creating the objects in the database...");
+                    // Create the automobiles
+                    session.insert(Automobile.class.getName() + ".insert", new
+                        Automobile(1, "Toyota", "Tercel", 1993));
+                    session.insert(Automobile.class.getName() + ".insert", new
+                        Automobile(2, "Honda", "CR-V", 2000));
+                    session.insert(Automobile.class.getName() + ".insert", new
+                        Automobile(3, "Chevrolet", "Impala", 1964));
+                    session.insert(Automobile.class.getName() + ".insert", new
+                        Automobile(4, "Dodge", "Pickup", 1946));
+
+                    session.commit();
+
+                } else if (cmd.hasOption(SHOW)) {
+
+                    Automobile auto = (Automobile) session.selectOne(
+                        Automobile.class.getName() + ".select", cmd.getOptionValue(SHOW));
+                    
+                    if (auto == null) {
+                        System.out.println("No matching results found!");
+                    } else {
+                        System.out.println(auto);
+                    }
+
+                } else if (cmd.hasOption(DELETE)) {
+
+                    session.delete(Automobile.class.getName() + ".deleteAll");
+                    session.commit();
+
+                } else {
+                    System.out.println("Doing nothing.");
+                }
+
+            } finally {
+                session.close();
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+}
+            
+
+为了避免随意的实参解析代码，main 方法使用了 Apache Commons CLI 项目来解析从命令行发送给它的这些实参。Apache Commons CLI 项目的使用可以使此示例得以响应不同的命令行实参，比如 --create、 --delete 或 --show。有关 Apache Commons CLI 项目的更多信息，请参见 参考资料。这种对实参的支持使 main() 方法能够进行一些有对象和 iBATIS 参与的示例操作。
+这个例子使用了 iBATIS Resources 类来从一个 XML 文件加载配置。Resources 类将文件作为一个 Reader 加载并将它传递给SqlSessionFactoryBuilder。SqlSessionFactoryBuilder 能够构造一个 SqlSessionFactory，而后者则又被用来创建这些 SqlSession对象，以让您的代码可以通过映射类内定义的方法与数据库交互。
+在编译和运行示例代码前，您需要导入 iBATIS 3、Apache Commons CLI 和 Apache Derby JAR 文件（ibatis-3-core-x.jar、commons-cli-1.2.jar 和 derby.jar）。
+运行这个例子
+通过从 Eclipse 运行主类，就可以运行这个例子了。如果想要向 Java 调用添加实参，可以打开 Run > Run Configurations 并找到 Java Application/Main run 配置。在 Arguments 选项卡，指定想要在 Program Arguments（如图 1 所示）内提供的实参。
+
+图 1. 向运行配置添加实参
+这个屏幕快照显示了参数 ‘--show 3’ 被添加到 Eclipse 上的应用程序 Arguments 选项卡 
+
+当然，也可以从命令行调用这个 Java 应用程序，不过请记住将 classpath 设置为包括 iBATIS 3、Apache Commons CLI 以及 Apache Derby JAR 文件。有关如何调用应用程序的例子，可以参见清单 7。
+
+清单 7. 从命令行运行应用程序
+				
+$ java -classpath {jars} com.ibm.developerWorks.examples.ibatis.Main --create
+Creating the objects in the database...
+            
+
+在执行这个 Java 应用程序时，可以看到 --create 创建了四个新 Automobile 对象并将它们添加到数据库的 automobiles 表。使用 --delete 实参可以从数据库删除这些对象。使用具有 ID 的 --show 运行这个 SQL 脚本以获得匹配的数据库记录，创建一个具有数据的Automobile 对象并将结果显示到控制台。
+XML 配置示例正常工作后，您就可以开始了解 iBATIS 3 的另一个关键的新特性：Java 注释支持。
+Java 5 特性
+iBATIS 3 带来了一些新的变化，允许您利用 Java 5 注释。通过使用注释，您可以创建 mapper 接口来供您在 Java 代码内进行从对象到数据库的全部映射。清单 8 所示的代码展示了这个用于配置（并非 XML 配置）的 AutomobileMapper 接口。
+
+清单 8. AutomobileMapper 接口
+				
+package com.ibm.developerWorks.examples.ibatis.data;
+
+import org.apache.ibatis.annotations.Delete;
+import org.apache.ibatis.annotations.Insert;
+import org.apache.ibatis.annotations.Select;
+
+import com.ibm.developerWorks.examples.ibatis.model.Automobile;
+
+public interface AutomobileMapper {
+
+	@Select("select id, make, model, model_year as \"year\" from automobiles 
+	    where id = #{id}")
+	Automobile selectAutomobile(final int id);
+	
+	@Insert("insert into automobiles(id,make,model,model_year) 
+	    values (#{id}, #{make}, #{model}, #{year})")
+	void insertAutomobile(final Automobile arg);
+	
+	@Delete("delete from automobiles")
+	void deleteAll();
+	
+}
+            
+
+在 Automobile mapper 的 XML 配置中，resultMap 元素用来映射 model_year 数据库列与 Automobile 对象上的 year 字段。这个映射相当简单，可以在注释内进行，只要使用为该列赋别名的 SQL 特性就可以了，这个特性可由在 @Select 注释内定义的 SQL 完成。
+AutomobileMapper 接口内的 Select 注释将 selectAutomobile 方法映射到用来根据给定值从 automobiles 表选择一个记录的 SQL。这个值被指定为实参的 id 参数并被作为 #{id} 包括在这个 SQL 语句内，正如其在 XML 配置中那样。使用 Java 接口映射这些 SQL 方法的一个极大的好处是 feedbac 会以编译时错误的形式出现在 Java 编辑器中。这样一来，我们就可以确认这些方法均能返回正确的类型，而 XML 配置通常需要先执行代码才能找到错误。
+此外，iBATIS 3 现在还支持接口继承，允许对 Java 接口进行优化以减少代码重复。
+iBATIS 文档中有这样的一个提示，即对于较小且较为简单的项目，注释可以更为简单和易读。不过，较 XML 配置而言，注释的功能相对有限。若项目中包含复杂的对象或复杂的数据库结构，请考虑使用 XML 配置，而不是 Java 注释。
+其他的 API 变更
+iBATIS 的基于注释的配置要求实例化也要稍微不同。我们不再使用 Reader 类来读取 XML 配置，而是要向 Configuration 对象添加映射程序，如清单 9 所示。
+
+清单 9. 使用了注释配置的新 Java 代码
+				
+package com.ibm.developerWorks.examples.ibatis;
+
+// snipped imports
+
+public class Main {
+
+    // snipped constants declarations--didn't change
+
+    // new method for creating data source
+    private static DataSource createDataSource() { EmbeddedDataSource 
+    dataSource = new org.apache.derby.jdbc.EmbeddedDataSource(); 
+    dataSource.setDatabaseName("/tmp/MyDB"); return dataSource; }
+
+    @SuppressWarnings("static-access")
+    private static Options createOptions() {
+		   // snipped... no changes
+    }
+
+    private static SqlSessionFactory createSqlMapper() throws
+     IOException { DataSource datasource = createDataSource();
+      TransactionFactory transaction = new JdbcTransactionFactory();
+       Configuration configuration = new Configuration(new Environment
+       ("development", transaction, datasource)); configuration
+       .addMapper(AutomobileMapper.class);
+        return new SqlSessionFactoryBuilder().build(configuration);
+    }
+
+    public static void main(final String[] args) {
+        Options options = createOptions();
+        try {
+            CommandLine cmd = new GnuParser().parse(options, args);
+
+            SqlSession session = createSqlMapper().openSession();
+            AutomobileMapper mapper = session.getMapper(AutomobileMapper.class);
+            
+            try {
+                if (cmd.hasOption(CREATE)) {
+                    System.out.println("Creating the objects in the database...");
+                    // Create the automobiles
+                    mapper.insertAutomobile(new Automobile
+                    (1, "Toyota", "Tercel", 1993)); 
+                    mapper.insertAutomobile(new Automobile
+                    (2, "Honda", "CR-V", 2000)); 
+                    mapper.insertAutomobile( new Automobile(3, 
+                    "Chevrolet", "Impala", 1964)); 
+                    mapper.insertAutomobile(new Automobile(4, "Dodge", "Pickup", 1946));
+
+                    session.commit();
+
+                } else if (cmd.hasOption(SHOW)) {
+Automobile auto = mapper.selectAutomobile( Integer.parseInt(cmd.getOptionValue(SHOW)));
+
+                    if (auto == null) {
+                        System.out.println("No matching results found!");
+                    } else {
+                        System.out.println(auto);
+                    }
+
+                } else if (cmd.hasOption(DELETE)) {
+
+                    mapper.deleteAll();
+                    session.commit();
+
+                } else {
+                    System.out.println("Doing nothing.");
+                }
+
+            } finally {
+                session.close();
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+}
+            
+
+提供给 addMapper() 方法的 AutomobileMapper 是与 清单 8 中所示的相同的 Java 接口。
+Configuration 对象还需要 DataSource 实现。在本例中，DataSource 实现是在静态 createDataSource() 方法中轻松创建的。不过，在生产应用程序中，应该对之进行修改以使数据源信息 — 比如数据库名 — 更为动态。如果是在一个负责管理持久性的应用服务器或 Web 服务器内构建应用程序，则可以使用 Java Naming and Directory Interface (JNDI) 来获得 DataSource。
+XML 配置变更
+如果在从之前的 iBATIS 版本升级到新版本时决定为 iBATIS 使用 XML 配置而不是 Java 注释，那么就会发现新旧版本间的 XML 存在一些关键区别。
+iBATIS 的之前版本使用了 parameterMap（类似于 resultMap）来映射这些方法的参数。不过，已经不建议使用 parameterMap 元素，并且不应该继续使用它。相反，应该在 parameterType 内包括对象的类型并使用标准标记访问类型的属性（比如，为 Java 对象上的id 字段使用 #{id}）。
+配置以及 mapper 文件的根元素均被更新以包括新的 Document Type Definition (DTD) 声明，并且这些元素中的一些已被移动了位置以提供更好的组织性。
+有关 iBATIS XML 配置变更的更多信息，请参看 参考资料。请注意，对于 iBATIS 的 beta 9 版本，有关从 XML 较老版本移植至新版本的文档尚在编写当中。
+iBATIS 迁移
+iBATIS Schema Migrations System（iBATIS 迁移）项目并非是用来将 XML 配置的较老模式迁移到新模式的项目。相反，该项目旨在随着数据库的发展在将数据库从一个版本转变到另一个版本时简化数据库变更的迁移。您可以使用这个工具来生成可供您自动应用变更的 SQL 脚本，这可极大地减少错误。
+有关 iBATIS Migrations 项目的更多信息，请参见 参考资料。
+结束语
+iBATIS 3 是一个 ORM 持久框架，用来将 Java 对象内的属性映射到数据库内的表列。iBATIS 以映射为中心，重点在于映射一个优秀的对象模型与一个优秀的关系型数据库设计。
+iBATIS 3 内的一个新特性是使用 Java 注释进行映射，这就使得映射更为整洁也更为直观，而且可以以 Java 源代码的形式为很多项目所用。iBATIS 3 还提供了使用 XML 配置文件进行对象映射的功能。这种双重配置方法的存在让您可以为自己的项目选用最为简单的配置 iBATIS 的方式。
+
+参考资料
+学习
+更多地了解 iBATIS 3 XML 配置变更。 
+
+查阅 User Guide for the iBATIS Schema Migrations。 
+
+参考有关联合使用 iBATIS 与 Apache Derby 的教程 使用 Apache Derby 和 iBATIS 提高持久性，第 1 部分：初始配置、语义和一个简单的测试、使用 Apache Derby 和 iBATIS 提高持久性，第 2 部分：Derby 中的数据定义 和 使用 Apache Derby 和 iBATIS 提高持久性，第 3 部分：事务、缓存和动态 SQL（developerWorks，2006 年）。
+关于作者
+Nathan Good
+Nathan A. Good 居住在明尼苏达州的双子城。他的专长是软件开发、软件架构和系统管理。平时不编写软件时，他喜欢组装 PC 和服务器、阅读和撰写技术文章，并鼓励他的所有朋友转用开源软件。他是许多书籍和文章的作者或合著者，包括 Professional Red Hat Enterprise Linux 3, Regular Expression Recipes: A Problem-Solution Approach 和Foundations of PEAR: Rapid PHP Development。
+

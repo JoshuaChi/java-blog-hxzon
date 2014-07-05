@@ -1,0 +1,251 @@
+﻿ibatis源码学习(2)初始化和配置文件解析
+
+http://learnworld.iteye.com/blog/1450057
+
+
+
+在ibatis整体设计和核心流程一文中，我们提到了ibatis框架的初始化过程，本文将深入分析ibatis框架的初始化和配置文件解析过程。本文使用的ibatis版本为2.3.4，不同版本间会略有差异。 
+
+问题 
+在详细介绍ibatis初始化过程之前，让我们先来思考几个问题。 
+
+1. ibatis初始化的目标是什么？ 
+上文中提到过，ibatis初始化的核心目标是构造SqlMapClientImpl对象，主要是其内部重要属性delegate这个代理对象的初始化。delegate这个对象耦合了用户端的操作行为和执行环境，持有执行操作的所需要的所有数据。 
+
+2. 如何解析ibatis的sqlmap配置文件和sqlmap映射文件？ 
+可以采用通用的xml文件解析工具，如SAX等。 
+
+3. 如何将配置文件中每个属性值注入到SqlMapClientImpl对象中？ 
+可以给不同类型节点设置对应的handler，遍历节点时，调用handler对象的处理方法，将节点值注入到SqlMapClientImpl对象的属性中。 
+
+带着上面的这些问题，我们开始探索ibatis的初始化过程。 
+
+核心类图 
+初始化过程主要涉及以下几个重要类，理解这些类的含义非常重要。主要类图如下: 
+ 
+1. Nodelet 
+该接口是对配置文件中节点处理方式的抽象，该接口仅有一个process()方法，表示对该类节点的处理方式。 
+
+2. NodeletParser 
+同SAX类似的一个xml解析器。不同点在于SAX对所有节点采用同样的处理方式，而NodeletParser可以针对不同的节点个性化配置相应的处理方式。 NodeletParser内部维护了一个letMap，这个map维护着节点标识信息XPath和对应的处理方式Nodelet的关系。 
+
+3. XmlParserState 
+用于维护配置文件解析过程中的上下文信息，配置文件解析过程中产生的数据都放入XmlParserState中统一维护。
+注意: ibatis2.3.0版本中没有这个类，它使用BaseParser中内部类Variables维护上下文信息。 
+
+4. SqlMapConfigParser 
+用于解析sqlMap配置文件，其内部组合了NodeletParser对象，用于完成sqlMap配置文件解析。该对象构造函数中，完成向NodeletParser属性中添加sqlMap配置文件中节点XPath和对应的Nodelet映射关系。比如<typeAlias>节点的处理方式如下: 
+
+private void addTypeAliasNodelets() {  
+  parser.addNodelet("/sqlMapConfig/typeAlias", new Nodelet() {  
+    public void process(Node node) throws Exception {  
+      Properties prop = NodeletUtils.parseAttributes(node, vars.properties);  
+      String alias = prop.getProperty("alias");  
+      String type = prop.getProperty("type");  
+      vars.typeHandlerFactory.putTypeAlias(alias, type);  
+    }  
+  });  
+}  
+5. SqlMapParser 
+用于解析sqlMap映射文件，其内部组合了NodeletParser对象，用于完成sqlMap映射文件解析。和SqlMapConfigParser类似，在构造函数中向NodeletParser属性添加sqlMap映射文件中节点标识信息XPath和对应的Nodelet映射关系。比如<sql>节点的处理方式如下: 
+
+private void addSqlNodelets() {  
+  parser.addNodelet("/sqlMap/sql", new Nodelet() {  
+    public void process(Node node) throws Exception {  
+      Properties attributes = NodeletUtils.parseAttributes(node, vars.properties);  
+      String id = attributes.getProperty("id");  
+      if (vars.useStatementNamespaces) {  
+        id = applyNamespace(id);  
+      }  
+      if (vars.sqlIncludes.containsKey(id)) {  
+        // To be upgraded to throwing of a RuntimeException later on  
+        log.warn("Duplicate <sql>-include '" + id + "' found.");  
+      }  
+      else  {  
+        vars.sqlIncludes.put(id, node);  
+      }  
+    }  
+  });  
+}  
+6. SqlStatementParser 
+用于生成sql对应的MappedStatement对象。其内部仅包含一个public方法parseGeneralStatement(Node node, GeneralStatement statement)，用于生成MappedStatement对象。 
+
+下面以代码中常见的ibatis配置为例，说明ibatis框架的配置文件解析和初始化过程。 
+常见ibatis配置 
+
+Biz-data-source.xml代码
+<bean id="sqlMapClient" class="org.springframework.orm.ibatis.SqlMapClientFactoryBean">  
+    <property name="dataSource" ref="dataSource"/>  
+    <property name="configLocation" value="classpath/sqlmap-ibatis.xml"/>  
+</bean>    
+Sqlmap-ibatis.xml代码
+
+<sqlMapConfig>  
+    <sqlMap resource="sqlmap/cases/CaseSQL.xml"/>  
+        ...  
+</sqlMapConfig>  
+Casesql.xml代码
+
+<select id="QUERY-CASE-BY-CASE-ID"  parameterClass="map" resultMap="RM-Case">       
+    SELECT  ID ,GMT_MODIFIED ,GMT_CREATE ,STATUS   
+    FROM AVATAR_CASE   
+    WHERE ID = #caseId#   
+</select>  
+初始化过程 
+1) SqlMapClientFactoryBean初始化 
+SqlMapClientFactoryBean的初始化方法afterPropertiesSet()，用于构建sqlMapClient对象: 
+
+public void afterPropertiesSet() throws Exception {  
+    ...  
+    this.sqlMapClient = buildSqlMapClient(this.configLocations, this.mappingLocations, this.sqlMapClientProperties);   //初始化核心方法，构建sqlMapClient对象       ...  
+}  
+其中buildSqlMapClient()的实现: 
+
+protected SqlMapClient buildSqlMapClient(  
+        Resource[] configLocations, Resource[] mappingLocations, Properties properties)  
+        throws IOException {  
+               ...  
+    SqlMapClient client = null;  
+    SqlMapConfigParser configParser = new SqlMapConfigParser();  
+    for (int i = 0; i < configLocations.length; i++) {  
+        InputStream is = configLocations[i].getInputStream();  
+        try {  
+            client = configParser.parse(is, properties); //通过SqlMapConfigParser解析配置文件，生成SQLMapClientImpl对象  
+        }  
+    ...  
+    return client;  
+}  
+上面这段代码中，调用SqlMapConfigParser解析sqlMap配置文件sqlmap-ibatis.xml。 
+
+2) 调用SqlMapConfigParser进行解析 
+SqlMapConfigParser.parse(InputStream inputStream, Properties props)方法源码如下: 
+
+public SqlMapClient parse(InputStream inputStream, Properties props) {  
+  if (props != null) state.setGlobalProps(props);  
+  return parse(inputStream);  
+}  
+其中parse()方法源码如下: 
+
+public SqlMapClient parse(InputStream inputStream) {  
+    ...  
+    parser.parse(inputStream); // 调用NodeletParser解析配置文件  
+    return state.getConfig().getClient(); //返回SqlMapClientImpl对象  
+    ...  
+}  
+3) 调用NodeletParser进行解析 
+NodeletParser.parse()是配置文件解析的核心方法，这里被SqlMapConfigParser调用，用于解析sqlMap配置文件sqlmap-ibatis.xml。 
+
+public void parse(InputStream inputStream) throws NodeletException {  
+  try {  
+    Document doc = createDocument(inputStream);  
+    parse(doc.getLastChild());  //从根节点开始解析  
+  }   
+  ...  
+}  
+其中parse(Node node)方法源码如下: 
+
+public void parse(Node node) {  
+  Path path = new Path();  
+  processNodelet(node, "/");    
+  process(node, path);  
+}  
+这个方法中包含两个重要方法，processNodelet()根据当前节点的XPath进行相应处理，process()方法用于处理该节点相关信息(如Element，Attribute，Children等)。 
+
+首先看一下processNodelet(Node node, String pathString)的源码实现: 
+
+private void processNodelet(Node node, String pathString) {  
+  Nodelet nodelet = (Nodelet) letMap.get(pathString);  
+  if (nodelet != null) {  
+    try {  
+      nodelet.process(node);  
+    }   
+   ...  
+  }  
+}  
+在SqlMapConfigParser类介绍中，我们提到过NodeletParser中letMap属性维护着节点XPath信息和节点信息处理方式的映射关系，所有的映射关系会在SqlMapConfigParser构造函数中加入。 这里根据节点的XPath，获取对应的处理方式Nodelet，再调用Nodelet.process()处理该节点信息。 
+
+再来看一下NodeletParser.process(Node node, Path path)的源码实现: 
+
+private void process(Node node, Path path) {  
+  if (node instanceof Element) {  
+    //处理Element信息  
+    String elementName = node.getNodeName();  
+    path.add(elementName);  
+    processNodelet(node, path.toString());  
+    processNodelet(node, new StringBuffer("//").append(elementName).toString());  
+  
+    //处理Attribute信息  
+    NamedNodeMap attributes = node.getAttributes();  
+    int n = attributes.getLength();  
+    for (int i = 0; i < n; i++) {  
+      Node att = attributes.item(i);  
+      String attrName = att.getNodeName();  
+      path.add("@" + attrName);  
+      processNodelet(att, path.toString());  
+      processNodelet(node, new StringBuffer("//@").append(attrName).toString());  
+      path.remove();  
+    }  
+  
+    // 处理Children信息  
+    NodeList children = node.getChildNodes();  
+    for (int i = 0; i < children.getLength(); i++) {  
+      process(children.item(i), path); //递归处理子节点  
+    }  
+    path.add("end()");  
+    processNodelet(node, path.toString());  
+    path.remove();  
+    path.remove();  
+  } else if (node instanceof Text) {  
+    // Text  
+    path.add("text()");  
+    processNodelet(node, path.toString());  
+    processNodelet(node, "//text()");  
+    path.remove();  
+  }  
+}  
+该方法中采用递归方式处理节点的Element、Attribute和Children信息，首先构建当前节点的XPath信息，再调用processNodelet(node, path)处理该节点。 
+
+4) 调用SqlMapParser解析sqlMap映射配置文件CaseSQL.xml。 
+当处理sqlMap配置文件sqlmap-ibatis.xml中的sqlMap节点时，会调用下面的Nodelet进行处理: 
+
+ protected void addSqlMapNodelets() {  
+   parser.addNodelet("/sqlMapConfig/sqlMap", new Nodelet() {  
+     public void process(Node node) throws Exception {  
+       ...  
+       Properties attributes = NodeletUtils.parseAttributes(node, state.getGlobalProps());  
+  
+       String resource = attributes.getProperty("resource");  
+       String url = attributes.getProperty("url");  
+       ...  
+       new SqlMapParser(state).parse(reader); //调用SqlMapParser解析sqlMap映射文件  
+       }  
+     }  
+   });  
+}  
+SqlMapParser的parse()方法实现如下 
+
+public void parse(InputStream inputStream) throws NodeletException {  
+  parser.parse(inputStream);//调用NodeletParser解析配置文件  
+}  
+这里和上面的SqlMapConfigParser解析方式类似，都是调用NodeletParser解析配置文件，不同点在于这两个类是针对不同的配置文件解析(SqlMapConfigParser针对sqlMap配置文件，SqlMapParser针对sqlMap映射文件)，所以在各自构造函数插入letMap时，使用的key是自己配置文件里节点的XPath。 
+
+5) 调用SqlStatementParser生成MappedStatement。 
+当解析sqlMap映射文件的select节点时，将调用SqlStatementParser生成MappedStatement。 
+  protected void addStatementNodelets() { 
+    ... 
+    parser.addNodelet("/sqlMap/select", new Nodelet() { 
+      public void process(Node node) throws Exception { 
+        statementParser.parseGeneralStatement(node, new SelectStatement()); 
+      } 
+    
+    }); 
+} 
+SqlStatementParser.parseGeneralStatement()的实现这里就不详述了，主要目的是构建MappedStatement，并将配置文件解析后的信息注入到XmlParserState中。 
+
+小结 
+ibatis初始化的核心目标是构建SqlMapClientImpl对象，核心思想如下： 
+1. 提供NodeletParser配置文件解析类，它维护了节点XPath和对应处理方式的映射关系。 
+2. SqlMapConfigParser和SqlMapParser在构造方法中向NodeletParser中添加节点XPath和对应处理方式的映射关系。 
+3. 配置文件解析采用递归方式进行，首先生成当前节点的XPath信息，从NodeletParser获取对应的处理方式并执行。 
+4. 整个解析过程中每个节点生成的数据统一注入到XmlParserState，最终通过XmlParserStat获取SqlMapClientImpl对象并返回。
+

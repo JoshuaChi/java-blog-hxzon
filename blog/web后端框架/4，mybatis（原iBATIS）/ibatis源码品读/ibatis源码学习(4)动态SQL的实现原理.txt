@@ -1,0 +1,368 @@
+﻿ibatis源码学习(4)动态SQL的实现原理
+
+http://learnworld.iteye.com/blog/1473491
+
+2012-04-03 16:47
+
+        动态SQL是ibatis框架的一个重要特性，本文将深入分析ibatis框架中动态SQL的实现原理。动态sql的使用参见官方文档:Dynamic SQL。本文使用的ibatis版本为2.3.4。 
+
+问题 
+在介绍动态SQL的实现原理之前，让我们先来思考几个问题。 
+1. 为什么需要动态SQL？ 
+通过动态sql可以提高运行程序的灵活性，使我们可以方便地实现多条件下的数据库操作。 
+
+2. 如何描述动态SQL？ 
+对于变化的数据，通常是封装在配置文件中。对于动态SQL中的不同条件，可以采用不同标签表示其含义。通过各种条件标签的组合，描述需要表达的语义。 
+
+3. 如何实现动态SQL？ 
+首先采用条件标签描述需要表达的语义，维护在配置文件中；初始化过程中，解析配置文件中的标签，生成sql配置对应的抽象语法树；请求处理过程中，根据参数对象解释该抽象语法树，生成当前请求的动态SQL语句。 
+
+核心类图  
+点击查看原始大小图片
+1. SqlResource 
+该接口含义是作为sql对象的来源，通过该接口可以获取sql对象。其唯一的实现类是XmlSqlResource，表示通过xml文件生成sql对象。 
+
+2. Sql 
+该接口可以生成sql语句和获取sql相关的上下文环境(如ParameterMap、ResultMap等)，有三个实现类: RawSql表示为原生的sql语句，在初始化即可确定sql语句；SimpleDynamicSql表示简单的动态sql，即sql语句中参数通过$property$方式指定，参数在sql生成过程中会被替换，不作为sql执行参数；DynamicSql表示动态sql，即sql描述文件中包含isNotNull、isGreaterThan等条件标签。 
+
+3. SqlChild 
+该接口表示sql抽象语法树的一个节点，包含sql语句的片段信息。该接口有两个实现类: SqlTag表示动态sql片段，即配置文件中的一个动态标签，内含动态sql属性值(如prepend、property值等)；SqlText表示静态sql片段，即为原生的sql语句。每条动态sql通过SqlTag和SqlText构成相应的抽象语法树。 
+
+4. SqlTagHandler 
+该接口表示SqlTag(即不同的动态标签)对应的处理方式。比如实现类IsEmptyTagHandler用于处理<isEmpty>标签，IsEqualTagHandler用于处理<isEqual>标签等。 
+
+5. SqlTagContext 
+用于解释sql抽象语法树时使用的上下文环境。通过解释语法树每个节点，将生成的sql存入SqlTagContext。最终通过SqlTagContext获取完整的sql语句。 
+
+从整体上看，动态sql的生成过程包含两步: 初始化过程用于解析sql配置，生成由SqlChild节点组成的抽象语法树；请求处理过程通过运行期的参数对象解释抽象语法树，生成实际的sql语句。下面通过源码分析整个过程。 
+
+初始化过程 
+在初始化和配置文件解析一文中我们提到过，配置文件解析的核心逻辑是: sql配置文件 ->s ql映射文件 -> SqlStatement语句，本文将从SqlStatement的解析过程开始进行分析。 
+
+1. SqlStatementParser.parseGeneralStatement()用于解析映射文件中的Sql配置，生成MappedStatement对象。部分源码如下: 
+
+public void parseGeneralStatement(Node node, MappedStatement statement) {  
+        ...  
+        MappedStatementConfig statementConf = state.getConfig().newMappedStatementConfig(id, statement,  
+        new XMLSqlSource(state, node), parameterMapName, parameterClass, resultMapName, additionalResultMapNames,  
+        resultClass, additionalResultClasses, resultSetType, fetchSizeInt, allowRemappingBool, timeoutInt, cacheModelName,  
+        xmlResultName);  
+        ...  
+}  
+上面这段代码核心逻辑是用于生成MappedStatement的相关配置信息，其中包含Sql配置的解析过程。 
+
+2. MappedStatementConfig.newMappedStatementConfig()调用了构造方法，部分源码如下: 
+
+MappedStatementConfig(...){  
+    ...  
+    //sql处理过程  
+    Sql sql = processor.getSql(); //processor是XmlSqlSource对象  
+    setSqlForStatement(statement, sql);  
+    ...  
+}  
+上面这两行就是初始化过程中sql处理的核心逻辑，首先通过配置文件生成Sql对象，接着将生成的Sql对象放入statement对象中。下面重点看一下processor.getSql()的实现过程。 
+
+3. XmlSqlSource.getSql()的完整源码如下: 
+
+public Sql getSql() {  
+  boolean isDynamic = false;  
+  StringBuffer sqlBuffer = new StringBuffer();  
+  DynamicSql dynamic = new DynamicSql(state.getConfig().getClient().getDelegate());  
+  //通过配置文件生成DynamicSql  
+  isDynamic = parseDynamicTags(parentNode, dynamic, sqlBuffer, isDynamic, false);  
+  String sqlStatement = sqlBuffer.toString();  
+  //根据是否动态sql返回不同结果对象  
+  if (isDynamic) {  
+    return dynamic;  
+  } else {  
+    return new RawSql(sqlStatement);  
+  }  
+}  
+这段代码的核心逻辑是生成DynamicSql对象，并根据是否动态sql返回不同结果对象。该方法的核心是parseDynamicTags()的实现。 
+
+4. sql解析过程中最关键的一步，通过配置文件生成Sql对象，parseDynamicTags()的完整实现如下: 
+
+private boolean parseDynamicTags(Node node, DynamicParent dynamic, StringBuffer sqlBuffer, boolean isDynamic, boolean postParseRequired) {  
+  NodeList children = node.getChildNodes();  
+  //依次处理每个子节点  
+  for (int i = 0; i < children.getLength(); i++) {  
+    Node child = children.item(i);  
+    String nodeName = child.getNodeName();  
+    // 1. 处理sql文本  
+    if (child.getNodeType() == Node.CDATA_SECTION_NODE  
+        || child.getNodeType() == Node.TEXT_NODE) {  
+  
+      String data = ((CharacterData) child).getData();  
+      data = NodeletUtils.parsePropertyTokens(data, state.getGlobalProps());  
+  
+      //通过sql文本生成SqlText对象  
+      SqlText sqlText;  
+  
+      if (postParseRequired) {  
+        sqlText = new SqlText();  
+        sqlText.setPostParseRequired(postParseRequired);  
+        sqlText.setText(data);  
+      } else {  
+        //核心逻辑，解析sql文本  
+        sqlText = PARAM_PARSER.parseInlineParameterMap(state.getConfig().getClient().getDelegate().getTypeHandlerFactory(), data, null);  
+        sqlText.setPostParseRequired(postParseRequired);  
+      }  
+  
+      dynamic.addChild(sqlText); //当前节点加入父节点  
+  
+      sqlBuffer.append(data);  
+    // 2. 处理include标签  
+    } else if ("include".equals(nodeName)) {  
+      Properties attributes = NodeletUtils.parseAttributes(child, state.getGlobalProps());  
+      String refid = (String) attributes.get("refid");  
+      Node includeNode = (Node) state.getSqlIncludes().get(refid);  
+      if (includeNode == null) {  
+        String nsrefid = state.applyNamespace(refid);  
+        includeNode = (Node) state.getSqlIncludes().get(nsrefid);  
+        if (includeNode == null) {  
+          throw new RuntimeException("Could not find SQL statement to include with refid '" + refid + "'");  
+        }  
+      }  
+      //递归处理include节点  
+      isDynamic = parseDynamicTags(includeNode, dynamic, sqlBuffer, isDynamic, false);  
+    // 3. 处理动态标签  
+    } else {  
+      //获取动态标签对应的SqlTagHandler   
+      SqlTagHandler handler = SqlTagHandlerFactory.getSqlTagHandler(nodeName);  
+      if (handler != null) {  
+        isDynamic = true;  
+  
+        // 通过动态节点配置信息生成SqlTag对象  
+        SqlTag tag = new SqlTag();  
+        tag.setName(nodeName);  
+        tag.setHandler(handler);  
+  
+        Properties attributes = NodeletUtils.parseAttributes(child, state.getGlobalProps());  
+  
+        tag.setPrependAttr(attributes.getProperty("prepend"));  
+        tag.setPropertyAttr(attributes.getProperty("property"));  
+        tag.setRemoveFirstPrepend(attributes.getProperty("removeFirstPrepend"));  
+  
+        tag.setOpenAttr(attributes.getProperty("open"));  
+        tag.setCloseAttr(attributes.getProperty("close"));  
+  
+        tag.setComparePropertyAttr(attributes.getProperty("compareProperty"));  
+        tag.setCompareValueAttr(attributes.getProperty("compareValue"));  
+        tag.setConjunctionAttr(attributes.getProperty("conjunction"));  
+  
+        ...  
+        dynamic.addChild(tag);  //当前节点加入父节点  
+  
+        //递归处理子节点  
+        if (child.hasChildNodes()) {  
+          isDynamic = parseDynamicTags(child, tag, sqlBuffer, isDynamic, tag.isPostParseRequired());  
+        }  
+      }  
+    }  
+  }  
+  
+  return isDynamic;  
+}  
+这段代码比较长，核心逻辑如下: 
+依次处理当前节点的每个子节点，判断当前子节点类型，根据不同类型采用不同处理方式: 
+4.1 处理sql文本节点 
+对于sql文本节点，生成SqlText对象。这个过程需要解析sql语句，将其中的参数#param#替换为?，生成sql语句和ParameterMapping对象。sql文本解析的核心逻辑是InlineParameterMapParser.parseInlineParameterMap()，这里不再详述。 
+
+4.2 处理include标签 
+SqlMapParaser在处理<sql>标签时，会将处理结果放入XmlParserState.sqlIncludes这个map对象中。 这里主要通过当前include id在sqlIncludes中获取对应的包含节点信息，再递归处理包含节点。 
+
+4.3 处理动态标签 
+首先获取动态标签对应的SqlTagHandler，接着通过动态标签配置生成SqlTag对象，最后递归处理当前节点的每个子节点。 
+
+小结 
+动态sql初始化的核心目标是通过递归方式构建DynamicSql对象，它是一个抽象语法树，由SqlText和SqlTag节点构成。而请求处理过程正是通过参数对象解释该抽象语法树，生成sql语句。 
+
+请求处理过程 
+在整体设计和核心流程一文中的SQL执行过程中，最后通过调用MappedStatement.executeQueryWithCallback()执行sql语句，而正是在这里生成当前请求的sql语句。 
+
+1. MappedStatement.executeQueryWithCallback()的部分源码如下: 
+
+public Object executeQueryWithCallback(StatementScope statementScope, Transaction trans, Object parameterObject, Object resultObject)  
+    throws SQLException {  
+  ...  
+  Sql sql = getSql();  
+  ...  
+  String sqlString = sql.getSql(statementScope, parameterObject);  
+  ...  
+这里首先获取当前MappedStatement对应的Sql对象，而Sql对象正是在上面初始化过程创建完成；接着调用Sql.getSql()方法，生成当前请求的sql语句。 
+
+2. Sql对象的类型可能是RawSql、StaticSql、SimpleDynamicSql或DynamicSql，这里我们重点关注DynamicSql，DynamicSql.getSql()的部分源码如下:  
+
+public String getSql(StatementScope statementScope, Object parameterObject) {  
+    String sql = statementScope.getDynamicSql();  
+    if (sql == null) {  
+      // 生成sql语句  
+      process(statementScope, parameterObject);  
+      sql = statementScope.getDynamicSql();  
+    }  
+    return sql;  
+  }  
+该方法通过调用process()方法，生成sql语句。 
+
+3. process()方法的部分源码如下: 
+
+private void process(StatementScope statementScope, Object parameterObject) {  
+  SqlTagContext ctx = new SqlTagContext();  
+  List localChildren = children;  //抽象语法树，由SqlTag和SqlText组成  
+  // 通过参数对象解释抽象语法树  
+  processBodyChildren(statementScope, ctx, parameterObject, localChildren.iterator());  
+  
+  // 构建ParameterMap  
+  ParameterMap map = new ParameterMap(delegate);  
+  map.setId(statementScope.getStatement().getId() + "-InlineParameterMap");  
+  map.setParameterClass(((MappedStatement) statementScope.getStatement()).getParameterClass());  
+  map.setParameterMappingList(ctx.getParameterMappings());  
+  
+  //获取生成的sql语句  
+  String dynSql = ctx.getBodyText();  
+  
+  ...  
+  statementScope.setDynamicSql(dynSql);  
+  statementScope.setDynamicParameterMap(map);  
+}  
+上面这段代码目标是构建sql执行语句和ParameterMap，构建sql执行语句通过processBodyChildren()方法完成。 
+
+4. 构建sql执行语句过程中最关键的一步，解释抽象语法树。processBodyChildren()的完整源码如下: 
+
+private void processBodyChildren(StatementScope statementScope, SqlTagContext ctx, Object parameterObject, Iterator localChildren, PrintWriter out) {  
+  while (localChildren.hasNext()) {  
+    SqlChild child = (SqlChild) localChildren.next();  
+    // 1. 解释SqlText节点  
+    if (child instanceof SqlText) {  
+      SqlText sqlText = (SqlText) child;  
+      String sqlStatement = sqlText.getText();  
+      if (sqlText.isWhiteSpace()) {  
+        out.print(sqlStatement);  
+      } else if (!sqlText.isPostParseRequired()) {  
+  
+        // 输出sqlStatement  
+        out.print(sqlStatement);  
+  
+        ParameterMapping[] mappings = sqlText.getParameterMappings();  
+        if (mappings != null) {  
+          for (int i = 0, n = mappings.length; i < n; i++) {  
+            ctx.addParameterMapping(mappings[i]);  
+          }  
+        }  
+      } else {  
+        ...  
+      }  
+    // 2. 解释SqlTag节点  
+    } else if (child instanceof SqlTag) {  
+      SqlTag tag = (SqlTag) child;  
+      SqlTagHandler handler = tag.getHandler();  
+      int response = SqlTagHandler.INCLUDE_BODY;  
+      do {  
+        StringWriter sw = new StringWriter();  
+        PrintWriter pw = new PrintWriter(sw);  
+        // 2.1 节点处理开始  
+        response = handler.doStartFragment(ctx, tag, parameterObject);  
+        if (response != SqlTagHandler.SKIP_BODY) {  
+          //递归处理子节点  
+          processBodyChildren(statementScope, ctx, parameterObject, tag.getChildren(), pw);  
+          pw.flush();  
+          pw.close();  
+          StringBuffer body = sw.getBuffer();  
+          // 2.2 节点处理结束  
+          response = handler.doEndFragment(ctx, tag, parameterObject, body);  
+          // 2.3 prepend处理  
+          handler.doPrepend(ctx, tag, parameterObject, body);  
+            
+          if (response != SqlTagHandler.SKIP_BODY) {  
+            if (body.length() > 0) {  
+              out.print(body.toString());  
+            }  
+          }  
+  
+        }  
+      } while (response == SqlTagHandler.REPEAT_BODY);  
+      ...   
+    }  
+  }  
+}  
+这段代码是抽象语法树的解释过程，核心逻辑如下: 
+4.1 处理SqlText节点 
+SqlText节点主要包含sql语句和ParameterMapping信息，这些信息在初始化阶段已经处理完毕，解释时直接输出即可。 
+
+4.2 处理SqlTag节点 
+SqlTag节点包含sql动态配置信息，通过调用节点对应的SqlTagHandler进行解释处理。解释的流程控制通过response返回值完成，该常量在SqlTagHandler中定义，有以下三种值: INCLUDE_BODY表示当前节点生效；SKIP_BODY表示当前节点无效；REPEAT_BODY表示节点需要重复处理。下面以<isNull>标签举例，说明SqlTag节点处理过程。 
+1) 节点处理开始 
+
+public int doStartFragment(SqlTagContext ctx, SqlTag tag, Object parameterObject) {  
+    
+  ctx.pushRemoveFirstPrependMarker(tag);  
+  // 判断条件是否满足  
+  if (isCondition(ctx, tag, parameterObject)) {  
+    return SqlTagHandler.INCLUDE_BODY;  
+  } else {  
+    return SqlTagHandler.SKIP_BODY;  
+  }  
+}  
+其中isCondition()方法实现如下: 
+
+public boolean isCondition(SqlTagContext ctx, SqlTag tag, Object parameterObject) {  
+  if (parameterObject == null) {  
+    return true;  
+  } else {  
+    // 获取参数值  
+    String prop = getResolvedProperty(ctx, tag);  
+    Object value;  
+    if (prop != null) {  
+      value = PROBE.getObject(parameterObject, prop);  
+    } else {  
+      value = parameterObject;  
+    }  
+    return value == null;  //判断是否为null  
+  }  
+}  
+首先获取参数值，再判断参数值是否满足条件，最后确定当前节点是否生效(即是否是当前请求的sql语句的组成部分)。 
+
+2) 节点处理结束 
+
+public int doEndFragment(SqlTagContext ctx, SqlTag tag, Object parameterObject, StringBuffer bodyContent) {  
+  if (tag.isCloseAvailable()  && !(tag.getHandler() instanceof IterateTagHandler)) {  
+    if (bodyContent.toString().trim().length() > 0) {  
+      bodyContent.append(tag.getCloseAttr());  
+    }  
+  }  
+  return SqlTagHandler.INCLUDE_BODY;  
+}  
+该步功能是在sql中增加动态标签对应的close属性值。 
+
+3) prepend处理 
+
+public void doPrepend(SqlTagContext ctx, SqlTag tag, Object parameterObject, StringBuffer bodyContent) {  
+    
+  if (tag.isOpenAvailable() && !(tag.getHandler() instanceof IterateTagHandler)) {  
+    if (bodyContent.toString().trim().length() > 0) {  
+      bodyContent.insert(0, tag.getOpenAttr());  
+    }  
+  }  
+    
+  if (tag.isPrependAvailable()) {  
+    if (bodyContent.toString().trim().length() > 0) {  
+      if (tag.getParent() != null && ctx.peekRemoveFirstPrependMarker(tag)) {  
+        ctx.disableRemoveFirstPrependMarker();  
+      }else {  
+        bodyContent.insert(0, tag.getPrependAttr());  
+      }  
+    }  
+  }  
+该步功能是在sql中增加动态标签对应的open和prepend属性值。 
+
+小结 
+请求处理过程核心目标是通过参数对象解释抽象语法树，生成当前请求的sql语句。该过程重点是对SqlTag节点的解析，通过调用该节点对应的SqlTagHandler完成处理。 
+
+总结 
+从设计上看，dynamic sql的实现主要涉及三个模式: 
+解释器模式: 初始化过程中构建出抽象语法树，请求处理时根据参数对象解释语法树，生成sql语句。 
+工厂模式: : 为动态标签的处理方式创建工厂类(SqlTagHandlerFactory)，根据标签名称获取对应的处理方式。 
+策略模式: : 将动态标签处理方式抽象为接口，针对不同标签有相应的实现类。解释抽象语法树时，定义统一的解释流程，再调用标签对应的处理方式完成解释中的各个子环节。 
+最后，以一张图总结动态sql的实现原理: 
+（图）
+

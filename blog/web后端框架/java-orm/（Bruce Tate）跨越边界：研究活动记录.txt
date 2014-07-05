@@ -1,0 +1,287 @@
+﻿（Bruce Tate）跨越边界：研究活动记录
+赶上包装浪潮
+Bruce Tate (bruce.tate@j2life.com), 总裁, J2Life, LLC
+发布日期： 2006 年 3 月 07 日 
+http://www.ibm.com/developerworks/cn/java/j-cb03076/
+
+简介： Java™ 编程语言对于广大的厂商、客户和行业来说，获得了前所未有的成功。但是，没有一种编程语言可以擅长每件工作。这篇文章开启了 Bruce Tate 的一个新系列，研究其他语言解决主要问题的方式以及这些解决方案对 Java 开发人员的意义。他首先研究活动记录，这是 Ruby on Rails 背后的持久性引擎。活动记录颠覆了许多 Java 的习惯做法，从典型的配置机制到基本的架构选择。结果就是这样一个框架：既有根本上的折衷，又促进了根本性的生产率改进。
+
+2005 年在许多方面来说，对我是奇怪的一年。大约在十年之中，我第一次开始要用 Java 语言之外的编程语言进行认真的开发。虽然开始时，业务合作伙伴和我得到了难以置信的成功，有一些概念上的快速证据。但我们走到了十字路口 —— 我们应该继续 Java 开发还是转换到其他更激进更新的东西？我们有许多理由要留在 Java 的道路上：
+如果放弃 Java，我们就需要从头开始学习一门新语言。
+Java 编程社区非常强大，很难让我们的客户接受这一转变。
+我们没有成千上万的以 Java 为核心的开放源码项目可供选择。
+关于这个系列
+在 跨越边界 系列中，作者 Bruce Tate 提出了这样一个主张：今天的 Java 程序员通过学习其他技术和语言，会得到很好的帮助。Java 技术是所有开发项目最好选择的情况，因此在编程领域中已经发生了变化。其他框架正在影响 Java 框架构建的方式，而从其他语言学到的概念也有助于 Java 编程。对 Python（或 Ruby、Smalltalk 等等）代码的编写可能改变 Java 编码的方式。
+这个系列介绍的编程概念和技术，与 Java 开发有根本的不同，但可以直接应用于 Java 编程。在某些情况下，需要集成这些技术来利用它们。在其他情况下，可以直接应用这些概念。单独的工具并不重要，重要的是其他语言和框架可以影响 Java 社区中的开发人员、框架，甚至是基本方式。
+但是，我们没有放弃用另一种语言进行开发的想法，开始用 Ruby on Rails 构建我们的应用程序，这是一个在 Ruby 语言上构建的 Web 应用程序框架。我们的成功超出了我们最疯狂的想像。正因如此，我才能在 Java 教学与开发（多数用 Hibernate 和 Spring）之中分出时间来从事 Ruby 教学与开发。我已经开始相信，不断地学习其他技术和语言是至关重要的，原因如下：
+Java 不是每个问题的最好语言。
+可以将一些新想法应用到 Java 编程中。
+其他框架正在影响 Java 框架构建的方式。
+在演示这些理念的系列的第一篇文章，也就是这篇文章中，将讨论活动记录（Active Record），它是位于 Ruby on Rails 核心的持久性框架。我还会提供关于方案迁移的讨论。
+活动记录：根本的不同
+必须承认，在我尝试 Rails 时我的态度有点傲慢。我不认为活动记录能够胜任工作，但是从此我就了解到对于某些问题，它提供了我需要的所有东西。
+展示活动记录如何处理持久性的最好方式是写一些代码。我的示例使用了 MySQL 数据库，但是只要做小小的修改，就可以把这段代码用于其他数据库。
+设置 Rails
+目前为止，使用活动记录最简单的方式还是通过 Ruby on Rails。如果想跟着本文操作代码，需要安装 Ruby and Rails（请参阅 参考资料）。
+然后，可以创建项目。进入希望 Rails 创建新项目的目录，并输入：
+rails email_list
+
+Rails 就会创建一个项目，然后可以通过一些漂亮的 Rails 工具使用活动记录。剩下的唯一步骤就是配置数据库。请创建一个叫作email_list_development 的数据库，并像下面这样编辑 config/database.yml 文件（请确保输入自己的用户名和口令）：
+development:
+adapter: mysql
+database: email_list_development
+host: localhost
+username: root
+password: 
+
+在这篇文章中不必担心测试和生产环境，所以这是所需要的全部配置。现在可以开始了。
+示例
+在 Hibernate 中，通常从处理 Java 对象开始进行开发，因为 Hibernate 是一个映射框架（mapping framework）。对象模型是 Hibernate 世界的核心。活动记录是一个包装框架（wrapping framework），所以先从创建数据库表开始。关系方案是活动记录世界的核心。要创建数据库表，可以使用 GUI 或输入这个脚本：
+CREATE TABLE people (
+  id int(11) NOT NULL auto_increment,
+  first_name varchar(255),
+  last_name varchar(255), 
+  email varchar(255),
+  PRIMARY KEY (id)
+);
+
+创建活动记录类
+接下来，创建叫作 app/models/person.rb 的文件。把它编写成下面这样：
+class Person < ActiveRecord::Base
+end
+
+这些 Ruby 代码创建了叫作 Person 的类，父类名称为 ActiveRecord::Base。（现在，假设 Base 就像 Java 的类，而 ActiveRecord 就像 Java 的包。）令人惊讶的是，现在所做的就已经获得了许多功能。
+现在可以在活动记录控制台上操纵 Person。这个控制台允许在 Ruby 解释器内使用数据库支持的对象。请输入：
+ruby script/console. 
+
+现在，创建一个新的 person。请输入以下 Ruby 命令：
+>> person = Person.new
+>> person.first_name = "Bruce"
+>> person.last_name = "Tate"
+>> person.email = "bruce.tate@nospam.j2life.com"
+>> person.save
+>> person = Person.new
+>> person.first_name = "Tom"
+>> person.save
+
+如果以前没有使用过活动记录，现在是看到一些新的和有趣的东西的时候了。这个小示例包装了两个重要特性：配置约定（convention over configuration） 和元编程（metaprogramming）。
+配置约定根据选择的名称推导配置，可以免除冗长的重复工作。不需要配置和映射，因为已经构造了一个符合 Rails 命名约定的数据库表。下面是一些主要约定：
+模型类 名称，例如 EmailAccount 采用首字母大写，而且是英文单数。
+数据库表 名称，例如 email_accounts 在单词之间使用下划线，而且是英文复数。
+主键 唯一地标识关系数据库中的行。活动记录使用 id 作为主键。
+外键 联结数据库表。活动记录采用 person_id 这样的外键，即英文单数加上 _id 后缀。
+如果遵守 Rail 的约定，那么通过配置约定会获得一些额外的速度，但是可以覆盖约定。例如，可以有像下面这样的 person ：
+class Person < ActiveRecord::Base
+  set_primary_key "ssn"
+end
+
+所以配置约定不会限制您，但是如果采用一致的命名，就会得到好处。
+元编程是活动记录的另一个主要贡献。活动记录大量采用了 Ruby 的反射和元编程功能。元编程就是编写能够编写和修改其他程序的程序。在这个示例中，Base 类把数据库中的每一列都作为属性添加到 person 类中。不需要编写或生成任何代码，就可以使用person.first_name、person.last_name 和 person.email。继续阅读下去，将看到更丰富的元编程。
+验证数据
+活动记录还包含了许多 Java 框架没有包含的一些特性，例如基于模型的校验（model-based validation）。基于模型的校验可以确保数据库中的数据保持一致。请把 person.rb 改成下面这样：
+class Person < ActiveRecord::Base
+  validates_presence_of :email
+end
+
+从控制台上，装入 person（因为它已经做了修改）并输入以下 Ruby 命令：
+>> load 'app/models/person.rb'
+>> person = Person.new
+>> person.save
+
+Ruby 返回 false。可以看到任何 Ruby 属性的错误消息：
+>> puts person.errors[:email]
+can't be blank
+
+包装关系
+目前为止，已经看到了在许多其他 Java 框架中看不到的功能，但是可能还不能令人信服。毕竟，数据库应用程序编程最艰难的部分通常是管理关系。我将介绍活动记录如何能够有助于管理关系。请创建另外一个叫作 addresses 的表：
+CREATE TABLE addresses (
+  id int(11) NOT NULL auto_increment,
+  person_id int(11),
+  address varchar(255),
+  city varchar(255),
+  state varchar(255),
+  zip int(9),
+  PRIMARY KEY (id)
+);
+
+这个表遵循了 Rails 对主键和外键的约定，所以可以不必进行配置。现在修改 person.rb，让它支持地址关系：
+class Person < ActiveRecord::Base
+  has_one :address
+  validates_presence_of :email
+end
+
+然后创建 app/models/address.rb：
+class Address < ActiveRecord::Base
+  belongs_to :person
+end
+
+对于刚接触 Ruby 的读者，我应当澄清一下这个语法。belongs_to :person 是个方法（不是个方法定义），它采用符号作为参数。（现在可以把符号看成不可变字符串。）belongs_to 方法是个元编程方法，它把叫作 person 的关联添加到 address。请看看它的工作方式。如果控制台正在运行，请退出控制台并用 ruby script/console 重新启动它。然后，输入以下命令：
+>> person = Person.new
+>> person.email = "bruce@tate.com"
+>> address = Address.new
+>> address.city = "Austin"
+>> person.address = address
+>> person.save
+>> person2 = Person.find_by_email "bruce@tate.com"
+>> person2.address.city
+=> "Austin"
+
+在探讨关系之前，请再来看看 find 方法 find_by_email。活动记录为每个属性添加了定制的查找器。（我把事情简化得有点过头了，但这个解释现在正好。）
+现在，请看最后一个关系。has_one :address 把类型 Address 的一个实例变量添加到 person。地址也被持久化；可以在控制台上输入 Address.find_first 进行验证。所以活动记录在积极地管理关系。
+当然，不仅限于简单的一对一关系。请把 person.rb 改成下面这样：
+class Person < ActiveRecord::Base
+has_many :addresses
+validates_presence_of :email
+end
+
+请确保把 address 变成复数形式的 addresses！现在，从控制台上输入以下命令：
+>> load 'app/models/person.rb'
+>> person = Person.find_by_email "bruce@tate.com"
+>> address = Address.new
+>> address.city = "New Braunfels"
+>> person.addresses << address
+>> person.save
+>> Address.find_all.size
+=> 2
+
+person.addresses << address 命令把 address 添加到 addresses 数组。正如所料，活动记录把第二个 address 添加到 person。可以验证数据库中多出了一条记录。所以 has_many 就像 has_one 一样工作，但是给每个 Person 都添加了一个 addresses 数组。实际上，活动记录允许有许多不同的关系，包括：
+belongs_to （多对一）
+has_one （一对一）
+has_many （一对多）
+has_and_belongs_to_many （多对多）
+inheritance
+acts_as_tree
+acts_as_list
+composition （把多个类映射到一个表）
+从一开始起，活动记录就帮助我发展了对持久性的理解。我了解到包装技术不一定就差；它们只是不同而已。我仍会依赖映射框架处理某些问题，例如棘手的传统方案。但是，我认为活动记录有相当大的应用范围，而且会随着活动记录支持的映射的提高而提高。
+我还认识到，有效的持久性框架应当表现出语言的特点。Ruby 是高度反射的，并采用反射的形式查询数据库系统表的定义。
+但是，正如将要看到的，我的 Rails 持久性体验并没有终止于活动记录。
+用迁移独立地发展方案
+在我学习活动记录时，有两个问题困扰着我。活动记录强迫我构建创建表的 SQL 脚本，这把我限制在具体的数据库实现上。而且，在开发中，经常需要删除数据库，这又强迫我在每次大的变化之后都要导入所有测试数据。我很害怕进行投入生产之后的第一次改进。而迁移（migrations） 正是 Ruby on Rails 处理对生产数据库进行修改的解决方案。
+迁移示例
+使用 Rails 迁移，可以为每个对数据库的大改进创建一个迁移。对于本文的应用程序，可以有两个迁移。为了实际查看这一特性，请创建两个文件。首先，创建叫作 db/migrate/001_initial_schema.rb 的文件，并把它编写成下面这样：
+class InitialSchema < ActiveRecord::Migration
+  def self.up
+    create_table "people" do |table|
+      table.column "first_name", :string, :limit => 255 
+      table.column "last_name", :string, :limit => 255 
+      table.column "email", :string, :limit => 255 
+    end
+  end
+  def self.down
+    drop_table "people"
+  end
+end
+
+然后创建 002_add_addresses.rb，添加下面这些代码：
+class AddAddresses < ActiveRecord::Migration
+  def self.up
+    create_table "addresses" do |table|
+      table.column "address", :string, :limit => 255
+      table.column "city", :string, :limit => 255 
+      table.column "state", :string, :limit => 2
+      table.column "zip", :string, :limit => 10
+      table.column "person_id", :integer
+    end
+    Person.find_all.each do |person|
+      person.address = Address.new
+      person.address.address = "Not yet initialized"
+      person.save
+    end
+  end
+  def self.down
+    drop_table "addresses"
+  end
+end
+
+可以输入以下命令进行迁移：
+rake migrate
+
+rake 就像 Java 的 ant 一样。Rails 有一个运行迁移的叫作 migrate 的目标。这个迁移会添加整个方案。请多添加几个人，但先不用考虑地址。
+现在假设犯了可怕的错误，需要向下迁移回原来的版本，请输入：
+rake migrate VERSION=1
+
+这个命令取出第一个迁移（由文件名中的版本号指定）并应用 AddAddresses.down 方法。向上迁移会在所有需要的迁移上按照数字顺序调用 up 方法。向下迁移则以相反的顺序调用 down 方法。如果查看数据库，只会看到 people 表。地址表已经被删除。所以 migrate允许根据需求向上或向下移动。
+迁移还有另一个特性：处理数据。可以输入以下命令再次向上迁移：
+rake migrate
+
+这个命令运行 AddAddresses.up ，而且在过程中用一个活动记录的地址初始化每个 Person 对象。可以在控制台上验证这个行为。如果已经添加了 Person 对象，也应当有了 Address 对象。请打开新的控制台，并计算人和地址数据库的行数，如下所示：
+>> Address.find_all.size
+>> Person.find_all.size
+
+所以，迁移既可以轻松地处理方案，也可以轻松地处理数据。现在可以看一下，当转到 Java 编程时，这些理念会变成什么。
+Java 持久性
+Java 技术的持久性历史是那么迷人、悲惨和充满希望。多年来，Java 语言核心持久性框架的糟糕选择 —— 企业 JavaBeans（EJB）第 1 版和第 2 版 —— 造成多年来应用程序的苦苦挣扎和用户的理想破灭。Hibernate 和 Java 数据对象（JDO）二者构成了新的 EJB 持久性的基础，成为公共的持久性标准，它们引起了 Java 社区中对象关系映射（ORM）的兴起，现在整体的 Java 体验要好得多了。
+映射
+Java 社区对 ORM（又称映射框架）的热爱已经有了七年之久。基本上，映射技术允许用户独立地定义 Java 和数据库对象，然后构建它们之间的映射，如图 1 所示：
+
+图 1. 映射框架
+映射框架 
+因为 Java 语言通常首先是一个集成语言，所以映射在对棘手的传统系统（甚至那些在面向对象语言出现之前创建的系统）进行集成时，扮演着重要角色。Java 社区现在对映射的喜爱达到了无以复加的程度。今天，典型的 Java 程序员甚至会采用 ORM 解决非常基本的问题。我们喜欢映射，因为 Java 映射的实现常常冲击了其他技术的 Java 实现：例如包装框架。
+但是不应当就此而忽视包装框架的威力。包装框架在数据库表周围放了薄薄的包装器，把数据库行转换成对象，如图 2 所示：
+
+图 2. 包装框架 
+包装框架 
+如果不需要映射，那么映射层会有相当的开销。而 Java 包装框架正是某些概念的复苏。Spring 框架进行 JDBC 包装并集成了进行企业集成的所有特性。iBATIS 包装了 SQL 语句的结果而不是表（请参阅 参考资料）。从我的观点来看，这两个框架的工作都非常精彩，而且都未受到正确的评价。但是典型的 Java 映射框架可以把 Java 包装框架要求手工进行的那些工作自动完成。
+Java 的需求
+Java 平台已经在夸耀自己顶级的映射框架，但是我现在相信它需要一个基础性的包装框架。活动记录依赖语言的能力动态地扩展 Rails 类。Java 框架应当也可以模拟活动记录提供的一些功能，但是创建像活动记录一样的东西可能是个挑战，可能会破坏三个现有的 Java 约定：
+持久性解决方案只应当用于 Java POJO（普通老式 Java 对象）。 首先，也是最重要的，根据数据库的内容创建属性可能比较困难。领域对象可能有不同的 API。如果不调用 person.get_name 来设置属性，可能要转用 person.get(name)。以静态类型检测为代价，可以从数据库得到在元数据驱动下构建的类。
+
+持久性解决方案应当用 XML 或标注表示配置。 Rails 通过强制使用带有有意义的默认值的命名约定，颠覆了这个趋势，为用户免除了许多重复工作。代价不太大，因为可以在需要的时候，用附加的配置代码覆盖默认值。Java 框架可以容易地采用 Rails 的配置约定理念。
+
+方案迁移应当由持久性领域模型驱动。 Rails 用迁移颠覆了这个约定。关键的好处是既可以迁移方案也可以迁移数据。迁移也允许 Rails 打破对关系数据库厂商的依赖。而且 Rails 的策略把持久性策略从方案迁移的问题中解脱出来。
+对于以上每种情况，Rails 都打破了 Java 框架设计人员通常奉为金科玉律的长期存在的约定。Rails 从方案开始，在方案上反射，形成模型对象。Java 包装框架可能不采用同样的方式。相反，为了利用 Java 对动态类型化的支持（以及利用认识这些类型并能提供代码补全等特性的工具），Java 框架可能需要从模型开始，并用 Java 的反射和出色的 JDBC API 动态地把模型归到数据库上。
+RIFE 的承诺
+一个目前正在成熟的作为包装框架的新 Java 框架是 RIFE（还有它的子项目 RIFE/Crud），由 Geert Bevin 创建（请参阅 参考资料）。在核心上，RIFE 的持久性有三个主要的层，如图 3 所示：
+简单的 JDBC 包装器，通过模板提供了回调样式的 JDBC 实现
+一套独立于数据库的 SQL 构建器，提供了面向对象的构建查询的方式
+类型映射层，可以把多数 SQL 类型转换成最相关的 Java 类型
+
+图 3. RIFE 框架的持久性架构
+Rife 
+通过简化的 API 使用这些层，这些简化的 API 叫作查询管理器（query-managers），它们对与持久性相关的任务（例如保存和更新）提供了直观的访问。其中一个 API 特定于 JDBC，其他的则提供了类似的 API，可以探测与 RIFE 的内容管理框架有关的元数据。
+RIFE/Crud 位于所有这些框架的顶部，提供了一个非常小的层，把所有其他层组合在一起。RIFE/Crud 使用约束和 bean 属性自动地构建应用程序的用户界面、站点结构、持久性逻辑和业务逻辑。RIFE/Crud 严重地依赖 RIFE 的元数据功能来生成界面和相关的 API，但它仍然应用于 POJO。由于 RIFE 在它的 API、模板和组件架构中清晰地定义了集成点，RIFE/Crud 是完全可扩展的。
+查询管理器的 API 惊人地简单。下面是实际使用 RIFE 的持久性模型的示例。假设有一个 Article 类，想根据它构建一个表，并把两个 article 持久化到数据库。在给定数据源的情况下，可以使用以下代码得到查询管理器：
+GenericQueryManager manager = GenericQueryManagerFactory.
+    getInstance(datasource, Article.class);
+
+接下来，通过安装查询管理器，在数据库中创建表结构：
+manager.install();
+
+现在可以用查询管理器访问数据库：
+Article article1 = new Article("title");
+Article article2 = new Article("othertitle");
+manager.save(article1);
+manager.save(article2);
+List articleList = manager.restore(
+manager.getRestoreQuery(）。where("title", "=", "othertitle"));
+
+所以，就像活动记录一样，RIFE 框架也使用配置约定。Article 必须支持叫作 id 的 ID 属性，否则用户必须用 RIFE 的 API 指定 ID 属性。而且像活动记录一样，RIFE 也使用本机语言的功能。在这个示例中，也有一个包装框架，但是是通过模型驱动方案，而不是通过其他方法。而且，比起处理 RIFE 需要解决的许多问题的大多数对象关系框架来说，现在得到的 API 要简单得多。更好的包装框架应当会很好地服务于 Java。
+结束语
+活动记录是用非 Java 语言编写并利用了语言能力的持久性模型。如果以前不了解它，我希望这个讨论能够让您看到在包装框架中什么是有可能的。您还看到了迁移。从理论上讲，Java 框架可以采用这个概念。尽管映射框架有其用武之地，但是我希望您能够利用这里提供的知识摆脱 Java 语言中常规映射框架的束缚，看得更远些，并赶上包装的潮流。下一次，我将介绍基于延续的（continuation-based）Web 开发方式。
+
+参考资料
+学习
+Beyond Java （Bruce Tate，O'Reilly，2005 年）：本文作者所著的书，介绍了 Java 的兴起和兴盛，以及能够在某些领域挑战 Java 平台的技术。 
+
+“Rolling with Ruby on Rails” 和 Learn all about Ruby on Rails：学习关于 Ruby 和 Rails 的更多内容，包括安装过程。
+
+“Ruby on Rails and J2EE: Is there room for both?”（Aaron Rustad，developerWorks，2005 年 7 月）：这篇文章比较和对比了 Rails 和传统的 J2EE 框架的一些关键的架构特性。 
+
+“Ruby off the Rails”（Andrew Glover，developerworks，2005 年 12 月）：Andrew Glover 探究了 Java 开发人员对 Ruby 的一些误解，完全用 Ruby 自己的情况进行说明。 
+
+Active Record：活动记录是 Ruby on Rails 的持久性框架。 
+
+“Improve persistence with Apache iBATIS and Derby”（Daniel Wintschel，developerWorks，2006 年 1 月）：通过这份三部分的教程连载学习关于 iBATIS 的各方面内容，这是最好的 Java 包装框架之一。 
+
+“The Spring series, Part 2: When Hibernate meets Spring” （Naveen Balani，developerWorks，2005 年 8 月）：这篇文章讲解了使用 Hibernate 的最佳组合 —— Spring 和 Hibernate。 
+获得产品和技术
+RIFE 框架：RIFE 采用了来自非 Java 语言的一些更根本的技术。 
+
+Ruby on Rails：下载开放源码的 Ruby on Rails Web 框架。
+
+Ruby：从 Ruby 项目的 Web 站点上得到它。 
+关于作者
+Bruce Tate
+Bruce Tate 是位父亲、山地车手、皮艇手，住在德克萨斯州的奥斯汀。他是三本最畅销 Java 图书的作者，包括获得 Jolt 奖的 Better, Faster, Lighter Java。他最近推出了 Spring: A Developer's Notebook。他在 IBM 工作了 13 年，现在是 J2Life, LLC 顾问公司的创始人，在那里他专攻基于 Java 技术和 Ruby 的轻量级开发策略和体系结构。
+

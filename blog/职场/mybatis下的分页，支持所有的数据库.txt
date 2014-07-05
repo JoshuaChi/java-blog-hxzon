@@ -1,0 +1,328 @@
+﻿mybatis下的分页，支持所有的数据库
+
+http://zhaohe162.blog.163.com/blog/static/38216797201131262952990/
+2011-04-12 18:29:52
+
+大家都知道，mybatis的自带分页方法只是逻辑分 页，如果数据量很大，内存一定会溢出，不知道为什么开源组织不在里面集成hibernate的物理分页处理方法!在不修改mybatis源代码的情况下， 应该怎么使mybatis支持物理分页呢？参考了网上的一些信息，有了下面的解决方法：以oracle为例子
+
+ 
+
+1.把hibernate下的dialect包全部拷贝到mybatis包的jdbc目录下，如下图所示：
+
+mybatis下的分页，支持所有的数据库 - 断尘伤痕 - 断尘居
+ 
+
+
+
+2.定义一个ResultSetHandler  Interceptor
+
+package cn.machi.utils;
+
+import java.sql.Statement;
+import java.util.Properties;
+
+import org.apache.ibatis.executor.resultset.FastResultSetHandler;
+import org.apache.ibatis.executor.resultset.ResultSetHandler;
+import org.apache.ibatis.plugin.Interceptor;
+import org.apache.ibatis.plugin.Intercepts;
+import org.apache.ibatis.plugin.Invocation;
+import org.apache.ibatis.plugin.Plugin;
+import org.apache.ibatis.plugin.Signature;
+import org.apache.ibatis.session.RowBounds;
+
+@Intercepts( {@Signature(type = ResultSetHandler.class, method = "handleResultSets", args = {Statement.class})})
+public class DiclectResultSetHandlerInterceptor implements Interceptor
+{
+   
+    public Object intercept(Invocation invocation) throws Throwable
+    {
+        FastResultSetHandler resultSet = (FastResultSetHandler)invocation.getTarget();
+       
+        RowBounds rowBounds = (RowBounds)ReflectUtil.getFieldValue(resultSet,
+                "rowBounds");
+       
+        if (rowBounds.getLimit() > 0
+                && rowBounds.getLimit() < RowBounds.NO_ROW_LIMIT)
+        {
+            ReflectUtil.setFieldValue(resultSet, "rowBounds", new RowBounds());
+        }
+        return invocation.proceed();
+    }
+   
+    public Object plugin(Object target)
+    {
+        return Plugin.wrap(target, this);
+    }
+   
+    public void setProperties(Properties properties)
+    {
+    }
+}
+
+ 
+
+3.定义一个StatementHandler的Interceptor
+
+package cn.machi.utils;
+
+import java.sql.Connection;
+import java.util.Properties;
+
+import org.apache.ibatis.executor.statement.PreparedStatementHandler;
+import org.apache.ibatis.executor.statement.RoutingStatementHandler;
+import org.apache.ibatis.executor.statement.StatementHandler;
+import org.apache.ibatis.jdbc.dialect.OracleDialect;
+import org.apache.ibatis.mapping.BoundSql;
+import org.apache.ibatis.plugin.Interceptor;
+import org.apache.ibatis.plugin.Intercepts;
+import org.apache.ibatis.plugin.Invocation;
+import org.apache.ibatis.plugin.Plugin;
+import org.apache.ibatis.plugin.Signature;
+import org.apache.ibatis.session.RowBounds;
+
+@Intercepts( {@Signature(type = StatementHandler.class, method = "prepare", args = {Connection.class})})
+public class DiclectStatementHandlerInterceptor implements Interceptor
+{
+   
+    private static final String DIALECT = "org.apache.ibatis.jdbc.dialect.OracleDialect";
+   
+    public Object intercept(Invocation invocation) throws Throwable
+    {
+        RoutingStatementHandler statement = (RoutingStatementHandler)invocation.getTarget();
+        PreparedStatementHandler handler = (PreparedStatementHandler)ReflectUtil.getFieldValue(statement,
+                "delegate");
+        RowBounds rowBounds = (RowBounds)ReflectUtil.getFieldValue(handler,
+                "rowBounds");
+       
+        if (rowBounds.getLimit() > 0
+                && rowBounds.getLimit() < RowBounds.NO_ROW_LIMIT)
+        {
+            BoundSql boundSql = statement.getBoundSql();
+            String sql = boundSql.getSql();
+           
+            OracleDialect dialect = (OracleDialect)Class.forName(DIALECT)
+                    .newInstance();
+            sql = dialect.getLimitString(sql,
+                    rowBounds.getOffset(),
+                    rowBounds.getLimit());
+           
+            ReflectUtil.setFieldValue(boundSql, "sql", sql);
+        }
+        return invocation.proceed();
+    }
+   
+    public Object plugin(Object target)
+    {
+        return Plugin.wrap(target, this);
+    }
+   
+    public void setProperties(Properties properties)
+    {
+    }
+}
+
+4.定义工具类ReflectUtil
+
+package cn.machi.utils;
+
+import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
+
+import org.apache.log4j.Logger;
+
+
+public class ReflectUtil
+{
+    private static Logger log = Logger.getLogger(ReflectUtil.class);
+   
+    private static Object operate(Object obj, String fieldName,
+            Object fieldVal, String type)
+    {
+        Object ret = null;
+        try
+        {
+            // 获得对象类型 
+            Class<? extends Object> classType = obj.getClass();
+            // 获得对象的所有属性 
+            Field fields[] = classType.getDeclaredFields();
+            for (int i = 0; i < fields.length; i++)
+            {
+                Field field = fields[i];
+                if (field.getName().equals(fieldName))
+                {
+                   
+                    String firstLetter = fieldName.substring(0, 1)
+                            .toUpperCase(); // 获得和属性对应的getXXX()方法的名字 
+                    if ("set".equals(type))
+                    {
+                        String setMethodName = "set" + firstLetter
+                                + fieldName.substring(1); // 获得和属性对应的getXXX()方法 
+                        Method setMethod = classType.getMethod(setMethodName,
+                                new Class[] {field.getType()}); // 调用原对象的getXXX()方法 
+                        ret = setMethod.invoke(obj, new Object[] {fieldVal});
+                    }
+                    if ("get".equals(type))
+                    {
+                        String getMethodName = "get" + firstLetter
+                                + fieldName.substring(1); // 获得和属性对应的setXXX()方法的名字 
+                        Method getMethod = classType.getMethod(getMethodName,
+                                new Class[] {});
+                        ret = getMethod.invoke(obj, new Object[] {});
+                    }
+                    return ret;
+                }
+            }
+        }
+        catch (Exception e)
+        {
+            log.warn("reflect error:" + fieldName, e);
+        }
+        return ret;
+    }
+   
+    public static Object getVal(Object obj, String fieldName)
+    {
+        return operate(obj, fieldName, null, "get");
+    }
+   
+    public static void setVal(Object obj, String fieldName, Object fieldVal)
+    {
+        operate(obj, fieldName, fieldVal, "set");
+    }
+   
+   
+    private static Method getDeclaredMethod(Object object, String methodName,
+            Class<?>[] parameterTypes)
+    {
+        for (Class<?> superClass = object.getClass(); superClass != Object.class; superClass = superClass.getSuperclass())
+        {
+            try
+            {
+                //superClass.getMethod(methodName, parameterTypes);
+                return superClass.getDeclaredMethod(methodName, parameterTypes);
+            }
+            catch (NoSuchMethodException e)
+            {
+                //Method 不在当前类定义, 继续向上转型
+            }
+        }
+       
+        return null;
+    }
+   
+   
+    private static void makeAccessible(Field field)
+    {
+        if (!Modifier.isPublic(field.getModifiers()))
+        {
+            field.setAccessible(true);
+        }
+    }
+   
+   
+    private static Field getDeclaredField(Object object, String filedName)
+    {
+        for (Class<?> superClass = object.getClass(); superClass != Object.class; superClass = superClass.getSuperclass())
+        {
+            try
+            {
+                return superClass.getDeclaredField(filedName);
+            }
+            catch (NoSuchFieldException e)
+            {
+                //Field 不在当前类定义, 继续向上转型
+            }
+        }
+        return null;
+    }
+   
+   
+    public static Object invokeMethod(Object object, String methodName,
+            Class<?>[] parameterTypes, Object[] parameters)
+            throws InvocationTargetException
+    {
+        Method method = getDeclaredMethod(object, methodName, parameterTypes);
+       
+        if (method == null)
+        {
+            throw new IllegalArgumentException("Could not find method ["
+                    + methodName + "] on target [" + object + "]");
+        }
+       
+        method.setAccessible(true);
+       
+        try
+        {
+            return method.invoke(object, parameters);
+        }
+        catch (IllegalAccessException e)
+        {
+           
+        }
+       
+        return null;
+    }
+   
+   
+    public static void setFieldValue(Object object, String fieldName,
+            Object value)
+    {
+        Field field = getDeclaredField(object, fieldName);
+       
+        if (field == null)
+            throw new IllegalArgumentException("Could not find field ["
+                    + fieldName + "] on target [" + object + "]");
+       
+        makeAccessible(field);
+       
+        try
+        {
+            field.set(object, value);
+        }
+        catch (IllegalAccessException e)
+        {
+            e.printStackTrace();
+        }
+    }
+   
+   
+    public static Object getFieldValue(Object object, String fieldName)
+    {
+        Field field = getDeclaredField(object, fieldName);
+        if (field == null)
+            throw new IllegalArgumentException("Could not find field ["
+                    + fieldName + "] on target [" + object + "]");
+       
+        makeAccessible(field);
+       
+        Object result = null;
+        try
+        {
+            result = field.get(object);
+        }
+        catch (IllegalAccessException e)
+        {
+            e.printStackTrace();
+        }
+       
+        return result;
+    }
+   
+}
+
+5.更新mapper configuration文件，添加如下几条，注意plugins在整个configuration文件中的顺序
+
+<plugins>
+<plugin interceptor="functionPoint.db.DiclectStatementHandlerInterceptor"/>
+<plugin interceptor="functionPoint.db.DiclectResultSetHandlerInterceptor"/>
+</plugins>
+
+6.使用方法同mybatis逻辑分页，拦截器会自动拦截执行SQL的地方，加上分页代码：
+
+getSqlSession().selectList(mapId, queryKey,new RowBounds(pageId, pageSize));
+
+ 
+
+好了，大功告成！
