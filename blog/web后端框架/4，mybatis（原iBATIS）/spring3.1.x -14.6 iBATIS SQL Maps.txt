@@ -4,16 +4,24 @@ http://static.springsource.org/spring/docs/3.1.x/spring-framework-reference/html
 
 14.6 iBATIS SQL Maps
 
-The iBATIS support in the Spring Framework much resembles the JDBC support in that it supports the same template style programming, and as with JDBC and other ORM technologies, the iBATIS support works with Spring's exception hierarchy and lets you enjoy Spring's IoC features.
+The iBATIS support in the Spring Framework much resembles the JDBC support in that it supports the same template style programming, 
+and as with JDBC and other ORM technologies, 
+the iBATIS support works with Spring's exception hierarchy and lets you enjoy Spring's IoC features.
 
-Transaction management can be handled through Spring's standard facilities. No special transaction strategies are necessary for iBATIS, because no special transactional resource involved other than a JDBC Connection. Hence, Spring's standard JDBC DataSourceTransactionManager or JtaTransactionManagerare perfectly sufficient.
+Transaction management can be handled through Spring's standard facilities. 
+No special transaction strategies are necessary for iBATIS, 
+because no special transactional resource involved other than a JDBC Connection. 
+Hence, Spring's standard JDBC DataSourceTransactionManager or JtaTransactionManagerare perfectly sufficient.
 
 [Note]	Note
 Spring supports iBATIS 2.x. The iBATIS 1.x support classes are no longer provided.
 
+====
 14.6.1 Setting up the SqlMapClient
 
-Using iBATIS SQL Maps involves creating SqlMap configuration files containing statements and result maps. Spring takes care of loading those using theSqlMapClientFactoryBean. For the examples we will be using the following Account class:
+Using iBATIS SQL Maps involves creating SqlMap configuration files containing statements and result maps. 
+Spring takes care of loading those using theSqlMapClientFactoryBean. 
+For the examples we will be using the following Account class:
 
 public class Account {
 
@@ -36,6 +44,7 @@ public class Account {
         this.email = email;
     }
 }
+
 To map this Account class with iBATIS 2.x we need to create the following SQL map Account.xml:
 
 <sqlMap namespace="Account">
@@ -56,6 +65,7 @@ To map this Account class with iBATIS 2.x we need to create the following SQL ma
   </insert>
 
 </sqlMap>
+
 The configuration file for iBATIS 2 looks like this:
 
 <sqlMapConfig>
@@ -63,9 +73,13 @@ The configuration file for iBATIS 2 looks like this:
   <sqlMap resource="example/Account.xml"/>
 
 </sqlMapConfig>
+
 Remember that iBATIS loads resources from the class path, so be sure to add theAccount.xml file to the class path.
 
-We can use the SqlMapClientFactoryBean in the Spring container. Note that with iBATIS SQL Maps 2.x, the JDBC DataSource is usually specified on theSqlMapClientFactoryBean, which enables lazy loading. This is the configuration needed for these bean definitions:
+We can use the SqlMapClientFactoryBean in the Spring container. 
+Note that with iBATIS SQL Maps 2.x, the JDBC DataSource is usually specified on theSqlMapClientFactoryBean, 
+which enables lazy loading. 
+This is the configuration needed for these bean definitions:
 
 <beans>
 
@@ -82,9 +96,12 @@ We can use the SqlMapClientFactoryBean in the Spring container. Note that with i
   </bean>
 
 </beans>
+
+====
 14.6.2 Using SqlMapClientTemplate and SqlMapClientDaoSupport
 
-The SqlMapClientDaoSupport class offers a supporting class similar to the SqlMapDaoSupport. We extend it to implement our DAO:
+The SqlMapClientDaoSupport class offers a supporting class similar to the SqlMapDaoSupport. 
+We extend it to implement our DAO:
 
 public class SqlMapAccountDao extends SqlMapClientDaoSupport implements AccountDao {
 
@@ -96,7 +113,10 @@ public class SqlMapAccountDao extends SqlMapClientDaoSupport implements AccountD
         getSqlMapClientTemplate().update("insertAccount", account);
     }
 }
-In the DAO, we use the pre-configured SqlMapClientTemplate to execute the queries, after setting up the SqlMapAccountDao in the application context and wiring it with our SqlMapClient instance:
+
+In the DAO, we use the pre-configured SqlMapClientTemplate to execute the queries, 
+after setting up the SqlMapAccountDao in the application context 
+and wiring it with our SqlMapClient instance:
 
 <beans>
 
@@ -105,9 +125,14 @@ In the DAO, we use the pre-configured SqlMapClientTemplate to execute the querie
   </bean>
 
 </beans>
-An SqlMapTemplate instance can also be created manually, passing in the SqlMapClient as constructor argument. The SqlMapClientDaoSupport base class simply preinitializes a SqlMapClientTemplate instance for us.
 
-The SqlMapClientTemplate offers a generic execute method, taking a custom SqlMapClientCallback implementation as argument. This can, for example, be used for batching:
+An SqlMapTemplate instance can also be created manually, 
+passing in the SqlMapClient as constructor argument. 
+The SqlMapClientDaoSupport base class simply preinitializes a SqlMapClientTemplate instance for us.
+
+The SqlMapClientTemplate offers a generic execute method, 
+taking a custom SqlMapClientCallback implementation as argument. 
+This can, for example, be used for batching:
 
 public class SqlMapAccountDao extends SqlMapClientDaoSupport implements AccountDao {
 
@@ -122,11 +147,16 @@ public class SqlMapAccountDao extends SqlMapClientDaoSupport implements AccountD
         });
     }
 }
-In general, any combination of operations offered by the native SqlMapExecutor API can be used in such a callback. Any thrown SQLException is converted automatically to Spring's generic DataAccessException hierarchy.
 
+In general, any combination of operations offered by the native SqlMapExecutor API can be used in such a callback. 
+Any thrown SQLException is converted automatically to Spring's generic DataAccessException hierarchy.
+
+====
 14.6.3 Implementing DAOs based on plain iBATIS API
 
-DAOs can also be written against plain iBATIS API, without any Spring dependencies, directly using an injected SqlMapClient. The following example shows a corresponding DAO implementation:
+DAOs can also be written against plain iBATIS API, without any Spring dependencies, 
+directly using an injected SqlMapClient. 
+The following example shows a corresponding DAO implementation:
 
 public class SqlMapAccountDao implements AccountDao {
         
@@ -154,7 +184,11 @@ public class SqlMapAccountDao implements AccountDao {
         }
     }
 }
-In this scenario, you need to handle the SQLException thrown by the iBATIS API in a custom fashion, usually by wrapping it in your own application-specific DAO exception. Wiring in the application context would still look like it does in the example for the SqlMapClientDaoSupport, due to the fact that the plain iBATIS-based DAO still follows the dependency injection pattern:
+
+In this scenario, you need to handle the SQLException thrown by the iBATIS API in a custom fashion, 
+usually by wrapping it in your own application-specific DAO exception. 
+Wiring in the application context would still look like it does in the example for the SqlMapClientDaoSupport, 
+due to the fact that the plain iBATIS-based DAO still follows the dependency injection pattern:
 
 <beans>
 

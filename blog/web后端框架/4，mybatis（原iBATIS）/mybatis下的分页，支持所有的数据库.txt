@@ -3,16 +3,12 @@
 http://zhaohe162.blog.163.com/blog/static/38216797201131262952990/
 2011-04-12 18:29:52
 
-大家都知道，mybatis的自带分页方法只是逻辑分 页，如果数据量很大，内存一定会溢出，不知道为什么开源组织不在里面集成hibernate的物理分页处理方法!在不修改mybatis源代码的情况下， 应该怎么使mybatis支持物理分页呢？参考了网上的一些信息，有了下面的解决方法：以oracle为例子
-
- 
+大家都知道，mybatis的自带分页方法只是逻辑分 页，
+如果数据量很大，内存一定会溢出，不知道为什么开源组织不在里面集成hibernate的物理分页处理方法!
+在不修改mybatis源代码的情况下， 应该怎么使mybatis支持物理分页呢？
+参考了网上的一些信息，有了下面的解决方法：以oracle为例子
 
 1.把hibernate下的dialect包全部拷贝到mybatis包的jdbc目录下，如下图所示：
-
-mybatis下的分页，支持所有的数据库 - 断尘伤痕 - 断尘居
- 
-
-
 
 2.定义一个ResultSetHandler  Interceptor
 
@@ -58,8 +54,6 @@ public class DiclectResultSetHandlerInterceptor implements Interceptor
     {
     }
 }
-
- 
 
 3.定义一个StatementHandler的Interceptor
 
@@ -238,7 +232,6 @@ public class ReflectUtil
         return null;
     }
    
-   
     public static Object invokeMethod(Object object, String methodName,
             Class<?>[] parameterTypes, Object[] parameters)
             throws InvocationTargetException
@@ -265,7 +258,6 @@ public class ReflectUtil
         return null;
     }
    
-   
     public static void setFieldValue(Object object, String fieldName,
             Object value)
     {
@@ -286,7 +278,6 @@ public class ReflectUtil
             e.printStackTrace();
         }
     }
-   
    
     public static Object getFieldValue(Object object, String fieldName)
     {
@@ -323,6 +314,5 @@ public class ReflectUtil
 
 getSqlSession().selectList(mapId, queryKey,new RowBounds(pageId, pageSize));
 
- 
-
 好了，大功告成！
+

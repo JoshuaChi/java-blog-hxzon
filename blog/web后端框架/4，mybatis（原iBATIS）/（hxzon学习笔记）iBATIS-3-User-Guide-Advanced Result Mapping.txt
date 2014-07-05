@@ -1,6 +1,8 @@
-﻿iBATIS-3-User-Guide-Advanced Result Mapping
+﻿（hxzon学习笔记）iBATIS-3-User-Guide-Advanced Result Mapping
 
+注释by hxzon
 
+====
 iBATIS was created with one idea in mind:  Databases aren’t always what you want or need them to be. 
 While we’d love every database to be perfect 3rd
  normal form or BCNF, they aren’t.  And it would be
@@ -45,6 +47,10 @@ For example, how would we map this statement?
     where B.id = #{id}
   </select> 
 
+查出一个博客的作者，它的评论，评论的回复，评论的post_tag，及post_tag的tag。
+先不理postTag和tag，
+上面会返回 numPost*numComment 行，其中作者，博客，post会大量重复出现在每一行。
+
 You’d probably want to map it to an intelligent object model consisting of a Blog that was written by an
 Author, and has many Posts, each of which may have zero or many Comments and Tags.  The following
 is a complete example of a complex ResultMap (assum e Author, Blog, Post, Comments and Tags are all
@@ -55,12 +61,15 @@ daunting at first, it’s actually very simple.
 
 <resultMap id="detailedBlogResultMap " type="Blog">
 
+构造函数
   <constructor>
     <idArg column="id" javaType="int"/>  
   < / constructor>
 
+属性
   <result property="title" column="blog_title"/>
 
+关联对象
   <association property="author" column="blog_author_id" javaType=" Author">
     <id property="id" column="author_id"/>
     <result property="username" column="author_username"/>
@@ -70,6 +79,7 @@ daunting at first, it’s actually very simple.
     <result proper ty="favouriteSection" column="author_favourite_section"/>  
   </association>  
 
+集合属性
   <collection property="posts" ofType="Post">
     <id property="id" column="post_id"/>
     <result property="subject" column="post_subject"/>  
@@ -97,16 +107,19 @@ following is a conceptual view of the resultMap element.
  
 resultMap  
 •   constructor   –  used for injecting results into the constructor of a class upon instantiation  
-o   idArg   –  ID argument; flagging results as ID will help improv e overall performance
+o   idArg   –  ID argument; flagging results as ID will help improve overall performance
 o   arg  –  a normal result injected into the constructor  
 •   id   –  an ID result; flagging results as ID will help improve overall performance  
-•   result   –  a normal result injected into a field or JavaBean property  
-•   association   –  a complex type assoc iation; many results will roll up into this type  
-o   nested result mappings   –  associations are resultMaps themselves, or can refer to
-one  
+•   result   –  a normal result injected into a field or JavaBean property
+属性  
+•   association   –  a complex type association; many results will roll up into this type
+关联对象  
+o   nested result mappings   –  associations are resultMaps themselves, or can refer to one  
 •   collection  –  a collection of complex types  
+集合属性
 o   nested result mappings   –  collections are resultMaps themselves, or can refer to  one  
 •   discriminator   –  uses a result value to determine which resultMap to use  
+子类型鉴别器，根据鉴别值，使用不同的“结果映射”。
 o   case   –  a case is a result map based on some value  
    nested result mappings  –  a case is also a result map itself, and thus can
 contain many of these same elements, or it can refer to  an external
@@ -124,6 +137,7 @@ The next sections will walk through each of the elements in more detail.
 =========================
 id, result
 
+用于简单类型的属性。
 
 <id property="id" column="post_id"/>  
 <result property="subject" column="post_subject"/>
@@ -134,35 +148,48 @@ property or field of a simple data type (String, int, double, Date, etc.).
 The only difference between the two is that id  will flag the result as an identifier propert y to be used
 when comparing object instances.  This helps to improve general performance, but especially
 performance of caching and nested result mapping (i.e. join mapping).    
- 
+
+id用来指明唯一标识符，用于实例间的比较。
+
 Each has a number of attributes:
- 
+配置属性：
 
 property 
+对象字段名
 The field or  property to map the column result to.  If a matching JavaBeans property
 exists for the given name, then that will be used.  Otherwise, iBATIS will look for a field
 of the given name.  In both cases you can use complex property navigation using the
 usual d ot notation.  For example, you can map to something simple like: “username”,
 or to something more complicated like:  “address.street.number”.
+
 column
+数据库表的列名
 The column name from the database, or the aliased column label. This is the same
 string that would normall y be passed to resultSet.getString(columnName).
-javaType 
+
+javaType
+java类型 
 A fully qualified Java class name, or a type alias (see the table above for the list of built ‐
 in type aliases).  iBATIS can usually figure out the type if you’re mapping to a JavaBean. 
 However, if  you are mapping to a HashMap, then you should specify the javaType
 explicitly to ensure the desired behaviour.
-jdbcType 
+
+jdbcType
+jdbc类型 
 The JDBC Type from the list of supported types that follows this table.  The JDBC type is
 only required for nullable columns upon insert, update or delete.   This is a JDBC
 requirement, not an iBATIS one.  So even if you were coding JDBC directly, you’d need
-to specify this type –  but only for nullable values. 
+to specify this type –  but only for nullable values.
+ 
 typeHandler
+类型处理器
 We discussed default type handlers previously in this documentation.  Using this
 property you can override the default type handler on a mapping ‐ by ‐ mapping basis. 
 The value is either a fully qualified class name of a TypeHandler implementation, or a
-type alias.   
+type alias. 
+  
 Supported JDBC Types
+ibatis支持的jdbc类型如下：
 For future reference, iBATIS supports the following JDBC Types via the included JdbcType enumeration.  
 
  
@@ -175,7 +202,7 @@ B IGINT  DECIMAL  TIME  NULL  CURSOR
 
 ============================
 constructor
-
+构造函数
 
 <constructor>  
 <idArg column="id" javaType="int"/>   
@@ -185,10 +212,12 @@ constructor
 While properties will work for most Data Transfer Object (DTO) type classes, and likely most of your
 domain model, there may be some cases where you want to use immutable classes.  Often tables that
 contain reference or lookup data that rarely or never changes is suited to immutable classes. 
+适用于不可变对象。
 Constructor injection allows you to set values on a class upon instantiation, without exposing public
 methods.  iBATIS also supports private properties and private JavaBeans properties to achieve this, but
 some people prefer Constructor injection.  The  constructor  element enables this.    
- 
+ibatis也支持私有的字段。
+
 Consider the following const ructor:  
  
 public class User {
@@ -202,6 +231,7 @@ public class User {
 In order to inject the results into the constructor, iBATIS needs to identify the constructor by the type of
 its parameters.  Java has no way to in trospect (or reflect) on parameter names.  So when creating a
 constructor element, ensure that the arguments are in order, and that the data types are specified.
+要按照构造函数参数的顺序，且指明参数类型。
  
 <constructor>  
 <idArg column="id" javaType="int"/>   
@@ -209,29 +239,34 @@ constructor element, ensure that the arguments are in order, and that the data t
 < / constructor>
  
 The rest of the attributes and rules are the same as for the regular id and  result elements.   
- 
+ 其它配置参数，和 id ，result 相同。
 
 column
+数据库表列名
 The column name from the database, or the aliased column label. This is the same
 string that would normally be pas sed to resultSet.getString(columnName). 
+
 javaType 
 A fully qualified Java class name, or a type alias (see the table above for the list of built ‐
 in type aliases).  iBATIS can usually figure out the type if you’re mapping to a JavaBean. 
 However, if you are mapping to a HashMap, then you should specify the javaType
 explicitly to ensure the desired behaviour.
+
 jdbcType 
 The JDBC Type from the list of supported types that follows this table.  The JDBC type is
 only required for nullable columns upon insert, updat e or delete.  This is a JDBC
 requirement, not an iBATIS one.  So even if you were coding JDBC directly, you’d need
 to specify this type –  but only for nullable values.
+
 typeHandler
 We discussed default type handlers previously in this documentation.  Using this
 property you can override the default type handler on a mapping ‐ by ‐ mapping basis. 
 The value is either a fully qualified class name of a TypeHandler implementation, or a
 type alias.   
+
 ==========================
 association
-
+关联对象
 
 <association property="author" column="blog_author_id" javaType=" Author">
 <id property="id" column="author_id"/>
@@ -246,14 +281,16 @@ of the result values.
  
 Where the association differs is that you need to tell iBATIS how to load the association.  iBATIS can do
 so in two different ways:
+需要告知ibatis，关联字段的加载方式。
+
 •   Nested Select:  By executing another mapped SQL statement that re turns the complex type
-desired.   
+desired.   通过额外的一条sql语句获取。
 •   Nested Results:  By using nested result mappings to deal with repeating subsets of joined
 results.
  
 First, let’s examine the properties of the element.  As you’ll see, it differs from a normal result mapping
 only by the  select and resultMap attributes.  
-  
+除了 select 和 resultMap ，其它配置参数与其它结果映射相同。
 
 property
 The field or property to map the column result to.  If a matching JavaBeans property
@@ -261,44 +298,54 @@ exists for the given name, then that will be used.  Otherwise, iBATIS will look 
 of the given nam e.  In both cases you can use complex property navigation using the
 usual dot notation.  For example, you can map to something simple like: “username”,
 or to something more complicated like:  “address.street.number”.
+
 column
 The column name from the database, or the aliased column label. This is the same
 string that would normally be passed to resultSet.getString(columnName).  
 Note:   To deal with composite keys,  you can specify multiple column names  to pass
 to the nested select statement by using the syntax
 column=”{prop1=col1,prop2=col2}” .  This will cause prop1 and prop2 to be set against
-the parameter object for the target nested select statement. 
+the parameter object for the target nested select statement.
+ 
 javaType 
 A fully qualified Java class name, or a type alias (see the table above for the list of built ‐
 in  type aliases).  iBATIS can usually figure out the type if you’re mapping to a JavaBean. 
 However, if you are mapping to a HashMap, then you should specify the javaType
 explicitly to ensure the desired behaviour.
+
 jdbcType 
 The JDBC Type from the list of supported types that follows this table.  The JDBC type is
 only required for nullable columns upon insert, update or delete.   This is a JDBC
 requirement, not an iBATIS one.  So even if you were coding JDBC directly, you’d need
 to specify this type –  but only  for nullable values.  
+
 typeHandler
 We discussed default type handlers previously in this documentation.  Using this
 property you can override the default type handler on a mapping ‐ by ‐ mapping basis. 
 The value is either a fully qualified class name of a Ty peHandler implementation, or a
 type alias.  
+
+==
 Nested Select for Association
+关联对象的内嵌select
 
 select
+对应语句的id。
 The ID of another mapped statement that will load the complex type required by this
 property mapping.  The values retrieved from columns specified in the column
-attribute w ill be passed to the target  select statement as parameters.    A detailed
-example follows this table.  
+attribute will be passed to the target  select statement as parameters.    A detailed
+example follows this table.
+  
 Note:   To deal with composite keys,  you can specify multiple column names  to pass
 to the nested select statement by using the syntax
+用下面的语法传入组合键。
 column=”{prop1=col1,p rop2=col2}” .  This will cause prop1 and prop2 to be set against
 the parameter object for the target nested select statement. 
  
 For example:
  
 <resultMap id=”blogResult” type=”Blog”>  
-  <association property="author" col umn="blog_author_id" javaType=" Author"  
+  <association property="author" column="blog_author_id" javaType=" Author"  
 select=”selectAuthor” / >  
 </resultMap>
  
@@ -318,7 +365,7 @@ All other properties will  be loaded automatically assuming their column and pro
  
 While this approach is simple, it will not perform well for large data sets or lists.  This problem is known
 as the “N+1 Selects Problem”.  In a nutshell, the N+1 selects problem is c aused like this:
- 
+但是存在“n+1查询问题”。
 •   You execute a single SQL statement to retrieve a list of records (the “+1”).  
 •   For each record returned, you execute a select statement to load details for each (the “N”).  
  
@@ -326,27 +373,34 @@ This problem could result in hundreds or thousands of SQL statement s to be exec
 always desirable.    
  
 The upside is that iBATIS can lazy load such queries, thus you might be spared the cost of these
+ibatis可以延迟加载，避免一次性加载造成的性能问题。
 statements all at once.  However, if you load such a list and then immediately iterate through it to
 access  the nested data, you will invoke all of the lazy loads, and thus performance could be very bad.    
- 
+但如果你马上访问所有数据，则还是有问题。
+
 And so, there is another way.
+所以，这里有另一种方式。
 
 Nested Results for Association 
 
 
 resultMap
+对应的结果映射的id。
 This is the ID of a ResultMap that can map the nested results of this association into an
 appropriate object graph.  This is an alternative to using a call to another select
 statement. It allows you to join multiple tables together into a single ResultSet.  Such a
+它允许你联合多个表，返回单个结果集。
 ResultSet will contain duplicated, repeating groups of data that needs to be
+这个结果集含有很多重复性数据。
 decomposed and mapped properly to a nested object graph.  To facilitate this, iBATIS
 lets you “chain” result maps together, to deal with the nested results.   An example will
 be far easier to follow, and one follows this table.  
  
-You’ve already seen a ver y complicated example of nested associations above.  The following is a far
+You’ve already seen a very complicated example of nested associations above.  The following is a far
 simpler example to demonstrate how this works.  Instead of executing a separate statement, we’ll join
 the Blog and Author tables together, like so:
- 
+本文开头就是这样一个复杂的语句。
+
 <select id="selectBlog" parameterType="int" resultMap="blogResult">
     select
     B.id     as blog_id,  
@@ -371,7 +425,7 @@ name.  This makes  mapping far easier.  Now we can map the results:
 resultMap=”authorResult”/>  
 </resultMap>
  
-< resultMap id="author Result " type=" Author">  
+< resultMap id="authorResult" type=" Author">  
   <id property="id" column="author_id"/>
   <result property="username" column="author_username"/>
   <result property="password" column="author_password"/>
@@ -382,8 +436,9 @@ resultMap=”authorResult”/>
 In the example above you can see at the Blog’s “author ”  association  delegates to the “authorResult”
 resultMap to load the Author instance.    
  
-Very Important:  i d  elements play a very important role in Nested Result mapping.  You should always
+Very Important:  id  elements play a very important role in Nested Result mapping.  You should always
 specify one or more properties that can be used to uniquely identify the results.  The truth is that iBATIS
+唯一标识符很重要。
 will still work if you leave it out, but at a severe performance cost.  Choose as few properties as possible
 that can uniquely identify the result. The primary key is an obvious choice (even if composite).  
  
@@ -391,16 +446,17 @@ Now, the above example used an external resultMap element to map the association
 Author resultMap reusable.  However, if you have no need to reuse it, or if you simply prefer to co ‐
 locate your result mappings into a single descriptive resultMap, you can nest the association result
 mappings.  Here’s the same example using this approach:  
- 
+如果你不需要复用authorResult，也可以将它内嵌进<association>中。
+
 <resultMap id="blogResult" type="Blog">
   <id property=”blog_id” column="id" />  
   <result property="title" column="blog_title"/>
   <association property="author" column="blog_author_id" javaType="Author" >  
-<id property="id" column="author_id"/>
-<result property="usern ame" column="author_username"/>  
-<result property="password" column="author_password"/>  
-<result property="email" column="author_email"/>
-<result property="bio" column="author_bio"/>  
+        <id property="id" column="author_id"/>
+        <result property="usern ame" column="author_username"/>  
+        <result property="password" column="author_password"/>  
+        <result property="email" column="author_email"/>
+        <result property="bio" column="author_bio"/>  
     </association>  
 </resultMap>
  
@@ -410,7 +466,7 @@ the subject of the next section.
 
 ==========================
 collection 
-
+集合字段
 
  < collection property="posts" ofType="domain.blog.Post">  
   <id property="id" column="post_id"/>  
@@ -427,8 +483,13 @@ blog class, this would be represented by something like:
 private List<Post> posts;
  
 To map a set of nested results to a List like this, we use the  collection  element.  Just  like the  association  
-element, we can use a nested select, or nested results from a join.    
-Nested Select for Collection  
+element, we can use a nested select, or nested results from a join.
+
+==    
+Nested Select for Collection
+
+通过一条额外的语句获取集合。
+
 First, let’s look at using a nested select to load the Posts for the Blog.    
  
 <resultMap id=”blogResult” type=”Blog”>  
@@ -447,10 +508,12 @@ ofType="Post" select=”selectPostsForBlog”/>
 There are a number things you’ll notice immediately, but for the most part it looks very similar to the
 association  element we learned about above.  First, y ou’ll notice that we’re using the collection  element. 
 Then you’ll notice that there’s a new “ofType”  attribute.  This attribute is necessary to distinguish
-between the JavaBean (or field) property type and the type that the collection contains.  So you co uld
+between the JavaBean (or field) property type and the type that the collection contains.  So you could
 read the following mapping like this:
 
-<collection property="posts" javaType=” ArrayList” column="blog_id"  
+用ofType配置集合的元素类型。javaType配置集合的实现类，它是可选填的。
+
+<collection property="posts" javaType=”ArrayList” column="blog_id"  
 ofType="Post" select=”selectPostsForBlog”/>  
  
    Read as:  “A collection of posts in an ArrayList of type Post.”  
@@ -461,10 +524,10 @@ can often shorten this down to simply:
 <collection property="posts" column="blog_id"  ofType="Post"  
   select=”selectPostsForBlog”/>  
  
-
+==
 Nested Results for Collection
 
-By this point, you c an probably guess how nested results for a collection will work, because it’s exactly
+By this point, you can probably guess how nested results for a collection will work, because it’s exactly
 the same as an association, but with the same addition of the  “ofType”  attribute applied.  
 First, let’s look at the SQL:  
 
@@ -496,7 +559,7 @@ for simple mapping.  Now mapping a Blog with its collection of Post mappings is 
  
 Again, remember the importance of the  id  elements here, or read the  association  section above if you
 haven’t already.  
-Also, if you prefer the longer form that allows for more reusabilit y of your result maps, you can use the
+Also, if you prefer the longer form that allows for more reusability of your result maps, you can use the
 following alternative mapping:  
 
 <resultMap id="blogResult" type="Blog">  
@@ -511,17 +574,20 @@ following alternative mapping:
     <result property="body" column="post_body "/>  
 </resultMap>
  
- Note:  There’s no l imit to the depth, breadth or combinations of the associations and collections that
+ Note:  There’s no limit to the depth, breadth or combinations of the associations and collections that
+这里对关联的深度没有限制。
 you map.  You should keep performance in mind when mapping them.  Unit testing and performance
+你得自己关注性能问题。
 testing of your application goes a long way toward discovering the best approach for your application. 
 The nice thing is that iBATIS lets you change your mind later, with very little (if any) impact to your code.
+
 Advanced association and collection mapping is a deep subject. Documentation can only get you so far. 
-With a little pr actice, it will all become clear very quickly. 
+With a little practice, it will all become clear very quickly. 
 
 
 ==========================
 discriminator
-
+鉴别器
 
 <discriminator javaType="int" column="draft">
   <case value="1" resultType="DraftPost"/>
@@ -530,7 +596,8 @@ discriminator
 Sometimes a single database query might return result sets of many different (but hopefully somewhat
 related) data types.  The discriminator element was designed to deal with this situation, and others,
 including class inheritance hierarchies.  The discriminator is pretty simple to understand, as it  behaves
-much like a switch statement in Java. 
+much like a switch statement in Java.
+鉴别器根据某一列的值，区分出并使用不同的“结果映射”。 
  
 A discriminator definition specifies column and  javaType  attributes. The column is where iBATIS will look
 for the value to compare.  The javaType is required to ensure the proper kind of equality test is
@@ -539,16 +606,16 @@ performed (although String would probably work for almost any situation).  For e
 <resultMap id="vehicleResult " type=" Vehicle">
     <id property=”id” column="id" />  
     <result property=" vin " column="vin "/>  
-<result property=" year" column="year"/>  
-<result property=" make" column="make"/>  
-<result property=" model" column="model"/>  
-<result property=" color" column="color"/>  
-<discriminator javaType="int" column="vehicle_type">
-  <case value="1" resultMap="carResult"/>  
-  <case value="2" resultMap="truckResult "/>  
-  <case value="3" resultMap="vanResult"/>  
-  <case value="4" resultMap="suvResult"/>  
-</discriminator>  
+    <result property=" year" column="year"/>  
+    <result property=" make" column="make"/>  
+    <result property=" model" column="model"/>  
+    <result property=" color" column="color"/>  
+    <discriminator javaType="int" column="vehicle_type">
+          <case value="1" resultMap="carResult"/>  
+          <case value="2" resultMap="truckResult "/>  
+          <case value="3" resultMap="vanResult"/>  
+          <case value="4" resultMap="suvResult"/>  
+    </discriminator>  
 </resultMap>
  
     
@@ -565,14 +632,16 @@ defined outside of the discriminator block.  So, if the carResult was declared a
 Then ONLY the doorCount property would be loaded.  This is done to allow completely independent
 groups of discriminator cases, even ones that have no relationship to the parent resultMap.  In this case
 we do of course know that there’s a relationship between cars and vehicles, as a Car is ‐ a Vehicle. 
-Therefore, we want the re st of the properties loaded too.  One simple change to the resultMap and
+Therefore, we want the rest of the properties loaded too.  One simple change to the resultMap and
 we’re set to go.
+
+使用extends属性来配置“结果映射”的继承。
  
 <resultMap id="carResult" type=" Car "  extends=”vehicleResult”>  
     < result property=”doorCount” column="door_count" />  
 </resultMap>
  
-Now all of the properties from bo th the vehicleResult and carResult will be loaded.
+Now all of the properties from both the vehicleResult and carResult will be loaded.
 
 Once again though, some may find this external definition of maps somewhat tedious.  Therefore
 there’s an alternative syntax for those that prefer a more concise mapping style.  For example:
@@ -601,8 +670,8 @@ there’s an alternative syntax for those that prefer a more concise mapping sty
 </discriminator>  
 </resultMap>
  
-  R emember that these are all Result Maps, and if you don’t specify any results at all, then iBATIS will
-automatically match up co lumns and properties for you.  So most of these examples are more verbose
+Remember that these are all Result Maps, and if you don’t specify any results at all, then iBATIS will
+automatically match up columns and properties for you.  So most of these examples are more verbose
 than they really need to be.  That said, most databases are kind of complex and it’s unlikely that we’ll be
 able to depend on that for all cases. 
-
+如果不指定结果映射，ibatis会自动根据列名和字段名的匹配来完成。

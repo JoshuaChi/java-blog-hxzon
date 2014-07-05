@@ -1,7 +1,7 @@
 ﻿（苑磊）基于 Spring 和 iBATIS 的动态可更新多数据源持久层
 苑 磊, 软件工程师, IBM
 发布日期： 2012 年 2 月 09 日 
-http://www.ibm.com/developerworks/cn/java/j-lo-dynamicpersist/index.html?ca=drs-
+http://www.ibm.com/developerworks/cn/java/j-lo-dynamicpersist/index.html
 
 简介： 当开发拥有多重数据源的项目时，常常会遇到这样一种需求：用户希望能够通过 UI 来自己动态配置数据源。但实现这种需求通常会遇到三个问题，1, 应用程序需要重新发布来更新数据连接。2，数据源个数上限不能动态增长。3，数据源的维护和修改需要专业人员在后台操作。本文提出了一种创新性的解决方案，通过使用 Spring+iBATIS 的框架，来实现可动态更新的多重数据源的持久层。对于解决以上问题具有一定的参考价值。
 
