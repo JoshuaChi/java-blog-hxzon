@@ -1,0 +1,216 @@
+﻿（hxzon学习笔记）PostgreSQL 9.4beta1 Documentation-Chapter 9. Functions and Operators-8，条件函数
+
+注释by hxzon
+====
+9.1. Logical Operators
+9.2. Comparison Operators
+9.3. Mathematical Functions and Operators
+9.4. String Functions and Operators
+9.5. Binary String Functions and Operators
+9.6. Bit String Functions and Operators
+9.7. Pattern Matching
+9.7.1. LIKE
+9.7.2. SIMILAR TO Regular Expressions
+9.7.3. POSIX Regular Expressions
+9.8. Data Type Formatting Functions
+9.9. Date/Time Functions and Operators
+9.9.1. EXTRACT, date_part
+9.9.2. date_trunc
+9.9.3. AT TIME ZONE
+9.9.4. Current Date/Time
+9.9.5. Delaying Execution
+9.10. Enum Support Functions
+9.11. Geometric Functions and Operators
+9.12. Network Address Functions and Operators
+9.13. Text Search Functions and Operators
+9.14. XML Functions
+9.14.1. Producing XML Content
+9.14.2. XML Predicates
+9.14.3. Processing XML
+9.14.4. Mapping Tables to XML
+9.15. JSON Functions and Operators
+9.16. Sequence Manipulation Functions
+9.17. Conditional Expressions
+9.17.1. CASE
+9.17.2. COALESCE
+9.17.3. NULLIF
+9.17.4. GREATEST and LEAST
+9.18. Array Functions and Operators
+9.19. Range Functions and Operators
+9.20. Aggregate Functions
+9.21. Window Functions
+9.22. Subquery Expressions
+9.22.1. EXISTS
+9.22.2. IN
+9.22.3. NOT IN
+9.22.4. ANY/SOME
+9.22.5. ALL
+9.22.6. Single-row Comparison
+9.23. Row and Array Comparisons
+9.23.1. IN
+9.23.2. NOT IN
+9.23.3. ANY/SOME (array)
+9.23.4. ALL (array)
+9.23.5. Row Constructor Comparison
+9.23.6. Composite Type Comparison
+9.24. Set Returning Functions
+9.25. System Information Functions
+9.26. System Administration Functions
+9.26.1. Configuration Settings Functions
+9.26.2. Server Signaling Functions
+9.26.3. Backup Control Functions
+9.26.4. Recovery Control Functions
+9.26.5. Snapshot Synchronization Functions
+9.26.6. Replication Functions
+9.26.7. Database Object Management Functions
+9.26.8. Generic File Access Functions
+9.26.9. Advisory Lock Functions
+9.27. Trigger Functions
+9.28. Event Trigger Functions
+
+====
+9.17. Conditional Expressions
+This section describes the SQL-compliant conditional expressions available in PostgreSQL.
+
+Tip: If your needs go beyond the capabilities of these conditional expressions, you might want to consider writing a stored procedure in a more expressive programming language.
+9.17.1. CASE
+
+The SQL CASE expression is a generic conditional expression, similar to if/else statements in other programming languages:
+
+CASE WHEN condition THEN result
+     [WHEN ...]
+     [ELSE result]
+END
+CASE clauses can be used wherever an expression is valid. Each condition is an expression that returns a boolean result. If the condition's result is true, the value of the CASE expression is the result that follows the condition, and the remainder of the CASE expression is not processed. If the condition's result is not true, any subsequent WHEN clauses are examined in the same manner. If no WHEN condition yields true, the value of the CASE expression is the result of the ELSE clause. If the ELSE clause is omitted and no condition is true, the result is null.
+
+An example:
+
+SELECT * FROM test;
+
+ a
+---
+ 1
+ 2
+ 3
+
+
+SELECT a,
+       CASE WHEN a=1 THEN 'one'
+            WHEN a=2 THEN 'two'
+            ELSE 'other'
+       END
+    FROM test;
+
+ a | case
+---+-------
+ 1 | one
+ 2 | two
+ 3 | other
+The data types of all the result expressions must be convertible to a single output type. See Section 10.5 for more details.
+
+There is a "simple" form of CASE expression that is a variant of the general form above:
+
+CASE expression
+    WHEN value THEN result
+    [WHEN ...]
+    [ELSE result]
+END
+The first expression is computed, then compared to each of the value expressions in the WHEN clauses until one is found that is equal to it. If no match is found, the result of the ELSE clause (or a null value) is returned. This is similar to the switch statement in C.
+
+The example above can be written using the simple CASE syntax:
+
+SELECT a,
+       CASE a WHEN 1 THEN 'one'
+              WHEN 2 THEN 'two'
+              ELSE 'other'
+       END
+    FROM test;
+
+ a | case
+---+-------
+ 1 | one
+ 2 | two
+ 3 | other
+A CASE expression does not evaluate any subexpressions that are not needed to determine the result. For example, this is a possible way of avoiding a division-by-zero failure:
+
+SELECT ... WHERE CASE WHEN x <> 0 THEN y/x > 1.5 ELSE false END;
+Note: As described in Section 35.6, functions and operators marked IMMUTABLE can be evaluated when the query is planned rather than when it is executed. This means that constant parts of a subexpression that is not evaluated during query execution might still be evaluated during query planning.
+9.17.2. COALESCE
+
+COALESCE(value [, ...])
+The COALESCE function returns the first of its arguments that is not null. Null is returned only if all arguments are null. It is often used to substitute a default value for null values when data is retrieved for display, for example:
+
+SELECT COALESCE(description, short_description, '(none)') ...
+This returns description if it is not null, otherwise short_description if it is not null, otherwise (none).
+
+Like a CASE expression, COALESCE only evaluates the arguments that are needed to determine the result; that is, arguments to the right of the first non-null argument are not evaluated. This SQL-standard function provides capabilities similar to NVL and IFNULL, which are used in some other database systems.
+
+9.17.3. NULLIF
+
+NULLIF(value1, value2)
+The NULLIF function returns a null value if value1 equals value2; otherwise it returns value1. This can be used to perform the inverse operation of the COALESCE example given above:
+
+SELECT NULLIF(value, '(none)') ...
+In this example, if value is (none), null is returned, otherwise the value of value is returned.
+
+9.17.4. GREATEST and LEAST
+
+GREATEST(value [, ...])
+LEAST(value [, ...])
+The GREATEST and LEAST functions select the largest or smallest value from a list of any number of expressions. The expressions must all be convertible to a common data type, which will be the type of the result (see Section 10.5 for details). NULL values in the list are ignored. The result will be NULL only if all the expressions evaluate to NULL.
+
+Note that GREATEST and LEAST are not in the SQL standard, but are a common extension. Some other databases make them return NULL if any argument is NULL, rather than only when all are NULL.
+
+====
+9.27. Trigger Functions
+Currently PostgreSQL provides one built in trigger function, suppress_redundant_updates_trigger, which will prevent any update that does not actually change the data in the row from taking place, in contrast to the normal behavior which always performs the update regardless of whether or not the data has changed. (This normal behavior makes updates run faster, since no checking is required, and is also useful in certain cases.)
+
+Ideally, you should normally avoid running updates that don't actually change the data in the record. Redundant updates can cost considerable unnecessary time, especially if there are lots of indexes to alter, and space in dead rows that will eventually have to be vacuumed. However, detecting such situations in client code is not always easy, or even possible, and writing expressions to detect them can be error-prone. An alternative is to use suppress_redundant_updates_trigger, which will skip updates that don't change the data. You should use this with care, however. The trigger takes a small but non-trivial time for each record, so if most of the records affected by an update are actually changed, use of this trigger will actually make the update run slower.
+
+The suppress_redundant_updates_trigger function can be added to a table like this:
+
+CREATE TRIGGER z_min_update
+BEFORE UPDATE ON tablename
+FOR EACH ROW EXECUTE PROCEDURE suppress_redundant_updates_trigger();
+In most cases, you would want to fire this trigger last for each row. Bearing in mind that triggers fire in name order, you would then choose a trigger name that comes after the name of any other trigger you might have on the table.
+
+For more information about creating triggers, see CREATE TRIGGER.
+
+====
+9.28. Event Trigger Functions
+Currently PostgreSQL provides one built-in event trigger helper function, pg_event_trigger_dropped_objects.
+
+pg_event_trigger_dropped_objects returns a list of all objects dropped by the command in whose sql_drop event it is called. If called in any other context, pg_event_trigger_dropped_objects raises an error. pg_event_trigger_dropped_objects returns the following columns:
+
+Name	Type	Description
+classid	Oid	OID of catalog the object belonged in
+objid	Oid	OID the object had within the catalog
+objsubid	int32	Object sub-id (e.g. attribute number for columns)
+object_type	text	Type of the object
+schema_name	text	Name of the schema the object belonged in, if any; otherwise NULL. No quoting is applied.
+object_name	text	Name of the object, if the combination of schema and name can be used as an unique identifier for the object; otherwise NULL. No quoting is applied, and name is never schema-qualified.
+object_identity	text	Text rendering of the object identity, schema-qualified. Each and every identifier present in the identity is quoted if necessary.
+The pg_event_trigger_dropped_objects function can be used in an event trigger like this:
+
+CREATE FUNCTION test_event_trigger_for_drops()
+        RETURNS event_trigger LANGUAGE plpgsql AS $$
+DECLARE
+    obj record;
+BEGIN
+    FOR obj IN SELECT * FROM pg_event_trigger_dropped_objects()
+    LOOP
+        RAISE NOTICE '% dropped object: % %.% %',
+                     tg_tag,
+                     obj.object_type,
+                     obj.schema_name,
+                     obj.object_name,
+                     obj.object_identity;
+    END LOOP;
+END
+$$;
+CREATE EVENT TRIGGER test_event_trigger_for_drops
+   ON sql_drop
+   EXECUTE PROCEDURE test_event_trigger_for_drops();
+For more information about event triggers, see Chapter 37.
+
+

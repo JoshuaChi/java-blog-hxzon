@@ -1,0 +1,112 @@
+﻿PostgreSQL 9.4beta1 Documentation
+The PostgreSQL Global Development Group
+http://www.postgresql.org/docs/9.4/static/index.html
+
+PostgreSQL 8.1 中文文档
+http://www.php100.com/manual/PostgreSQL8/
+
+Copyright © 1996-2014 The PostgreSQL Global Development Group
+
+Table of Contents
+Preface
+What is PostgreSQL?
+A Brief History of PostgreSQL
+Conventions
+Further Information
+Bug Reporting Guidelines
+
+I. Tutorial
+1. Getting Started
+2. The SQL Language
+3. Advanced Features
+
+II. The SQL Language
+4. SQL Syntax
+5. Data Definition
+6. Data Manipulation
+7. Queries
+8. Data Types
+9. Functions and Operators
+10. Type Conversion
+11. Indexes
+12. Full Text Search
+13. Concurrency Control
+14. Performance Tips
+
+III. Server Administration
+15. Installation from Source Code
+16. Installation from Source Code on Windows
+17. Server Setup and Operation
+18. Server Configuration
+19. Client Authentication
+20. Database Roles
+21. Managing Databases
+22. Localization
+23. Routine Database Maintenance Tasks
+24. Backup and Restore
+25. High Availability, Load Balancing, and Replication
+26. Recovery Configuration
+27. Monitoring Database Activity
+28. Monitoring Disk Usage
+29. Reliability and the Write-Ahead Log
+30. Regression Tests
+
+IV. Client Interfaces
+31. libpq - C Library
+32. Large Objects
+33. ECPG - Embedded SQL in C
+34. The Information Schema
+
+V. Server Programming
+35. Extending SQL
+36. Triggers
+37. Event Triggers
+38. The Rule System
+39. Procedural Languages
+40. PL/pgSQL - SQL Procedural Language
+41. PL/Tcl - Tcl Procedural Language
+42. PL/Perl - Perl Procedural Language
+43. PL/Python - Python Procedural Language
+44. Server Programming Interface
+45. Background Worker Processes
+46. Logical Decoding
+
+====
+VI. Reference
+I. SQL Commands
+II. PostgreSQL Client Applications
+III. PostgreSQL Server Applications
+
+====
+VII. Internals
+47. Overview of PostgreSQL Internals
+48. System Catalogs
+49. Frontend/Backend Protocol
+50. PostgreSQL Coding Conventions
+51. Native Language Support
+52. Writing A Procedural Language Handler
+53. Writing A Foreign Data Wrapper
+54. Genetic Query Optimizer
+55. Index Access Method Interface Definition
+56. GiST Indexes
+57. SP-GiST Indexes
+58. GIN Indexes
+59. Database Physical Storage
+60. BKI Backend Interface
+61. How the Planner Uses Statistics
+
+VIII. Appendixes
+A. PostgreSQL Error Codes
+B. Date/Time Support
+C. SQL Key Words
+D. SQL Conformance
+E. Release Notes
+F. Additional Supplied Modules
+G. Additional Supplied Programs
+H. External Projects
+I. The Source Code Repository
+J. Documentation
+K. Acronyms
+
+Bibliography
+Index

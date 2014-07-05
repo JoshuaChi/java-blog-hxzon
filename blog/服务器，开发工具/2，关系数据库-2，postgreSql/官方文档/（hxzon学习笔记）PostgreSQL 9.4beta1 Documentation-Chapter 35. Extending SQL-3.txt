@@ -1,0 +1,143 @@
+﻿（hxzon学习笔记）PostgreSQL 9.4beta1 Documentation-Chapter 35. Extending SQL-3
+
+====
+35.1. How Extensibility Works
+35.2. The PostgreSQL Type System
+35.2.1. Base Types
+35.2.2. Composite Types
+35.2.3. Domains
+35.2.4. Pseudo-Types
+35.2.5. Polymorphic Types
+35.3. User-defined Functions
+35.4. Query Language (SQL) Functions
+35.4.1. Arguments for SQL Functions
+35.4.2. SQL Functions on Base Types
+35.4.3. SQL Functions on Composite Types
+35.4.4. SQL Functions with Output Parameters
+35.4.5. SQL Functions with Variable Numbers of Arguments
+35.4.6. SQL Functions with Default Values for Arguments
+35.4.7. SQL Functions as Table Sources
+35.4.8. SQL Functions Returning Sets
+35.4.9. SQL Functions Returning TABLE
+35.4.10. Polymorphic SQL Functions
+35.4.11. SQL Functions with Collations
+35.5. Function Overloading
+35.6. Function Volatility Categories
+35.7. Procedural Language Functions
+35.8. Internal Functions
+35.9. C-Language Functions
+35.9.1. Dynamic Loading
+35.9.2. Base Types in C-Language Functions
+35.9.3. Version 0 Calling Conventions
+35.9.4. Version 1 Calling Conventions
+35.9.5. Writing Code
+35.9.6. Compiling and Linking Dynamically-loaded Functions
+35.9.7. Composite-type Arguments
+35.9.8. Returning Rows (Composite Types)
+35.9.9. Returning Sets
+35.9.10. Polymorphic Arguments and Return Types
+35.9.11. Transform Functions
+35.9.12. Shared Memory and LWLocks
+35.9.13. Using C++ for Extensibility
+35.10. User-defined Aggregates
+35.10.1. Moving-Aggregate Mode
+35.10.2. Polymorphic and Variadic Aggregates
+35.10.3. Ordered-Set Aggregates
+35.10.4. Support Functions for Aggregates
+35.11. User-defined Types
+35.12. User-defined Operators
+35.13. Operator Optimization Information
+35.13.1. COMMUTATOR
+35.13.2. NEGATOR
+35.13.3. RESTRICT
+35.13.4. JOIN
+35.13.5. HASHES
+35.13.6. MERGES
+35.14. Interfacing Extensions To Indexes
+35.14.1. Index Methods and Operator Classes
+35.14.2. Index Method Strategies
+35.14.3. Index Method Support Routines
+35.14.4. An Example
+35.14.5. Operator Classes and Operator Families
+35.14.6. System Dependencies on Operator Classes
+35.14.7. Ordering Operators
+35.14.8. Special Features of Operator Classes
+35.15. Packaging Related Objects into an Extension
+35.15.1. Extension Files
+35.15.2. Extension Relocatability
+35.15.3. Extension Configuration Tables
+35.15.4. Extension Updates
+35.15.5. Extension Example
+35.16. Extension Building Infrastructure
+
+====
+35.5. Function Overloading
+More than one function can be defined with the same SQL name, so long as the arguments they take are different. In other words, function names can be overloaded. When a query is executed, the server will determine which function to call from the data types and the number of the provided arguments. Overloading can also be used to simulate functions with a variable number of arguments, up to a finite maximum number.
+
+When creating a family of overloaded functions, one should be careful not to create ambiguities. For instance, given the functions:
+
+CREATE FUNCTION test(int, real) RETURNS ...
+CREATE FUNCTION test(smallint, double precision) RETURNS ...
+it is not immediately clear which function would be called with some trivial input like test(1, 1.5). The currently implemented resolution rules are described in Chapter 10, but it is unwise to design a system that subtly relies on this behavior.
+
+A function that takes a single argument of a composite type should generally not have the same name as any attribute (field) of that type. Recall that attribute(table) is considered equivalent to table.attribute. In the case that there is an ambiguity between a function on a composite type and an attribute of the composite type, the attribute will always be used. It is possible to override that choice by schema-qualifying the function name (that is, schema.func(table)) but it's better to avoid the problem by not choosing conflicting names.
+
+Another possible conflict is between variadic and non-variadic functions. For instance, it is possible to create both foo(numeric) and foo(VARIADIC numeric[]). In this case it is unclear which one should be matched to a call providing a single numeric argument, such as foo(10.1). The rule is that the function appearing earlier in the search path is used, or if the two functions are in the same schema, the non-variadic one is preferred.
+
+When overloading C-language functions, there is an additional constraint: The C name of each function in the family of overloaded functions must be different from the C names of all other functions, either internal or dynamically loaded. If this rule is violated, the behavior is not portable. You might get a run-time linker error, or one of the functions will get called (usually the internal one). The alternative form of the AS clause for the SQL CREATE FUNCTION command decouples the SQL function name from the function name in the C source code. For instance:
+
+CREATE FUNCTION test(int) RETURNS int
+    AS 'filename', 'test_1arg'
+    LANGUAGE C;
+CREATE FUNCTION test(int, int) RETURNS int
+    AS 'filename', 'test_2arg'
+    LANGUAGE C;
+The names of the C functions here reflect one of many possible conventions.
+
+====
+35.6. Function Volatility Categories
+Every function has a volatility classification, with the possibilities being VOLATILE, STABLE, or IMMUTABLE. VOLATILE is the default if the CREATE FUNCTION command does not specify a category. The volatility category is a promise to the optimizer about the behavior of the function:
+
+A VOLATILE function can do anything, including modifying the database. It can return different results on successive calls with the same arguments. The optimizer makes no assumptions about the behavior of such functions. A query using a volatile function will re-evaluate the function at every row where its value is needed.
+
+A STABLE function cannot modify the database and is guaranteed to return the same results given the same arguments for all rows within a single statement. This category allows the optimizer to optimize multiple calls of the function to a single call. In particular, it is safe to use an expression containing such a function in an index scan condition. (Since an index scan will evaluate the comparison value only once, not once at each row, it is not valid to use a VOLATILE function in an index scan condition.)
+
+An IMMUTABLE function cannot modify the database and is guaranteed to return the same results given the same arguments forever. This category allows the optimizer to pre-evaluate the function when a query calls it with constant arguments. For example, a query like SELECT ... WHERE x = 2 + 2 can be simplified on sight to SELECT ... WHERE x = 4, because the function underlying the integer addition operator is marked IMMUTABLE.
+
+For best optimization results, you should label your functions with the strictest volatility category that is valid for them.
+
+Any function with side-effects must be labeled VOLATILE, so that calls to it cannot be optimized away. Even a function with no side-effects needs to be labeled VOLATILE if its value can change within a single query; some examples are random(), currval(), timeofday().
+
+Another important example is that the current_timestamp family of functions qualify as STABLE, since their values do not change within a transaction.
+
+There is relatively little difference between STABLE and IMMUTABLE categories when considering simple interactive queries that are planned and immediately executed: it doesn't matter a lot whether a function is executed once during planning or once during query execution startup. But there is a big difference if the plan is saved and reused later. Labeling a function IMMUTABLE when it really isn't might allow it to be prematurely folded to a constant during planning, resulting in a stale value being re-used during subsequent uses of the plan. This is a hazard when using prepared statements or when using function languages that cache plans (such as PL/pgSQL).
+
+For functions written in SQL or in any of the standard procedural languages, there is a second important property determined by the volatility category, namely the visibility of any data changes that have been made by the SQL command that is calling the function. A VOLATILE function will see such changes, a STABLE or IMMUTABLE function will not. This behavior is implemented using the snapshotting behavior of MVCC (see Chapter 13): STABLE and IMMUTABLE functions use a snapshot established as of the start of the calling query, whereas VOLATILE functions obtain a fresh snapshot at the start of each query they execute.
+
+Note: Functions written in C can manage snapshots however they want, but it's usually a good idea to make C functions work this way too.
+Because of this snapshotting behavior, a function containing only SELECT commands can safely be marked STABLE, even if it selects from tables that might be undergoing modifications by concurrent queries. PostgreSQL will execute all commands of a STABLE function using the snapshot established for the calling query, and so it will see a fixed view of the database throughout that query.
+
+The same snapshotting behavior is used for SELECT commands within IMMUTABLE functions. It is generally unwise to select from database tables within an IMMUTABLE function at all, since the immutability will be broken if the table contents ever change. However, PostgreSQL does not enforce that you do not do that.
+
+A common error is to label a function IMMUTABLE when its results depend on a configuration parameter. For example, a function that manipulates timestamps might well have results that depend on the TimeZone setting. For safety, such functions should be labeled STABLE instead.
+
+Note: PostgreSQL requires that STABLE and IMMUTABLE functions contain no SQL commands other than SELECT to prevent data modification. (This is not a completely bulletproof test, since such functions could still call VOLATILE functions that modify the database. If you do that, you will find that the STABLE or IMMUTABLE function does not notice the database changes applied by the called function, since they are hidden from its snapshot.)
+
+====
+35.7. Procedural Language Functions
+PostgreSQL allows user-defined functions to be written in other languages besides SQL and C. These other languages are generically called procedural languages (PLs). Procedural languages aren't built into the PostgreSQL server; they are offered by loadable modules. See Chapter 39 and following chapters for more information.
+
+====
+35.8. Internal Functions
+Internal functions are functions written in C that have been statically linked into the PostgreSQL server. The "body" of the function definition specifies the C-language name of the function, which need not be the same as the name being declared for SQL use. (For reasons of backward compatibility, an empty body is accepted as meaning that the C-language function name is the same as the SQL name.)
+
+Normally, all internal functions present in the server are declared during the initialization of the database cluster (see Section 17.2), but a user could use CREATE FUNCTION to create additional alias names for an internal function. Internal functions are declared in CREATE FUNCTION with language name internal. For instance, to create an alias for the sqrt function:
+
+CREATE FUNCTION square_root(double precision) RETURNS double precision
+    AS 'dsqrt'
+    LANGUAGE internal
+    STRICT;
+(Most internal functions expect to be declared "strict".)
+
+Note: Not all "predefined" functions are "internal" in the above sense. Some predefined functions are written in SQL.
+

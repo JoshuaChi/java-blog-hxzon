@@ -1,0 +1,133 @@
+﻿（hxzon学习笔记）PostgreSQL 9.4beta1 Documentation-Chapter 9. Functions and Operators-3，二进制字符串和比特字符串函数
+
+注释by hxzon
+====
+9.1. Logical Operators
+9.2. Comparison Operators
+9.3. Mathematical Functions and Operators
+9.4. String Functions and Operators
+9.5. Binary String Functions and Operators
+9.6. Bit String Functions and Operators
+9.7. Pattern Matching
+9.7.1. LIKE
+9.7.2. SIMILAR TO Regular Expressions
+9.7.3. POSIX Regular Expressions
+9.8. Data Type Formatting Functions
+9.9. Date/Time Functions and Operators
+9.9.1. EXTRACT, date_part
+9.9.2. date_trunc
+9.9.3. AT TIME ZONE
+9.9.4. Current Date/Time
+9.9.5. Delaying Execution
+9.10. Enum Support Functions
+9.11. Geometric Functions and Operators
+9.12. Network Address Functions and Operators
+9.13. Text Search Functions and Operators
+9.14. XML Functions
+9.14.1. Producing XML Content
+9.14.2. XML Predicates
+9.14.3. Processing XML
+9.14.4. Mapping Tables to XML
+9.15. JSON Functions and Operators
+9.16. Sequence Manipulation Functions
+9.17. Conditional Expressions
+9.17.1. CASE
+9.17.2. COALESCE
+9.17.3. NULLIF
+9.17.4. GREATEST and LEAST
+9.18. Array Functions and Operators
+9.19. Range Functions and Operators
+9.20. Aggregate Functions
+9.21. Window Functions
+9.22. Subquery Expressions
+9.22.1. EXISTS
+9.22.2. IN
+9.22.3. NOT IN
+9.22.4. ANY/SOME
+9.22.5. ALL
+9.22.6. Single-row Comparison
+9.23. Row and Array Comparisons
+9.23.1. IN
+9.23.2. NOT IN
+9.23.3. ANY/SOME (array)
+9.23.4. ALL (array)
+9.23.5. Row Constructor Comparison
+9.23.6. Composite Type Comparison
+9.24. Set Returning Functions
+9.25. System Information Functions
+9.26. System Administration Functions
+9.26.1. Configuration Settings Functions
+9.26.2. Server Signaling Functions
+9.26.3. Backup Control Functions
+9.26.4. Recovery Control Functions
+9.26.5. Snapshot Synchronization Functions
+9.26.6. Replication Functions
+9.26.7. Database Object Management Functions
+9.26.8. Generic File Access Functions
+9.26.9. Advisory Lock Functions
+9.27. Trigger Functions
+9.28. Event Trigger Functions
+
+====
+9.5. Binary String Functions and Operators
+This section describes functions and operators for examining and manipulating values of type bytea.
+
+SQL defines some string functions that use key words, rather than commas, to separate arguments. Details are in Table 9-9. PostgreSQL also provides versions of these functions that use the regular function invocation syntax (see Table 9-10).
+
+Note: The sample results shown on this page assume that the server parameter bytea_output is set to escape (the traditional PostgreSQL format).
+Table 9-9. SQL Binary String Functions and Operators
+
+Function	Return Type	Description	Example	Result
+string || string	bytea	String concatenation	E'\\\\Post'::bytea || E'\\047gres\\000'::bytea	\\Post'gres\000
+octet_length(string)	int	Number of bytes in binary string	octet_length(E'jo\\000se'::bytea)	5
+overlay(string placing string from int [for int])	bytea	Replace substring	overlay(E'Th\\000omas'::bytea placing E'\\002\\003'::bytea from 2 for 3)	T\\002\\003mas
+position(substring in string)	int	Location of specified substring	position(E'\\000om'::bytea in E'Th\\000omas'::bytea)	3
+substring(string [from int] [for int])	bytea	Extract substring	substring(E'Th\\000omas'::bytea from 2 for 3)	h\000o
+trim([both] bytes from string)	bytea	Remove the longest string containing only the bytes in bytes from the start and end of string	trim(E'\\000'::bytea from E'\\000Tom\\000'::bytea)	Tom
+Additional binary string manipulation functions are available and are listed in Table 9-10. Some of them are used internally to implement the SQL-standard string functions listed in Table 9-9.
+
+Table 9-10. Other Binary String Functions
+
+Function	Return Type	Description	Example	Result
+btrim(string bytea, bytes bytea)	bytea	Remove the longest string consisting only of bytes in bytes from the start and end of string	btrim(E'\\000trim\\000'::bytea, E'\\000'::bytea)	trim
+decode(string text, format text)	bytea	Decode binary data from textual representation in string. Options for format are same as in encode.	decode(E'123\\000456', 'escape')	123\000456
+encode(data bytea, format text)	text	Encode binary data into a textual representation. Supported formats are: base64, hex, escape. escape converts zero bytes and high-bit-set bytes to octal sequences (\nnn) and doubles backslashes.	encode(E'123\\000456'::bytea, 'escape')	123\000456
+get_bit(string, offset)	int	Extract bit from string	get_bit(E'Th\\000omas'::bytea, 45)	1
+get_byte(string, offset)	int	Extract byte from string	get_byte(E'Th\\000omas'::bytea, 4)	109
+length(string)	int	Length of binary string	length(E'jo\\000se'::bytea)	5
+md5(string)	text	Calculates the MD5 hash of string, returning the result in hexadecimal	md5(E'Th\\000omas'::bytea)	8ab2d3c9689aaf18 b4958c334c82d8b1
+set_bit(string, offset, newvalue)	bytea	Set bit in string	set_bit(E'Th\\000omas'::bytea, 45, 0)	Th\000omAs
+set_byte(string, offset, newvalue)	bytea	Set byte in string	set_byte(E'Th\\000omas'::bytea, 4, 64)	Th\000o@as
+get_byte and set_byte number the first byte of a binary string as byte 0. get_bit and set_bit number bits from the right within each byte; for example bit 0 is the least significant bit of the first byte, and bit 15 is the most significant bit of the second byte.
+
+See also the aggregate function string_agg in Section 9.20 and the large object functions in Section 32.4.
+
+====
+9.6. Bit String Functions and Operators
+This section describes functions and operators for examining and manipulating bit strings, that is values of the types bit and bit varying. Aside from the usual comparison operators, the operators shown in Table 9-11 can be used. Bit string operands of &, |, and # must be of equal length. When bit shifting, the original length of the string is preserved, as shown in the examples.
+
+Table 9-11. Bit String Operators
+
+Operator	Description	Example	Result
+||	concatenation	B'10001' || B'011'	10001011
+&	bitwise AND	B'10001' & B'01101'	00001
+|	bitwise OR	B'10001' | B'01101'	11101
+#	bitwise XOR	B'10001' # B'01101'	11100
+~	bitwise NOT	~ B'10001'	01110
+<<	bitwise shift left	B'10001' << 3	01000
+>>	bitwise shift right	B'10001' >> 2	00100
+The following SQL-standard functions work on bit strings as well as character strings: length, bit_length, octet_length, position, substring, overlay.
+
+The following functions work on bit strings as well as binary strings: get_bit, set_bit. When working with a bit string, these functions number the first (leftmost) bit of the string as bit 0.
+
+In addition, it is possible to cast integral values to and from type bit. Some examples:
+
+44::bit(10)                    0000101100
+44::bit(3)                     100
+cast(-44 as bit(12))           111111010100
+'1110'::bit(4)::integer        14
+Note that casting to just "bit" means casting to bit(1), and so will deliver only the least significant bit of the integer.
+
+Note: Casting an integer to bit(n) copies the rightmost n bits. Casting an integer to a bit string width wider than the integer itself will sign-extend on the left.
+
+

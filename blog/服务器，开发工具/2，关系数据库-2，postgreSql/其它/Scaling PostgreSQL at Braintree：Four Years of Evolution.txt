@@ -1,0 +1,82 @@
+﻿Scaling PostgreSQL at Braintree: Four Years of Evolution
+
+https://www.braintreepayments.com/braintrust/scaling-postgresql-at-braintree-four-years-of-evolution
+
+by Paul Gross on October 16, 2012
+We love PostgreSQL at Braintree. Although we use many different data stores (such as Riak, MongoDB, Redis, and Memcached), most of our core data is stored in PostgreSQL. It's not as sexy as the new NoSQL databases, but PostgreSQL is consistent and incredibly reliable, two properties we value when storing payment information.
+
+We also love the ad-hoc querying that we get from a relational database. For example, if our traffic looks fishy, we can answer questions like "What is the percentage of Visa declines coming from Europe?" without having to pre-compute views or write complex map/reduce queries.
+
+Our PostgreSQL setup has changed a lot over the last few years. In this post, I'm going to walk you through the evolution of how we host and use PostgreSQL. We've had a lot of help along the way from the very knowledgeable people at Command Prompt.
+
+2008: The beginning
+Like most Ruby on Rails apps in 2008, our gateway started out on MySQL. We ran a couple of app servers and two database servers replicated using DRBD. DRBD uses block level replication to mirror partitions between servers. This setup was fine at first, but as our traffic started growing, we began to see problems.
+
+2010: The problems with MySQL
+The biggest problem we faced was that schema migrations on large tables took a long time with MySQL. As our dataset grew, our deploys started taking longer and longer. We were iterating quickly, and our schema was evolving. We couldn't keep affording to take downtime while we upgraded or even added a new index to a large table.
+
+We explored various options with MySQL (such as oak-online-alter-table), but decided that we would rather move to a database that supported it directly. We were also starting to see deadlock issues with MySQL, which were on operations we felt shouldn't deadlock. PostgreSQL solved this problem as well.
+
+We migrated from MySQL to PostgreSQL in the fall of 2010. You can read more about the migration on the slides from my PgEast talk. PostgreSQL 9.0 was recently released, but we chose to go with version 8.4 since it had been out longer and was more well known.
+
+2010 - 2011: Initial PostgreSQL
+We ran PostgreSQL on modest hardware, and we kept DRBD for replication. This worked fine at first, but as our traffic continued to grow, we needed some upgrades. Unlike most applications, we are much heavier on writes than reads. For every credit card that we charge, we store a lot of data (such as customer information, raw responses from the processing networks, and table audits).
+
+Over the next year, we performed the following upgrades:
+
+Tweaked our configs around checkpoints, shared buffers, work_mem and more (this is a great start: Tuning Your PostgreSQL Server)
+Moved the Write Ahead Log (WAL) to its own partition (so fsyncs of the WAL don't flush all of the dirty data files)
+Moved the WAL to its own pair of disks (so the sequential writes of the WAL are not slowed down by the random read/write of the data files)
+Added more RAM
+Moved to better servers (24 cores, 16 disks, even more RAM)
+Added more RAM again (kept adding to keep the working set in RAM)
+Fall 2011: Sharding
+These incremental improvements worked great for a long time, and our database was able to keep up with our ever increasing volume. In the summer of 2011, we started to feel like our traffic was going to outgrow a single server. We could keep buying better hardware, but we knew there was a limit.
+
+We talked about a lot of different solutions, and in the end, we decided to horizontally shard our database by merchant. A merchant's traffic would all live on one shard to make querying easier, but different merchants would live on different shards.
+
+We used data_fabric to introduce sharding into our Rails app. data_fabric lets you specify which models are sharded, and gives you methods for activating a specific shard. In conjunction with data_fabric, we also wrote a fair amount of custom code for sharding. We sharded every table except for a handful of global tables, such as merchants and users. Since almost every URL has the merchant id in it, we were able to activate shards in application_controller.rb for 99% of our traffic with code that looked roughly like:
+
+class ApplicationController < ActionController::Base
+  around_filter :activate_shard
+
+  def activate_shard(&block)
+    merchant = Merchant.find_by_public_id(params[:merchant_id])
+    DataFabric.activate_shard(:shard => merchant.shard, &block)
+  end
+end
+Making our code work with sharding was only half the battle. We still had to migrate merchants to a different shard (without downtime). We did this with londiste, a statement-based replication tool. We set up the new database servers and used londiste to mirror the entire database between the current cluster (which we renamed to shard 0) and the new cluster (shard 1).
+
+Then, we paused traffic[1], stopped replication, updated the shard column in the global database, and resumed traffic. The whole process was automated using capistrano. At this point, some requests went to the new database servers, and some to the old. Once we were sure everything was working, we removed the shard 0 data from shard 1 and vice versa.
+
+The final cutover was completed in the fall of 2011.
+
+Spring 2012: DRBD Problems
+Sharding took care of our performance problems, but in the spring of 2012, we started running into issues with our DRBD replication:
+
+DRBD made replicating between two servers very easy, but more than two required complex stacked resources that were harder to orchestrate. It also required more moving pieces, like DRBD Proxy to prevent blocking writes between data centers.
+DRBD is block level replication, so the filesystem is shared between servers. This means it can never be unmounted and checked (fsck) without taking downtime. We become increasingly concerned that filesystem corruption would go unnoticed and corrupt all servers in the cluster.
+The filesystem can only be mounted on the primary server, so the standby servers sit idle. It is not possible to run read-only queries on them.
+Failover required unmounting and remounting filesystems, so it was slower than desired. Also, since the filesystem was unmounted on the target server, once mounted, the filesystem cache was empty. This meant that our backup PostgreSQL was slow after failover, and we would see slow requests and sometimes timeouts.
+We saw a couple of issues in our sandbox environment where DRBD issues on the secondary prevented writes on the primary node. Thankfully, these never occurred in production, but we had a lot of trouble tracking down the issue.
+We were still using manual failover because we were scared of the horror stories with Pacemaker and DRBD causing split brain scenarios and data corruption. We wanted to get to automated failover, however.
+DRBD required a kernel module, so we had to build and test a new module every time we upgraded the kernel.
+One upgrade of DRBD caused a huge degradation of write performance . Thankfully, we discovered the issue in our test environment, but it was another reason to be wary of kernel level replication.
+Given all of these concerns, we decided to leave DRBD replication and move to PostgreSQL streaming replication (which was new in PostgreSQL 9). We felt like it was a better fit for what we wanted to do. We could replicate to many servers easily, standby servers were queryable letting us offload some expensive queries, and failover was very quick.
+
+We made the switch during the summer of 2012.
+
+Summer 2012: PostgreSQL 9.1
+We updated our code to support PostgreSQL 9.1 (which involved very few code changes). Along with the upgrade, we wanted to move to fully automated failover. We decided to use Pacemaker and these great open source scripts for managing PostgreSQL streaming replication: https://github.com/t-matsuo/resource-agents/wiki. These scripts handle promotion, moving the database IPs, and even switching from sync to async mode if there are no more standby servers.
+
+We set up our new database clusters (one per shard). We used two servers per datacenter, with synchronous replication within the datacenter and asynchronous replication between our datacenters. We configured Pacemaker and had the clusters ready to go (but empty). We performed extensive testing on this setup to fully understand the failover scenarios and exactly how Pacemaker would react.
+
+We used londiste again to copy the data. Once the clusters were up to date, we did a similar cutover: we paused traffic, stopped londiste, updated our database.yml, and then resumed traffic. We did this one shard at a time, and the entire procedure was automated with capistrano. Again, we took no downtime.
+
+Fall 2012: Today
+Today, we're in a good state with PostgreSQL. We have fully automated failover between servers (within a datacenter). Our cross datacenter failover is still manual since we want to be sure before we give up on an entire datacenter. We have automated capistrano tasks to orchestrate controlled failover using Pacemaker and traffic pausing. This means we can perform database maintenance with zero downtime.
+
+One of our big lessons learned is that we need to continually invest in our PostgreSQL setup. We're always watching our PostgreSQL performance and making adjustments where needed (new indexes, restructuring our data, config tuning, etc). Since our traffic continues to grow and we record more and more data, we know that our PostgreSQL setup will continue to evolve over the coming years.
+
+[1] For more info on how we pause traffic, check out How We Moved Our Data Center 25 Miles Without Downtime and High Availability at Braintree
+

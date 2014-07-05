@@ -1,0 +1,150 @@
+﻿SQL与关系数据库理论
+戴特(Date C.J.) (作者), 周成兴 (译者), 等 (译者)
+
+《高性能MySQL》作者推荐，改变你对sql的思考方式。
+
+40.40
+=====
+出版社: 清华大学出版社; 第1版 (2010年8月1日)
+外文书名: SQL and Relational Theory
+平装: 400页
+语种： 简体中文
+开本: 16
+
+====
+作者：（美国）戴特（Date C.J.） 译者：周成兴 等
+
+C.J. Date个独立的作者、演讲者、研究者和技术顾问，其研究领域为关系数据库技术。他最著名的图书“An Introduction to Database Systems”（8th edition，Addison·Wesley，2004）以销售25万多册，被全世界几百所大学用作教材。他还编写了很多数据库管理方面的其他图书：
+Temporal Data and the Relational Model (Morgan Kaufmann, 2003)
+Database in Depth: Relational Theory for Practitioners (O'Reilly, 2005)
+Database, Types, and the Relational Model: The Third Manifesto (3rd edition, Addison-Wesley, 2006)
+The Relational Database Dictionary (O'Reilly, 2006)
+Date on O'Reilly, 2005: Writing 2000-2006 (Apress, 2007)
+Logic and Database: The Roots of Relational Theory (Trafford, 2007)
+The Relational Database Dictionary, Extended Edition (Apress, 2006)
+Date于2004年进入了“计算机工业”名人堂。对其评语是，他具有以清晰而易懂的方式阐述复杂技术内容的突出能力。
+
+====
+目录
+
+前言
+
+第1章 设置场景
+关系模式是非常容易被误解的
+一些术语的注释
+法则.而不是产品
+最初模式的一个回顾
+模型和实现
+关系的特性
+基础关系和产生的关系
+关系和关系变量
+值和变量
+结论
+练习
+
+第2章 类型与域
+类型和关系
+等式比较
+数据值的原子性
+什么是类型	
+标量和非标量类型
+SQL中的标量类型
+SQL中的类型检查和强制类型转换
+SQL中的一些整序
+SQL中的行和表类型
+结论
+练习
+
+第3章 元组与关系、行和表
+什么是元组
+SQL中的行
+什么是关系
+关系和它们的关系体
+关系是n维的
+关系比较
+TABLE-DUM和TABLE-DEE
+SQL中的表
+SQL中列的命名
+结论
+练习
+
+第4章 无重复与无空值
+重复有什么问题
+复行：进一步讨论
+在SQL中避免复行
+空值有什么错
+在SQL中避免空值
+对外连接的评论
+结论
+练习
+
+第5章 基本关系变量与基本表
+数据定义
+更新是集合级别的
+关系赋值
+更多关于候选键的内容
+关于外键更多的讨论
+关系变量和断言
+关系和类型
+练习
+
+第6章 SQL与关系代数I：原始的操作符
+一些预备知识
+有关闭包的更多讨论
+约束
+投影
+连接
+并.交和差
+哪些操作符是原始的
+每次都形成表达式的一小步
+关系表达式的意思是什么
+求一个表表达式的值
+表达式转换
+属性名字上的依赖
+练习
+
+第7章 SQL与关系代数II：附加的操作符
+半连接和半差
+扩展
+映像关系
+除
+聚集操作符
+映像关系再讨论
+概要
+概要再论
+分组和不分组
+What if查询
+ORDERBY如何
+练习
+
+第8章 SQL与约束
+类型约束
+SQL中的类型约束
+数据库约束
+SQL中数据库约束
+事务
+为什么数据库约束的检测必须是实时的
+难道某些检测不是不得不被推迟吗
+约束和谓词
+各种各样的问题
+练习
+
+第9章 SQL与视图
+视图是关系变量
+视图和谓词
+获取操作
+视图和约束
+更新操作
+视图是为了什么
+视图和快照
+练习
+
+第10章 SQL与逻辑
+简单和复合的命题
+简单和复合的谓词
+定量
+关系计算
+
+
+
+
