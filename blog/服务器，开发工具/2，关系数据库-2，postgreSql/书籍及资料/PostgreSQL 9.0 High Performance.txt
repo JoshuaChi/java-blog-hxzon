@@ -1,0 +1,31 @@
+﻿PostgreSQL 9.0 High Performance
+G. Smith (作者)
+
+出版社: Packt Publishing Limited (2010年10月30日)
+平装: 468页
+语种： 英语
+ISBN: 184951030X
+
+====
+Review
+I found the book to be well-written (always a plus when reading technical books) and felt it covered quite a bit of depth given its ambitious scope. Overall, it was an informative and enjoyable read. --David Christensen 
+
+This book is well written and very accurate, from what I can tell, a tribute both to the author and the highly competent reviewers. I doubt there is a single PostgreSQL user or developer who could not learn something useful from this book. --Andrew Dunstan
+From the Back Cover
+Who this book is written for
+This book is aimed at intermediate to advanced database administrators using or planning to use PostgreSQL. Portions will also interest systems administrators looking to build or monitor a PostgreSQL installation, as well as developers interested in advanced database internals that impact application design.
+
+What you will learn from this book
+Learn best practices culled from years of work scaling PostgreSQL installations to handle demanding applications
+Uncover what makes hardware good or bad for high-performance database applications
+Investigate making informed speed and reliability trade-offs
+Tweak your operating system for best database performance
+Benchmark your whole system from hardware to application
+Follow real examnples to learn how the server parameters operate and how they impact performance
+Monitor what happens on your server, both in and outside of the database
+Find the best add-on tools that extend to core PostgreSQL database
+Discover how to architect replicated systems using the latest features added to PostgreSQL 9.0
+About the Author
+Gregory Smith is the principal consultant in the United States for international PostgreSQL services firm 2ndQuadrant. Based in Baltimore, MD, he's been providing database advice to clients in industries like manufacturing, finance, and web development for twenty years. Dedicated to open-source technology since early in his career, Greg turned to full-time PostgreSQL work by diving in at the source code level. He contributes regular feature patches to the core database and has written a variety of database tools. This book reflects the perspective that he's gained over the last few years as one of the most prolific sources of advice on the popular PostgreSQL community mailing lists.
+
+====

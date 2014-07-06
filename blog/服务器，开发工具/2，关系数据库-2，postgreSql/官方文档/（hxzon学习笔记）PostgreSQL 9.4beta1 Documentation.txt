@@ -1,0 +1,460 @@
+﻿PostgreSQL 9.4beta1 Documentation
+The PostgreSQL Global Development Group
+http://www.postgresql.org/docs/9.4/static/index.html
+
+PostgreSQL 8.1 中文文档
+http://www.php100.com/manual/PostgreSQL8/
+
+Copyright © 1996-2014 The PostgreSQL Global Development Group
+
+Table of Contents
+Preface
+What is PostgreSQL?
+A Brief History of PostgreSQL
+Conventions
+Further Information
+Bug Reporting Guidelines
+
+I. Tutorial
+1. Getting Started
+2. The SQL Language
+3. Advanced Features
+
+II. The SQL Language
+4. SQL Syntax
+5. Data Definition
+6. Data Manipulation
+7. Queries
+8. Data Types
+9. Functions and Operators
+10. Type Conversion
+11. Indexes
+12. Full Text Search
+13. Concurrency Control
+14. Performance Tips
+
+III. Server Administration
+15. Installation from Source Code
+16. Installation from Source Code on Windows
+17. Server Setup and Operation
+18. Server Configuration
+19. Client Authentication
+20. Database Roles
+21. Managing Databases
+22. Localization
+23. Routine Database Maintenance Tasks
+24. Backup and Restore
+25. High Availability, Load Balancing, and Replication
+26. Recovery Configuration
+27. Monitoring Database Activity
+28. Monitoring Disk Usage
+29. Reliability and the Write-Ahead Log
+30. Regression Tests
+
+IV. Client Interfaces
+31. libpq - C Library
+32. Large Objects
+33. ECPG - Embedded SQL in C
+34. The Information Schema
+
+V. Server Programming
+35. Extending SQL
+36. Triggers
+37. Event Triggers
+38. The Rule System
+39. Procedural Languages
+40. PL/pgSQL - SQL Procedural Language
+41. PL/Tcl - Tcl Procedural Language
+42. PL/Perl - Perl Procedural Language
+43. PL/Python - Python Procedural Language
+44. Server Programming Interface
+45. Background Worker Processes
+46. Logical Decoding
+
+====
+VI. Reference
+I. SQL Commands
+II. PostgreSQL Client Applications
+III. PostgreSQL Server Applications
+
+====
+VII. Internals
+47. Overview of PostgreSQL Internals
+48. System Catalogs
+49. Frontend/Backend Protocol
+50. PostgreSQL Coding Conventions
+51. Native Language Support
+52. Writing A Procedural Language Handler
+53. Writing A Foreign Data Wrapper
+54. Genetic Query Optimizer
+55. Index Access Method Interface Definition
+56. GiST Indexes
+57. SP-GiST Indexes
+58. GIN Indexes
+59. Database Physical Storage
+60. BKI Backend Interface
+61. How the Planner Uses Statistics
+
+VIII. Appendixes
+A. PostgreSQL Error Codes
+B. Date/Time Support
+C. SQL Key Words
+D. SQL Conformance
+E. Release Notes
+F. Additional Supplied Modules
+G. Additional Supplied Programs
+H. External Projects
+I. The Source Code Repository
+J. Documentation
+K. Acronyms
+
+Bibliography
+Index
+
+=================
+Table of Contents
+Preface
+What is PostgreSQL?
+A Brief History of PostgreSQL
+Conventions
+Further Information
+Bug Reporting Guidelines
+
+I. Tutorial
+1. Getting Started
+2. The SQL Language
+3. Advanced Features
+
+II. The SQL Language
+4. SQL Syntax
+
+5. Data Definition
+
+http://www.postgresql.org/docs/9.4/static/dml.html
+6. Data Manipulation
+6.1. Inserting Data
+6.2. Updating Data
+6.3. Deleting Data
+（hxzon：使用default关键字来显示指定插入默认值。本章无其它重要内容。）
+
+http://www.postgresql.org/docs/9.4/static/queries.html
+7. Queries
+7.1. Overview
+7.2. Table Expressions
+7.2.1. The FROM Clause
+7.2.2. The WHERE Clause
+7.2.3. The GROUP BY and HAVING Clauses
+7.2.4. Window Function Processing
+7.3. Select Lists
+7.3.1. Select-List Items
+7.3.2. Column Labels
+7.3.3. DISTINCT
+7.4. Combining Queries
+7.5. Sorting Rows
+7.6. LIMIT and OFFSET
+7.7. VALUES Lists
+7.8. WITH Queries (Common Table Expressions)
+7.8.1. SELECT in WITH
+7.8.2. Data-Modifying Statements in WITH
+
+8. Data Types
+
+http://www.postgresql.org/docs/9.4/static/functions.html
+9. Functions and Operators
+9.1. Logical Operators
+9.2. Comparison Operators
+9.3. Mathematical Functions and Operators
+9.4. String Functions and Operators
+9.5. Binary String Functions and Operators
+9.6. Bit String Functions and Operators
+9.7. Pattern Matching
+9.7.1. LIKE
+9.7.2. SIMILAR TO Regular Expressions
+9.7.3. POSIX Regular Expressions
+9.8. Data Type Formatting Functions
+9.9. Date/Time Functions and Operators
+9.9.1. EXTRACT, date_part
+9.9.2. date_trunc
+9.9.3. AT TIME ZONE
+9.9.4. Current Date/Time
+9.9.5. Delaying Execution
+9.10. Enum Support Functions
+9.11. Geometric Functions and Operators
+9.12. Network Address Functions and Operators
+9.13. Text Search Functions and Operators
+9.14. XML Functions
+9.14.1. Producing XML Content
+9.14.2. XML Predicates
+9.14.3. Processing XML
+9.14.4. Mapping Tables to XML
+9.15. JSON Functions and Operators
+9.16. Sequence Manipulation Functions
+9.17. Conditional Expressions
+9.17.1. CASE
+9.17.2. COALESCE
+9.17.3. NULLIF
+9.17.4. GREATEST and LEAST
+9.18. Array Functions and Operators
+9.19. Range Functions and Operators
+9.20. Aggregate Functions
+9.21. Window Functions
+9.22. Subquery Expressions
+9.22.1. EXISTS
+9.22.2. IN
+9.22.3. NOT IN
+9.22.4. ANY/SOME
+9.22.5. ALL
+9.22.6. Single-row Comparison
+9.23. Row and Array Comparisons
+9.23.1. IN
+9.23.2. NOT IN
+9.23.3. ANY/SOME (array)
+9.23.4. ALL (array)
+9.23.5. Row Constructor Comparison
+9.23.6. Composite Type Comparison
+9.24. Set Returning Functions
+9.25. System Information Functions
+9.26. System Administration Functions
+9.26.1. Configuration Settings Functions
+9.26.2. Server Signaling Functions
+9.26.3. Backup Control Functions
+9.26.4. Recovery Control Functions
+9.26.5. Snapshot Synchronization Functions
+9.26.6. Replication Functions
+9.26.7. Database Object Management Functions
+9.26.8. Generic File Access Functions
+9.26.9. Advisory Lock Functions
+9.27. Trigger Functions
+9.28. Event Trigger Functions
+
+
+10. Type Conversion
+
+11. Indexes
+
+12. Full Text Search
+
+13. Concurrency Control
+
+14. Performance Tips
+
+====
+III. Server Administration
+
+15. Installation from Source Code
+16. Installation from Source Code on Windows
+17. Server Setup and Operation
+18. Server Configuration
+19. Client Authentication
+20. Database Roles
+21. Managing Databases
+22. Localization
+23. Routine Database Maintenance Tasks
+24. Backup and Restore
+25. High Availability, Load Balancing, and Replication
+26. Recovery Configuration
+27. Monitoring Database Activity
+28. Monitoring Disk Usage
+29. Reliability and the Write-Ahead Log
+30. Regression Tests
+
+====
+IV. Client Interfaces
+
+31. libpq - C Library
+32. Large Objects
+33. ECPG - Embedded SQL in C
+34. The Information Schema
+
+====
+V. Server Programming
+
+http://www.postgresql.org/docs/9.4/static/extend.html
+35. Extending SQL
+35.1. How Extensibility Works
+35.2. The PostgreSQL Type System
+35.2.1. Base Types
+35.2.2. Composite Types
+35.2.3. Domains
+35.2.4. Pseudo-Types
+35.2.5. Polymorphic Types
+35.3. User-defined Functions
+35.4. Query Language (SQL) Functions
+35.4.1. Arguments for SQL Functions
+35.4.2. SQL Functions on Base Types
+35.4.3. SQL Functions on Composite Types
+35.4.4. SQL Functions with Output Parameters
+35.4.5. SQL Functions with Variable Numbers of Arguments
+35.4.6. SQL Functions with Default Values for Arguments
+35.4.7. SQL Functions as Table Sources
+35.4.8. SQL Functions Returning Sets
+35.4.9. SQL Functions Returning TABLE
+35.4.10. Polymorphic SQL Functions
+35.4.11. SQL Functions with Collations
+35.5. Function Overloading
+35.6. Function Volatility Categories
+35.7. Procedural Language Functions
+35.8. Internal Functions
+35.9. C-Language Functions
+35.9.1. Dynamic Loading
+35.9.2. Base Types in C-Language Functions
+35.9.3. Version 0 Calling Conventions
+35.9.4. Version 1 Calling Conventions
+35.9.5. Writing Code
+35.9.6. Compiling and Linking Dynamically-loaded Functions
+35.9.7. Composite-type Arguments
+35.9.8. Returning Rows (Composite Types)
+35.9.9. Returning Sets
+35.9.10. Polymorphic Arguments and Return Types
+35.9.11. Transform Functions
+35.9.12. Shared Memory and LWLocks
+35.9.13. Using C++ for Extensibility
+35.10. User-defined Aggregates
+35.10.1. Moving-Aggregate Mode
+35.10.2. Polymorphic and Variadic Aggregates
+35.10.3. Ordered-Set Aggregates
+35.10.4. Support Functions for Aggregates
+35.11. User-defined Types
+35.12. User-defined Operators
+35.13. Operator Optimization Information
+35.13.1. COMMUTATOR
+35.13.2. NEGATOR
+35.13.3. RESTRICT
+35.13.4. JOIN
+35.13.5. HASHES
+35.13.6. MERGES
+35.14. Interfacing Extensions To Indexes
+35.14.1. Index Methods and Operator Classes
+35.14.2. Index Method Strategies
+35.14.3. Index Method Support Routines
+35.14.4. An Example
+35.14.5. Operator Classes and Operator Families
+35.14.6. System Dependencies on Operator Classes
+35.14.7. Ordering Operators
+35.14.8. Special Features of Operator Classes
+35.15. Packaging Related Objects into an Extension
+35.15.1. Extension Files
+35.15.2. Extension Relocatability
+35.15.3. Extension Configuration Tables
+35.15.4. Extension Updates
+35.15.5. Extension Example
+35.16. Extension Building Infrastructure
+
+
+36. Triggers
+
+37. Event Triggers
+
+38. The Rule System
+
+http://www.postgresql.org/docs/9.4/static/xplang.html
+39. Procedural Languages
+39.1. Installing Procedural Languages
+
+http://www.postgresql.org/docs/9.4/static/plpgsql.html
+40. PL/pgSQL - SQL Procedural Language
+40.1. Overview
+40.1.1. Advantages of Using PL/pgSQL
+40.1.2. Supported Argument and Result Data Types
+40.2. Structure of PL/pgSQL
+40.3. Declarations
+40.3.1. Declaring Function Parameters
+40.3.2. ALIAS
+40.3.3. Copying Types
+40.3.4. Row Types
+40.3.5. Record Types
+40.3.6. Collation of PL/pgSQL Variables
+40.4. Expressions
+40.5. Basic Statements
+40.5.1. Assignment
+40.5.2. Executing a Command With No Result
+40.5.3. Executing a Query with a Single-row Result
+40.5.4. Executing Dynamic Commands
+40.5.5. Obtaining the Result Status
+40.5.6. Doing Nothing At All
+40.6. Control Structures
+40.6.1. Returning From a Function
+40.6.2. Conditionals
+40.6.3. Simple Loops
+40.6.4. Looping Through Query Results
+40.6.5. Looping Through Arrays
+40.6.6. Trapping Errors
+40.6.7. Getting Diagnostics Information
+40.7. Cursors
+40.7.1. Declaring Cursor Variables
+40.7.2. Opening Cursors
+40.7.3. Using Cursors
+40.7.4. Looping Through a Cursor's Result
+40.8. Errors and Messages
+40.9. Trigger Procedures
+40.9.1. Triggers on data changes
+40.9.2. Triggers on events
+40.10. PL/pgSQL Under the Hood
+40.10.1. Variable Substitution
+40.10.2. Plan Caching
+40.11. Tips for Developing in PL/pgSQL
+40.11.1. Handling of Quotation Marks
+40.11.2. Additional compile-time checks
+40.12. Porting from Oracle PL/SQL
+40.12.1. Porting Examples
+40.12.2. Other Things to Watch For
+40.12.3. Appendix
+
+
+41. PL/Tcl - Tcl Procedural Language
+
+42. PL/Perl - Perl Procedural Language
+
+43. PL/Python - Python Procedural Language
+
+44. Server Programming Interface
+
+45. Background Worker Processes
+
+46. Logical Decoding
+
+====
+VI. Reference
+
+I. SQL Commands
+II. PostgreSQL Client Applications
+III. PostgreSQL Server Applications
+
+====
+VII. Internals
+
+47. Overview of PostgreSQL Internals
+48. System Catalogs
+49. Frontend/Backend Protocol
+50. PostgreSQL Coding Conventions
+51. Native Language Support
+52. Writing A Procedural Language Handler
+53. Writing A Foreign Data Wrapper
+54. Genetic Query Optimizer
+55. Index Access Method Interface Definition
+56. GiST Indexes
+57. SP-GiST Indexes
+58. GIN Indexes
+59. Database Physical Storage
+60. BKI Backend Interface
+61. How the Planner Uses Statistics
+
+====
+VIII. Appendixes
+
+A. PostgreSQL Error Codes
+B. Date/Time Support
+C. SQL Key Words
+D. SQL Conformance
+E. Release Notes
+F. Additional Supplied Modules
+G. Additional Supplied Programs
+H. External Projects
+I. The Source Code Repository
+J. Documentation
+K. Acronyms
+
+Bibliography
+Index
+
+
