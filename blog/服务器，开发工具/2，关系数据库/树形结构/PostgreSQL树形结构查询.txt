@@ -1,0 +1,33 @@
+﻿PostgreSQL树形结构查询
+
+
+PostgreSQL数据结构Oracle 
+PostgreSQL没有提供像Oracle等数据库的实用函数。
+
+对于常见到菜单menus表：主要字段有id，parent_id...
+以下是一个递归查询函数：
+
+
+--查询结果集含自身  
+CREATE OR REPLACE FUNCTION public.query_child_menus (integer) RETURNS SETOF public.menus AS'  
+DECLARE  
+itemid ALIAS FOR $1;  
+itemrecord record;  
+BEGIN  
+    SELECT s.* INTO itemrecord FROM public.menus s  where id=itemid;  
+    RETURN NEXT itemrecord;  
+     IF (select count(1) from public.menus s where s.parent_id=itemrecord.id) >0  THEN  
+            for itemrecord in SELECT s.* FROM public.menus s  where s.parent_id=itemrecord.id LOOP  
+                for itemrecord in select * from public.query_child_menus (itemrecord.id) LOOP  
+                    RETURN NEXT itemrecord;  
+                end LOOP;  
+            end LOOP;  
+     END IF;  
+    RETURN;  
+END;'  
+LANGUAGE 'plpgsql'  
+
+用法：select * from public.query_child_menus (3);
+
+结果集字段与menus表字段相同。
+
