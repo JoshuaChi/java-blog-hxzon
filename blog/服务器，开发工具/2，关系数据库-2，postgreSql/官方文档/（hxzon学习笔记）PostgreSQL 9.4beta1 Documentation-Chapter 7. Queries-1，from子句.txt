@@ -1,0 +1,404 @@
+﻿（hxzon学习笔记）PostgreSQL 9.4beta1 Documentation-Chapter 7. Queries-1，from子句
+
+注释by hxzon
+====
+7. Queries
+
+7.1. Overview
+7.2. Table Expressions
+
+7.3. Select Lists
+7.4. Combining Queries
+7.5. Sorting Rows
+7.6. LIMIT and OFFSET
+7.7. VALUES Lists
+
+7.8. WITH Queries (Common Table Expressions)
+
+====
+7.1. Overview
+
+7.2. Table Expressions
+7.2.1. The FROM Clause
+7.2.2. The WHERE Clause
+7.2.3. The GROUP BY and HAVING Clauses
+7.2.4. Window Function Processing
+
+====
+7.1. Overview
+
+The process of retrieving or the command to retrieve data from a database is called a query. 
+In SQL the SELECT command is used to specify queries. 
+The general syntax of the SELECT command is
+语法：
+
+[WITH with_queries] SELECT select_list FROM table_expression [sort_specification]
+
+The following sections describe the details of the select list, the table expression, and the sort specification. 
+WITH queries are treated last since they are an advanced feature.
+
+A simple kind of query has the form:
+
+SELECT * FROM table1;
+
+Assuming that there is a table called table1, this command would retrieve all rows and all user-defined columns from table1. 
+(The method of retrieval depends on the client application. 
+For example, the psql program will display an ASCII-art table on the screen, 
+while client libraries will offer functions to extract individual values from the query result.) 
+
+The select list specification * means all columns that the table expression happens to provide. 
+A select list can also select a subset of the available columns or make calculations using the columns. 
+For example, if table1 has columns named a, b, and c (and perhaps others) you can make the following query:
+
+SELECT a, b + c FROM table1;
+
+(assuming that b and c are of a numerical data type). 
+See Section 7.3 for more details.
+
+FROM table1 is a simple kind of table expression: it reads just one table. 
+In general, table expressions can be complex constructs of base tables, joins, and subqueries. 
+But you can also omit the table expression entirely and use the SELECT command as a calculator:
+如果不需要表，可以不用from子句。（hxzon：MySQL也是如此，但oracle必须用from dual 。）
+
+SELECT 3 * 4;
+
+This is more useful if the expressions in the select list return varying results. 
+For example, you could call a function this way:
+随机数：
+
+SELECT random();
+
+============
+7.2. Table Expressions
+
+A table expression computes a table. 
+The table expression contains a FROM clause that is optionally followed by WHERE, GROUP BY, and HAVING clauses. 
+Trivial table expressions simply refer to a table on disk, a so-called base table, 
+but more complex expressions can be used to modify or combine base tables in various ways.
+
+The optional WHERE, GROUP BY, and HAVING clauses in the table expression 
+specify a pipeline of successive transformations performed on the table derived in the FROM clause. 
+All these transformations produce a virtual 
+table that provides the rows that are passed to the select list to compute the output rows of the query.
+
+============
+7.2.1. The FROM Clause
+from子句
+
+The FROM Clause derives a table from one or more other tables given in a comma-separated table reference list.
+
+FROM table_reference [, table_reference [, ...]]
+
+A table reference can be a table name (possibly schema-qualified), 
+or a derived table such as a subquery, a table join, or complex combinations of these. 
+If more than one table reference is listed in the FROM clause they are cross-joined (see below) 
+to form the intermediate virtual table that can then be subject to transformations by the WHERE, GROUP BY, and HAVING clauses 
+and is finally the result of the overall table expression.
+
+When a table reference names a table that is the parent of a table inheritance hierarchy,
+如果一个表是层级关系中的父亲， 
+the table reference produces rows of not only that table but all of its descendant tables,
+则对这个表的使用，会包括它的所有孩子， 
+unless the key word ONLY precedes the table name.
+除非在表名前使用关键字only。 
+However, the reference produces only the columns that appear in the named table 
+— any columns added in subtables are ignored.
+但是，列则只包括这个父亲表的列，不会包括它的孩子表的额外列。
+
+Instead of writing ONLY before the table name, you can write * after the table name 
+to explicitly specify that descendant tables are included. 
+Writing * is not necessary since that behavior is the default 
+(unless you have changed the setting of the sql_inheritance configuration option). 
+However writing * might be useful to emphasize that additional tables will be searched.
+与关键字only的作用相反，在表名前使用星号，则会包括孩子表。
+默认情况下，本来就包括孩子表。
+
+====
+7.2.1.1. Joined Tables
+被关联的表
+
+A joined table is a table derived from two other (real or derived) tables according to the rules of the particular join type. 
+Inner, outer, and cross-joins are available.
+
+Join Types
+
+Cross join 笛卡尔联接
+T1 CROSS JOIN T2
+For every possible combination of rows from T1 and T2 (i.e., a Cartesian product), 
+the joined table will contain a row consisting of all columns in T1 followed by all columns in T2. 
+If the tables have N and M rows respectively, the joined table will have N * M rows.
+
+FROM T1 CROSS JOIN T2 is equivalent to FROM T1, T2. 
+It is also equivalent to FROM T1 INNER JOIN T2 ON TRUE (see below).
+它等价于逗号隔开表名的from子句，也等价于上述内联接。
+
+Qualified joins
+T1 { [INNER] | { LEFT | RIGHT | FULL } [OUTER] } JOIN T2 ON boolean_expression
+T1 { [INNER] | { LEFT | RIGHT | FULL } [OUTER] } JOIN T2 USING ( join column list )
+T1 NATURAL { [INNER] | { LEFT | RIGHT | FULL } [OUTER] } JOIN T2
+
+The words INNER and OUTER are optional in all forms. 
+INNER is the default; LEFT, RIGHT, and FULL imply an outer join.
+inner和outer两个关键字都是可选的。
+inner是默认联接，而left，right，full都是外联接。
+
+The join condition is specified in the ON or USING clause, or implicitly by the word NATURAL. 
+The join condition determines which rows from the two source tables 
+are considered to "match", as explained in detail below.
+
+The ON clause is the most general kind of join condition: 
+it takes a Boolean value expression of the same kind as is used in a WHERE clause. 
+A pair of rows from T1 and T2 match if the ON expression evaluates to true for them.
+on子句跟着一个布尔表达式。
+
+USING is a shorthand notation: it takes a comma-separated list of column names, which the joined tables must have in common, 
+and forms a join condition specifying equality of each of these pairs of columns. 
+Furthermore, the output of JOIN USING has one column for each of the equated pairs of input columns, 
+followed by the remaining columns from each table. 
+Thus, USING (a, b, c) is equivalent to ON (t1.a = t2.a AND t1.b = t2.b AND t1.c = t2.c) 
+with the exception that if ON is used there will be two columns a, b, and c in the result, 
+whereas with USING there will be only one of each (and they will appear first if SELECT * is used).
+using子句是一种简写方式，两个表必须含有该子句指定的列，当对应的列值都相同时匹配。
+当使用select * 时，它也控制了返回的列，即指定列只返回一次，且在最前面，随后跟着每个表的额外列。
+
+Finally, NATURAL is a shorthand form of USING: 
+it forms a USING list consisting of all column names that appear in both input tables. 
+As with USING, these columns appear only once in the output table. 
+If there are no common columns, NATURAL behaves like CROSS JOIN.
+natural是一种比using更简写的方式，使用两个表的所有同名列。
+
+The possible types of qualified join are:
+
+INNER JOIN 内联接
+For each row R1 of T1, the joined table has a row for each row in T2 that satisfies the join condition with R1.
+
+LEFT OUTER JOIN 左外联接，左表的每行都会出现
+First, an inner join is performed. 
+Then, for each row in T1 that does not satisfy the join condition with any row in T2, 
+a joined row is added with null values in columns of T2. 
+Thus, the joined table always has at least one row for each row in T1.
+
+RIGHT OUTER JOIN 右外联接，右表的每行都会出现
+First, an inner join is performed. 
+Then, for each row in T2 that does not satisfy the join condition with any row in T1, 
+a joined row is added with null values in columns of T1. 
+This is the converse of a left join: the result table will always have a row for each row in T2.
+
+FULL OUTER JOIN 全外联接，左表，右表的每行都会出现
+First, an inner join is performed. 
+Then, for each row in T1 that does not satisfy the join condition with any row in T2, 
+a joined row is added with null values in columns of T2. 
+Also, for each row of T2 that does not satisfy the join condition with any row in T1, 
+a joined row with null values in the columns of T1 is added.
+
+Joins of all types can be chained together or nested: either or both T1 and T2 can be joined tables. 
+Parentheses can be used around JOIN clauses to control the join order. 
+In the absence of parentheses, JOIN clauses nest left-to-right.
+各种联接类型可以相互嵌套，默认从左向右嵌套。
+可以使用括号改变联接顺序。
+
+To put this together, assume we have tables t1:
+
+ num | name
+-----+------
+   1 | a
+   2 | b
+   3 | c
+and t2:
+
+ num | value
+-----+-------
+   1 | xxx
+   3 | yyy
+   5 | zzz
+
+then we get the following results for the various joins:
+
+=> SELECT * FROM t1 CROSS JOIN t2;
+ num | name | num | value
+-----+------+-----+-------
+   1 | a    |   1 | xxx
+   1 | a    |   3 | yyy
+   1 | a    |   5 | zzz
+   2 | b    |   1 | xxx
+   2 | b    |   3 | yyy
+   2 | b    |   5 | zzz
+   3 | c    |   1 | xxx
+   3 | c    |   3 | yyy
+   3 | c    |   5 | zzz
+(9 rows)
+
+=> SELECT * FROM t1 INNER JOIN t2 ON t1.num = t2.num;
+ num | name | num | value
+-----+------+-----+-------
+   1 | a    |   1 | xxx
+   3 | c    |   3 | yyy
+(2 rows)
+
+=> SELECT * FROM t1 INNER JOIN t2 USING (num);
+ num | name | value
+-----+------+-------
+   1 | a    | xxx
+   3 | c    | yyy
+(2 rows)
+
+=> SELECT * FROM t1 NATURAL INNER JOIN t2;
+ num | name | value
+-----+------+-------
+   1 | a    | xxx
+   3 | c    | yyy
+(2 rows)
+
+=> SELECT * FROM t1 LEFT JOIN t2 ON t1.num = t2.num;
+ num | name | num | value
+-----+------+-----+-------
+   1 | a    |   1 | xxx
+   2 | b    |     |
+   3 | c    |   3 | yyy
+(3 rows)
+
+=> SELECT * FROM t1 LEFT JOIN t2 USING (num);
+ num | name | value
+-----+------+-------
+   1 | a    | xxx
+   2 | b    |
+   3 | c    | yyy
+(3 rows)
+
+=> SELECT * FROM t1 RIGHT JOIN t2 ON t1.num = t2.num;
+ num | name | num | value
+-----+------+-----+-------
+   1 | a    |   1 | xxx
+   3 | c    |   3 | yyy
+     |      |   5 | zzz
+(3 rows)
+
+=> SELECT * FROM t1 FULL JOIN t2 ON t1.num = t2.num;
+ num | name | num | value
+-----+------+-----+-------
+   1 | a    |   1 | xxx
+   2 | b    |     |
+   3 | c    |   3 | yyy
+     |      |   5 | zzz
+(4 rows)
+
+The join condition specified with ON can also contain conditions that do not relate directly to the join. 
+This can prove useful for some queries but needs to be thought out carefully. 
+For example:
+on子句的布尔表达式可以和联接毫无相关：
+
+=> SELECT * FROM t1 LEFT JOIN t2 ON t1.num = t2.num AND t2.value = 'xxx';
+ num | name | num | value
+-----+------+-----+-------
+   1 | a    |   1 | xxx
+   2 | b    |     |
+   3 | c    |     |
+(3 rows)
+
+hxzon：注意上述返回结果。左联接。
+
+Notice that placing the restriction in the WHERE clause produces a different result:
+
+=> SELECT * FROM t1 LEFT JOIN t2 ON t1.num = t2.num WHERE t2.value = 'xxx';
+ num | name | num | value
+-----+------+-----+-------
+   1 | a    |   1 | xxx
+(1 row)
+
+This is because a restriction placed in the ON clause is processed before the join, 
+while a restriction placed in the WHERE clause is processed after the join.
+on的条件是在联接时执行，而where子句是在联接后才执行。
+
+====
+7.2.1.2. Table and Column Aliases
+表和列的别名
+
+A temporary name can be given to tables and complex table references 
+to be used for references to the derived table in the rest of the query. 
+This is called a table alias.
+
+To create a table alias, write
+
+FROM table_reference AS alias
+
+or
+
+FROM table_reference alias
+
+The AS key word is optional noise. alias can be any identifier.
+as关键字是可选的。
+
+A typical application of table aliases is to assign short identifiers to long table names 
+to keep the join clauses readable. For example:
+
+SELECT * FROM some_very_long_table_name s JOIN another_fairly_long_name a ON s.id = a.num;
+
+The alias becomes the new name of the table reference so far as the current query is concerned 
+— it is not allowed to refer to the table by the original name elsewhere in the query.
+一旦使用了别名，就不允许再使用表的原名，如下例子是错误的。 
+Thus, this is not valid:
+
+SELECT * FROM my_table AS m WHERE my_table.a > 5;    -- wrong
+
+Table aliases are mainly for notational convenience, but it is necessary to use them when joining a table to itself, e.g.:
+
+SELECT * FROM people AS mother JOIN people AS child ON mother.id = child.mother_id;
+
+Additionally, an alias is required if the table reference is a subquery (see Section 7.2.1.3).
+
+Parentheses are used to resolve ambiguities. 
+In the following example, the first statement assigns the alias b to the second instance of my_table, 
+but the second statement assigns the alias to the result of the join:
+
+SELECT * FROM my_table AS a CROSS JOIN my_table AS b ...
+SELECT * FROM (my_table AS a CROSS JOIN my_table) AS b ...
+
+Another form of table aliasing gives temporary names to the columns of the table, as well as the table itself:
+
+FROM table_reference [AS] alias ( column1 [, column2 [, ...]] )
+
+hxzon：注意上述语法。在from子句，给表指定别名的同时，也给列指定了别名。
+
+If fewer column aliases are specified than the actual table has columns, 
+the remaining columns are not renamed. 
+This syntax is especially useful for self-joins or subqueries.
+如果别名列表不足，则其余列使用原名。
+
+When an alias is applied to the output of a JOIN clause, 
+the alias hides the original name(s) within the JOIN. For example:
+
+SELECT a.* FROM my_table AS a JOIN your_table AS b ON ...
+
+is valid SQL, but:
+
+SELECT a.* FROM (my_table AS a JOIN your_table AS b ON ...) AS c
+
+is not valid; the table alias a is not visible outside the alias c.
+注意，上述语句不合法。整个联接结果命名为c后，a的名字已经不可见。
+
+====
+7.2.1.3. Subqueries
+子查询
+
+Subqueries specifying a derived table must be enclosed in parentheses 
+and must be assigned a table alias name (as in Section 7.2.1.2). For example:
+子查询必须使用括号，且必须指定别名。
+
+FROM (SELECT * FROM table1) AS alias_name
+
+This example is equivalent to FROM table1 AS alias_name. 
+More interesting cases, which cannot be reduced to a plain join, 
+arise when the subquery involves grouping or aggregation.
+
+A subquery can also be a VALUES list:
+values列表也可以作为子查询。
+
+FROM (VALUES ('anne', 'smith'), ('bob', 'jones'), ('joe', 'blow'))
+     AS names(first, last)
+
+Again, a table alias is required. 
+Assigning alias names to the columns of the VALUES list is optional, but is good practice. 
+For more information see Section 7.7.
+上述例子，给表指定了别名的同时，也指定了列的别名，
+对于values列表，这是一个好的实践。
+
