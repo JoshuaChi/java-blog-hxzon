@@ -1,4 +1,4 @@
-﻿（hxzon学习笔记）PostgreSQL 9.4beta1 Documentation-Chapter 40. PL/pgSQL - SQL Procedural Language-1
+﻿（hxzon学习笔记）PostgreSQL 9.4beta1 Documentation-Chapter 40. PL/pgSQL - SQL Procedural Language-1，概述，声明
 
 注释by hxzon
 ====
@@ -196,7 +196,7 @@ A double dash (--) starts a comment that extends to the end of the line.
 A /* starts a block comment that extends to the matching occurrence of */. 
 Block comments nest.
 使用双中横线表示单行注释。
-块注释。
+块注释可以嵌套。
 
 Any statement in the statement section of a block can be a subblock. 
 Subblocks can be used for logical grouping or to localize variables to a small group of statements. 
@@ -321,7 +321,7 @@ Either the alias or the numeric identifier can then be used to refer to the para
 There are two ways to create an alias. 
 The preferred way is to give a name to the parameter in the CREATE FUNCTION command, for example:
 有两种方式指定别名。
-一种是在参数列表中指定名字。
+推荐的方式是在参数列表中指定名字。
 
 CREATE FUNCTION sales_tax(subtotal real) RETURNS real AS $$
 BEGIN
@@ -346,7 +346,8 @@ $$ LANGUAGE plpgsql;
 
 Note: These two examples are not perfectly equivalent.
 注意，上述两种方式并不完全等价。 
-In the first case, subtotal could be referenced as sales_tax.subtotal, 
+In the first case, subtotal could be referenced as sales_tax.subtotal,
+第一种方式，可以使用函数名作为限定名。 
 but in the second case it could not. 
 (Had we attached a label to the inner block, subtotal could be qualified with that label, instead.)
 
@@ -395,10 +396,12 @@ END;
 $$ LANGUAGE plpgsql;
 
 As discussed in Section 35.4.4, this effectively creates an anonymous record type for the function's results. 
+这种方式，实际上是创建了一个匿名记录类型作为函数的返回值。
 If a RETURNS clause is given, it must say RETURNS record.
+如果要书写returns子句，则必须是returns record 。
 
 Another way to declare a PL/pgSQL function is with RETURNS TABLE, for example:
-使用return table，表示返回表。
+还可以使用returns table，返回查询结果（return query）。
 
 CREATE FUNCTION extended_sales(p_itemno int)
 RETURNS TABLE(quantity int, total numeric) AS $$
@@ -408,13 +411,17 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-This is exactly equivalent to declaring one or more OUT parameters and specifying RETURNS SETOF some type.
-这等价于 return setof 。
+This is exactly equivalent to declaring one or more OUT parameters 
+and specifying RETURNS SETOF some type.
+这等价于定义多个出参数，然后声明返回值为 return setof 。
 
 When the return type of a PL/pgSQL function is declared as a polymorphic type 
-(anyelement, anyarray, anynonarray, anyenum, or anyrange), a special parameter $0 is created. 
-Its data type is the actual return type of the function, as deduced from the actual input types (see Section 35.2.5). 
-This allows the function to access its actual return type as shown in Section 40.3.3. 
+(anyelement, anyarray, anynonarray, anyenum, or anyrange), a special parameter $0 is created.
+当存储函数返回一个多态类型（如anyelement这些类型），一个特殊的参数$0会被创建。 
+Its data type is the actual return type of the function, 
+as deduced from the actual input types (see Section 35.2.5). 
+This allows the function to access its actual return type as shown in Section 40.3.3.
+通过它，就允许存储函数访问自己的返回值类型。 
 $0 is initialized to null and can be modified by the function, 
 so it can be used to hold the return value if desired, though that is not required. 
 $0 can also be given an alias. 
@@ -430,7 +437,8 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-The same effect can be had by declaring one or more output parameters as polymorphic types. 
+The same effect can be had by declaring one or more output parameters as polymorphic types.
+如果是定义了多态类型的“出参数”，则 $0 没什么用。 
 In this case the special $0 parameter is not used; 
 the output parameters themselves serve the same purpose. 
 For example:

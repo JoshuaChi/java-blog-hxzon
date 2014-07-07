@@ -38,12 +38,17 @@
 40.9. Trigger Procedures
 40.9.1. Triggers on data changes
 40.9.2. Triggers on events
+
+==
 40.10. PL/pgSQL Under the Hood
 40.10.1. Variable Substitution
 40.10.2. Plan Caching
+
 40.11. Tips for Developing in PL/pgSQL
 40.11.1. Handling of Quotation Marks
 40.11.2. Additional compile-time checks
+
+==
 40.12. Porting from Oracle PL/SQL
 40.12.1. Porting Examples
 40.12.2. Other Things to Watch For

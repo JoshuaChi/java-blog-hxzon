@@ -1,4 +1,4 @@
-﻿（hxzon学习笔记）PostgreSQL 9.4beta1 Documentation-Chapter 40. PL/pgSQL - SQL Procedural Language-2
+﻿（hxzon学习笔记）PostgreSQL 9.4beta1 Documentation-Chapter 40. PL/pgSQL - SQL Procedural Language-2，表达式，基本语句
 
 注释by hxzon
 ====
@@ -13,7 +13,10 @@
 40.3.4. Row Types
 40.3.5. Record Types
 40.3.6. Collation of PL/pgSQL Variables
+
+==
 40.4. Expressions
+
 40.5. Basic Statements
 40.5.1. Assignment
 40.5.2. Executing a Command With No Result
@@ -21,6 +24,8 @@
 40.5.4. Executing Dynamic Commands
 40.5.5. Obtaining the Result Status
 40.5.6. Doing Nothing At All
+
+==
 40.6. Control Structures
 40.6.1. Returning From a Function
 40.6.2. Conditionals
@@ -29,6 +34,8 @@
 40.6.5. Looping Through Arrays
 40.6.6. Trapping Errors
 40.6.7. Getting Diagnostics Information
+
+==
 40.7. Cursors
 40.7.1. Declaring Cursor Variables
 40.7.2. Opening Cursors
