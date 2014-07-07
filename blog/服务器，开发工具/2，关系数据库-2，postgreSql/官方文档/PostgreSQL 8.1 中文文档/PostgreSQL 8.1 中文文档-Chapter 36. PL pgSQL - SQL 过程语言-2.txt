@@ -1,0 +1,535 @@
+﻿PostgreSQL 8.1 中文文档-Chapter 36. PL pgSQL - SQL 过程语言-2
+
+
+36.1. 概述
+36.1.1. 使用PL/pgSQL的优点
+36.1.2. 所支持的参数和结果数据类型
+36.2. 开发 PL/pgSQL 的一些提示
+36.3. PL/pgSQL的结构
+36.4. 声明
+36.4.1. 函数参数的别名
+36.4.2. 拷贝类型
+36.4.3. 行类型
+36.4.4. 记录类型
+36.4.5. RENAME
+36.5. 表达式
+36.6. 基本语句
+36.6.1. 赋值
+36.6.2. SELECT INTO
+36.6.3. 执行一个没有结果的表达式或者命令
+36.6.4. 执行动态命令
+36.6.5. 获取结果状态
+36.7. 控制结构
+36.7.1. 从函数返回
+36.7.2. 条件
+36.7.3. 简单循环
+36.7.4. 遍历命令结果
+36.7.5. 捕获错误
+36.8. 游标
+36.8.1. 声明游标变量
+36.8.2. 打开游标
+36.8.3. 使用游标
+36.9. 错误和消息
+36.10. 触发器过程
+36.11. 从Oracle的 PL/SQL 移植
+36.11.1. 移植样例
+36.11.2. 其它要注意的东西
+36.11.3. 附录
+
+===========
+36.5. 表达式
+
+所有在PL/pgSQL 语句里使用的表达式都是用服务器的普通SQL执行器进行处理的。 实际上，类似下面的查询
+
+SELECT expression
+是使用 SPI 管理器执行的。 在计算之前，出现PL/pgSQL变量标识符的地方先被参数代替， 然后变量的实际值放在参数数组里传递给执行器。 这样就允许SELECT的执行计划只需要准备一次，并且在随后的计算中复用。
+
+PostgreSQL 的主分析器做的类型检查对常量数值的代换有一些副作用。 详细说来就是下面这两个函数做的事情有些区别：
+
+CREATE FUNCTION logfunc1 (logtxt text) RETURNS timestamp AS $$
+    BEGIN
+        INSERT INTO logtable VALUES (logtxt, 'now');
+        RETURN 'now';
+    END;
+$$ LANGUAGE plpgsql;
+和
+
+CREATE FUNCTION logfunc2 (logtxt text) RETURNS timestamp AS $$
+    DECLARE
+        curtime timestamp;
+    BEGIN
+        curtime := 'now';
+        INSERT INTO logtable VALUES (logtxt, curtime);
+        RETURN curtime;
+    END;
+$$ LANGUAGE plpgsql;
+在 logfunc1() 的实例里， PostgreSQL 的主分析器在为 INSERT 准备执行计划的时候知道字串 'now' 应该解释成 timestamp 类型，因为 logtable 的目标字段就是该类型。所以，它会在这个时候从这个字串中计算一个常量， 然后在该服务器的整个生存期中的所有 logfunc1 调用中使用这个常量。不消说，这可不是程序员想要的。
+
+在logfunc2里， PostgreSQL 的主分析器并不知道 now 应该转换成什么类型， 因此它返回一个包含字符串 now 的类型为 text 的数据值。 在随后给局部变量curtime赋值时， PL/pgSQL解释器通过调用 text_out和timestamp_in 把这个字符串转换成 timestamp 类型的变量。 因此，计算出的时戳就会按照程序员希望的那样在每次执行的时候都更新。
+
+记录变量的易变性天性在这种结合上提出了一个问题。 在一个记录变量在语句或者表达式中使用时， 该字段的数据类型在同一个表达式的不同调用期间不能修改， 因为该表达式准备使用的是运行第一次到达该表达式时出现的数据类型。 在写处理超过一个表的事件的触发器过程的时候一定要把这个记住。（必要时可以用EXECUTE绕开这个问题。）
+
+==========
+36.6. 基本语句
+
+本节以及随后的一节里，我们描述所有 PL/pgSQL 明确可以理解的语句类型。任何无法识别为这样类型的语句将被做为 SQL 命令看待，并且被发送到主数据库引擎执行（在将语句中用到的任何 PL/pgSQL 变量进行替换之后）。因此， 举例来说，SQL INSERT，UPDATE，和 DELETE 命令可能被认为是 PL/pgSQL 语句，但是它们并未在此明确列出。
+
+36.6.1. 赋值
+
+给一个变量或行/记录赋值用下面方法：
+
+identIFier := expression;
+如上所述，这样的语句中的表达式是用一个发送到主数据库引擎的 SQL SELECT 命令计算的。该表达式必须生成单一的数值。
+
+如果表达式的结果数据类型和变量数据类型不一致， 或者变量具有已知的尺寸/精度（象 char(20)）， 结果值将隐含地被PL/pgSQL解释器用结果类型的输出函数和变量类型的输入函数转换。 要注意的是，如果结果数值的字串形式不是输入函数可以接受的形式， 那么这样做可能导致类型输入函数产生的运行时错误。
+
+例子∶
+
+user_id := 20;
+tax := subtotal * 0.06;
+36.6.2. SELECT INTO
+
+生成多个列（但只有一行）的SELECT命令的结果可以赋予一个记录变量， 行类型变量，或者一个标量变量的列表。这是用下面方法实现的：
+
+SELECT INTO target select_expressions FROM ...;
+这里的 target 可以是一个记录变量， 行变量，或者一个用逗号分隔的简单变量和记录/行字段的列表。 select_expressions 和命令的剩余部分和普通 SQL 一样。
+
+请注意这个构造和 PostgreSQL 普通的SELECT INTO构造的解释是不一样的， 后者的INTO目标是一个新创建的表。 （如果你想在 PL/pgSQL 函数里从一个SELECT 的结果中创建一个表，那么使用 CREATE TABLE ... AS SELECT 语法。）
+
+如果将一行或者一个变量列表用做目标，那么选出的数值必需精确匹配目标的结构， 否则就会产生运行时错误。如果目标是一个记录变量，那么它自动将自己配置成命令结果列的行类型。
+
+除了INTO子句，剩下的SELECT语句和普通的 SQL SELECT命令完全一样， 并且你可以使用SELECT的全部能力。
+
+INTO 子句几乎可以出现在 SELECT 语句的任何地方。 习惯上它是跟在 SELECT 后面，就像上面写的那样， 或者就在 FROM 之前 — 也就是说，在 select_expressions 列表之前或者之后。
+
+如果命令返回零行，则给目标赋与空值。 如果命令返回多行，那么将第一行赋与目标并抛弃其它的行。 （请注意：除非你用了ORDER BY，否则"第一行"是不明确的。）
+
+INTO子句可以出现在SELECT命令里的几乎任何地方。
+
+在一个 SELECT INTO 语句之后，你可以检查特殊变量 FOUND （参阅 Section 36.6.5）来判断一个赋值是否成功， 也就是说，查询至少返回一行。例如：
+
+SELECT INTO myrec * FROM emp WHERE empname = myname;
+IF NOT FOUND THEN
+    RAISE EXCEPTION 'employee % not found', myname;
+END IF;
+要测试一个记录/行结果是否为空，你可以使用 IS NULL 条件。不过，这个时候没有任何办法来判断是否有额外的行被抛弃。下面是一个例子，处理没有返回行的情况：
+
+DECLARE
+    users_rec RECORD;
+BEGIN
+    SELECT INTO users_rec * FROM users WHERE user_id=3;
+
+    IF users_rec.homepage IS NULL THEN
+        -- 用户没有输入主页，返回"http://"
+        RETURN 'http://';
+    END IF;
+END;
+36.6.3. 执行一个没有结果的表达式或者命令
+
+有时候我们希望计算一个表达式或者一个命令，但是却丢弃其结果（通常因为我们经常调用一些存在有用的副作用但是不存在有用结果值的函数）。 要在 PL/pgSQL 里干这件事， 你可以使用PERFORM语句：
+
+PERFORM query;
+这条语句执行一个 query并且丢弃结果。 query 的写法和你平常写 SQL SELECT 命令是一样的， 只是把开头的关键字 SELECT 替换成 PERFORM。 PL/pgSQL 的变量和平常一样代换到命令中。 同样，如果命令生成至少一行，那么特殊的变量 FOUND 设置为真，如果没有生成行，则为假。
+
+注意: 我们可能希望没有INTO子句的SELECT也能满足这样的需要， 但是目前可以接受的唯一的方法是PERFORM。
+
+一个例子：
+
+PERFORM create_mv('cs_session_page_requests_mv', my_query);
+36.6.4. 执行动态命令
+
+你经常会希望在你的PL/pgSQL函数里生成动态命令。 也就是那些每次执行的时候都会涉及不同表或不同数据类型的命令。 在这样的情况下，PL/pgSQL 试图为命令缓冲执行计划的一般企图将不再合适。 为了处理这样的问题，我们提供了 EXECUTE 语句：
+
+EXECUTE command-string [ INTO target ];
+这里的 command-string 是一个生成字串（类型为 text）的表达式，该字串包含要执行的命令， 而 target 是一个记录变量，行变量，或者一个逗号分隔的简单变量和记录/行域的列表。
+
+请特别注意在该命令字串里将不会发生任何 PL/pgSQL 变量代换。 变量的数值必需在构造命令字串的时候插入该字串。
+
+和所有其它在PL/pgSQL里的命令不同， 一个由EXECUTE语句运行的命令在服务器生命期内并不只准备和保存一次。 相反，在该语句每次运行的时候，命令都准备一次。 命令字串可以在过程里动态地生成以便于对各种不同的表和字段进行操作。
+
+INTO 子句声明 SELECT 命令的结果应该传递到哪里。 如果提供了一个行变量或者一个变量列表，那么它必须和 SELECT 生成的结果的结构一样（如果使用了记录变量，那么它回自动调整为匹配结果的结构）。 如果返回了多行，那么只有第一行将被赋予 INTO 变量。 如果没有返回行，那么将给 INTO 变量赋予 NULL。 如果没有声明 INTO 子句，则抛弃 SELECT 命令的结果。
+
+目前 EXECUTE 里面不支持 SELECT INTO。
+
+在使用动态命令的时候，你经常需要逃逸单引号。我们建议包围你的函数体内固定文本的方法是美元符包围。 （如果你有老的，没有使用美元符包围的代码，请参考 Section 36.2.1， 这样在把老代码转换成更合理的结构时，会节省你的一些精力。）
+
+要插入到构造出来的查询中的动态数值也需要特殊的处理， 因为他们自己可能包含引号字符。 一个例子（除了特别说明之外，这里我们都假设你使用了美元符包围）：
+
+EXECUTE 'UPDATE tbl SET '
+        || quote_ident(columnname)
+        || ' = '
+        || quote_literal(newvalue)
+        || ' WHERE ...';
+这个例子显示了函数 quote_ident 和 quote_literal 的使用。 为了安全，包含字段和表标识符的变量应该传递给函数 quote_ident。 那些包含数值的变量，如果其值在构造出来态命令字串里应外是文本字串，那么应该传递给 quote_literal。 它们俩都会采取合适的步骤把输入文本包围在单或双引号里并且对任何嵌入其中的特殊字符进行合适的逃逸处理。
+
+请注意美元符包围只对包围固定文本有用。如果想象下面这样做上面的例子，那就太糟糕了
+
+EXECUTE 'UPDATE tbl SET '
+        || quote_ident(colname)
+        || ' = $$'
+        || newvalue
+        || '$$ WHERE ...';
+因为如果 newvalue 的内容碰巧有$$，那么这段代码就有毛病了。 同样的问题可能出现在你选用的任何美元符包围分隔符上。 因此，要想安全地包围事先不知道地文本，你必须使用 quote_literal。
+
+动态命令和 EXECUTE 的一个更大的例子在 Example 36-6 里， 这个例子制作病执行了一个定义新的函数的 CREATE FUNCTION 命令。
+
+36.6.5. 获取结果状态
+
+有好几种方法可以判断一条命令的效果。第一个方法是使用 GET DIAGNOSTICS，它的形式如下：
+
+GET DIAGNOSTICS variable = item [ , ... ];
+这条命令允许我们检索系统状态标识符。每个 item 是一个关键字，表示一个将要赋予该特定变量的状态值（该变量应该和要接收的数值类型相同）。 当前可用的状态项有 ROW_COUNT， 最后一个发送给 SQL 引擎的 SQL 命令处理的行的数量，和 RESULT_OID，最后一条 SQL 命令插入的最后一行的 OID。请注意 RESULT_OID 只有在一个向包含 OID 的表中 INSERT 的命令之后才有用。
+
+一个例子：
+
+      GET DIAGNOSTICS var_integer = ROW_COUNT;
+另外一个判断命令效果的方法是一个类型为 boolean 的特殊变量 FOUND。 FOUND在每个 PL/pgSQL 函数里开始都为假。它被下列语句设置：
+
+一个SELECT INTO语句如果返回一行则设置 FOUND 为真，如果没有返回行则设置为假。
+
+一个PERFORM语句如果生成（或抛弃）一行，则设置 FOUND 为真，如果没有生成行则为假。
+
+如果至少影响了一行，那么UPDATE，INSERT，和DELETE语句设置 FOUND 为真，如果没有行受影响则为假。
+
+FETCH语句如果返回行则设置 FOUND 为真， 如果不返回行则为假。
+
+一个FOR语句如果迭代了一次或多次，则设置 FOUND 为真，否则为假。这个规律适用于所有FOR语句的三种变体 （整数FOR循环，记录集的FOR循环，以及动态记录集FOR循环）。 只有在FOR循环退出的时候才设置 FOUND； 在循环执行的内部，FOUND 不被FOR语句修改， 但是在循环体里它可能被其他语句的执行而修改。
+
+FOUND 是每个 PL/pgSQL 里的局部变量； 任何对它的任何修改只影响当前的函数。
+
+==============
+36.7. 控制结构
+
+控制结构可能是 PL/pgSQL 中最有用的（以及最重要）的部分了。 利用 PL/pgSQL 的控制结构， 你可以以非常灵活而且强大的方法操纵 PostgreSQL 的数据。
+
+36.7.1. 从函数返回
+
+有两个命令可以用来从函数中返回数据：RETURN 和 RETURN NEXT。
+
+36.7.1.1. RETURN
+
+RETURN expression;
+带表达式的 RETURN 是用于终止函数, 然后 expression 的值返回给调用者。
+
+如果返回标量类型，那么可以使用任何表达式。表达式的类型将被自动转换成函数的返回类型， 就像我们在赋值中描述的那样。 要返回一个复合（行）数值，你必须写一个记录或者行变量做 expression。
+
+如果你声明函数带输出参数，那么就只用写无表达式的 RETURN。 则输出参数变量的当前值将被返回。
+
+如果你声明函数返回 void，那么一个 RETURN 语句可以用于提前退出函数； 但是不要在 RETURN 后面写一个表达式。
+
+一个函数的返回值不能是未定义。如果控制到达了函数的最顶层的块而没有碰到一个 RETURN 语句， 那么它就会发生一个错误。不过，这个限制不适用于带输出参数的函数以及那些返回 void 的函数。 在这些例子里，如果顶层的块结束，则自动执行一个 RETURN 语句。
+
+36.7.1.2. RETURN NEXT
+
+RETURN NEXT expression;
+如果一个 PL/pgSQL 函数声明为返回 SETOF sometype， 那么遵循的过程则略有不同。在这种情况下，要返回的独立的项是在 RETURN NEXT 命令里声明的，然后最后有一个不带参数的 RETURN 命令用于告诉我们这个函数已经完成执行了。 RETURN NEXT 可以用于标量和复合数据类型；对于复合类型，将返回一个完整的结果"表"。
+
+RETURN NEXT 实际上并不从函数中返回 — 它只是简单地把表达式的值保存起来。 然后执行继续执行 PL/pgSQL 函数里的下一条语句。 随着后继的 RETURN NEXT 命令的执行， 结果集就建立起来了。最后一个 RETURN，它应该没有参数， 导致控制退出该函数（或者你可以简单地让控制到达函数的结尾）。
+
+如果你声明函数带有输出参数，那么就只需要写不带表达式的 RETURN NEXT。 输出参数的当前之将被保存，用于最终返回。 请注意如果有多个输出参数，你比如声明函数为返回 SETOF record， 或者是在只有一个类型为 sometype 的输出参数的时候，声明为 SETOF sometype， 这样才能创建一个带有输出参数的返回集合的函数。
+
+使用 RETURN NEXT 的函数应该按照下面的风格调用：
+
+SELECT * FROM some_func();
+也就是说，这个函数是用做FROM子句里面的一个表数据源的。
+
+注意: 目前的 PL/pgSQL 的 RETURN NEXT 实现在从函数返回之前把整个结果集都保存起来，就象上面描述的那样。 这意味着如果一个 PL/pgSQL 函数生成一个非常大的结果集， 性能可能会很差：数据将被写到磁盘上以避免内存耗尽， 但是函数在完成整个结果集的生成之前不会退出。将来的 PL/pgSQL 版本可能会允许用户定义没有这样限制的返回集合的函数。 目前，数据开始向磁盘里写的时刻是由配置变量 work_mem 控制的。 拥有足够内存的管理员如果想在内存里存储更大的结果集， 则可以考虑把这个参数增大一些。
+
+36.7.2. 条件
+
+IF 语句让你可以根据某种条件执行命令。 PL/pgSQL有五种形式的IF：
+
+IF ... THEN
+
+IF ... THEN ... ELSE
+
+IF ... THEN ... ELSE IF
+
+IF ... THEN ... ELSIF ... THEN ... ELSE
+
+IF ... THEN ... ELSEIF ... THEN ... ELSE
+
+36.7.2.1. IF-THEN
+
+IF boolean-expression THEN
+    statements
+END IF;
+IF-THEN语句是IF的最简单形式。如果条件为真， 在THEN和END IF之间的语句将被执行。 否则，将忽略它们。
+
+例子：
+
+IF v_user_id <> 0 THEN
+    UPDATE users SET email = v_email WHERE user_id = v_user_id;
+END IF;
+36.7.2.2. IF-THEN-ELSE
+
+IF boolean-expression THEN
+    statements
+ELSE
+    statements
+END IF;
+IF-THEN-ELSE语句增加了IF-THEN的分支， 让你可以声明在条件计算结果为假的时候执行的语句。
+
+例子：
+
+IF parentid IS NULL OR parentid = ''
+THEN 
+    RETURN fullname;
+ELSE
+    RETURN hp_true_filename(parentid) || '/' || fullname;
+END IF;
+IF v_count > 0 THEN 
+    INSERT INTO users_count(count) VALUES(v_count);
+    RETURN 't';
+ELSE 
+    RETURN 'f';
+END IF;
+36.7.2.3. IF-THEN-ELSE IF
+
+IF语句可以嵌套并且在下面的例子中：
+
+IF demo_row.sex = 'm' THEN
+  pretty_sex := 'man';
+ELSE
+  IF demo_row.sex = 'f' THEN
+    pretty_sex := 'woman';
+  END IF;
+END IF;
+如果你使用这种形式，那么你实际上就是在另外一个IF语句的ELSE 部分嵌套了一个IF语句．因此你需要一个END IF语句 给每个嵌套的IF，另外还要一个给父IF-ELSE用． 这么干是可以的，但是如果我们有太多候选项需要检查，那么就会变得很乏味． 因此有下面的形式。
+
+36.7.2.4. IF-THEN-ELSIF-ELSE
+
+IF boolean-expression THEN
+    statements
+[ ELSIF boolean-expression THEN
+    statements
+[ ELSIF boolean-expression THEN
+    statements
+    ...]]
+[ ELSE
+    statements ]
+END IF;
+IF-THEN-ELSIF-ELSE提供了一种更方便的方法用于在一条语句中检查许多候选条件。 形式上它和嵌套的IF-THEN-ELSE-IF-THEN命令相同， 但是只需要一个END IF。
+
+这里是一个例子：
+
+IF number = 0 THEN
+    result := 'zero';
+ELSIF number > 0 THEN
+    result := 'positive';
+ELSIF number < 0 THEN
+    result := 'negative';
+ELSE
+    -- 另外一个唯一的可能是它是空值
+    result := 'NULL';
+END IF;
+36.7.2.5. IF-THEN-ELSEIF-ELSE
+
+ELSEIF 是 ELSIF 的别名。
+
+36.7.3. 简单循环
+
+使用LOOP，EXIT，CONTINUE，WHILE， 和 FOR 语句，你可以控制你的 PL/pgSQL 函数重复一系列命令。
+
+36.7.3.1. LOOP
+
+[ <<label>> ]
+LOOP
+    statements
+END LOOP [ label ];
+LOOP 定义一个无条件的循环，无限循环， 直到由EXIT或者RETURN语句终止。 可选的 label 可以由 EXIT 和 CONTINUE 语句使用， 用于在嵌套循环中声明应该应用于哪一层循环。
+
+36.7.3.2. EXIT
+
+EXIT [ label ] [ WHEN expression ];
+如果没有给出 label， 那么退出最内层的循环，然后执行跟在 END LOOP 后面的语句。 如果给出 label， 那么它必须是当前或者更高层的嵌套循环块或者语句块的标签。 然后该命名块或者循环就会终止，而控制落到对应循环/块的 END 语句后面的语句上。
+
+如果声明了WHEN，循环退出只有在 expression 为真的时候才发生， 否则控制会落到 EXIT 后面的语句上。
+
+EXIT 可以用于在所有的循环类型中，它并不仅仅限制于在无条件循环中使用。 在和 BEGIN 块一起使用的时候，EXIT 把控制交给块结束后的下一个语句。
+
+例子：
+
+LOOP
+    -- 一些计算
+    IF count > 0 THEN
+        EXIT;  -- exit loop
+    END IF;
+END LOOP;
+
+LOOP
+    -- 一些计算
+    EXIT WHEN count > 0;
+END LOOP;
+
+BEGIN
+    -- 一些计算
+    IF stocks > 100000 THEN
+        EXIT;  -- 导致从 BEGIN 块里退出
+    END IF;
+END;
+36.7.3.3. CONTINUE
+
+CONTINUE [ label ] [ WHEN expression ];
+如果没有给出 label，那么就开始最内层的循环的下一次执行。 也就是说，控制传递回给循环控制表达式（如果有），然后重新计算循环体。 如果出现了 label，它声明即将继续执行的循环的标签。
+
+如果声明了 WHEN，那么循环的下一次执行只有在 expression 为真的情况下才进行。否则，控制传递给 CONTINUE 后面的语句。
+
+CONTINUE 可以用于所有类型的循环； 它并不仅仅限于无条件循环。
+
+例子：
+
+LOOP
+    -- 一些计算
+    EXIT WHEN count > 100;
+    CONTINUE WHEN count < 50;
+    -- 一些在 count 数值在 [50 .. 100] 里面时候的计算
+END LOOP;
+36.7.3.4. WHILE
+
+[ <<label>> ]
+WHILE expression LOOP
+    statements
+END LOOP [ label ];
+只要条件表达式为真，WHILE语句就会不停在一系列语句上进行循环. 条件是在每次进入循环体的时候检查的.
+
+比如:
+
+WHILE amount_owed > 0 AND gift_certificate_balance > 0 LOOP
+    -- 可以在这里做些计算
+END LOOP;
+
+WHILE NOT BOOLEAN_expression LOOP
+    -- 可以在这里做些计算
+END LOOP;
+36.7.3.5. FOR （整数变种）
+
+[ <<label>> ]
+FOR name IN [ REVERSE ] expression .. expression LOOP
+    statements
+END LOOP [ labal ];
+这种形式的FOR对一定范围的整数数值进行迭代的循环。 变量name 会自动定义为integer类型并且只在循环里存在。 给出范围上下界的两个表达式在进入循环的时候计算一次。 迭代步进值总是为 1，但如果声明了REVERSE就是 -1。
+
+一些整数FOR循环的例子∶
+
+FOR i IN 1..10 LOOP
+  -- 这里可以放一些表达式
+    RAISE NOTICE 'i IS %', i;
+END LOOP;
+
+FOR i IN REVERSE 10..1 LOOP
+    -- 这里可以放一些表达式
+END LOOP;
+如果下界大于上界（或者是在 REVERSE 情况下是小于），那么循环体将完全不被执行。 而且不会抛出任何错误。
+
+36.7.4. 遍历命令结果
+
+使用不同类型的FOR循环，你可以遍历一个命令的结果并且相应的操作哪些数据。语法是：
+
+[ <<label>> ]
+FOR record_or_row IN query LOOP
+    statements
+END LOOP [ label ];
+这里的记录或者行变量将相继被赋予所有来自query（必须是一条 SELECT 命令）的行， 并且循环体将为每行执行一次。下面是一个例子：
+
+CREATE FUNCTION cs_refresh_mviews() RETURNS integer AS $$
+DECLARE
+     mviews RECORD;
+
+BEGIN
+     PERFORM cs_log('Refreshing materialized views...');
+
+     FOR mviews IN SELECT * FROM cs_materialized_views ORDER BY sort_key LOOP
+
+         -- 现在 "mviews" 里有了一条来自 cs_materialized_views 的记录
+
+        PERFORM cs_log('Refreshing materialized view ' || quote_ident(mviews.mv_name) || ' ...');
+        EXECUTE 'TRUNCATE TABLE ' || quote_ident(mviews.mv_name);
+        EXECUTE 'INSERT INTO  ' ||  quote_ident(mview.mv_name) || ' ' || mview.mv_query;
+     END LOOP;
+
+     PERFORM cs_log('Done refreshing materialized views.');
+     RETURN 1;
+END;
+$$ LANGUAGE plpgsql;
+如果循环是用一个EXIT语句终止的，那么在循环之后你仍然可以访问最后赋值的行。
+
+FOR-IN-EXECUTE语句是遍历所有行的另外一种方法：
+
+[ <<label>> ]
+FOR record_or_row IN EXECUTE text_expression LOOP
+    statements
+END LOOP [ label ];
+这个例子类似前面的形式，只不过源SELECT语句声明为了一个字串表达式， 这样它在每次进入FOR循环的时候都会重新计算和生成执行计划。 这样就允许程序员在一个预先规划好了的命令所获得的速度， 和一个动态命令所获得的灵活性（就象一个简单的EXECUTE语句那样）之间进行选择。
+
+注意: PL/pgSQL 分析器目前区分两种类型的FOR循环（整数或者返回记录的）： 方法是检查是否有任何 .. 出现在 IN 和 LOOP 之间的圆括弧之外。 如果没有看到 ..，那么这个循环就是在数据行上的循环。 如果误敲了 .. 就很可能会导致像下面这样的错误信息： "loop variable of loop over rows must be a record or row variable"， 而不是我们以为会看到的简单的语法错误。
+
+36.7.5. 捕获错误
+
+缺省时，一个在 PL/pgSQL 函数里发生的错误退出函数的执行， 并且实际上是其周围的事务也会退出。你可以使用一个带有 EXCEPTION 子句的 BEGIN 块捕获错误并且从中恢复。 其语法是正常的 BEGIN 块语法的一个扩展：
+
+[ <<label>> ]
+[ DECLARE
+    declarations ]
+BEGIN
+    statements
+EXCEPTION
+    WHEN condition [ OR condition ... ] THEN
+        handler_statements
+    [ WHEN condition [ OR condition ... ] THEN
+          handler_statements
+      ... ]
+END;
+如果没有发生错误，这种形式的块只是简单地执行所有 statements， 但是如果在 statements 里发生了一个错误， 则对 statements 的进一步处理将废弃， 控制传递到了 EXCEPTION 列表。 系统搜索这个列表，寻找匹配发生的错误的第一个元素。如果找到匹配， 则执行对应的 handler_statements，然后控制传递到 END 之后的下一个语句。 如果没有找到匹配，该错误就会广播出去，就好像根本没有 EXCEPTION 子句一样： 该错误可以被一个包围块用 EXCEPTION 捕获，如果没有包围块，则退出函数的处理。
+
+condition 名字可以是 Appendix A 里显示的任何名字。 一个范畴名匹配任意该范畴里的错误。特殊的条件名 OTHERS 匹配除了 QUERY_CANCELED 之外的所有错误类型。 （我们可以用名字捕获 QUERY_CANCELED，不过通常是不明智的。）条件名是大小写无关的。
+
+如果在选中的 handler_statements 里发生了新错误， 那么它不能被这个 EXCEPTION 子句捕获，而是传播出去。 一个外层的 EXCEPTION 子句可以捕获它。
+
+如果一个错误被 EXCEPTION 捕获，PL/pgSQL 函数的局部变量保持错误发生的时候的原值， 但是所有该块中想固化在数据库中的状态都回滚。作为一个例子，让我们看看下面片断：
+
+    INSERT INTO mytab(firstname, lastname) VALUES('Tom', 'Jones');
+    BEGIN
+        UPDATE mytab SET firstname = 'Joe' WHERE lastname = 'Jones';
+        x := x + 1;
+        y := x / 0;
+    EXCEPTION
+        WHEN division_by_zero THEN
+            RAISE NOTICE 'caught division_by_zero';
+            RETURN x;
+    END;
+当控制到达给 y 赋值的地方的时候，它会带着一个 division_by_zero 错误失败。 这个错误将被 EXCEPTION 子句捕获。而在 RETURN 语句里返回的数值将是 x 的增量值。 但是，在该块之前的 INSERT 将不会回滚，因此最终的结果是数据库包含 Tom Jones 而 不是 Joe Jones。
+
+提示: 进入和退出一个包含 EXCEPTION 子句的块要比不包含的块开销大的多。 因此，不必要的时候不要使用 EXCEPTION。
+
+在例外句柄里头，SQLSTATE 变量包含对应抛出的错误的错误代码 （参考 Table A-1 获取可能的错误码的列表）。 SQLERRM 变量包含与例外关联的错误信息。 这些变量在例外句柄外面是未定义的。
+
+Example 36-1. UPDATE/INSERT 的例外
+
+这个例子根据情况使用 EXCEPTION 处理 UPDATE 或者 INSERT。
+
+CREATE TABLE db (a INT PRIMARY KEY, b TEXT);
+
+CREATE FUNCTION merge_db(key INT, data TEXT) RETURNS VOID AS
+$$
+BEGIN
+    LOOP
+        UPDATE db SET b = data WHERE a = key;
+        IF found THEN
+            RETURN;
+        END IF;
+
+        BEGIN
+            INSERT INTO db(a,b) VALUES (key, data);
+            RETURN;
+        EXCEPTION WHEN unique_violation THEN
+            -- do nothing
+        END;
+    END LOOP;
+END;
+$$
+LANGUAGE plpgsql;
+
+SELECT merge_db(1, 'david');
+SELECT merge_db(1, 'dennis');
+

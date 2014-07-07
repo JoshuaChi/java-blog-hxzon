@@ -1,0 +1,533 @@
+﻿PostgreSQL 8.1 中文文档-Chapter 36. PL pgSQL - SQL 过程语言-1，声明
+
+
+36.1. 概述
+36.1.1. 使用PL/pgSQL的优点
+36.1.2. 所支持的参数和结果数据类型
+
+36.2. 开发 PL/pgSQL 的一些提示
+36.3. PL/pgSQL的结构
+
+36.4. 声明
+36.4.1. 函数参数的别名
+36.4.2. 拷贝类型
+36.4.3. 行类型
+36.4.4. 记录类型
+36.4.5. RENAME
+
+
+36.5. 表达式
+36.6. 基本语句
+36.6.1. 赋值
+36.6.2. SELECT INTO
+36.6.3. 执行一个没有结果的表达式或者命令
+36.6.4. 执行动态命令
+36.6.5. 获取结果状态
+36.7. 控制结构
+36.7.1. 从函数返回
+36.7.2. 条件
+36.7.3. 简单循环
+36.7.4. 遍历命令结果
+36.7.5. 捕获错误
+36.8. 游标
+36.8.1. 声明游标变量
+36.8.2. 打开游标
+36.8.3. 使用游标
+36.9. 错误和消息
+36.10. 触发器过程
+36.11. 从Oracle的 PL/SQL 移植
+36.11.1. 移植样例
+36.11.2. 其它要注意的东西
+36.11.3. 附录
+
+===========
+PL/pgSQL是 PostgreSQL 数据库系统的一个可装载的过程语言。 
+PL/pgSQL的设计目标是创建一种可装载的过程语言，可以
+
+可用于创建函数和触发器过程，
+
+为 SQL 语言增加控制结构，
+
+可以执行复杂的计算，
+
+继承所有用户定义类型，函数和操作符，
+
+可以定义为被服务器信任（的语言），
+
+容易使用。
+
+除了用于用户定义类型的输入/输出转换和计算函数以外， 
+任何可以在 C 语言函数里定义的东西都可以在 PL/pgSQL里使用。 
+比如，我们可以创建复杂的条件计算函数， 并随后将之用于定义操作符或者用于函数索引中。
+
+===========
+36.1. 概述
+
+PL/pgSQL 函数第一次(在任何一个服务器进程内部)被调用时， PL/pgSQL 的调用句柄分析函数源文本生成二进制指令树。 
+该指令树完全转换了 PL/pgSQL 语句结构， 但是在函数内使用到的独立的 SQL 表达式和 SQL 命令并未立即转换。
+
+在每个函数中用到的表达式和 SQL 命令在函数里首次使用的时候， PL/pgSQL 解释器创建一个准备好的执行规划
+（使用 SPI 管理器的 SPI_prepare 和 SPI_saveplan 函数）。 
+随后对该表达式或者命令的访问都将使用已准备好的规划。 
+因此，一个在条件代码中有许多语句，可能需要执行规划的函数， 只需要准备和保存那些真正在数据库联接期间真正使用到的规划。 
+这样可以有效地减少为 PL/pgSQL 函数里的语句生成分析和执行规划的总时间。 
+不过有个缺点是在特定表达式或者命令中的错误可能要到函数中的那部分执行到的时候才能发现。
+
+一旦 PL/pgSQL 在函数里为一个命令制定了执行计划， 那么它将在该次数据库联接的生命期内复用该规划。 
+这么做在性能上通常会更好一些，但是如果你动态地修改你的数据库模式，那么就可能有问题。 比如：
+
+CREATE FUNCTION populate() RETURNS integer AS $$
+DECLARE
+    -- 声明段
+BEGIN
+    PERFORM my_function();
+END;
+$$ LANGUAGE plpgsql;
+
+如果你执行上面的函数，那么它将在为PERFORM语句生成的执行计划中中引用 my_function() 的 OID。 
+然后，如果你删除然后重新创建 my_function()， 那么 populate() 就会再也找不到 my_function()。 
+这时候你只能重新创建 populate()， 或者至少是重新开始一个新的数据库会话，好让该函数能重新编译一次。 
+另外一个避免这种问题的方法是在更新my_function 的定义的时候	
+使用 CREATE OR REPLACE FUNCTION （如果一个函数被"替换"，那么它的 OID 将不会变化）。（hxzon：注意）
+
+因为Pl/pgSQL用这种方法保存执行规划， 所以那些在PL/pgSQL里直接出现的 SQL 命令必须在每次执行的时候引用相同的表和字段； 
+也就是说，你不能拿一个参数用做 SQL 命令中的表或者字段的名称。 
+要绕开这个限制，你可以用 PL/pgSQL 的 EXECUTE语句动态地构造命令 — 代价是每次执行的时候都构造一个新的命令计划。
+
+注意: PL/pgSQL 的EXECUTE语句和 PostgreSQL 服务器支持的 EXECUTE 语句没有关系。 
+服务器的EXECUTE语句不能在 PL/pgSQL 函数中使用（而且也没必要）。
+
+====
+36.1.1. 使用PL/pgSQL的优点
+
+SQL 是PostgreSQL 和大多数其它关系型数据库用做命令语言的语言。 
+它是可以移植的，并且容易学习使用。 
+但是所有 SQL 语句都必须由数据库服务器独立地执行。
+
+这就意味着你的客户端应用必须把每条命令发送到数据库服务器， 等待它处理这个命令，接收结果，做一些运算，然后给服务器发送另外一条命令。 
+所有这些东西都会产生进程间通讯，并且如果你的客户端在另外一台机器上甚至还会导致网络开销。
+
+如果使用了PL/pgSQL，那么你可以把一块运算和一系列命令在数据库服务器里面组成一个块， 
+这样就拥有了过程语言的力量并且简化 SQL 的使用，因而节约了大量的时间，
+因为你用不着付出客户端/服务器通讯的过热。 这样可能产生明显的性能提升。
+
+同样，在 PL/pgSQL 里，你可以使用 SQL 的所有数据类型，操作符和函数。
+
+====
+36.1.2. 所支持的参数和结果数据类型
+
+并且它们可以返回这种任何这种类型的数值。
+它们还可以接受或者返回任意用名字声明的复合类型（行类型）。 
+我们还可以声明一个 PL/pgSQL 函数为返回 record 的函数， 意思是结果是一个行类型，
+这个行的字段是在调用它的查询中指定的，就像我们在 Section 7.2.1.4 里讨论的那样。
+
+PL/pgSQL 函数还可以声明为接受并返回多态的类型 anyelement 和 anyarray。 
+一个多态的函数实际操作的数据类型可以在不同的调用环境中变化， 
+如我们在 Section 32.2.5 里讨论的那样。 一个例子是 Section 36.4.1。
+
+PL/pgSQL 还可以声明为返回一个它们可以返回的任何单个实例的"集（set）"，或者表。 
+这样的函数通过为结果集每个需要返回的元素执行一个 RETURN NEXT 生成它的输出。
+
+最后，PL/pgSQL 函数可以声明为返回 void，如果它没啥有用的东西可以返回的话。
+
+Note: PL/pgSQL 目前还不是完全支持域类型：它看待域类型和下层的标量类型是一样的。 
+这就意味着与域关联的约束将不会被强制。（hxzon：注意）
+对于函数参数，这不是什么问题， 
+但是如果你把 PL/pgSQL 函数声明为返回一个域类型，那么就有危险。
+
+PL/pgSQL 函数也可以声明为输出某种类型的参数，代替明确的返回类型的声明。 
+这么做并未给该语言增加任何基础设施，只是通常更方便些，特别是返回多行数值的时候。
+
+具体的例子在 Section 36.4.1 和 Section 36.7.1 里。
+
+=========
+36.2. 开发 PL/pgSQL 的一些提示
+
+用PL/pgSQL 做开发的一个好方法是简单地使用你喜欢的文本编辑器创建你的函数，然后在另外一个控制台里， 用 psql 装载这些函数。
+如果你用这种方法， 那么用 CREATE OR REPLACE FUNCTION 写函数是个好主意。
+这样，你就可以重载文件以更新函数定义。比如：
+
+CREATE OR REPLACE FUNCTION testfunc(integer) RETURNS integer AS $$
+    ....
+END;
+$$ LANGUAGE plpgsql;
+
+在运行 psql 的时候，你可以用下面命令装载或者重载这样的函数定义文件
+
+\i filename.sql
+
+然后马上发出 SQL 命令测试该函数。
+
+另外一个开发PL/pgSQL程序的好方法是用一种 GUI 的数据库访问工具，并且是实现了过程语言开发设施的那种。 
+这种工具中的一种就是 pgaccess，当然还有其他的。 
+这些工具通常提供了一些很有用的功能，比如逃逸单引号，令重建和调试函数更简单等。
+
+====
+36.2.1. 处理引号
+
+PL/pgSQL 函数的代码都是在 CREATE FUNCTION 里以一个字串文本的方式声明的。 
+如果你用两边包围单引号的常规方式写字串文本，那么任何函数体内的单引号都必须写双份；类似的是反斜杠也必须双份。 
+双份引号非常乏味，在更复杂的场合下，代码可能会让人难以理解， 因为你很容易发现自己需要半打甚至更多相连的引号。 
+我们建议你用"美元符包围"的字串文本来写函数体。 （参阅 Section 4.1.2.2）。 
+使用美元符包围的时候，你从不需要对任何引号写双份， 只需要为每层引号包围嵌套选择一个不同的美元符号包围分隔符即可。 
+比如，你可能这么写 CREATE FUNCTION 命令
+
+CREATE OR REPLACE FUNCTION testfunc(integer) RETURNS integer AS $PROC$
+          ....
+$PROC$ LANGUAGE plpgsql;
+
+在这个函数体里，你可以在 SQL 命令里使用单引号包围文本字串， 用 $$ 分隔那些你用来当成字串组装的 SQL 命令的片断。 
+如果你需要对包含 $$ 的文本进行引号包围，你可以使用 $Q$ 等等。
+
+下面的图表显示了你不使用美元符包围的时候该如何写单引号。 
+这个表在把美元符引号之前的引号包围的代码转换成某种可以理解的形式应该会有用。
+
+1 个单引号
+开始/结束函数体，比如：
+
+CREATE FUNCTION foo() RETURNS integer AS '
+	....
+' LANGUAGE plpgsql;
+
+在函数体内部的任何位置，问号都必须成对出现。
+
+2 个单引号
+对于函数体内的字串文本，比如：
+
+a_output := ''Blah'';
+SELECT * FROM users WHERE f_name=''foobar'';
+
+在美元符包围的方法里，你只要写
+
+a_output := 'Blah';
+SELECT * FROM users WHERE f_name='foobar';
+
+两种情况都是 PL/pgSQL 分析器期望看到的东西。
+
+4 个单引号
+如果你在函数体里的字串里面需要一个单引号，比如：
+
+a_output := a_output || '' AND name LIKE ''''foobar'''' AND xyz''
+a_output 会是： AND name LIKE 'foobar' AND xyz。
+
+使用美元符包围的方法，你可以写
+
+a_output := a_output || $$ AND name LIKE 'foobar' AND xyz$$
+
+要小心这样的美元包围的分隔符并不是只有 $$。
+
+6 个单引号
+如果一个在函数体里的字串中的单引号与该字串常量结尾前后相连， 比如：
+
+a_output := a_output || '' AND name LIKE ''''foobar''''''
+a_output 的值将是： AND name LIKE 'foobar'。
+
+用美元符包围的方法，这些是
+
+a_output := a_output || $$ AND name LIKE 'foobar'$$
+
+10 个单引号
+
+如果你想要在字串常量里有两个单引号（它们在一起是 8 个了）， 并且这两个单引号和该字串常量的结尾相连（又加 2 个）。 
+你可能只有在写一个生成其它函数的函数的时候，象 Example 36-6 里那样，才需要这么干。比如：
+
+a_output := a_output || '' if v_'' ||
+    referrer_keys.kind || '' like ''''''''''
+    || referrer_keys.key_string || ''''''''''
+    then return ''''''  || referrer_keys.referrer_type
+    || ''''''; end if;'';
+
+a_output 的数值会是：
+
+if v_... like ''...'' then return ''...''; end if;
+
+使用美元符包围的方法，变成
+
+a_output := a_output || $$ if v_$$ || referrer_keys.kind || $$ like '$$
+    || referrer_keys.key_string || $$'
+    then return '$$  || referrer_keys.referrer_type
+    || $$'; end if;$$;
+
+我们假设只需要在 a_output 里放单引号， 因为在使用前它会被重新引号包围。
+
+另外一个方法是用反斜杠逃逸函数体里面的单引号，而不是写双份。 
+用这个方法，你会发现自己写了很多类似 \'\' 这样的东西， 而不是 ''''。
+有些人认为这样简单些，有些人却不这么看。
+
+==============
+36.3. PL/pgSQL的结构
+
+PL/pgSQL是一种块结构的语言。 函数定义的所有文本都必须是一个块。 一个块用下面的方法定义：
+
+[ <<label>> ]
+[ DECLARE
+    declarations ]
+BEGIN
+    statements
+END [ label ];
+
+块中的每个声明和每条语句都是用一个分号终止的， 如果一个子块在另外一个块里，那么 END 后面必须有个分号，如上所述； 
+不过结束函数体的最后的 END 可以不要这个分号。
+
+所有关键字和标识符都可以用混和大小写的方式来写。
+标识符被隐含地转换成小写字符，除非被双引号包围。
+
+在 PL/pgSQL 里有两种类型地注释。一个双破折号（--） 引出一个扩展到该行结尾的注释。
+一个 /* 引出一个块注释，一直扩展到下一次 */ 的出现。 
+块注释不能嵌套，但是双破折号注释可以包围在块注释里面，并且双破折号可以隐藏一个块注释分隔符 /* 和 */。
+
+在一个块的语句段里的任何语句都可以是一个子块。 
+子块可以用于逻辑分组或者把变量局部化为作用于一个比较小的语句组。
+
+在语句块前面的声明段（declarations section）里定义的变量在每次进入语句块时都初始化为它们的缺省值， 
+而不是每次函数调用时初始化一次。比如：（hxzon：注意）
+
+CREATE FUNCTION somefunc() RETURNS integer AS $$
+DECLARE
+   quantity integer := 30;
+BEGIN
+   RAISE NOTICE 'Quantity here is %', quantity;  -- 在这里的数量是 30
+   quantity := 50;
+   --
+   -- 创建一个子块
+   --
+   DECLARE
+      quantity integer := 80;
+   BEGIN
+      RAISE NOTICE 'Quantity here is %', quantity;  -- 在这里的数量是 80
+   END;
+
+   RAISE NOTICE 'Quantity here is %', quantity;  -- 在这里的数量是 50
+
+   RETURN quantity;
+END;
+$$ LANGUAGE plpgsql;
+
+我们一定不要把PL/pgSQL里用于语句分组的 BEGIN/END 和用于事务控制的数据库命令搞混了。 
+PL/pgSQL的 BEGIN/END 只是用于分组（译注∶象 C 里的 {}）； 它们不会开始和结束一个事务。 
+函数和触发器过程总是在一个由外层命令建立起来的事务里执行 — 它们无法开始或者提交事务，因为 PostgreSQL 没有嵌套事务。 
+不过，一个包含 EXCEPTION 子句的块实际上形成一个子事务，它可以在不影响外层事务的情况下回滚。（hxzon：注意） 
+更多相关信息请参阅 Section 36.7.5。
+
+===========
+36.4. 声明
+
+所有在块里使用的变量都必须在一个块的声明段里声明。 
+（唯一的例外是一个FOR循环里的循环变量是在一个整数范围内迭代的，被自动声明为整数变量。）
+
+PL/pgSQL变量可以用任意的 SQL 数据类型，比如 integer，varchar 和 char。
+
+下面是一些变量声明的例子∶
+
+user_id integer;
+quantity numeric(5);
+url varchar;
+myrow tablename%ROWTYPE;
+myfield tablename.fieldname%TYPE;
+arow RECORD;
+
+一个变量声明的一般性语法是∶
+
+name [ CONSTANT ] type [ NOT NULL ] [ { DEFAULT | := } expression ];
+
+如果给出了DEFAULT子句，那么它声明了在进入该块的时候赋予该变量的初始值。 
+如果没有给出DEFAULT子句，那么该变量初始化为	SQL 空值。 
+CONSTANT选项避免了该变量被赋值，这样其数值在该块的范围内保持常量。 
+如果声明了NOT NULL，那么赋予NULL数值将导致一个运行时错误。 
+所以所有声明为NOT NULL的变量还必须声明一个非空的缺省值。
+
+缺省值是在每次进入该块的时候计算的。
+因此，如果把 now() 赋予一个类型为	timestamp 的变量会令变量拥有函数实际调用的时间，而不是函数预编译的时间。
+
+例子∶
+
+quantity integer DEFAULT 32;
+url varchar := 'http://mysite.com';
+user_id CONSTANT integer := 10;
+
+====
+36.4.1. 函数参数的别名
+
+传递给函数的参数都是用 $1，$2，等等这样的标识符。 
+为了增加可读性，我们可以为 $n 参数名声明别名。 
+然后别名或者数字标识符都可以指向参数值。
+
+有两种创建别名的方法，比较好的是在 CREATE FUNCTION 命令里给出参数名， 比如：
+
+CREATE FUNCTION sales_tax(subtotal real) RETURNS real AS $$
+BEGIN
+    RETURN subtotal * 0.06;
+END;
+$$ LANGUAGE plpgsql;
+
+另外一个方法，是 PostgreSQL 8.0 以前的唯一的方法， 是明确地声明为别名，使用声明语法
+
+name ALIAS FOR $n;
+
+这个风格的同一个例子看起来像下面这样
+
+CREATE FUNCTION sales_tax(REAL) RETURNS real AS $$
+DECLARE
+    subtotal ALIAS FOR $1;
+BEGIN
+    RETURN subtotal * 0.06;
+END;
+$$ LANGUAGE plpgsql;
+
+更多例子：
+
+CREATE FUNCTION instr(varchar,integer) RETURNS integer AS $$
+DECLARE
+    v_string ALIAS FOR $1;
+    index ALIAS FOR $2;
+BEGIN
+    -- 这里放一些使用 v_string 和 index 的计算
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE FUNCTION concat_selected_fields(in_t tablename) RETURNS text AS $$
+BEGIN
+    RETURN in_t.f1 || in_t.f3 || in_t.f5 || in_t.f7;
+END;
+$$ LANGUAGE plpgsql;
+
+如果一个 PL/pgSQL 函数声明为输出参数， 那么给予输出参数就会 $n 名字和可选的别名， 方法和其它正常输入参数一样。
+一个输出参数实际上是初始值为 NULL 的变量； 
+在函数执行的过程中，应该给它赋值。该参数的最后数值是返回的东西。 
+比如，销售额－税费的例子也可以这么做：
+
+CREATE FUNCTION sales_tax(subtotal real, OUT tax real) AS $$
+BEGIN
+    tax := subtotal * 0.06;
+END;
+$$ LANGUAGE plpgsql;
+
+请注意我们忽略了 RETURNS real — 我们可以包含它，不过那样就多余了。
+
+输出参数在返回多个数值的时候非常有用。一个简单的例子是：
+
+CREATE FUNCTION sum_n_product(x int, y int, OUT sum int, OUT prod int) AS $$
+BEGIN
+    sum := x + y;
+    prod := x * y;
+END;
+$$ LANGUAGE plpgsql;
+
+如我们在 Section 32.4.3 里面讨论的， 这样做实际上为函数的结果创建了一个匿名的记录类型。 
+如果给出一个 RETURNS 子句，那么它就必须说 RETURNS record。
+
+如果一个 PL/pgSQL 函数的返回类型声明为一个多态类型 （anyelement 或者 anyarray），那么就会创建一个特殊的参数， $0。
+它的数据类型是函数的实际返回类型，和从实际输入类型推导推导类型一样 （参阅 Section 32.2.5）。 
+这样就允许函数访问它的实际返回类型，像 Section 36.4.2 里显示的那样。 
+$0 初始化为空，并且可以被函数修改，所以，如果需要，它可以用于保存返回值， 虽然这并非必须的。
+$0 还可以给予一个别名。 比如，这个函数可以在任何有 + 操作符的数据类型上运转：
+
+CREATE FUNCTION add_three_values(v1 anyelement, v2 anyelement, v3 anyelement)
+RETURNS anyelement AS $$
+DECLARE
+    result ALIAS FOR $0;
+BEGIN
+    result := v1 + v2 + v3;
+    RETURN result;
+END;
+$$ LANGUAGE plpgsql;
+
+定义一个或者多个参数为 anyelement 或者 anyarray 也可以实现同样的效果。 
+在这种情况下，特殊的参数 $0 不会使用；输出参数自己起这个作用。比如：
+
+CREATE FUNCTION add_three_values(v1 anyelement, v2 anyelement, v3 anyelement,
+                                 OUT sum anyelement)
+AS $$
+BEGIN
+    sum := v1 + v2 + v3;
+END;
+$$ LANGUAGE plpgsql;
+
+====
+36.4.2. 拷贝类型
+
+variable%TYPE
+
+%TYPE 提供一个变量或者表字段的数据类型。 
+你可以用这个声明将要保存数据库数值的变量。
+比如，假如你在 users 表里面有一个字段叫 user_id。
+要声明一个和 users.user_id 类型相同的变量，你可以写：
+
+user_id users.user_id%TYPE;
+
+通过使用 %TYPE，你必须知道你引用的结构的数据类型， 
+并且，最重要的是，如果被引用项的数据类型在将来变化了（比如：你把 user_id 的类型从 integer 改成 real），你也不需要修改你的函数定义。
+
+%TYPE 对多态的函数特别有用，因为内部变量的数据类型可能在不同调用中是不一样的。 
+我们可以通过给函数的参数或者结果占位符附加 %TYPE 的方法来创建合适的变量。
+
+====
+36.4.3. 行类型
+
+name table_name%ROWTYPE;
+
+name composite_type_name;
+
+一个复合类型变量叫做行变量（或者row-type变量）。 
+这样的一个变量可以保存一次SELECT或者 FOR命令结果的完整一行，只要命令的字段集匹配该变量声明的类型。 
+行数值的独立的字段是使用常用的点表示法访问的，比如 rowvar.field。
+
+一个行变量可以声明为和一个现有的表或者视图的行类型相同，方法是使用 table_name%ROWTYPE 表示法； 
+或者你也可以声明它的类型是一个复合类型的名字。
+（因为每个表都有一个相关联的同名数据类型， 在 PostgreSQL 里实在是无所谓你写不写 %ROWTYPE。
+但是有 %ROWTYPE 的形式移植性更好。）（hxzon：注意）
+
+函数的参数可以是复合类型（表的完整行）。
+这个时候， 对应的标识符 $n 将是一个行变量，并且可以从中选取字段，比如 $1.user_id。
+
+在一个行类型的变量中，只可以访问用户定义的表中行的属性， 不包括 OID 或者其他系统属性（因为该行可能来自一个视图）。 
+该行类型的数据域继承表中象 char(n) 这种类型字段的尺寸和精度。
+
+这里是一个使用复合类型的例子。
+table1 和 table2 是现有的表，至少包含代码中提到的字段：
+
+CREATE FUNCTION merge_fields(t_row table1) RETURNS text AS $$
+DECLARE
+    t2_row table2%ROWTYPE;
+BEGIN
+    SELECT * INTO t2_row FROM table2 WHERE ... ;
+    RETURN t_row.f1 || t2_row.f3 || t_row.f5 || t2_row.f7;
+END;
+$$ LANGUAGE plpgsql;
+
+SELECT merge_fields(t.*) FROM table1 t WHERE ... ;
+
+====
+36.4.4. 记录类型
+
+name RECORD;
+
+纪录变量类似行类型变量，但是它们没有预定义的结构。 
+它们在SELECT或者FOR命令中获取实际的行结构。 
+一个行变量的子结构可以在每次赋值的时候改变。 
+这样做的一个结果是：在一个记录变量被赋予数值之前，它没有子结构， 并且任何对其中的数据域进行访问的企图都将产生一个运行时错误。
+
+请注意 RECORD 不是真正的数据类型，只是一个占位符。 
+我们还应该意识到在把一个 PL/pgSQL 函数声明为返回record类型的时候， 它和一个记录变量的概念并不完全相同，
+即使这个函数可能使用一个记录变量保存它的结果也如此。 
+在两种情况下，在书写函数的时候，实际的行结构都是不知道的，
+但是对于返回 record 的函数来说， 实际的结构是在调用它的查询被分析的时候决定的，而行变量可以在运行中改变其行结构。
+
+====
+36.4.5. RENAME
+
+（hxzon：9.4版本的文档没有这一节）
+
+RENAME oldname TO newname;
+
+你可以用 RENAME 声明修改一个变量，记录或者行的名字。 
+如果 NEW 或者 OLD 在个触发器过程里被另外一个名字引用， 那么这个东西就很有用。又见 ALIAS。
+
+例子∶
+
+RENAME id TO user_id;
+RENAME this_var TO that_var;
+
+注意: RENAME 在PostgreSQL7.3 里好像有问题。
+修补这个毛病的优先级比较低， 因为 ALIAS 覆盖了大多数 RENAME 的实际用途。
+

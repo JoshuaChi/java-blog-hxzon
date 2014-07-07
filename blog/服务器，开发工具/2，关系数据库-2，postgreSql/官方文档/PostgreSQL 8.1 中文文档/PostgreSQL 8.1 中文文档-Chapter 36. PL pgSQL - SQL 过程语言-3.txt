@@ -1,0 +1,442 @@
+﻿PostgreSQL 8.1 中文文档-Chapter 36. PL pgSQL - SQL 过程语言-3
+
+
+36.1. 概述
+36.1.1. 使用PL/pgSQL的优点
+36.1.2. 所支持的参数和结果数据类型
+36.2. 开发 PL/pgSQL 的一些提示
+36.3. PL/pgSQL的结构
+36.4. 声明
+36.4.1. 函数参数的别名
+36.4.2. 拷贝类型
+36.4.3. 行类型
+36.4.4. 记录类型
+36.4.5. RENAME
+36.5. 表达式
+36.6. 基本语句
+36.6.1. 赋值
+36.6.2. SELECT INTO
+36.6.3. 执行一个没有结果的表达式或者命令
+36.6.4. 执行动态命令
+36.6.5. 获取结果状态
+36.7. 控制结构
+36.7.1. 从函数返回
+36.7.2. 条件
+36.7.3. 简单循环
+36.7.4. 遍历命令结果
+36.7.5. 捕获错误
+36.8. 游标
+36.8.1. 声明游标变量
+36.8.2. 打开游标
+36.8.3. 使用游标
+36.9. 错误和消息
+36.10. 触发器过程
+36.11. 从Oracle的 PL/SQL 移植
+36.11.1. 移植样例
+36.11.2. 其它要注意的东西
+36.11.3. 附录
+
+===========
+36.8. 游标
+
+如果不想一次执行整个命令，我们可以设置一个封装该命令的 游标，然后每次读取几行命令结果。 这么干的一个原因是在结果包含数量非常大的行时避免内存耗尽。 （当然，PL/pgSQL 用户通常不必担心这个， 因为 FOR 循环自动在内部使用一个游标以避免内存问题。） 一个更有趣的用法是某个函数可以返回一个它创建的游标的引用， 这样就允许调用者读取各行。这就提供了一种从函数返回一个结果集的手段。
+
+36.8.1. 声明游标变量
+
+所有在 PL/pgSQL 里对游标的访问都是通过游标变量实现的， 它总是特殊的数据类型 refcursor。 创建一个游标变量的一个方法是把它声明为一个类型为 refcursor 的变量。 另外一个方法是使用游标声明语法，通常是下面这样：
+
+name CURSOR [ ( arguments ) ] FOR query;
+（出于兼容Oracle的考虑，FOR 可以替换为 IS。） 如果有 arguments，那么它是一个逗号分隔的 name datatype 配对的列表，它们定义那些将会用参数值替换掉的所给出命令中的名字。 实际用于代换这些名字的数值将在后面声明，在游标打开之后。
+
+几个例子∶
+
+DECLARE
+    curs1 refcursor;
+    curs2 CURSOR FOR SELECT * FROM tenk1;
+    curs3 CURSOR (key integer) IS SELECT * FROM tenk1 WHERE unique1 = key;
+所有这三个变量都是类型为 refcursor， 但是第一个可以用于任何命令，而第二个已经绑定 了一个声明完整的命令，最后一个是绑定了一个带参数的命令。 （key 将在游标打开的时候被代换成一个整数。） 变量 curs1 可以称之为未绑定的， 因为它没有和任何查询相绑定。
+
+36.8.2. 打开游标
+
+在你使用游标检索行之前，你必需宪打开它。 （这是和 SQL 命令 DECLARE CURSOR 相等的操作。） PL/pgSQL 有三种形式的OPEN语句， 两种用于未绑定的游标变量，另外一种用于绑定的游标变量。
+
+36.8.2.1. OPEN FOR 查询
+
+OPEN unbound_cursor FOR 查询;
+该游标变量打开，并且执行给出的查询。游标不能是已经打开的， 并且它必需是声明为一个未绑定的游标（也就事说，声明为一个简单的 refcursor 变量）。 查询必须是一条 SELECT，或者其它返回行的东西（比如 EXPLAIN）。 查询是和其它在 PL/pgSQL 里的 SQL 命令平等对待的： 先代换 PL/pgSQL 的变量名，而且执行计划为将来可能的复用缓存起来。
+
+一个例子：
+
+OPEN curs1 FOR SELECT * FROM foo WHERE key = mykey;
+36.8.2.2. OPEN FOR EXECUTE
+
+OPEN unbound_cursor FOR EXECUTE query-string;
+打开游标变量并且执行给出的查询。游标不能是已打开的，并且必须声明为一个未绑定的游标（也就是说， 是一个简单的 refcursor 变量）。命令是用和那些用于 EXECUTE 命令一样的方法声明的字串表达式， 这样，我们就有了命令可以在两次运行间发生变化的灵活性。
+
+一个例子：
+
+OPEN curs1 FOR EXECUTE 'SELECT * FROM ' || quote_ident($1);
+36.8.2.3. 打开一个绑定的游标
+
+OPEN bound_cursor [ ( argument_values ) ];
+这种形式的OPEN用于打开一个游标变量，该游标变量的命令是在声明的时候和它绑定在一起的。 游标不能是已经打开的。 当且仅当该游标声明为接受参数的时候，语句中才必需出现一个实际参数值表达式的列表。 这些值将代换到命令中。一个绑定的游标的命令计划总是认为可缓冲的 -- 这种情况下没有等效的EXECUTE。
+
+例子：
+
+OPEN curs2;
+OPEN curs3(42);
+36.8.3. 使用游标
+
+一旦你已经打开了一个游标，那么你就可以用这里描述的语句操作它。
+
+这些操作不需要发生在和打开该游标开始操作的同一个函数里。 你可以从函数里返回一个 refcursor 数值，然后让调用者操作该游标。 （在内部，refcursor 值只是一个包含该游标命令的活跃查询的信使的字串名。 这个名字可以传来传去，可以赋予其它 refcursor 变量等等，也不用担心扰乱信使。）
+
+所有信使在事务的结尾都会隐含地关闭。因此一个 refcursor	值只能在该事务结束前用于引用一个打开的游标。
+
+36.8.3.1. FETCH
+
+FETCH cursor INTO target;
+FETCH从游标中检索下一行到目标中，目标可以是一个行变量，一个记录变量， 或者是一个逗号分隔的普通变量的列表，就象SELECT INTO里一样。 和SELECT INTO一样，你可以使用特殊变量FOUND检查是否检索出一个行。
+
+一个例子：
+
+FETCH curs1 INTO rowvar;
+FETCH curs2 INTO foo, bar, baz;
+36.8.3.2. CLOSE
+
+CLOSE cursor;
+CLOSE关闭支撑在一个打开的游标下面的信使。 这样我们就可以在事务结束之前施放资源，或者释放掉该游标变量，用于稍后再次打开。
+
+一个例子：
+
+CLOSE curs1;
+36.8.3.3. 返回游标
+
+PL/pgSQL 函数可以向调用者返回游标。 这个功能用于从函数里返回多行或多列。要想这么做的时候， 该函数打开游标并且把该游标的名字返回给调用者。 调用者然后从游标里FETCH行。 游标可以由调用者关闭，或者是在事务结束的时候自动关闭。
+
+函数返回的游标名可以由调用者声明或者自动生成。 要声明一个信使的名字，只要再打开游标之前，给 refcursor 变量赋予一个字串就可以了。 refcursor 变量的字串值将被 OPEN 当作下层的信使的名字使用。 不过，如果 refcursor 变量是空，那么 OPEN 将自动生成一个和现有信使不冲突的名字， 然后将它赋予 refcursor 变量。
+
+注意: 一个绑定的游标变量其名字初始化为对应的字串值，因此信使的名字和游标变量名同名， 除非程序员再打开游标之前通过赋值覆盖了这个名字。但是一个未绑定的游标变量初始化的时候缺省是空， 因此它会收到一个自动生成的唯一的名字，除非被覆盖。
+
+下面的例子显示了一个调用者声明游标名字的方法：
+
+CREATE TABLE test (col text);
+INSERT INTO test VALUES ('123');
+
+CREATE FUNCTION reffunc(refcursor) RETURNS refcursor AS '
+BEGIN
+       OPEN $1 FOR SELECT col FROM test;
+       RETURN $1;
+END;
+' LANGUAGE plpgsql;
+
+BEGIN;
+SELECT reffunc('funccursor');
+FETCH ALL IN funccursor;
+COMMIT;
+下面的例子使用了自动生成的游标名：
+
+CREATE FUNCTION reffunc2() RETURNS refcursor AS '
+DECLARE
+        ref refcursor;
+BEGIN
+        OPEN ref FOR SELECT col FROM test;
+        RETURN ref;
+END;
+' LANGUAGE plpgsql;
+
+BEGIN;
+SELECT reffunc2();
+
+      reffunc2
+--------------------
+ <unnamed cursor 1>
+(1 row)
+
+FETCH ALL IN "<unnamed cursor 1>";
+COMMIT;
+下面的例子显示了从一个函数里返回多个游标的方法：
+
+CREATE FUNCTION myfunc(refcursor, refcursor) RETURNS SETOF refcursor AS $$
+BEGIN
+    OPEN $1 FOR SELECT * FROM table_1;
+    RETURN NEXT $1;
+    OPEN $2 FOR SELECT * FROM table_2;
+    RETURN NEXT $2;
+END;
+$$ LANGUAGE plpgsql;
+
+-- 需要在事务里使用游标。
+BEGIN;
+
+SELECT * FROM myfunc('a', 'b');
+
+FETCH ALL FROM a;
+FETCH ALL FROM b;
+COMMIT;
+
+============
+36.9. 错误和消息
+
+利用RAISE语句报告信息以及抛出错误。
+
+RAISE level 'format' [, expression [, ...]];
+可能的级别有DEBUG(向服务器日志写信息)， LOG（向服务器日志写信息，优先级更高），INFO， NOTICE和WARNING （把信息写到服务器日志以及转发到客户端应用,优先级逐步升高）和 EXCEPTION抛出一个错误（通常退出当前事务）。 某个优先级别的信息是报告给客户端还是写到服务器日志， 还是两个都做是由 log_min_messages 和 client_min_messages 配置变量控制的。 参阅 Chapter 17 获取更多细节。
+
+在格式字串里，% 被下一个可选参数的外部表现形式代替。 要发出一个文本的 %，你要写 %%。 参数可以是简单的变量或者表达式，而格式必须是一个简单的字串文本。
+
+在这个例子里，v_job_id的值将代替字串中的%：
+
+RAISE NOTICE 'Calling cs_create_job(%)',v_job_id;
+这个例子将会带着给出的错误信息退出事务：
+
+RAISE EXCEPTION 'Inexistent ID --> %',user_id;
+RAISE EXCEPTION 目前总是生成同样的 SQLSTATE 代码，P0001， 不管调用它的信息是什么。我们可以用 EXCEPTION ... WHEN RAISE_EXCEPTION THEN ... 捕获这样的例外，但是我们无法从一个 RAISE 里告诉另外一个相关的状态。
+
+=============
+36.10. 触发器过程
+
+PL/pgSQL 可以用于定义触发器过程。 一个触发器过程是用 CREATE FUNCTION 命令创建的， 创建的形式是一个不接受参数并且返回 trigger	类型的函数。 请注意该函数即使在 CREATE TRIGGER 声明里声明为准备接受参数， 它也必需声明为无参数 — 触发器的参数是通过 TG_ARGV 传递的，下面有描述。
+
+在一个 PL/pgSQL 函数当做触发器调用的时候， 系统会在顶层的声明段里自动创建几个特殊变量。有如下这些：
+
+NEW
+数据类型是 RECORD； 该变量为INSERT/UPDATE 操作时保存行（ROW）一级的触发器新的数据库行。 在语句级别的触发器里，这个变量是 NULL。
+
+OLD
+数据类型是 RECORD； 该变量为 INSERT/UPDATE 操作时保存行（ROW）一级的触发器新的数据库行。 在语句级别的触发器里，这个变量是 NULL。
+
+TG_NAME
+数据类型是 name；该变量包含实际触发的触发器名。 fired.
+
+TG_WHEN
+数据类型是 text；是一个由触发器定义决定的字符串， 要么是 BEFORE 要么是 AFTER。
+
+TG_LEVEL
+数据类型是 text；是一个由触发器定义决定的字符串， 要么是 ROW 要么是 STATEMENT。
+
+TG_OP
+数据类型是 text；是一个说明触发触发器的操作的字符串， 可以是 INSERT，UPDATE 或者 DELETE。
+
+TG_RELID
+数据类型是 oid；是导致触发器调用的表的对象标识（OID）。
+
+TG_RELNAME
+数据类型是 name；是激活触发器调用的表的名称。
+
+TG_NARGS
+数据类型是 integer； 是在CREATE TRIGGER 语句里面赋予触发器过程的参数的个数。
+
+TG_ARGV[]
+数据类型是 text 的数组；是 CREATE TRIGGER语句里的参数。 下标从 0 开始记数．非法下标（小于 0 或者大于等于 tg_nargs）导致返回一个 NULL 值。
+
+一个触发器函数必须返回 NULL 或者是 一个与导致触发器运行的表的记录/行完全一样的结构的数据。
+
+因BEFORE触发的行级别的的触发器可以返回一个 NULL，告诉触发器管理器忽略对该行剩下的操作 （也就是说，随后的触发器将不再执行，并且不会对该行产生INSERT/UPDATE/DELETE动作）。 如果返回了一个非 NULL 的行，那么将继续对该行数值进行处理。 请注意，返回一个和原来的NEW不同的行数值将修改那个将插入或更新的行。 我们可能用一个值直接代替NEW里的某个数值并且返回之，或者我们也可以构建一个完全新的记录/行再返回。
+
+BEFORE 或者 AFTER语句级别的触发器， 或者一个AFTER 行级别的触发器的返回值将总是被忽略； 它们也可以返回 NULL 来忽略返回值。不过，任何这种类型的触发器仍然可以 通过抛出一个错误来退出整个触发器操作。
+
+Example 36-2 显示了一个 PL/pgSQL 写的触发器过程的例子。
+
+Example 36-2. 一个PL/pgSQL触发器过程
+
+下面的例子触发器的作用是：任何时候表中插入或更新了行， 当前的用户名和时间都记录入行中。 并且它保证给出了雇员名称并且薪水是一个正数。
+
+CREATE TABLE emp (
+    empname text,
+    salary integer,
+    last_date timestamp,
+    last_user text
+);
+
+CREATE FUNCTION emp_stamp () RETURNS trigger AS $emp_stamp$
+    BEGIN
+        -- 检查是否给出了 empname 和 salary
+        IF NEW.empname ISNULL THEN
+            RAISE EXCEPTION 'empname cannot be null';
+        END IF;
+        IF NEW.salary ISNULL THEN
+            RAISE EXCEPTION '% cannot have null salary', NEW.empname;
+        END IF;
+
+        -- 我们必须付帐给谁？
+        IF NEW.salary < 0 THEN
+            RAISE EXCEPTION '% cannot have a negative salary', NEW.empname;
+        END IF;
+
+        -- 记住何时何人的薪水被修改了
+        NEW.last_date := current_timestamp;
+        NEW.last_user := current_user;
+        RETURN NEW;
+    END;
+$emp_stamp$ LANGUAGE plpgsql;
+
+CREATE TRIGGER emp_stamp BEFORE INSERT OR UPDATE ON emp
+    FOR EACH ROW EXECUTE PROCEDURE emp_stamp();
+另外一个向表里记录变化的方法涉及创建一个新表，然后为后来发生的每次插入、更新或者删除动作保存一行。 这个方法可以当作对一个表的审计。 Example 36-3 显示了一个 PL/pgSQL 写的审计触发器过程的例子。
+
+Example 36-3. 一个用于审计的 PL/pgSQL 触发器过程
+
+这个例子触发器保证了在 emp 表上的任何插入， 更新或者删除动作都被记录到了 emp_audit 表里（也就是，审计）。 当前时间和用户名会被记录到数据行里，以及还有执行的操作。
+
+CREATE TABLE emp (
+    empname           text NOT NULL,
+    salary            integer
+);
+
+CREATE TABLE emp_audit(
+    operation         char(1)   NOT NULL,
+    stamp             timestamp NOT NULL,
+    userid            text      NOT NULL,
+    empname           text      NOT NULL,
+    salary integer
+);
+
+CREATE OR REPLACE FUNCTION process_emp_audit() RETURNS TRIGGER AS $emp_audit$
+    BEGIN
+        --
+        -- 在 emp_audit 里创建一行，反映对 emp 的操作，
+        -- 使用特殊变量 TG_OP 获取操作类型。
+        --
+        IF (TG_OP = 'DELETE') THEN
+            INSERT INTO emp_audit SELECT 'D', now(), user, OLD.*;
+            RETURN OLD;
+        ELSIF (TG_OP = 'UPDATE') THEN
+            INSERT INTO emp_audit SELECT 'U', now(), user, NEW.*;
+            RETURN NEW;
+        END IF;
+        RETURN NULL; -- 忽略结果，因为它是个 AFTER 触发器
+    END;
+$emp_audit$ LANGUAGE plpgsql;
+
+CREATE TRIGGER emp_audit
+AFTER INSERT OR UPDATE OR DELETE ON emp
+    FOR EACH ROW EXECUTE PROCEDURE process_emp_audit()
+;
+触发器的一个用途是维持另外一个表的概要。生成的概要可以用于在某些查询中代替原始表 — 通常可以大大缩小运行时间。 这个技巧经常用于数据仓库，这个时候，需要测量的表（叫事实表）可能会非常巨大。 Example 36-4 演示了一个 PL/pgSQL 触发器过程的例子， 它为某个数据仓库的一个事实表维护一个概要表。
+
+Example 36-4. 一个维护概要表的 PL/pgSQL 触发器过程
+
+下面的模式有一部分是基于 Ralph Kimball 的The Data Warehouse Toolkit 里面的 Grocery Store 例子。
+
+--
+-- 主表 - 时间维以及销售事实。
+--
+CREATE TABLE time_dimension (
+    time_key                    integer NOT NULL,
+    day_of_week                 integer NOT NULL,
+    day_of_month                integer NOT NULL,
+    month                       integer NOT NULL,
+    quarter                     integer NOT NULL,
+    year                        integer NOT NULL
+);
+CREATE UNIQUE INDEX time_dimension_key ON time_dimension(time_key);
+
+CREATE TABLE sales_fact (
+    time_key                    integer NOT NULL,
+    product_key                 integer NOT NULL,
+    store_key                   integer NOT NULL,
+    amount_sold                 numeric(12,2) NOT NULL,
+    units_sold                  integer NOT NULL,
+    amount_cost                 numeric(12,2) NOT NULL
+);
+ CREATE INDEX sales_fact_time ON sales_fact(time_key);
+
+--
+-- 摘要表 - 根据时间的销售。
+--
+CREATE TABLE sales_summary_bytime (
+    time_key                    integer NOT NULL,
+    amount_sold                 numeric(15,2) NOT NULL,
+    units_sold                  numeric(12) NOT NULL,
+    amount_cost                 numeric(15,2) NOT NULL
+);
+ CREATE UNIQUE INDEX sales_summary_bytime_key ON sales_summary_bytime(time_key);
+
+--
+-- 在 UPDATE，INSERT，DELETE 的时候根新概要字段的函数和触发器。
+--
+CREATE OR REPLACE FUNCTION maint_sales_summary_bytime() RETURNS TRIGGER AS $maint_sales_summary_bytime$
+    DECLARE
+        delta_time_key          integer;
+        delta_amount_sold       numeric(15,2);
+        delta_units_sold        numeric(12);
+        delta_amount_cost       numeric(15,2);
+    BEGIN
+
+        -- 计算增/减量。
+        IF (TG_OP = 'DELETE') THEN
+
+            delta_time_key = OLD.time_key;
+            delta_amount_sold = -1 * OLD.amount_sold;
+            delta_units_sold = -1 * OLD.units_sold;
+            delta_amount_cost = -1 * OLD.amount_cost;
+
+        ELSIF (TG_OP = 'UPDATE') THEN
+
+            -- 禁止改变 time_key 的更新 -
+            -- （可能并不是很强制，因为 DELETE + INSERT 是大多数可能
+            -- 产生的修改）。
+            IF ( OLD.time_key != NEW.time_key) THEN
+                RAISE EXCEPTION 'Update of time_key : % -> % not allowed', OLD.time_key, NEW.time_key;
+            END IF;
+
+            delta_time_key = OLD.time_key;
+            delta_amount_sold = NEW.amount_sold - OLD.amount_sold;
+            delta_units_sold = NEW.units_sold - OLD.units_sold;
+            delta_amount_cost = NEW.amount_cost - OLD.amount_cost;
+
+        ELSIF (TG_OP = 'INSERT') THEN
+
+            delta_time_key = NEW.time_key;
+            delta_amount_sold = NEW.amount_sold;
+            delta_units_sold = NEW.units_sold;
+            delta_amount_cost = NEW.amount_cost;
+
+        END IF;
+
+
+        -- 用新数值更新概要行。
+        UPDATE sales_summary_bytime
+            SET amount_sold = amount_sold + delta_amount_sold,
+                units_sold = units_sold + delta_units_sold,
+                amount_cost = amount_cost + delta_amount_cost
+            WHERE time_key = delta_time_key;
+
+
+        -- There might have been no row with this time_key (e.g new data!).
+        IF (NOT FOUND) THEN
+            BEGIN
+                INSERT INTO sales_summary_bytime (
+                            time_key,
+                            amount_sold,
+                            units_sold,
+                            amount_cost)
+                    VALUES (
+                            delta_time_key,
+                            delta_amount_sold,
+                            delta_units_sold,
+                            delta_amount_cost
+                           );
+            EXCEPTION
+                --
+                -- 捕获两个事务维一个新 time_key 增加数据的冲突条件
+                --
+                WHEN UNIQUE_VIOLATION THEN
+                    UPDATE sales_summary_bytime
+                        SET amount_sold = amount_sold + delta_amount_sold,
+                            units_sold = units_sold + delta_units_sold,
+                            amount_cost = amount_cost + delta_amount_cost
+                        WHERE time_key = delta_time_key;
+
+            END;
+        END IF;
+        RETURN NULL;
+
+    END;
+$maint_sales_summary_bytime$ LANGUAGE plpgsql;
+
+CREATE TRIGGER maint_sales_summary_bytime
+AFTER INSERT OR UPDATE OR DELETE ON sales_fact
+    FOR EACH ROW EXECUTE PROCEDURE maint_sales_summary_bytime();
+
