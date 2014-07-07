@@ -85,7 +85,7 @@ CREATE FUNCTION getfoo(int) RETURNS SETOF foo AS $$
     SELECT * FROM foo WHERE fooid = $1;
 $$ LANGUAGE SQL;
 
-（hxzon：setof foo，即返回foo的集合。）
+（hxzon：setof foo，即返回foo的集合。注意，这里使用的是 “ language sql ”。）
 
 SELECT * FROM getfoo(1) AS t1;
 
@@ -104,7 +104,7 @@ In some cases it is useful to define table functions that
 can return different column sets depending on how they are invoked.
 表函数可以每次返回不同的列。 
 To support this, the table function can be declared as returning the pseudotype record.
-这时，表函数的返回值可以返回伪数据类型。 
+这时，表函数的返回值可以返回伪数据类型（即记录）。 
 When such a function is used in a query, 
 the expected row structure must be specified in the query itself, 
 so that the system can know how to parse and plan the query.

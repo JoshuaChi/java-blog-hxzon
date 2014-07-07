@@ -31,3 +31,7 @@ LANGUAGE 'plpgsql'
 
 结果集字段与menus表字段相同。
 
+hxzon注释：
+return next 将值收集到结果集中。
+最内层for对存储过程进行了递归调用。
+
