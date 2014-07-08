@@ -1,0 +1,85 @@
+﻿Hibernate调试——定位查询源头
+ 
+原文链接： javacodegeeks 翻译： ImportNew.com - jessenpan
+译文链接： http://www.importnew.com/12303.html
+
+为什么有时Hibernate会在程序某一部分生成一条指定sql查询？
+这个问题让人很难立刻理解，当处理不是我们本人编写的代码时更是如此。
+
+本文将展示如何配置来产生Hibernate查询操作的日志。通过这些日志和一些小技巧来找出这些指定的查询为什么及在何处被执行。
+
+====
+Hibernate查询日志格式
+
+Hibernate内建的查询日志格式如下：
+
+select /* load your.package.Employee */ this_.code, ... 
+from employee this_ 
+where this_.employee_id=?
+ 
+TRACE 12-04-2014@16:06:02  BasicBinder - binding parameter [1] as [NUMBER] - 1000
+为什么Hibernate不能记载最终的查询日志？
+
+需要注意的是，Hibernate只记录从它发送到JDBC的准备语句（prepared statement）及参数。准备语句使用“？”作为查询参数的占位符，这些参数的实际值被记录在准备语句的下方。
+
+这些准备语句和最终发送到数据库的sql语句是不同的，对于这些最终的查询操作Hibernate无法记录。
+出现这种情况的原因是Hibernate只知道它发送给JDBC的准备语句和参数，
+实际的查询是由JDBC构建并发送给数据库的。
+
+为了产生实际查询的日志，像log4jdbc这种工具是必不可少的，这里不会讨论如何使用log4jdbc。
+
+如何找到原始查询操作
+
+上述的可记录查询包含一条标注，在大多数情况下它可以标识某条起始查询语句。
+如果一条查询是由加载引起的，那么标注便是/*load your.entity.Name*/。
+如果是一条命名查询，那么标注则包含查询的名称。
+
+如果它是一个对应许多延迟加载的查询，标注则会包含对应类的名称和引发该操作的属性值等。
+
+====
+设置Hibernate的查询日志
+
+为了获得查询日志，需要将如下标签加入会话工厂的配置文件中：
+
+<bean id= "entityManagerFactory" >
+  ...
+  <property name="jpaProperties" >
+  <props>
+      <prop key="hibernate.show_sql" >true</ prop>
+      <prop key="hibernate.format_sql" >true</ prop>
+      <prop key="hibernate.use_sql_comments">true</prop>
+  </props>
+</property>
+上面的示例展示了Spring实体管理工厂的配置。下面是对一些标签的解释：
+
+show_sql：激活查询日志功能。
+format_sql：优雅地输出Sql。
+use_sql_comments：添加一条解释型标注。
+
+为了记录查询语句的参数信息，log4j或者相对应的信息是需要的。
+
+
+<logger name="org.hibernate.type">
+    <level value="trace" />
+</logger >
+
+如果上述功能都不能运行
+
+在大多数情况下，use_sql_comments创建的标注是足够用来标识查询的起始。
+但如果这还不够，我们可以标识和数据表名相关联的查询返回的实体，
+并在返回的实体构造函数中设置断点。
+
+如果一个实体没有构造函数，我们可以创建一个构造函数并把断点设置在super()函数调用中。
+
+
+@Entity
+public class Employee {
+    public Employee() {
+        super(); // put the breakpoint here
+    }
+    ...
+}
+
+设置断点后，跳转到包含程序堆栈信息的Debug界面并从头到尾执行一遍。
+这样在调用栈中将会出现查询操作在何处被创建。
+

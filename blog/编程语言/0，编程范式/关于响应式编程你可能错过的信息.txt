@@ -1,0 +1,81 @@
+﻿关于响应式编程你可能错过的信息
+作者 张逸 发布于 2014年7月4日 |
+http://www.infoq.com/cn/news/2014/07/reactive-programming
+
+在函数式编程重新焕发生命力的当下，结合了函数式编程思想的函数式响应型编程（Functional Reactive Programming，简称FRP）
+在GUI编程等领域又吹来一阵清风。
+虽然FRP的理论与实践可以追溯到上个世纪九十年代，
+但它蕴含的诸多概念对于大多数程序员而言，还是全新的知识。
+
+维基百科对FRP的定义为：
+
+函数式响应型编程是使用函数式编程构建块针对响应式编程的一种编程范式。
+它主要用于GUI编程、机器人技术、音乐流处理等领域，
+通过显式地对时间进行建模来简化问题域。
+
+这样的定义未免太过于宽泛了。
+Stackoverflow对此的回答倒是详尽而细致地阐述了FRP的今世前身，可惜又失之艰深，
+若用于学术讨论，确乎是最佳选择。
+例如，我们可以阅读发表于1997年由Conal Elliott与Paul Hudak撰写的论文《Functional Reactive Animation》，
+以及同样由Conal Elliot于1998年发表的论文《Composing Reactive Animations》。
+
+FRP最早发源于Haskell社区。
+Haskell官方网站专门介绍了FRP的知识。
+这篇介绍还提供了诸多讲解FRP的资源，同时提到了一些实现了FRP的库，
+例如Sodium，Grapefruit，Reactive，Yampa等。
+当然，这种来源于函数式编程的编程范式，自然也可以运用于除Haskell之外的其他具备函数式编程特性的语言，
+例如JavaScript，Scala，F#等。
+因此，若要理解什么是FRP，最佳方式莫过于通过一个完整的案例来理解。
+
+近日，Andre Staltz在Github上发布了一篇长文《关于响应式编程你可能错过的信息》，
+通过运用JavaScript和RxJS，以FRP的编程范式实现了如Twitter中推荐朋友的功能。
+这篇文章围绕着FRP的一个核心概念“FRP是针对异步数据流进行编程”进行讲解，并抓住了FRP的本质，
+即将任何事物都视为一个流对象，包括变量、用户输入、属性、缓存、数据结构等。
+这种针对流的处理方式有些像管道-过滤器模式，
+而它又与函数式语言的组合子Combinator是相呼应的。
+例如我们可以对流进行map、filter等组合操作。
+而FRP对事件的订阅，则符合观察者模式的设计思想。
+文中给出了一个FRP例子，它用JavaScript处理了“双击”的事件流：
+
+（hxzon：throttle，名词，风门，喉咙。动词，掐死。）
+
+// The 4 lines of code that make the multi-click logic
+var multiClickStream = clickStream
+    .buffer(function() { return clickStream.throttle(250); })
+    .map(function(list) { return list.length; })
+    .filter(function(x) { return x >= 2; });
+
+// Same as above, but detects single clicks
+var singleClickStream = clickStream
+    .buffer(function() { return clickStream.throttle(250); })
+    .map(function(list) { return list.length; })
+    .filter(function(x) { return x === 1; });
+
+// Listen to both streams and render the text label accordingly
+singleClickStream.subscribe(function (event) {
+    document.querySelector('h2').textContent = 'click';
+});
+multiClickStream.subscribe(function (numclicks) {
+    document.querySelector('h2').textContent = ''+numclicks+'x click';
+});
+Rx.Observable.merge(singleClickStream, multiClickStream)
+    .throttle(1000)
+    .subscribe(function (suggestion) {
+        document.querySelector('h2').textContent = '';
+    });
+
+文中对例子的阐述，一个很有启发的内容是如何采用FRP的思想对需求进行分析。
+例如针对需求“通过API加载账号数据，并显示3个推荐”，即可以分解为：
+
+doing a request
+getting a response
+rendering the response
+
+这种将一切视为“流”，然后针对各个阶段进行数据转换的方式，非常符合函数式思想，
+也极好地阐述了FRP的基本要义。
+
+若要了解FRP的详细知识，可以深入阅读Andre Staltz的这篇文章。
+此外，InfoQ中国在去年也曾发表过由网易的邓际锋撰写的关于FRP的文章
+《函数式反应型编程(FRP) —— 实时互动应用开发的新思路》。
+这篇文章很好地通过实现一个类似Flicker的小应用阐述了FRP的概念。
+
