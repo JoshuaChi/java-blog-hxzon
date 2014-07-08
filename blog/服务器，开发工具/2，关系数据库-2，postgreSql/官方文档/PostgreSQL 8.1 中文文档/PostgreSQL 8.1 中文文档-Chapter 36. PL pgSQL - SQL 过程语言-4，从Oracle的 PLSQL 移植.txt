@@ -31,7 +31,10 @@
 36.8.3. 使用游标
 36.9. 错误和消息
 36.10. 触发器过程
+
+==
 36.11. 从Oracle的 PL/SQL 移植
+
 36.11.1. 移植样例
 36.11.2. 其它要注意的东西
 36.11.3. 附录
@@ -39,22 +42,29 @@
 ===========
 36.11. 从Oracle的 PL/SQL 移植
 
-本节解释了Oracle的 PL/SQL 和PostgreSQL的 PL/pgSQL语言之间的差别， 希望能对那些从Oracle®向PostgreSQL移植应用的人有所帮助。
+本节解释了Oracle的 PL/SQL 和PostgreSQL的 PL/pgSQL语言之间的差别， 
+希望能对那些从Oracle®向PostgreSQL移植应用的人有所帮助。
 
-PL/pgSQL与 PL/SQL 在许多方面都非常类似。 它是一种块结构的，祈使语气（命令性）的语言并且必须声明所有变量。 赋值，循环，条件等都很类似。 在从Oracle向PostgreSQL移植的时候必须记住一些事情：
+PL/pgSQL与 PL/SQL 在许多方面都非常类似。 
+它是一种块结构的，祈使语气（命令性）的语言并且必须声明所有变量。 
+赋值，循环，条件等都很类似。 
+在从Oracle向PostgreSQL移植的时候必须记住一些事情：
 
 在PostgreSQL中参数没有缺省值。
 
-你可以在PostgreSQL里重载函数。 这个特性常用于绕开缺乏缺省参数的问题。
+你可以在PostgreSQL里重载函数。 这个特性常用于绕开缺乏缺省参数的问题。（hxzon：注意，支持重载函数。）
 
 在PL/pgSQL里不需要游标， 只要把命令放在FOR语句里就可以了（见Example 36-6。）
 
-在PostgreSQL里，函数体必须写成字串文本， 因此你需要使用美元符包围或者逃逸函数体里面的单引号。 见 Section 36.2.1。
+在PostgreSQL里，函数体必须写成字串文本， 
+因此你需要使用美元符包围或者逃逸函数体里面的单引号。 见 Section 36.2.1。
 
 我们应该用模式把函数组织成不同的组，而不是用包。
 
-因为没有包，所以也没有包级别的变量。这一点有时候挺讨厌。 你可以在临时表里保存会话级别的状态。
+因为没有包，所以也没有包级别的变量。
+这一点有时候挺讨厌。 你可以在临时表里保存会话级别的状态。
 
+====
 36.11.1. 移植样例
 
 Example 36-5 演示了如何从 PL/SQL 向 PL/pgSQL 移植一个简单的函数。
@@ -74,11 +84,14 @@ BEGIN
 END;
 /
 SHOW errors;
+
 让我们读一遍这个函数然后看看PL/pgSQL与之的不同：
 
-在函数原型里的 RETURN （不是函数体里的）关键字到了 PostgreSQL 里就是 RETURNS。还有，IS 变成 AS， 并且你还需要增加一个 LANGUAGE 子句，因为 PL/pgSQL 并非唯一可用的函数语言。
+在函数原型里的 RETURN （不是函数体里的）关键字到了 PostgreSQL 里就是 RETURNS。
+还有，IS 变成 AS， 并且你还需要增加一个 LANGUAGE 子句，因为 PL/pgSQL 并非唯一可用的函数语言。
 
-在PostgreSQL里，函数体被认为是一个字串文本， 所以你需要使用单引号或者美元符包围它，这个包围符代替了Oracle最后的那个 /。
+在PostgreSQL里，函数体被认为是一个字串文本， 
+所以你需要使用单引号或者美元符包围它，这个包围符代替了Oracle最后的那个 /。
 
 在PostgreSQL里没有 show errors 命令，不需要这个命令是因为错误是自动报告的。
 
@@ -94,11 +107,14 @@ BEGIN
     RETURN v_name || '/' || v_version;
 END;
 $$ LANGUAGE plpgsql;
+
 Example 36-6 演示了如何移植一个创建另外一个函数的函数的方法，以及演示了如何处理引号逃逸的问题。
 
 Example 36-6. 从PL/SQL 向 PL/pgSQL 移植一个创建其它函数的函数
 
-下面的过程从一个 SELECT 语句中抓取若干行， 然后为了提高效率，又用 IF 语句中的结果制作了一个巨大的函数。 请特别注意在游标和 FOR 循环里面的不同。
+下面的过程从一个 SELECT 语句中抓取若干行， 然后为了提高效率，
+又用 IF 语句中的结果制作了一个巨大的函数。 
+请特别注意在游标和 FOR 循环里面的不同。
 
 这是 Oracle 的版本：
 
@@ -126,6 +142,7 @@ BEGIN
 END; 
 / 
 show errors;
+
 下面是这个函数在 PostgreSQL 里面的样子：
 
 CREATE OR REPLACE FUNCTION cs_update_referrer_type_proc() RETURNS void AS $func$
@@ -160,9 +177,18 @@ BEGIN
     EXECUTE func_cmd;
 END;
 $func$ LANGUAGE plpgsql;
-请注意函数体是如何独立制作并且传递给 quote_literal，对其中的单引号复制双份的。 我们需要这个技巧是因为我们无法使用美元符包围定义新函数：我们没法保证 referrer_key.key_string 字段过来的字串会解析成什么样子。（我们可以假设 referrer_key.kind 可以是只有 host， domain，或者 url，但是 referrer_key.key_string 可能是任何东西， 特别是它可能包含美元符。）这个函数实际上是对原来 Oracle 版本的一个改进， 因为如果在 referrer_key.key_string 或者 referrer_key.referrer_type 包含单引号的时候， 它不会生成有毛病的代码。
 
-Example 36-7 演示了如何移植一个带有 OUT 参数和字串处理的函数。PostgreSQL 里面没有内置 instr 函数，但是你可以用其它函数的组合来绕开它。 在 Section 36.11.3 里有一个 PL/pgSQL 的 instr 实现， 你可以用它让你的移植变得更简单些。
+请注意函数体是如何独立制作并且传递给 quote_literal，对其中的单引号复制双份的。 
+我们需要这个技巧是因为我们无法使用美元符包围定义新函数：
+我们没法保证 referrer_key.key_string 字段过来的字串会解析成什么样子。
+（我们可以假设 referrer_key.kind 可以是只有 host， domain，或者 url，
+但是 referrer_key.key_string 可能是任何东西， 特别是它可能包含美元符。）
+这个函数实际上是对原来 Oracle 版本的一个改进， 
+因为如果在 referrer_key.key_string 或者 referrer_key.referrer_type 包含单引号的时候， 它不会生成有毛病的代码。
+
+Example 36-7 演示了如何移植一个带有 OUT 参数和字串处理的函数。
+PostgreSQL 里面没有内置 instr 函数，但是你可以用其它函数的组合来绕开它。 
+在 Section 36.11.3 里有一个 PL/pgSQL 的 instr 实现， 你可以用它让你的移植变得更简单些。
 
 Example 36-7. 从 PL/SQL 向 PL/pgSQL 移植一个字串操作和OUT参数的过程
 
@@ -207,6 +233,7 @@ BEGIN
 END;
 /
 show errors;
+
 下面就是把这个过程翻译成 PL/pgSQL 可能的样子：
 
 CREATE OR REPLACE FUNCTION cs_parse_url(
@@ -246,9 +273,11 @@ BEGIN
     v_query := substr(v_url, a_pos1 + 1);
 END;
 $$ LANGUAGE plpgsql;
+
 这个函数可以这么用：
 
 SELECT * FROM cs_parse_url('http://foobar.com/query.cgi?baz');
+
 Example 36-8 演示了如何一个使用各种 Oracle 特有的特性的过程。
 
 Example 36-8. 从 PL/SQL 向 PL/pgSQL 移植一个过程
@@ -281,16 +310,21 @@ BEGIN
 END;
 /
 show errors
-象这样的过程可以很容易用返回 void 的函数移植到PostgreSQL里。 我们对这个过程特别感兴趣是因为它可以教我们一些东西：
+
+像这样的过程可以很容易用返回 void 的函数移植到PostgreSQL里。 
+我们对这个过程特别感兴趣是因为它可以教我们一些东西：
 
 (1)
 在PostgreSQL里没有 PRAGMA 语句。
 (2)
 如果你在PL/pgSQL里做一个 LOCK TABLE， 那么这个锁在调用该命令的事务完成之前将不会释放。
 (3)
-你不能在 PL/pgSQL 函数里发出 COMMIT。 函数是在外层的事务里运行的，因此 COMMIT 蕴涵着结束函数的执行。 不过，在这个特殊场合下，这是不必要的了，因为 LOCK TABLE 获取的锁将在我们抛出错误的时候释放。
+你不能在 PL/pgSQL 函数里发出 COMMIT。 
+函数是在外层的事务里运行的，因此 COMMIT 蕴涵着结束函数的执行。 
+不过，在这个特殊场合下，这是不必要的了，因为 LOCK TABLE 获取的锁将在我们抛出错误的时候释放。
 (2)
 EXCEPTION WHEN 不得不用一个 IF 语句替代．
+
 下面是我们把这个过程移植到PL/pgSQL里的一种方法：
 
 CREATE OR REPLACE FUNCTION cs_create_job(v_job_id integer) RETURNS void AS $$
@@ -316,18 +350,25 @@ BEGIN
     END;
 END;
 $$ LANGUAGE plpgsql;
+
 (1)
 RAISE 的语法和 Oracle 的类似语句差别相当明显。
 (2)
-PL/pgSQL 里支持的例外的名字和 Oracle 的不同。 PL/pgSQL 内置的例外名要大的多（参阅 Appendix A）。 目前还不能声明用户定义的例外名。
-整个过程和 Oracle 的等效的主要的功能型差别是，在 cs_jobs 上持有的排他锁将保持到调用的事务结束。 同样，如果调用者后来退出（比如说因为错误），这个过程的效果将被回滚掉。
+PL/pgSQL 里支持的例外的名字和 Oracle 的不同。 
+PL/pgSQL 内置的例外名要大的多（参阅 Appendix A）。 
+目前还不能声明用户定义的例外名。
+整个过程和 Oracle 的等效的主要的功能型差别是，在 cs_jobs 上持有的排他锁将保持到调用的事务结束。 
+同样，如果调用者后来退出（比如说因为错误），这个过程的效果将被回滚掉。
+
+====
 36.11.2. 其它要注意的东西
 
 本节解释几个从 Oracle PL/SQL 函数向 PostgreSQL 移植的几个其它方面的事情。
 
 36.11.2.1. 例外后的隐含回滚
 
-在 PL/pgSQL 里，如果一个例外被 EXCEPTION 子句捕获， 那么所有自这个块的 BEGIN 以来的数据库改变都会被自动回滚。 也就是说，这个行为等于你在 Oracle 里的
+在 PL/pgSQL 里，如果一个例外被 EXCEPTION 子句捕获， 那么所有自这个块的 BEGIN 以来的数据库改变都会被自动回滚。 
+也就是说，这个行为等于你在 Oracle 里的
 
     BEGIN
         SAVEPOINT s1;
@@ -340,21 +381,29 @@ PL/pgSQL 里支持的例外的名字和 Oracle 的不同。 PL/pgSQL 内置的�
             ROLLBACK TO s1;
             ... code here ...
     END;
-如果你在把这么使用 SAVEPOINT 和 ROLLBACK TO 的 Oracle 过程翻译过来，那么你的活儿很好干：只要省略 SAVEPOINT 和 ROLLBACK TO 即可。 如果你要翻译的过程使用了不同的 SAVEPOINT 和 ROLLBACK TO，那么就需要想想了。
+
+如果你在把这么使用 SAVEPOINT 和 ROLLBACK TO 的 Oracle 过程翻译过来，那么你的活儿很好干：
+只要省略 SAVEPOINT 和 ROLLBACK TO 即可。 
+如果你要翻译的过程使用了不同的 SAVEPOINT 和 ROLLBACK TO，那么就需要想想了。
 
 36.11.2.2. EXECUTE
 
-PostgreSQL版本的 EXECUTE 运转得类似 PL/SQL 的， 不果你必须记住要象 Section 36.6.4 里描述的那样用 quote_literal 和 quote_string。 如果你不用这些函数，那么象 EXECUTE 'SELECT * FROM $1'; 这样的构造是不会运转的。
+PostgreSQL版本的 EXECUTE 运转得类似 PL/SQL 的， 不过你必须记住要像 Section 36.6.4 里描述的那样用 quote_literal 和 quote_string。 
+如果你不用这些函数，那么象 EXECUTE 'SELECT * FROM $1'; 这样的构造是不会运转的。
 
 36.11.2.3. 优化PL/pgSQL函数
 
-PostgreSQL给你两个创建函数的修饰词用来优化执行： "volatility（易变的）"（在给出的参数相同时， 函数总是返回相同结果）和 strictness（严格的）（如果任何参数是 NULL，那么函数返回 NULL）。 参考 CREATE FUNCTION 的手册获取细节。
+PostgreSQL给你两个创建函数的修饰词用来优化执行： "volatility（易变的）"（在给出的参数相同时， 函数总是返回相同结果）
+和 strictness（严格的）（如果任何参数是 NULL，那么函数返回 NULL）。 
+参考 CREATE FUNCTION 的手册获取细节。
 
 如果要使用这些优化属性，那么你的 CREATE FUNCTION 语句可能看起来像这样：
 
 CREATE FUNCTION foo(...) RETURNS integer AS $$
 ...
 $$ LANGUAGE plpgsql STRICT IMMUTABLE;
+
+====
 36.11.3. 附录
 
 本节包含 Oracle-兼容的 instr，你可以用它简化你的移植过程。
@@ -481,3 +530,4 @@ END;
 $$ LANGUAGE plpgsql  STRICT IMMUTABLE;
 
 （本章完）
+

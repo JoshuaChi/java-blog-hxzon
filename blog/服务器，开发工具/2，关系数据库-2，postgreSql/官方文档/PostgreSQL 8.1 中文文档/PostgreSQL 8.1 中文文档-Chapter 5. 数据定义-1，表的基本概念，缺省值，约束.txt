@@ -1,0 +1,382 @@
+﻿PostgreSQL 8.1 中文文档-Chapter 5. 数据定义-1，表的基本概念，缺省值，约束
+
+
+5.1. 表的基本概念
+5.2. 缺省值
+5.3. 约束
+5.3.1. 检查约束
+5.3.2. 非空约束
+5.3.3. 唯一约束
+5.3.4. 主键
+5.3.5. 外键
+
+==
+5.4. 系统字段
+5.5. 修改表
+5.5.1. 增加字段
+5.5.2. 删除字段
+5.5.3. 增加约束
+5.5.4. 删除约束
+5.5.5. 改变一个字段的缺省值
+5.5.6. 修改一个字段的数据类型
+5.5.7. 给字段改名字
+5.5.8. 给字段改名字
+5.5.9. 给表改名字
+5.6. 权限
+5.7. 模式
+5.7.1. 创建一个模式
+5.7.2. Public 模式
+5.7.3. 模式搜索路径
+5.7.4. 模式和权限
+5.7.5. 系统表模式
+5.7.6. 使用方式
+5.7.7. 移植性
+5.8. 继承
+5.9. 分区
+5.9.1. 概述
+5.9.2. 实现分区
+5.9.3. 分区和约束排除
+5.10. 其它数据库对象
+5.11. 依赖性追踪
+
+=======
+本章介绍我们如何创建一个保存我们的数据的数据库结构。 在关系型数据库里，裸数据是存储在表中的，因此本章的大部分内容都将用于介绍如何创建表以及如何修改他们， 以及我们在控制表中存储的数据上有什么可以获得的特性。随后， 我们讨论表是如何能组织成模式的，以及如何给表赋予权限。最后， 我们将简单查看一下影响数据存储的其他因素，比如继承，视图，函数，和触发器。
+
+5.1. 表的基本概念
+
+关系型数据库中的表非常类似纸面上的一张表：它由行和列组成。 字段的数目是固定的，每个字段都有一个名字。行的数目是变化的 -- 它反映在任意时刻里存储的数据量。SQL 对表中的行的顺序没有任何承诺---除非你要求明确地进行排序。 这些内容在 Chapter 7 里介绍。另外，SQL 并不给行赋予唯一的标识， 因此我们很可能在一个表中有好几个完全相同的行。 这是作为SQL的基础的下层数学模型的必然结果，但是通常是我们不愿意看到的。 本章稍后的部分将讨论如何处理这个问题。
+
+每个字段都有一个数据类型。数据类型约束可以赋予一个字段的可能数值的集合， 并且约束存储在字段里的数据的赋值语义，这样它就可以用于计算。比如， 一个声明为一个数值类型的字段将不会接受任意文本字串，而存储在这样的字段里的数据可以用于数学计算。 相比之下，一个声明为字符字串类型的字段将接受几乎任意类型的数据， 但是它们自身是不能进行数学计算的，不过我们可以进行其他象字串连接这样的操作。
+
+PostgreSQL 包含一套可剪裁的内置数据类型， 这些类型可以适用于许多应用。用户也可以定义它们自己的数据类型。 大多数内置的数据类型有显而易见的名字和语义，因此我们把详细的解释放在了 Chapter 8。 有些常用的数据类型是用于整数的 integer，用于可能为分数的 numeric，用于字符串的 text，用于日期的 date， 用于时间的 time，以及用于包含日期和时间的数值的 timestamp。
+
+要创建一个表，你使用一个命名合适的 CREATE TABLE 命令。 在这个命令里，你至少为新表声明一个名字，字段的名字以及字段的数据类型。比如：
+
+CREATE TABLE my_first_table (
+    first_column text,
+    second_column integer
+);
+这样就创建了一个有两个字段的叫做 my_first_table 的表。第一个字段的名字是 first_column，数据类型为 text；第二个字段的名字是 second_column， 数据类型是 integer。表和字段的名字遵循我们在 Section 4.1.1 里面解释的标识符语法。 类型名通常也是标识符，但是有一些例外。请注意字段列表是逗号分隔的， 并且用圆括弧包围。
+
+当然，前面的例子是非常虚构的一个例子。通常，你会给你的表和字段名字， 这些字段里存储它们保存的数据。所以还是让我们给一个比较现实的例子：
+
+CREATE TABLE products (
+    product_no integer,
+    name text,
+    price numeric
+);
+（numeric 类型可以存储分数部分，金额很可能有这样的分数部分。）
+
+提示: 如果你创建了许多相互关联的表，那么最好选择一种一致的命名模式来为你的表和字段命名。 比如，表名字可以选择单数或者复数，两种选择都有这样那样的理论家支持。
+
+有一个小限制：一个表能包含的字段数目。 根据字段类型的不同，这个数目可能在250到1600之间。 不过，不管是哪一端的数字，如果你设计的表包含那么多的字段好象都很不可能发生， 否则是设计上有问题的表现。
+
+如果你不再需要这个表，那么你可以用 DROP TABLE 命令删除它。象这样：
+
+DROP TABLE my_first_table;
+DROP TABLE products;
+试图删除一个不存在的表是一个错误。不过，在 SQL 脚本文件里， 我们常见在创建表之前试图无条件删除它，忽略错误信息。
+
+如果你需要修改一个已经存在的表，那么可以看看本章稍后的 Section 5.5。
+
+使用到目前为止讨论的工具我们可以创建功能完整的表。 本章剩下的部分是有关向表定义中增加特性，保证数据完整性，安全性或者便利性的内容。 如果你急于给你的表填充数据，那么你可以忽略余下的部分直接到 Chapter 6，然后在稍后的时候再阅读本章。
+
+==========
+5.2. 缺省值
+
+一个字段可以赋予缺省值。如果新创建了一个数据行，而有些字段的数值没有声明，那么这些字段将被填充与它们各自的缺省值。 一条数据修改命令也可以明确地要求把一个字段设置成为它地缺省值， 而不用事先知道这个数值是什么。（有关数据操作的命令在 Chapter 6。）
+
+如果没有明确声明缺省值，那么缺省值是空。 这么做通常是合理的，因为空值可以认为代表未知数据。
+
+在一个表定义里，缺省值是在字段数据类型后面列出。比如：
+
+CREATE TABLE products (
+    product_no integer,
+    name text,
+    price numeric DEFAULT 9.99
+);
+缺省值可以是一个表达式，它会在插入缺省值的时候计算（不是创建表的时候）。 一个常见的例子是一个 timestamp 字段可能有缺省值 now()， 这样它就设置为插入行的时刻。 另外一个常见的例子是为每一行生成一个"序列号"。 在　PostgreSQL　里，通常是用类似下面这样的东西生成的
+
+CREATE TABLE products (
+    product_no integer DEFAULT nextval('products_product_no_seq'),
+    ...
+);
+这里的　nextval()　从一个序列对象 （参阅　Section 9.12）提供后继的数值。 这种做法非常普遍，以至于我们有一个特殊的缩写用于此目的：
+
+CREATE TABLE products (
+    product_no SERIAL,
+    ...
+);
+SERIAL　缩写在Section 8.1.4　里有进一步描述。
+
+========
+5.3. 约束
+
+数据类型是约束我们可以在表里存储什么类型的数据的一种方法。 不过，对于许多应用，它们提供的约束实在是太粗糙。比如， 一个包含产品价格的字段可能应该只接受正数。但是没有哪种标准数据类型只接受正数。 另外一个问题是你可能需要根据其他字段或者行的数据来约束字段数据。比如，在一个包含产品信息的表中， 每个产品编号都应该只有一行。
+
+对于这些问题，SQL允许你在字段和表上定义约束。 约束给予你所需要对数据施加的一切控制。如果一个用户企图在一个字段里存储会违反约束的数据，那么就会抛出一个错误。 这种情况同时也适用于数值来自缺省值的情况。
+
+5.3.1. 检查约束
+
+检查约束是最常见的约束类型。它允许你声明在某个字段里的数值必须满足一个布尔表达式。比如，要强制一个正数的产品价格， 你可以用：
+
+CREATE TABLE products (
+    product_no integer,
+    name text,
+    price numeric CHECK (price > 0)
+);
+如你所见，约束定义在数据类型后面，就好像缺省值定义一样。 缺省值和约束可以用任意的顺序排列。一个检查约束由一个关键字 CHECK 后面跟着一个放在圆括弧里的表达式组成。 检查约束表达式应该包含受约束的字段，否则这个约束就没什么意义了。
+
+你还可以给这个约束一个独立的名字。这样就可以令错误信息更清晰， 并且在你要修改它的时候你可以查询这个约束。语法是：
+
+CREATE TABLE products (
+    product_no integer,
+    name text,
+    price numeric CONSTRAINT positive_price CHECK (price > 0)
+);
+因此，要声明一个命名约束，使用关键字CONSTRAINT， 它后面跟着一个标识符，然后再跟着约束定义。（如果你不用这个方法声明约束， 那么系统为你选择一个名字。）
+
+一个检查约束也可以引用若干个字段。假设你存储一个正常价格和一个折扣价，并且你想保证折扣价比正常价低。
+
+CREATE TABLE products (
+    product_no integer,
+    name text,
+    price numeric CHECK (price > 0),
+    discounted_price numeric CHECK (discounted_price > 0),
+    CHECK (price > discounted_price)
+);
+头两个约束看上去应该很面熟。第三个使用了一个新的语法。 它没有附着在某个字段上，它在逗号分隔的字段列表中是以一个独立行的形式出现的。 字段定义和这些约束定义可以以混合的顺序列出。
+
+我们说头两个约束是字段约束，而第三个是表约束，因为它和任何一个字段定义的分开写。 字段约束也可以写成表约束，而反过来很可能不行，因为系统假设字段约束只引用它附着的字段。 （PostgreSQL 并不强制这条规则，但是如果你希望自己的表定义可以和其它数据库系统兼容， 那么你最好还是遵循这条规则。）上面的例子也可以这么写
+
+CREATE TABLE products (
+    product_no integer,
+    name text,
+    price numeric,
+    CHECK (price > 0),
+    discounted_price numeric,
+    CHECK (discounted_price > 0),
+    CHECK (price > discounted_price)
+);
+或者是
+
+CREATE TABLE products (
+    product_no integer,
+    name text,
+    price numeric CHECK (price > 0),
+    discounted_price numeric,
+    CHECK (discounted_price > 0 AND price > discounted_price)
+);
+这只是风格的不同。
+
+和字段约束一样，我们也可以给表约束赋予名称，方法也相同：
+
+CREATE TABLE products (
+    product_no integer,
+    name text,
+    price numeric,
+    CHECK (price > 0),
+    discounted_price numeric,
+    CHECK (discounted_price > 0),
+    CONSTRAINT valid_discount CHECK (price > discounted_price)
+);
+我们还要知道一个检查约束在表达式计算出真或者空值的时候是满足条件的。 因为大多数表达式在任意操作数是空的时候都会得出空值， 所以这些约束不能在受约数字段上禁止空值。要确保一个字段不包含空值，我们可以使用下一节介绍的非空约束。
+
+检查约束还可以用于提高表分区的性能。细节参阅 Section 5.9。
+
+5.3.2. 非空约束
+
+非空约束只是简单地声明一个字段必须不能是空值。下面是一个语法例子：
+
+CREATE TABLE products (
+    product_no integer NOT NULL,
+    name text NOT NULL,
+    price numeric
+);
+一个非空约束总是写成一个字段约束。 非空约束在功能上等效于创建一个检查约束 CHECK (column_name IS NOT NULL)， 但在 PostgreSQL 里，创建一个明确的 非空约束效率更高。缺点是你不能给这么创建的非空约束一个明确的名字。
+
+当然，一个字段可以有多个约束。只要在一个接着一个写就可以了：
+
+CREATE TABLE products (
+    product_no integer NOT NULL,
+    name text NOT NULL,
+    price numeric NOT NULL CHECK (price > 0)
+);
+它的顺序无所谓。顺序并不影响约束检查的顺序。
+
+NOT NULL 约束有个相反的约束：NULL 约束。这个约束并不意味着该字段必须是空，因为这样的字段也没啥用。 它只是定义了该字段可以为空的这个缺省行为。在 SQL 标准里没有定义 NULL 约束， 因此不应该在可移植的应用中使用它。 （我们在 PostgreSQL 里面增加这个约束只是为了和其它数据库系统兼容。） 不过，有些用户喜欢它，因为这个约束可以让他们很容易在脚本文件里切换约束。比如，你可以从下面这样开始
+
+CREATE TABLE products (
+    product_no integer NULL,
+    name text NULL,
+    price numeric NULL
+);
+然后在需要的时候插入 NOT 关键字。
+
+提示: 在大多数数据库设计里，主要的字段都应该标记为非空。
+
+5.3.3. 唯一约束
+
+唯一约束保证在一个字段或者一组字段里的数据与表中其它行的数据相比是唯一的。它的语法是
+
+CREATE TABLE products (
+    product_no integer UNIQUE,
+    name text,
+    price numeric
+);
+上面是写成字段约束，下面这个
+
+CREATE TABLE products (
+    product_no integer,
+    name text,
+    price numeric,
+    UNIQUE (product_no)
+);
+是写成表约束。
+
+如果一个唯一约束引用一组字段，那么这些字段用逗号分隔列出：
+
+CREATE TABLE example (
+    a integer,
+    b integer,
+    c integer,
+    UNIQUE (a, c)
+);
+这样就声明了指定字段的数值的组合，在整个表的范围内是唯一的， 不过这些字段中的某个的数值可以不必是（并且通常也的确可能不是）唯一的。
+
+你也可以给唯一约束赋予自己定义的名字，方法如常：
+
+CREATE TABLE products (
+    product_no integer CONSTRAINT must_be_different UNIQUE,
+    name text,
+    price numeric
+);
+通常，如果在表中有两行或更多行，而这些行中包含在唯一约束里面的那几个字段都相等，那么就算违反了唯一约束。 但是在这种比较中，空值是认为不相等的。这就意味着，在多字段唯一约束的情况下， 如果在至少一个字段上存在空值，那么我们还是可以存储同样的这种数据行。 这种行为遵循 SQL 标准，但是我们听说其它 SQL 数据库可能不遵循这个标准。因此如果你要开发可移植的程序， 那么最好仔细些。
+
+5.3.4. 主键
+
+从技术上来讲，主键约束只是唯一约束和非空约束的组合。 所以，下面两个表定义接受同样的数据：
+
+CREATE TABLE products (
+    product_no integer UNIQUE NOT NULL,
+    name text,
+    price numeric
+);
+CREATE TABLE products (
+    product_no integer PRIMARY KEY,
+    name text,
+    price numeric
+);
+主键也可以约束多于一个字段；其语法类似唯一约束：
+
+CREATE TABLE example (
+    a integer,
+    b integer,
+    c integer,
+    PRIMARY KEY (a, c)
+);
+主键表示一个字段或者是若干个字段的组合可以用于表中的数据行的唯一标识。 （这是定义一个主键的直接结果。请注意一个唯一约束实际上并不能提供一个唯一表示，因为它不排除空值。） 这个功能对文档目的和客户应用都很有用。比如，一个可以修改行数值的 GUI 应用可能需要知道一个表的主键才能唯一地标识一个行。
+
+一个表最多可以有一个主键（但是它可以有多个唯一和非空约束）。 关系型数据库理论告诉我们，每个表都必须有一个主键。PostgreSQL 并不强制这个规则，但我们最好还是遵循它。
+
+5.3.5. 外键
+
+外键约束声明一个字段（或者一组字段）的数值必须匹配另外一个表中某些行出现的数值。 我们把这个行为称做两个相关表之间的参考完整性。
+
+假设你有个产品表，我们可能使用了好几次：
+
+CREATE TABLE products (
+    product_no integer PRIMARY KEY,
+    name text,
+    price numeric
+);
+让我们假设你有一个存储这些产品的订单的表。 我们想保证订单表只包含实际存在的产品。因此我们在订单表中定义一个外键约束引用产品表：
+
+CREATE TABLE orders (
+    order_id integer PRIMARY KEY,
+    product_no integer REFERENCES products (product_no),
+    quantity integer
+);
+现在，我们不可能创建任何其 product_no 没有在产品表中出现的订单。
+
+在这种情况下我们把订单表叫做引用表， 而产品表是被引用表。类似地也有引用字段和被引用字段。
+
+你也可以把上面地命令简写成
+
+CREATE TABLE orders (
+    order_id integer PRIMARY KEY,
+    product_no integer REFERENCES products,
+    quantity integer
+);
+因为如果缺少字段列表的话，被引用表的主键就会被当作被引用字段使用。
+
+一个外键也可以约束和引用一组字段。同样，也需要写成表约束的形式。 下面是一个捏造出来的语法例子：
+
+CREATE TABLE t1 (
+  a integer PRIMARY KEY,
+  b integer,
+  c integer,
+  FOREIGN KEY (b, c) REFERENCES other_table (c1, c2)
+);
+当然，被约束的字段的数目和类型需要和被引用字段的数目和类型一致。
+
+和平常一样，你也可以给外键约束赋予你自己的名字。
+
+一个表可以包含多于一个外键约束。这个特性用于实现表之间多对多的 关系，比如你有关于产品和订单的表，但现在你想允许一个订单可以包含 多种产品（上面那个结构是不允许这么做的）。你可以使用这样的结构：
+
+CREATE TABLE products (
+    product_no integer PRIMARY KEY,
+    name text,
+    price numeric
+);
+
+CREATE TABLE orders (
+    order_id integer PRIMARY KEY,
+    shipping_address text,
+    ...
+);
+
+CREATE TABLE order_items (
+    product_no integer REFERENCES products,
+    order_id integer REFERENCES orders,
+    quantity integer,
+    PRIMARY KEY (product_no, order_id)
+);
+注意最后的表的主键和外键是重叠的。
+
+我们知道外键不允许创建和任何产品都无关的订单。 但是如果一个订单创建之后，而其引用的产品被删除了会怎么办？ SQL 也允许你处理这个问题。简单说，我们有几种选择：
+
+不允许删除一个被引用的产品
+
+同时也删除订单
+
+其它的？
+
+为了说明这个问题，让我们对上面的多对多的关系例子制定下面的 策略：如果有人想删除一种仍然被一个订单引用的产品（通过 order_items），那么我们不允许她这么做。 如果有人删除了一个订单，那么订单项也被删除。
+
+CREATE TABLE products (
+    product_no integer PRIMARY KEY,
+    name text,
+    price numeric
+);
+
+CREATE TABLE orders (
+    order_id integer PRIMARY KEY,
+    shipping_address text,
+    ...
+);
+
+CREATE TABLE order_items (
+    product_no integer REFERENCES products ON DELETE RESTRICT,
+    order_id integer REFERENCES orders ON DELETE CASCADE,
+    quantity integer,
+    PRIMARY KEY (product_no, order_id)
+);
+限制和级联删除是两种最常见的选项。RESTRICT 禁止删除被引用的行。 NO ACTION 的意思是如果在检查约束的时候，如果还存在任何引用行，则抛出错误； 如果你不声明任何东西，那么它就是缺省的行为。 （这两个选择的实际区别是，NO ACTION 允许约束检查推迟到事务的晚些时候，而 RESTRICT 不行。） CASCADE 声明在删除一个被引用的行的时候，引用它的行也会被自动删除掉。 在外键字段上的动作还有两个选项： SET NULL 和 SET DEFAULT。 这样会导致在被引用行删除的时候，引用它们的字段分别设置为空或者缺省值。 请注意这些选项并不能让你逃脱被观察和约束的境地。 比如，如果一个动作声明 SET DEFAULT，但是缺省值并不能满足外键，那么动作就会失败。
+
+类似 ON DELETE，还有 ON UPDATE 选项，它是在被引用字段修改（更新）的时候调用的。可用的动作是一样的。
+
+有关更新和删除数据的更多信息可以在 Chapter 6 里找到。
+
+最后，我们应该说明的是，一个外键必须要么引用一个主键，要么引用一个唯一约束。 如果外键引用了一个唯一约束，那么在如何匹配空值这个问题上还有一些其它的可能性。 这些东西都在 CREATE TABLE 里的 CREATE TABLE 中解释。
+

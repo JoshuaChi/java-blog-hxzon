@@ -1,0 +1,436 @@
+﻿PostgreSQL 8.1 中文文档-Chapter 5. 数据定义-3，继承，分区，依赖性追踪
+
+
+5.1. 表的基本概念
+5.2. 缺省值
+5.3. 约束
+5.3.1. 检查约束
+5.3.2. 非空约束
+5.3.3. 唯一约束
+5.3.4. 主键
+5.3.5. 外键
+
+==
+5.4. 系统字段
+
+5.5. 修改表
+5.5.1. 增加字段
+5.5.2. 删除字段
+5.5.3. 增加约束
+5.5.4. 删除约束
+5.5.5. 改变一个字段的缺省值
+5.5.6. 修改一个字段的数据类型
+5.5.7. 给字段改名字
+5.5.8. 给字段改名字
+5.5.9. 给表改名字
+
+5.6. 权限
+
+5.7. 模式
+5.7.1. 创建一个模式
+5.7.2. Public 模式
+5.7.3. 模式搜索路径
+5.7.4. 模式和权限
+5.7.5. 系统表模式
+5.7.6. 使用方式
+5.7.7. 移植性
+
+==
+5.8. 继承
+5.9. 分区
+5.9.1. 概述
+5.9.2. 实现分区
+5.9.3. 分区和约束排除
+5.10. 其它数据库对象
+5.11. 依赖性追踪
+
+=======
+5.8. 继承
+
+PostgreSQL 实现了表继承，这个特性可能对数据库设计人员来说是一个大好消息。 （SQL:1999 以及以后的标准定义了类型继承特性，和我们在这里描述的很多特性有区别。）
+
+让我们从一个例子开始：假设我们试图制作一个城市的数据模型。 每个州都有许多城市，但是只有一个首府。我们希望能够迅速检索任何州的首府。 这个任务可以通过创建两个表来实现，一个是州府，一个是非州府。 不过，如果我们不管什么城市都想查会怎么办？继承的特性可以帮助我们解决这个问题。 我们定义 capitals 表，它继承 cities：
+
+CREATE TABLE cities (
+    name            text,
+    population      float,
+    altitude        int     -- (单位：英尺)
+);
+
+CREATE TABLE capitals (
+    state           char(2)
+) INHERITS (cities);
+在这种情况下，一行首府从它的父表，cities 中继承所有属性。 州首府有一个额外的属性， state，显示它们所在的州。
+
+在 PostgreSQL 里， 一个表可以从零个或多个其它表中继承属性，而且一个查询既可以引用一个表中的所有行， 也可以引用一个表的所有行加上所有其后代表的行。后面这个行为是缺省。 比如，下面的查询查找所有海拔 500 英尺以上的所有城市的名字，包括州首府：
+
+SELECT name, altitude
+    FROM cities
+    WHERE altitude > 500;
+使用 PostgreSQL 教程里面的数据（参阅 Section 2.1）， 它返回：
+
+   name    | altitude
+-----------+----------
+ Las Vegas |     2174
+ Mariposa  |     1953
+ Madison   |      845
+另一方面，如果要找出不包括州首府在内的所有海拔超过500英尺的城市， 查询应该是这样的：
+
+SELECT name, altitude
+    FROM ONLY cities
+    WHERE altitude > 500;
+
+   name    | altitude
+-----------+----------
+ Las Vegas |     2174
+ Mariposa  |     1953
+这里的 cities 前面的 "ONLY" 表面该查询应该只对 cities 进行查找而不包括继承级别低于 cities 的表。 许多我们已经讨论过的命令 -- SELECT， UPDATE 和 DELETE -- 支持这个 "ONLY" 符号。
+
+继承与权限: 因为权限并非是自动继承的，所以，企图访问一个父表的用户必须要么有和子表相同的权限， 要么必须使用 "ONLY" 表示法。或者在现有的系统里创建一个新的继承关系， 不过要小心这样做不会带来更多问题。
+
+另外，下面的查询找出所有不是州府并且海拔高于 500 英尺的城市：
+
+SELECT name, altitude
+    FROM ONLY cities
+    WHERE altitude > 500;
+
+   name    | altitude
+-----------+----------
+ Las Vegas |     2174
+ Mariposa  |     1953
+这里的 ONLY 关键子表示这个查询只检索 cities，而不包括继承级别里 cities 下面的表。 许多我们已经讨论过的命令 — SELECT，UPDATE 和 DELETE — 支持 ONLY 关键子。
+
+有时候你可能想知道某条行版本来自哪个表。在每个表里我们都有一个系统属性叫 tableoid，它可以告诉你源表是谁：
+
+SELECT c.tableoid, c.name, c.altitude
+FROM cities c
+WHERE c.altitude > 500;
+它返回：
+
+ tableoid |   name    | altitude
+----------+-----------+----------
+   139793 | Las Vegas |     2174
+   139793 | Mariposa  |     1953
+   139798 | Madison   |      845
+（如果你想复现这个例子，你可能会得到不同的数字 OID。） 通过和pg_class做一个连接，你可以看到实际的表名字∶
+
+SELECT p.relname, c.name, c.altitude
+FROM cities c, pg_class p
+WHERE c.altitude > 500 and c.tableoid = p.oid;
+它返回：
+
+ relname  |   name    | altitude
+----------+-----------+----------
+ cities   | Las Vegas |     2174
+ cities   | Mariposa  |     1953
+ capitals | Madison   |      845
+继承并不自动从 INSERT 或者 COPY 中向继承级别中的其它表填充数据。 在我们的例子里，下面的 INSERT 语句不会成功：
+
+INSERT INTO cities (name, population, altitude, state)
+VALUES ('New York', NULL, NULL, 'NY');
+我们可能希望数据被传递到 capitals 表里面去，但是这是不会发生的： INSERT 总是插入明确声明的那个表。 在某种场合下，我们可以使用规则重定向插入 （参阅 Chapter 34）。不过它不能对上面的例子有什么帮助， 因为 cities 表并不包含字段 state， 因此命令在规则施加之前就会被拒绝掉。
+
+在表上可以定义广播到继承层次里的检查约束。所有父表的检查约束都会自动被所有子表继承。 不过其它类型的约束没有被继承。
+
+一个表可以从多个父表继承，这种情况下它拥有父表们的字段的总和。 子表中任意定义的字段也会加入其中。如果同一个字段名出现在多个父表中， 或者同时出现在父表和子表的定义里，那么这些字段就会被"融合"， 这样在子表里面就只有一个这样的字段。要想融合，字段必须是相同的数据类型， 否则就会抛出一个错误。融合的字段将会拥有它所继承的字段的所有约束。
+
+表继承目前只能用 CREATE TABLE 语句定义。 相关的语句 CREATE TABLE AS 不允许声明继承。 目前没有办法给现有的表加一个连接使之成为一个子表。 相似的还有，继承定义了之后，没有办法从一个子表上删除一个继承关系， 除非是删除整个表。如果子表存在，则不能删除父表。 如果你想删除一个表和其所有后代，一个简单的方法是用 CASCADE 选项删除全部表。
+
+ALTER TABLE 会把所有数据定义和检查约束广播到继承层次里面去。 另外，只有在使用 CASCADE 选项的情况下，才能删除父表的字段或者约束。 ALTER TABLE 在重复字段融合和拒绝方面和 CREATE TABLE 的情况一样。
+
+5.8.1. 注意事项
+
+表访问权限并不会自动继承。因此，一个试图访问父表的用户还必须具有访问它的所有子表的权限， 或者必须使用 ONLY 表示法。在向现有的继承层次添加新的子表的时候， 请注意给它赋予所有权限。
+
+继承特性的一个严重的局限性是索引（包括唯一约束）和外键约束只施用于单个表， 而不包括它们的继承的子表。这一点不管对引用表还是被引用表都是事实，因此，在上面的例子里：
+
+如果我们声明 cities.name 为 UNIQUE 或者是一个 PRIMARY KEY， 那么也不会阻止 capitals 表拥有重复了名字的 cities 数据行。 并且这些重复的行缺省时在查询 cities 表的时候会显示出来。 实际上，缺省时 capitals 将完全没有唯一约束，因此可能包含带有同名的多个行。 你应该给 capitals 增加唯一约束，但是这样做也不会避免与 cities 的重复。
+
+类似，如果我们声明 cities.name REFERENCES 某些其它的表， 这个约束不会自动广播到 capitals。在这种条件下，你可以通过手工给 capitals 增加同样的 REFERENCES 约束来做到这点。
+
+声明其它一个表的字段为 REFERENCES cities(name) 将允许其它表包含城市名， 但是不包含首府名。这种情况下没有很好的绕开办法。
+
+这些缺点很可能在将来的版本中修补，但同时你也需要考虑一下，继承是否对你的问题真正有用。
+
+废弃: 在以前的 PostgreSQL 版本里， 缺省的行为是不在查询里包含子表。后来发现这么做很容易出错并且也违反了 SQL 标柱。 在老的语法里，要包含子表，你需要在表名字后面附加一个 *。比如：
+
+SELECT * from cities*;
+你仍然可以用附加 * 的方法明确声明扫描子表， 以及写 ONLY 的方法明确声明不扫描子表。 不过，从版本 7.1 开始，对无修饰的表名称的缺省行为已经修改成扫描其子表， 而以前的缺省是不这么做。要想获得老的缺省行为， 可以关闭配置参数 sql_inheritance。
+
+==========
+5.9. 分区
+
+PostgreSQL 支持基本的表分区功能。 本节描述为何需要表分区以及你如何在你的数据库设计里面实现表分区。
+
+5.9.1. 概述
+
+分区的意思是把逻辑上的一个大表分割成物理上的几块儿。 分区可以提供若干好处：
+
+某些类型的查询性能可以得到极大提升。
+
+更新的性能也可以得到提升，因为表的每块的索引要比在整个数据集上的索引要小。 如果索引不能全部放在内存里，那么在索引上的读和写都会产生更多的磁盘访问。
+
+批量删除可以用简单地删除某个分区来实现 － 只要需求已经在分区设计是进行了规划。 DROP TABLE 比批量 DELETE 要快很多， 因为不需要有 VACUUM 的开销。
+
+很少用的数据可以移动到便宜的、慢一些地存储介质上。
+
+这种好处通常只有在表可能会变得非常大的情况下才有价值。 表在多大的情况下会从分区中收益取决于应用，不过有个基本的拇指规则就是表的大小超过了数据库服务器的物理内存大小。
+
+目前，PostgreSQL 支持通过表继承进行分区。 每个分区必须做为单独一个父表的子表进行创建。父表自身通常是空的； 它的存在只是为了代表整个数据集。你在试图实现分区之前，应该先熟悉继承（参阅 Section 5.8）。
+
+PostgreSQL 里面可以实现下面形式的分区：
+
+范围分区
+表被一个或者多个键字字段分区成"范围"， 在这些范围之间没有重叠的数值分布到不同的分区里。 比如，我们可以为特定的商业对象根据数据范围分区，或者根据标识符范围分区。
+
+列表分区
+表是通过明确地列出每个分区里应该出现那些键字值实现的。
+
+目前还不支持散列分区。
+
+5.9.2. 实现分区
+
+要设置一个分区的表，做下面的步骤：
+
+创建"主表"，所有分区都从它上面继承下去。
+
+这个表将没有什么数据，不要在这个表上定义任何检查约束， 除非你希望约束同样也适用于所有分区。同时在其上定义任何索引或者唯一约束也没有意义。
+
+创建几个"子"表，每个都从主表上继承。 通常，这些表将不会对从主表继承过来集合增加任何字段。
+
+我们将把子表称作分区，尽管它们就是普通的 PostgreSQL 表。
+
+给分区表增加约束，定义每个分区允许的健值。
+
+典型的例子是：
+
+CHECK ( x = 1 )
+CHECK ( county IN ( 'Oxfordshire', 'Buckinghamshire', 'Warwickshire' ))
+CHECK ( outletID >= 100 AND outletID < 200 )
+确信这些约束保证在不同的分区里不会有重叠的键字。一个常见的错误是设置下面这样的范围：
+
+CHECK ( outletID BETWEEN 100 AND 200 )
+CHECK ( outletID BETWEEN 200 AND 300 )
+这样做是错误的，因为它没说清楚健值 200 属于那个范围。
+
+请注意在范围和列表分区的语法方面没有什么区别；这些术语只是用于描述的。
+
+对于每个分区，在键字字段上创建一个索引，以及其它你想创建的索引。 （键字索引并非严格要求的，但是在大多数情况下它是很有帮助的。 如果你希望键字值是唯一的，那么你应该总是给每个分区创建一个唯一或者主键约束。
+
+另外，定义一个规则或者触发器，把对主表的修改重定向到合适的分区表。
+
+确保 postgresql.conf 里的配置参数 constraint_exclusion 是打开的。 没有这个参数，查询不会按照需要进行优化。
+
+比如，假设我们为一个巨大的冰激凌公司构造数据库。 该公司每天都测量最高温度，以及每个地区的冰激凌销售。 概念上，我们需要一个这样的表：
+
+CREATE TABLE measurement (
+    city_id         int not null,
+    logdate         date not null,
+    peaktemp        int,
+    unitsales       int
+);
+我们知道大多数查询都只会访问最后一周，最后一个月或者最后一个季度的数据， 因为这个表的主要用途是为管理准备在线报告。 为了减少需要存储的旧数据，我们决定值保留最近三年的有用数据。 在每个月的开头，我们都会删除最旧的一个月的数据。
+
+在这种情况下，我们可以使用分区来帮助我们实现所有我们对表的不同需求。 下面的步骤描述了上面的需求，分区可以这样设置：
+
+主表是 measurement 表，就像上面那样声明。
+
+然后我们为每个月创建一个分区：
+
+CREATE TABLE measurement_yy04mm02 ( ) INHERITS (measurement);
+CREATE TABLE measurement_yy04mm03 ( ) INHERITS (measurement);
+...
+CREATE TABLE measurement_yy05mm11 ( ) INHERITS (measurement);
+CREATE TABLE measurement_yy05mm12 ( ) INHERITS (measurement);
+CREATE TABLE measurement_yy06mm01 ( ) INHERITS (measurement);
+每个分区都是拥有自己内容的完整的表，只是它们从 measurement 表继承定义。
+
+这样就解决了我们的一个问题：删除旧数据。 每个月，我们需要做的只是在最旧的子表上执行一个 DROP TABLE， 然后为新月份创建一个新的子表。
+
+我们必须增加非重叠的表约束，所以我们的建表脚本就变成：
+
+CREATE TABLE measurement_yy04mm02 (
+    CHECK ( logdate >= DATE '2004-02-01' AND logdate < DATE '2004-03-01' )
+) INHERITS (measurement);
+CREATE TABLE measurement_yy04mm03 (
+    CHECK ( logdate >= DATE '2004-03-01' AND logdate < DATE '2004-04-01' )
+) INHERITS (measurement);
+...
+CREATE TABLE measurement_yy05mm11 (
+    CHECK ( logdate >= DATE '2005-11-01' AND logdate < DATE '2005-12-01' )
+) INHERITS (measurement);
+CREATE TABLE measurement_yy05mm12 (
+    CHECK ( logdate >= DATE '2005-12-01' AND logdate < DATE '2006-01-01' )
+) INHERITS (measurement);
+CREATE TABLE measurement_yy06mm01 (
+    CHECK ( logdate >= DATE '2006-01-01' AND logdate < DATE '2006-02-01' )
+) INHERITS (measurement);
+我们可能还需要在键字字段上有索引：
+
+CREATE INDEX measurement_yy04mm02_logdate ON measurement_yy04mm02 (logdate);
+CREATE INDEX measurement_yy04mm03_logdate ON measurement_yy04mm03 (logdate);
+...
+CREATE INDEX measurement_yy05mm11_logdate ON measurement_yy05mm11 (logdate);
+CREATE INDEX measurement_yy05mm12_logdate ON measurement_yy05mm12 (logdate);
+CREATE INDEX measurement_yy06mm01_logdate ON measurement_yy06mm01 (logdate);
+我们选择先不建立更多的索引。
+
+如果数据只进入最新的分区，我们可以设置一个非常简单的规则来插入数据。 我们必须每个月都重新定义这个规则，这样它总是指向当前分区。
+
+CREATE OR REPLACE RULE measurement_current_partition AS
+ON INSERT TO measurement
+DO INSTEAD
+    INSERT INTO measurement_yy06mm01 VALUES ( NEW.city_id,
+                                              NEW.logdate,
+                                              NEW.peaktemp,
+                                              NEW.unitsales );
+我们可能想插入数据并且想让服务器自动定位应该向哪个分区插入数据。 我们可以用像下面这样的更复杂的规则集来实现这个目标。
+
+CREATE RULE measurement_insert_yy04mm02 AS
+ON INSERT TO measurement WHERE
+    ( logdate >= DATE '2004-02-01' AND logdate < DATE '2004-03-01' )
+DO INSTEAD
+    INSERT INTO measurement_yy04mm02 VALUES ( NEW.city_id,
+                                              NEW.logdate,
+                                              NEW.peaktemp,
+                                              NEW.unitsales );
+...
+CREATE RULE measurement_insert_yy05mm12 AS
+ON INSERT TO measurement WHERE
+    ( logdate >= DATE '2005-12-01' AND logdate < DATE '2006-01-01' )
+DO INSTEAD
+    INSERT INTO measurement_yy05mm12 VALUES ( NEW.city_id,
+                                              NEW.logdate,
+                                              NEW.peaktemp,
+                                              NEW.unitsales );
+CREATE RULE measurement_insert_yy06mm01 AS
+ON INSERT TO measurement WHERE
+    ( logdate >= DATE '2006-01-01' AND logdate < DATE '2006-02-01' )
+DO INSTEAD
+    INSERT INTO measurement_yy06mm01 VALUES ( NEW.city_id,
+                                              NEW.logdate,
+                                              NEW.peaktemp,
+                                              NEW.unitsales );
+请注意每个规则里面的 WHERE 子句正好匹配其分区的 CHECK 约束。
+
+我们可以看出来，一个复杂的分区方案可能要求相当不少的 DDL。 在上面的例子里我们需要每个月创建一次新分区，因此写一个脚本自动生成需要的 DDL 是明智的。
+
+还要注意下面的事项：
+
+目前还没有什么办法校验所有 CHECK 是相互排他的。 数据库设计者必须注意这一点。
+
+目前还没有简单的办法声明数据行绝对不能插入主表。 主表上的一个 CHECK (false) 约束将被所有子表继承， 因此不能这么用。一个可行的办法是在主表上设置一个 ON INSERT 触发器，总是抛出错误。（另外，这样的触发器也可以用于重定向数据到合适的子表， 而不是用上面建议的那样一套规则。）
+
+分区也可以使用一个 UNION ALL 试图来安排：
+
+CREATE VIEW measurement AS
+          SELECT * FROM measurement_yy04mm02
+UNION ALL SELECT * FROM measurement_yy04mm03
+...
+UNION ALL SELECT * FROM measurement_yy05mm11
+UNION ALL SELECT * FROM measurement_yy05mm12
+UNION ALL SELECT * FROM measurement_yy06mm01;
+不过，约束排除目前还不支持用这种方式定义的分区。 还有，重建试图也给增加和删除数据集里面的独立分区增加了额外的步骤。
+
+5.9.3. 分区和约束排除
+
+约束排除（Constraint exclusion）是一种查询优化技巧， 它改进了用上面方法定义的表分区的性能。比如：
+
+SET constraint_exclusion = on;
+SELECT count(*) FROM measurement WHERE logdate >= DATE '2006-01-01';
+如果没有约束排除，上面的查询会扫描 measurement 表中的每一个分区。 打开了约束排除之后，规划器将检查每个分区的约束然后试图证明该分区不需要被扫描， 因为它不能包含任何符合 WHERE 子句条件的数据行。 如果规划器可以证明这个，它就把该分区从查询规划里排除出去。
+
+你可以使用 EXPLAIN 命令显示一个规划在 constraint_exclusion 打开和关闭情况下的不同。用上面方法设置的表的典型的缺省规划是：
+
+SET constraint_exclusion = off;
+EXPLAIN SELECT count(*) FROM measurement WHERE logdate >= DATE '2006-01-01';
+
+                                          QUERY PLAN
+-----------------------------------------------------------------------------------------------
+ Aggregate  (cost=158.66..158.68 rows=1 width=0)
+   ->  Append  (cost=0.00..151.88 rows=2715 width=0)
+         ->  Seq Scan on measurement  (cost=0.00..30.38 rows=543 width=0)
+               Filter: (logdate >= '2006-01-01'::date)
+         ->  Seq Scan on measurement_yy04mm02 measurement  (cost=0.00..30.38 rows=543 width=0)
+               Filter: (logdate >= '2006-01-01'::date)
+         ->  Seq Scan on measurement_yy04mm03 measurement  (cost=0.00..30.38 rows=543 width=0)
+               Filter: (logdate >= '2006-01-01'::date)
+...
+         ->  Seq Scan on measurement_yy05mm12 measurement  (cost=0.00..30.38 rows=543 width=0)
+               Filter: (logdate >= '2006-01-01'::date)
+         ->  Seq Scan on measurement_yy06mm01 measurement  (cost=0.00..30.38 rows=543 width=0)
+               Filter: (logdate >= '2006-01-01'::date)
+部分或者全部分区可能会使用索引扫描而不是全表扫描， 不过这里要表达的意思是我们没有必要扫描旧的分区旧可以回答这个查询。 在我们打开约束排除之后，我们可以得到生成同样回答的明显节省的规划：
+
+SET constraint_exclusion = on;
+EXPLAIN SELECT count(*) FROM measurement WHERE logdate >= DATE '2006-01-01';
+                                          QUERY PLAN
+-----------------------------------------------------------------------------------------------
+ Aggregate  (cost=63.47..63.48 rows=1 width=0)
+   ->  Append  (cost=0.00..60.75 rows=1086 width=0)
+         ->  Seq Scan on measurement  (cost=0.00..30.38 rows=543 width=0)
+               Filter: (logdate >= '2006-01-01'::date)
+         ->  Seq Scan on measurement_yy06mm01 measurement  (cost=0.00..30.38 rows=543 width=0)
+               Filter: (logdate >= '2006-01-01'::date)
+请注意，约束排除只由 CHECK 约束驱动，而不会由索引驱动。 因此，在键字字段上定义索引是没有必要的。 在给出的分区上是否需要建立索引取决于那些扫描该分区的查询通常是扫描该分区的一大部分还是只是一小部分。 对于后者，索引通常都有帮助，对于前者则没有什么好处。
+
+还有下面的注意：
+
+约束排除只是在查询的 WHERE 子句包含约束的时候才生效。 一个参数化的查询不会被优化，因为在运行时规划器不知道改参数会选择哪个分区。 由于某些原因，像 CURRENT_DATE 这样的"稳定的（stable）"函数必须避免。 把分区键字和另外一个表的字段连接起来也不会得到优化。
+
+在 CHECK 约束里面避免跨数据类型的比较， 因为目前规划器会无法证明这样的条件为假。比如，下面的约束会在 x 是整数字段的时候可用，但是在 x 是一个 bigint 的时候不能用：
+
+CHECK ( x = 1 )
+对于 bigint 字段，我们必须使用类似下面这样的约束：
+
+CHECK ( x = 1::bigint )
+这个问题并不仅仅局限于 bigint 数据类型 — 它可能会发生在任何约束的缺省数据类型与其比较的字段的数据类型不匹配的场合。 在提交的查询里的跨数据类型的比较通常是 OK 的，只是不能在 CHECK 条件里。
+
+目前，在主表上的 UPDATE 和 DELETE 命令并不执行约束排除。
+
+主表的所有分区上面的所有约束都认为是约束排除了的，因此，大量的分区会显著增加查询规划的时间。
+
+别忘记你仍然需要为每个分区独立运行 ANALYZE。 类似下面的命令
+
+ANALYZE measurement;
+是只会处理主表的。
+
+============
+5.10. 其它数据库对象
+
+在关系结构里，表是核心的对象，因为它们保存你的数据。 但是它们并非存在于数据库中的唯一对象。我们可以创建许多其它类型的对象来让我们对数据的使用和管理变得更方便。 我们没有在这一章里讨论这些对象，但是我们在这里会给你一个列表，这样你就知道什么是可能的。
+
+视图
+
+函数和操作符，数据类型，域
+
+数据类型和域
+
+触发器和重写规则
+
+这些主题的相信信息在 Part V 里。
+
+===========
+5.11. 依赖性追踪
+
+如果你创建了一个包含许多表，并且带有外键约束，视图， 触发器，函数等等的复杂数据库结构。那么你就会在对象 之间隐含地创建了一个依赖性的网络。比如，一个带有外键 约束的表依赖于它引用的表。
+
+为了保证整个数据库结构的完整性，PostgreSQL 保证 你无法删除那些还有其它对象依赖的对象。比如，试图删除我们在 Section 5.3.5 里考虑的产品表，这个时候 订单表仍然依赖它，这样的删除动作是不能成功的，会有类似下面的错误信息出现：
+
+DROP TABLE products;
+
+NOTICE:  constraint orders_product_no_fkey on table orders depends on table products
+ERROR:  Cannot drop table products because other objects depend on it
+        Use DROP ... CASCADE to drop the dependent objects too
+这个错误信息包含一个有用的提示：如果你不想惹来分别删除所有 依赖对象的麻烦，你可以运行
+
+DROP TABLE products CASCADE;
+然后所有被依赖的对象都将被删除。在这种情况下， 它并不删除订单表，它只删除外键约束。（如果你想检查 DROP ... CASCADE 会干什么，运行不带 CASCADE 的 DROP然后阅读 NOTICE 信息。）
+
+PostgreSQL 里的所有删除命令都 支持声明 CASCADE。当然，具体的依赖性实体 取决于对象的类型。你也可以写 RESTRICT，而 不是 CASCADE，以获取缺省的行为， 这个时候限制于删除那些其它对象依赖的对象。
+
+注意: 根据 SQL 标准，要求至少声明 RESTRICT 或者 CASCADE 中的一个。 实际上没有哪种数据库系统强制这一点，但是缺省的行为是 RESTRICT 还是 CASCADE 则因系统而异。
+
+注意: 在 PostgreSQL 7.3 之前的外键约束依赖性和序列字段依赖性 在升级过程中都不会得到维护或者创建。所有其它的依赖性类型 在从 7.3 版本以前的数据库升级过程中都将得到恰当的创建。
+
+（本章完）
