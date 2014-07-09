@@ -157,5 +157,15 @@ Neal Ford, Director / Software Architect / Meme Wrangler, ThoughtWorks Inc.
 2014 年 6 月 16 日
 http://www.ibm.com/developerworks/cn/java/j-jn14/index.html
 见《clojure并发》。
+
 ----------
+Java 下一代: 选择您的下一个 JVM 语言
+
+如果任意 Java 下一代语言都适合作为您使用的下一代语言，那么您会如何选择？
+Neal Ford 调查了会对这个重要决定产生影响的各个因素，从而撰写了 Java 下一代 文章系列。
+
+Neal Ford, Director / Software Architect / Meme Wrangler, ThoughtWorks Inc.
+2014 年 7 月 07 日
+http://www.ibm.com/developerworks/cn/java/j-jn16
+（完结）
 

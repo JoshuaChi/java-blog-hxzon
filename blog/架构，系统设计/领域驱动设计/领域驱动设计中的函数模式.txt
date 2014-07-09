@@ -1,0 +1,42 @@
+﻿领域驱动设计中的函数模式
+作者 Jan Stenberg ，译者 李哲 发布于 2014年7月8日 |
+http://www.infoq.com/cn/news/2014/07/functional-patterns-ddd
+
+领域驱动设计（DDD）为了鼓励开发人员创建领域模型和通用语言（ubiquitous language）做了大量工作，
+但是尝试运用面向对象原则里面的状态和行为的概念
+来实现DDD思想最终得到的常常只是一套混乱易变的模型，
+Debasish Ghosh在一篇文章中阐述了领域驱动设计中的函数模式。
+http://debasishg.blogspot.se/2014/05/functional-patterns-in-domain-modeling.html
+
+Debasish是ACM资深会员和《DSLs in Action》一书的作者，
+http://www.manning.com/ghosh/
+他认为，从某种意义上讲，当把与某个特定的领域抽象相关的所有概念都放在一个类里面时，这个模型的信息可能就会非常丰富；
+但是由于这种方式只关注于局部而忽略了全局性的诉求，也就使得这个类变得更加脆弱。
+因此，当将领域内的所有抽象概念进行组合的时候，
+它可能就会被中间代码污染而不能解决类边界之间的阻抗失配（impedance mismatch）问题
+（译者注：“阻抗失配”这一词组通常用来描述面向对象应用向传统的关系数据库存放数据时所遇到的数据表述不一致问题）。
+
+在他的主张中，他提到了Dean Wampler，
+http://www.deanwampler.com/
+最近Dean Wampler主张函数式编程原则可以帮助改进领域驱动设计。
+http://www.slideshare.net/deanwampler/reactive-design-languages-and-paradigms
+Dean声称“模型应该是贫血的”，
+并鼓励领域对象只拥有状态而将行为移到单独的函数中。
+
+Debaish所反对的另一种说法就是将状态和行为打包到一个类中来加强封闭性。
+他反而认为按照DDD的原则，将领域行为作为单独的函数来进行构造
+会更好地促进模块化和实现领域模型。
+在这种方式下，所有的领域行为都被作为模块中的函数来进行建模，而这个模块就代表了这些函数的组合体。
+
+作为例子，在之前发布的博客文章中，他运用函数式编程原则在DDD中实现了规范（Specification）和聚合（Aggregate）模式，
+他在这篇文章中采用函数模式和函数来像搭积木一样构建行为，
+而这些行为建立了该领域的通用语言的模型。
+Debaish声称DDD的一个原则就是将领域模型的词汇表上升到你的实现的高度，
+这样在整个系统生命周期里，这些功能就会变得更加明显。
+
+Dean Wampler在四月份的React conference上还做了一个主题类似的
+关于响应式设计（reactive design）和语言范式（ language paradigms）的报告演讲。
+https://www.youtube.com/watch?v=4L3cYhfSUZs
+
+查看英文原文：http://www.infoq.com/news/2014/05/functional-patterns-ddd
+

@@ -1,0 +1,321 @@
+﻿PostgreSQL 8.1 中文文档
+http://www.php100.com/manual/PostgreSQL8/
+
+目录
+
+前言
+何为 PostgreSQL？
+PostgreSQL 的历史简介
+习惯
+更多信息
+问题汇报指导
+
+I. 教程
+1. 从头开始
+2. SQL 语言
+3. 高级特性
+
+II. SQL 语言
+
+4. SQL 语法
+5. 数据定义
+6. 数据操作
+7. 查询
+
+8. 数据类型
+9. 函数和操作符
+10. 类型转换
+
+11. 索引
+12. 并发控制
+13. 性能提升技巧
+
+III. 服务器管理
+
+14. 安装指导
+15. 在 Windows 上安装客户端
+16. 操作系统环境
+17. 服务器配置
+
+18. 数据库角色和权限
+19. 管理数据库
+20. 用户认证
+
+21. 区域
+
+22. 日常数据库维护工作
+23. 备份和恢复
+24. 监控数据库的活动
+25. 观察磁盘使用情况
+26. 可靠性和预写式日志
+27. 回归测试
+
+IV. 客户端接口
+
+28. libpq - C 库
+29. 大对象
+30. ecpg - 在 C 里嵌入 SQL
+31. 信息模式
+
+V. 服务器端编程
+
+32. 扩展 SQL
+
+33. 触发器
+
+34. 规则系统
+
+35. 过程语言
+36. PL/pgSQL - SQL 过程语言
+37. PL/Tcl - Tcl 过程语言
+38. PL/Perl - Perl 过程语言
+39. PL/Python - 过程语言
+40. 服务器编程接口
+
+VI. 参考手册
+I. SQL 命令
+II. 客户端应用
+III. PostgreSQL 服务器应用
+VII. 内部
+41. PostgreSQL 内部概貌
+42. 系统表
+43. 前/后端协议
+44. PostgreSQL 源代码
+45. 本地语言支持
+46. 书写一个过程语言句柄
+47. 基因查询优化
+48. 索引访问方法接口定义
+49. GiST 索引
+50. 数据库物理存储
+51. BKI 后端接口
+52. 规划器如何使用统计信息
+
+VIII. 附录
+A. PostgreSQL 错误码
+B. 日期/时间支持
+C. SQL 关键字
+D. SQL 兼容性
+E. 版本
+F. CVS 仓库
+G. 文档
+H. 外部项目
+参考书目
+
+Index
+List of Tables
+4-1. 操作符优先级（递减）
+8-1. 数据类型
+8-2. 数值类型
+8-3. 货币类型
+8-4. 字符类型
+8-5. 特殊字符类型
+8-6. 二进制数据类型
+8-7. bytea 文本逃逸八进制
+8-8. bytea 输出逃逸序列
+8-9. 日期/时间类型
+8-10. 日期输入
+8-11. 时间输入
+8-12. 时区输入
+8-13. 特殊日期/时间输入
+8-14. 日期/时间输出风格
+8-15. 日期顺序习惯
+8-16. 几何类型
+8-17. 网络地址类型
+8-18. cidr 类型输入举例
+8-19. 对象标识类型
+8-20. 伪类型
+9-1. 比较操作符
+9-2. 数学操作符
+9-3. 数学函数
+9-4. 三角函数
+9-5. SQL 字串函数和操作符
+9-6. 其他字串函数
+9-7. 内置的转换
+9-8. SQL 二进制字串函数和操作符
+9-9. 其它二进制字串函数
+9-10. 位串操作符
+9-11. 正则表达式匹配操作符
+9-12. 正则表达式原子
+9-13. 正则表达式量词
+9-14. 正则表达式约束
+9-15. 正则表达式字符项逃逸
+9-16. 正则表达式表缩写逃逸
+9-17. 正则表达式约束逃逸
+9-18. 正则表达式后引用
+9-19. ARE 嵌入选项字母
+9-20. 格式化函数
+9-21. 用于日期/时间格式化的模式
+9-22. 日期/时间格式化的模板模式修饰词
+9-23. 用于数值格式化的模板模式
+9-24. to_char 例子
+9-25. 日期/时间操做符
+9-26. 日期/时间函数
+9-27. AT TIME ZONE变体
+9-28. 几何函数和操作符
+9-29. 几何函数
+9-30. 几何类型转换函数
+9-31. cidr 和 inet 操作符
+9-32. cidr 和 inet 函数
+9-33. macaddr 函数
+9-34. 序列函数
+9-35. array 操作符
+9-36. array 函数
+9-37. 聚集函数
+9-38. 序列号生成函数
+9-39. 会话信息函数
+9-40. 访问权限查询函数
+9-41. 模式可视性查询函数
+9-42. 系统表信息函数
+9-43. 注释信息函数
+9-44. 配置设置函数
+9-45. 服务器信号函数
+9-46. 备份控制函数
+9-47. 数据库对象尺寸函数
+9-48. 通用文件访问函数
+12-1. SQL 事务隔离级别
+16-1. System V IPC参数
+16-2. 影响 PostgreSQL 的内存使用的配置参数
+17-1. 短选项键字
+21-1. 服务器字符集
+21-2. 客户/服务器字符集转换
+24-1. 标准统计视图
+24-2. 统计访问函数
+31-1. information_schema_catalog_name 字段
+31-2. applicable_roles 字段
+31-3. check_constraints 字段
+31-4. column_domain_usage 字段
+31-5. column_privileges 字段
+31-6. column_udt_usage 字段
+31-7. columns 字段
+31-8. constraint_column_usage 字段
+31-9. constraint_table_usage 字段
+31-10. data_type_privileges 字段
+31-11. domain_constraints 字段
+31-12. domain_udt_usage 字段
+31-13. domains 字段
+31-14. element_types 字段
+31-15. enabled_roles 字段
+31-16. key_column_usage 字段
+31-17. parameters 字段
+31-18. referential_constraints 字段
+31-19. role_column_grants 字段
+31-20. role_routine_grants 字段
+31-21. role_table_grants 字段
+31-22. role_usage_grants 字段
+31-23. routine_privileges 字段
+31-24. routines 字段
+31-25. schemata 字段
+31-26. sql_features 字段
+31-27. sql_implementation_info 字段
+31-28. sql_languages 字段
+31-29. sql_packages 字段
+31-30. sql_sizing 字段
+31-31. sql_sizing_profiles 字段
+31-32. table_constraints 字段
+31-33. table_privileges 字段
+31-34. tables 字段
+31-35. triggers 字段
+31-36. usage_privileges 字段
+31-37. view_column_usage 字段
+31-38. view_table_usage 字段
+31-39. views 字段
+32-1. 与内建的类型等效的 C 类型
+32-2. B-tree 策略
+32-3. 散列索引
+32-4. R-tree 策略
+32-5. B-tree 支持函数
+32-6. 散列支持函数
+32-7. R-tree 支持函数
+32-8. GiST 支持函数
+42-1. 系统表
+42-2. pg_aggregate 字段
+42-3. pg_am 字段
+42-4. pg_amop 字段
+42-5. pg_amproc 字段
+42-6. pg_attrdef 字段
+42-7. pg_attribute 字段
+42-8. pg_authid 字段
+42-9. pg_auth_members 字段
+42-10. pg_autovacuum 字段
+42-11. pg_cast 字段
+42-12. pg_class 字段
+42-13. pg_constraint 字段
+42-14. pg_conversion 字段
+42-15. pg_database 字段
+42-16. pg_depend 字段
+42-17. pg_description 字段
+42-18. pg_index 字段
+42-19. pg_inherits 字段
+42-20. pg_language 字段
+42-21. pg_largeobject 字段
+42-22. pg_listener 字段
+42-23. pg_namespace 字段
+42-24. pg_opclass 字段
+42-25. pg_operator 字段
+42-26. pg_pltemplate 字段
+42-27. pg_proc 字段
+42-28. pg_rewrite 字段
+42-29. pg_shdepend 字段
+42-30. pg_statistic 字段
+42-31. pg_tablespace 字段
+42-32. pg_trigger 字段
+42-33. pg_type 字段
+42-34. 系统视图
+42-35. pg_group 字段
+42-36. pg_indexes 字段
+42-37. pg_locks 字段
+42-38. pg_prepared_xacts 字段
+42-39. pg_roles 字段
+42-40. pg_rules 字段
+42-41. pg_settings 字段
+42-42. pg_shadow 字段
+42-43. pg_stats 字段
+42-44. pg_tables 字段
+42-45. pg_user 字段
+42-46. pg_views 字段
+50-1. PGDATA的内容
+50-2. 总体页面布局
+50-3. PageHeaderData 布局
+50-4. HeapTupleHeaderData 布局
+A-1. PostgreSQL 错误代码
+B-1. 月份名字
+B-2. 星期几的名字
+B-3. 日期/时间字段修饰词
+B-4. 输入的时区缩写
+B-5. 澳大利亚时区输入缩写
+B-6. 给 timezone 使用的的时区名
+C-1. SQL 关键字
+List of Figures
+47-1. 基因算法的结构化框图
+List of Examples
+8-1. 使用字符类型
+8-2. 使用 boolean 类型
+8-3. 使用位串类型
+10-1. 指数操作符类型解析
+10-2. 字串连接操作符类型分析
+10-3. 绝对值和取反操作符类型分析
+10-4. 圆整函数参数类型解析
+10-5. 子字串函数类型解析
+10-6. character 存储类型转换
+10-7. Union 中的待定类型解析
+10-8. 简单 Union 中的类型解析
+10-9. 转置 Union 中的类型解析
+11-1. 设置一个部分索引以排除普通数值
+11-2. 设置一个部分索引以排除不感兴趣的数值
+11-3. 设置一个部分唯一索引
+20-1. pg_hba.conf 记录的例子
+20-2. 一个 pg_ident.conf 文件例子
+28-1. libpq 例子程序 1
+28-2. libpq 例子程序 2
+28-3. libpq 例子程序 3
+29-1. libpq 的大对象例子程序
+35-1. 手工安装 PL/pgSQL
+36-1. UPDATE/INSERT 的例外
+36-2. 一个PL/pgSQL触发器过程
+36-3. 一个用于审计的 PL/pgSQL 触发器过程
+36-4. 一个维护概要表的 PL/pgSQL 触发器过程
+36-5. 从 PL/SQL 向 PL/pgSQL 移植一个简单的函数
+36-6. 从PL/SQL 向 PL/pgSQL 移植一个创建其它函数的函数
+36-7. 从 PL/SQL 向 PL/pgSQL 移植一个字串操作和OUT参数的过程
+36-8. 从 PL/SQL 向 PL/pgSQL 移植一个过程
+

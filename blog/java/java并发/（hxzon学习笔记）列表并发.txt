@@ -1,0 +1,55 @@
+﻿（hxzon学习笔记）列表并发
+
+by hxzon
+=========
+1，Queue，ConcurrentLinkedQueue
+队列，不是列表，不支持位置读取。
+
+2，Vector
+线程安全
+
+3，CopyOnWriteArrayList
+它规避了只读操作（如get/contains）并发的瓶颈，
+但是它为了做到这点，在修改操作中做了很多工作和修改可见性规则。 
+此外，修改操作还会锁住整个List，因此这是一个并发瓶颈。
+
+    public boolean add(E e) {
+        final ReentrantLock lock = this.lock;
+        lock.lock();
+        try {
+            Object[] elements = getArray();
+            int len = elements.length;
+            Object[] newElements = Arrays.copyOf(elements, len + 1);
+            newElements[len] = e;
+            setArray(newElements);
+            return true;
+        } finally {
+            lock.unlock();
+        }
+    }
+
+是否可以只加锁，但是不使用新数组？
+
+4，ArrayList
+在读时，生成一个新的ArrayList（“读时复制”）
+
+public ArrayList(Collection<? extends E> c) {
+        elementData = c.toArray();
+        size = elementData.length;
+        // c.toArray might (incorrectly) not return Object[] (see 6260652)
+        if (elementData.getClass() != Object[].class)
+            elementData = Arrays.copyOf(elementData, size, Object[].class);
+    }
+
+获取列表的一部分
+SubList(AbstractList<E> parent,
+                int offset, int fromIndex, int toIndex) {
+            this.parent = parent;
+            this.parentOffset = fromIndex;
+            this.offset = offset + fromIndex;
+            this.size = toIndex - fromIndex;
+            this.modCount = ArrayList.this.modCount;
+        }
+
+迭代子列表时，如果结构发生变更，会抛出“快速失败”。
+
