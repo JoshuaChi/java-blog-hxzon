@@ -6,7 +6,7 @@ by hxzon
 队列，不是列表，不支持位置读取。
 
 2，Vector
-线程安全
+线程安全，相关方法都使用了synchronized 。
 
 3，CopyOnWriteArrayList
 它规避了只读操作（如get/contains）并发的瓶颈，

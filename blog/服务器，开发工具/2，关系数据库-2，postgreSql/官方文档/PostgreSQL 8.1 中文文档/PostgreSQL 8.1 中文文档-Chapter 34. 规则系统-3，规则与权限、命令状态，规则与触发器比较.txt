@@ -1,0 +1,139 @@
+﻿PostgreSQL 8.1 中文文档-Chapter 34. 规则系统-3，规则与权限、命令状态，规则与触发器比较
+http://www.php100.com/manual/PostgreSQL8/
+
+Chapter 34. 规则系统
+
+34.1. 查询树
+34.2. 视图和规则系统
+34.2.1. SELECT规则如何运转
+34.2.2. 非SELECT语句的视图规则
+34.2.3. PostgreSQL里视图的强大能力
+34.2.4. 更新一个视图
+
+34.3. 在 INSERT，UPDATE，和DELETE 上的规则
+34.3.1. 更新规则是如何运转的
+34.3.2. 与视图合作
+
+34.4. 规则和权限
+34.5. 规则和命令状态
+34.6. 规则与触发器之比较
+
+=========
+34.4. 规则和权限
+
+由于 PostgreSQL 规则系统对查询的重写， 非初始查询指定的其他表/视图被访问。 使用更新规则的时候，这可能包括对表的写权限。
+
+重写规则并不拥有一个独立的所有者。 关系（表或视图）的所有者自动成为重写规则的缺省所有者。 PostgreSQL 规则系统改变缺省的访问控制系统的特性。 因规则而使用的关系在（规则）重写时要对定义规则所有者进行权限检查， 而不是激活规则的用户这意味着一个用户只需要对他的查询里明确指定的表/视图拥有所需的权限就可进行操作。
+
+例如：某用户有一个电话号码列表，其中一些是私人的， 另外的一些是办公室秘书需要的。他可以用下面方法构建（查询）：
+
+CREATE TABLE phone_data (person text, phone text, private boolean);
+CREATE VIEW phone_number AS
+    SELECT person, phone FROM phone_data WHERE NOT private;
+GRANT SELECT ON phone_number TO secretary;
+除了他以外（还有数据库超级用户）没有人可以访问 phone_data 表。 但因为GRANT，秘书可以从 phone_number 视图上运行SELECT。 规则系统将把从 phone_number 里的SELECT重写为从 phone_data 里的SELECT并将增加资格（条件）。 只有private条件为假的记录才可以选出。因为用户是 phone_number 的所有者， 因此也是规则的所有者，所以现在要检查他对 phone_data 的读访问的权限， 而这个查询是被允许的。同时也要检查访问 phone_number 的权限， 但这是对一个被撤消权限的用户进行检查的，所以除了用户自己和秘书外没有人可以使用它。
+
+权限检查是按规则逐条进行的。 所以此时的秘书是唯一的一个可以看到公共电话号码的人。 但秘书可以设立另一个视图并且赋予该视图公共权限。 这样，任何人都可以通过秘书的视图看到 phone_number 数据。 秘书不能做的事情是创建一个直接访问 phone_data 的视图（实际上他是可以的，但没有任何作用， 因为每个访问都会因通不过权限检查而被踢出事务）。 而且用户很快会认识到，秘书开放了他的 phone_number 视图后， 他还可以REVOKE（撤回）他的访问权限。 这样，所有对秘书视图的访问马上就失效了。
+
+有些人会认为这种逐条规则的检查是一个安全漏洞，但事实上不是。 如果这样做不能奏效， 秘书将必须建立一个与 phone_number 有相同字段的表并且每天一次的拷贝数据进去。 那么这是他自己的数据因而他可以赋予他允许的任何人访问的权力。 一个GRANT意味着 "我信任你"。如果某个你信任的人做了上面的事情， 那你就该想想是否该REVOKE了。
+
+这个机制同样可以用于更新规则。在上一章的例子里， 例子数据库里的表的所有者可以把（赋予）shoelace视图 的权限 SELECT，INSERT，UPDATE 和 DELETE 赋予其它人。 但对 shoelace 只有 SELECT 权限。 写日志记录的规则动作（action）仍然可以成功的执行。 并且其它用户可以看到日志记录。但他不能创建伪记录， 而且他也不能对现有记录进行修改或删除。
+
+=========
+34.5. 规则和命令状态
+
+PostgreSQL 服务器为它收到的每个命令返回一个命令状态字串， 比如 INSERT 149592 1。如果没有涉及规则，那么这些就很简单，但是如果查询是被规则重写的又会怎样呢？
+
+规则对命令状态的影响如下：
+
+如果查询不存在无条件的 INSTEAD 规则，那么最初给出的查询将会被执行， 并且它的命令状态将像平常一样返回。（但是请注意如果存在任何条件 INSTEAD 规则， 那么他们的条件的反条件将会已经加到最初的查询里了。这样可能会减少它处理的行数，如果这样的话，报告状态将受影响。）
+
+如果查询有任何无条件的 INSTEAD 规则，那么最初的查询将完全不会被执行。 在这种情况下，服务器将返回由 服务器将返回由 INSTEAD 规则（条件的或非条件的）插入的最后一条和源查询同命令类型的 （INSERT，UPDATE，或者 DELETE）查询的命令状态。 如果规则添加的查询都不符合这些要求，那么返回的命令状态显示源查询类型而行计数和 OID 字段为零。
+
+（这套系统是在 PostgreSQL 7.3 上建立起来的。在更早的版本里，存在规则的时候，命令状态可能显示得不一样。）
+
+程序员可以用下面的方法确保任何需要的 INSTEAD 规则都是在上面第二种情况里设置命令状态的规则， 就是给这个规则命名为字母顺序最后一个活动的规则，这样它就最后附加。
+
+=======
+34.6. 规则与触发器之比较
+
+许多用触发器可以干的事情同样也可以用 PostgreSQL 规则系统来完成。 目前不能用规则来实现的东西之一是某些约束，特别是外键。 我们可能在某字段的值没有在另一个表里出现的情况下用一条有条件的规则把查询重写为 NOTHING。 不过这样做数据就会被不声不响的被仍掉，因而这也不是一个好主意。 如果需要检查有效的值，而且如果是无效值出现时要生成一个错误信息， 这种情况下我们要用触发器来做。
+
+另一方面，一个用于INSERT一个视图的触发器可以做到与规则一样， 把数据放到另外的地方去而取代对视图的插入。 但它不能在UPDATE或DELETE时做同样的事情， 因为在视图关系里没有可供扫描的真实数据，因而触发器将永远不被调用。 这时只有规则可用。
+
+对于两者都可用的情况，哪个更好取决于对数据库的使用。 触发器为任何涉及到的行执行一次。规则修改查询树或生成额外的查询。 所以如果在一个语句中涉及到多行， 一个生成一个额外查询的规则通常可能会比一个对每一行都分别执行一次（因此要执行很多次）的触发器要快一些。 不过，触发器的方法从概念上要远比规则的方法简单，并且很容易让新手可以做正确事情。
+
+例如：这里有两个表
+
+CREATE TABLE computer (
+    hostname	text,    -- indexed
+    manufacturer    text     -- indexed
+);
+
+CREATE TABLE software (
+    software	text,    -- indexed
+    hostname	text     -- indexed
+);
+两个表都有好几千行，并且hostname上的索引是唯一的。 规则/触发器应该实现这样一个约束，这个约束从software表中删除引用已删除计算机的行。触发器可以用下面这条命令：
+
+DELETE FROM software WHERE hostname = $1;
+因为触发器是为从 computer 里面删除的每一个独立的行调用一次，那么它可以准备并且保存这个命令的规划， 把hostname（主机名）作为参数传递。规则应该这样写
+
+CREATE RULE computer_del AS ON DELETE TO computer
+    DO DELETE FROM software WHERE hostname = OLD.hostname;
+现在我们看看这两种不同的删除。在下面情况
+
+DELETE FROM computer WHERE hostname = 'mypc.local.net';
+对表 computer 使用索引（快速）进行扫描并且由触发器声明的查询也用索引进行扫描（同样快速）。规则里多出来的查询是一个
+
+DELETE FROM software WHERE computer.hostname = 'mypc.local.net'
+		       AND software.hostname = computer.hostname;
+因为已经建立了合适的索引，规划器将创建一个下面的规划
+
+Nestloop
+  ->  Index Scan using comp_hostidx on computer
+  ->  Index Scan using soft_hostidx on software
+所以在规则和触发器的实现之间没有太多的速度差别。
+
+下面的删除我们希望删掉所有 2000 个 hostname 以 old 开头的计算机。 有两个可能的用于这个用途的查询。一个是
+
+DELETE FROM computer WHERE hostname >= 'old'
+		       AND hostname <  'ole'
+规则增加的命令是
+
+DELETE FROM software WHERE computer.hostname >= 'old' AND computer.hostname < 'ole'
+                       AND software.hostname = computer.hostname;
+查询的规划将会是
+
+Hash Join
+  ->  Seq Scan on software
+  ->  Hash
+      ->  Index Scan using comp_hostidx on computer
+另一个可能的查询是
+
+DELETE FROM computer WHERE hostname ~ '^old';
+它由规则增加执行规划是：
+
+Nestloop
+  ->  Index Scan using comp_hostidx on computer
+  ->  Index Scan using soft_hostidx on software
+这表明，规划器不能认识到表 computer 里的hostname （计算机主机名）的条件在多个条件表达式以 AND 的方式组合在一起时同样可以用于 software，就象在用正则表达式的查询里一样。 触发器将在任何 2000 个要被删除的旧计算机里被调用一次， 结果是对 computer 的一次索引扫描和对 software 的2000次索引扫描。 规则的实现将在两个对索引的查询实现之。 所以这是由 software 表的实际大小决定规则进行了顺序扫描后是否还是快一些。 2000 个在 SPI 管理器上的查询的执行是要点时间的， 即使所有要使用的索引块都很快在缓冲里出现。
+
+我们看的最后一个查询是
+
+DELETE FROM software WHERE computer.manufacurer = 'bim'
+                       AND software.hostname = computer.hostname;
+同样，这也会导致从 computer 表里的多行删除。 所以触发器同样会向执行器提交很多查询。规则生成的命令将会是
+
+DELETE FROM software WHERE computer.manufacturer = 'bim'
+                       AND software.hostname = computer.hostname;
+但规则规划又将是对两个索引扫描的嵌套循环。 只是用了 computer 的另外一个索引：
+
+Nestloop
+  ->  Index Scan using comp_manufidx on computer
+  ->  Index Scan using soft_hostidx on software
+在任何一种情况下，从规则系统出来的额外查询都或多或少与查询中涉及到的行的数量相对独立。
+
+概括来说，规则只是在它们的动作（action）生成了又大又烂的条件连接时才比触发器有较大速度差异， 这时规划器将失效。
+
+（本章完）
