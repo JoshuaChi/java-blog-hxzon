@@ -1,0 +1,311 @@
+﻿（hxzon学习笔记）PostgreSQL 9.5devel Documentation-Chapter 4. SQL Syntax-1，聚集，窗口函数，Collation表达式
+
+Chapter 4. SQL Syntax
+
+4.1. Lexical Structure
+4.1.1. Identifiers and Key Words
+4.1.2. Constants
+4.1.3. Operators
+4.1.4. Special Characters
+4.1.5. Comments
+4.1.6. Operator Precedence
+4.2. Value Expressions
+4.2.1. Column References
+4.2.2. Positional Parameters
+4.2.3. Subscripts
+4.2.4. Field Selection
+4.2.5. Operator Invocations
+4.2.6. Function Calls
+4.2.7. Aggregate Expressions
+4.2.8. Window Function Calls
+4.2.9. Type Casts
+4.2.10. Collation Expressions
+4.2.11. Scalar Subqueries
+4.2.12. Array Constructors
+4.2.13. Row Constructors
+4.2.14. Expression Evaluation Rules
+4.3. Calling Functions
+4.3.1. Using Positional Notation
+4.3.2. Using Named Notation
+4.3.3. Using Mixed Notation
+
+===========
+This chapter describes the syntax of SQL. 
+It forms the foundation for understanding the following chapters 
+which will go into detail about how SQL commands are applied to define and modify data.
+
+We also advise users who are already familiar with SQL to read this chapter carefully 
+because it contains several rules and concepts that are implemented inconsistently among SQL databases or that are specific to PostgreSQL.
+
+
+============
+http://www.highgo.com.cn/docs/docs90cn/sql-expressions.html#SYNTAX-WINDOW-FUNCTIONS
+
+4.2.7. 聚集表达式
+
+一个aggregate expression代表一个聚集 函数对查询选出的行的处理。
+一个聚集函数把多个输入缩减为 一个输出值，比如给输入求和或求平均。
+一个聚集表达式的语法是 下列之一：
+
+aggregate_name (expression [ , ... ] [ order_by_clause ] )
+aggregate_name (ALL expression [ , ... ] [ order_by_clause ] )
+aggregate_name (DISTINCT expression [ , ... ] [ order_by_clause ] )
+aggregate_name ( * )
+
+这里的aggregate_name是 前面定义的聚集(可能是带有模式的全称)， 而expression是一个本身不包含聚集表达式或窗口调用函数的任意值表达式。 
+order_by_clause是ORDER BY子句的一个选项，下面会有描述。
+
+第一种形式的聚集表达式为为每个输入行调用聚集。 
+第二种形式与第一种等价(因为ALL是缺省值)。 
+第三种形式为所有输入行中所有唯一的非NULL值调用聚集。 
+最后一种形式调用一次聚集为每个输入行调用一次聚集， 因为没有声明特定的输入值。通常它只用于count(*)聚集函数
+
+大多数的聚集函数在输入时忽略了NULL，因此在一个或多个yield类型表达式中的行中的NULL被省略。 
+对所有的内置聚集函数而言，这样做是可以的，除非另行定义。
+
+比如，count(*)生成输入行的总数；
+count(f1)生成f1不为NULL的输入行数： 因为count忽略空值;
+count(distinct f1)生 成f1唯一且非NULL的行数。
+
+一般情况下，输入行会以非特定顺序放入到聚集函数中，在许多情况下，这样做是没有影响的；如，无论以什么顺序输入，min输出相同的结果。 
+然而，一些聚集函数（如array_agg和string_agg）并非如此。 
+当使用这种聚集函数时，可以用order_by_clause选项指定输入的顺序。 
+除了它的表达式仅仅只是表达式，不能输出列名或列数之外，
+order_by_clause与ORDER BY查询子句有相同的语法结构， 在Section 7.5中有描述，如：
+
+SELECT array_agg(a ORDER BY b DESC) FROM table;
+
+在处理多参数聚集函数时需要注意，ORDER BY子句得再所有的聚集函数之后，如：
+
+SELECT string_agg(a, ',' ORDER BY a) FROM table;
+
+而不是:
+
+SELECT string_agg(a ORDER BY a, ',') FROM table;  -- incorrect
+
+后者在语法上是有效的，但它表示的是，通过两个ORDER BY关键子的单参数的聚集函数的调用（第二个是无用的，因为它是一个常量）。
+
+如果order_by_clause中声明了DISTINCT，那么所有的ORDER BY表达式必须 匹配常用的聚集参数，
+也就是说，不能对没有包含在DISTINCT列表中的表达式进行排序。
+
+Note: PostgreSQL扩展可以在一个聚集函数中声明DISTINCT和ORDER BY。
+
+预定义的聚集函数在节Section 9.18里描述。 其它聚集函数可以由用户增加。
+
+一个聚集表达式只能在SELECT命令的结果列表或者HAVING子句里出现。
+禁止在其它子句里出现(比如WHERE 子句)， 因为这些子句逻辑上在生成聚集结果之前计算。
+
+如果一个聚集表达式出现在一个子查询里(参阅节Section 4.2.10和Section 9.20)， 聚集通常是在子查询中进行计算。
+但是如果聚集的参数只包含外层查询的 变量则例外：这个聚集会属于离他最近的外层查询，并且在该查询上进行计算。 
+该聚集表达式整体上属于它出现的子查询对外层查询的引用，其作用相当于 子查询每一次计算中的一个常量。
+前述限制(聚集表达式只能出现在结果列 或者HAVING子句中)只适用于聚集所属的查询层。
+
+===========
+4.2.7. Aggregate Expressions
+
+An aggregate expression represents the application of an aggregate function across the rows selected by a query. An aggregate function reduces multiple inputs to a single output value, such as the sum or average of the inputs. The syntax of an aggregate expression is one of the following:
+
+aggregate_name (expression [ , ... ] [ order_by_clause ] ) [ FILTER ( WHERE filter_clause ) ]
+aggregate_name (ALL expression [ , ... ] [ order_by_clause ] ) [ FILTER ( WHERE filter_clause ) ]
+aggregate_name (DISTINCT expression [ , ... ] [ order_by_clause ] ) [ FILTER ( WHERE filter_clause ) ]
+aggregate_name ( * ) [ FILTER ( WHERE filter_clause ) ]
+aggregate_name ( [ expression [ , ... ] ] ) WITHIN GROUP ( order_by_clause ) [ FILTER ( WHERE filter_clause ) ]
+where aggregate_name is a previously defined aggregate (possibly qualified with a schema name) and expression is any value expression that does not itself contain an aggregate expression or a window function call. The optional order_by_clause and filter_clause are described below.
+
+The first form of aggregate expression invokes the aggregate once for each input row. The second form is the same as the first, since ALL is the default. The third form invokes the aggregate once for each distinct value of the expression (or distinct set of values, for multiple expressions) found in the input rows. The fourth form invokes the aggregate once for each input row; since no particular input value is specified, it is generally only useful for the count(*) aggregate function. The last form is used with ordered-set aggregate functions, which are described below.
+
+Most aggregate functions ignore null inputs, so that rows in which one or more of the expression(s) yield null are discarded. This can be assumed to be true, unless otherwise specified, for all built-in aggregates.
+
+For example, count(*) yields the total number of input rows; count(f1) yields the number of input rows in which f1 is non-null, since count ignores nulls; and count(distinct f1) yields the number of distinct non-null values of f1.
+
+Ordinarily, the input rows are fed to the aggregate function in an unspecified order. In many cases this does not matter; for example, min produces the same result no matter what order it receives the inputs in. However, some aggregate functions (such as array_agg and string_agg) produce results that depend on the ordering of the input rows. When using such an aggregate, the optional order_by_clause can be used to specify the desired ordering. The order_by_clause has the same syntax as for a query-level ORDER BY clause, as described in Section 7.5, except that its expressions are always just expressions and cannot be output-column names or numbers. For example:
+
+SELECT array_agg(a ORDER BY b DESC) FROM table;
+When dealing with multiple-argument aggregate functions, note that the ORDER BY clause goes after all the aggregate arguments. For example, write this:
+
+SELECT string_agg(a, ',' ORDER BY a) FROM table;
+not this:
+
+SELECT string_agg(a ORDER BY a, ',') FROM table;  -- incorrect
+The latter is syntactically valid, but it represents a call of a single-argument aggregate function with two ORDER BY keys (the second one being rather useless since it's a constant).
+
+If DISTINCT is specified in addition to an order_by_clause, then all the ORDER BY expressions must match regular arguments of the aggregate; that is, you cannot sort on an expression that is not included in the DISTINCT list.
+
+Note: The ability to specify both DISTINCT and ORDER BY in an aggregate function is a PostgreSQL extension.
+Placing ORDER BY within the aggregate's regular argument list, as described so far, is used when ordering the input rows for a "normal" aggregate for which ordering is optional. There is a subclass of aggregate functions called ordered-set aggregates for which an order_by_clause is required, usually because the aggregate's computation is only sensible in terms of a specific ordering of its input rows. Typical examples of ordered-set aggregates include rank and percentile calculations. For an ordered-set aggregate, the order_by_clause is written inside WITHIN GROUP (...), as shown in the final syntax alternative above. The expressions in the order_by_clause are evaluated once per input row just like normal aggregate arguments, sorted as per the order_by_clause's requirements, and fed to the aggregate function as input arguments. (This is unlike the case for a non-WITHIN GROUP order_by_clause, which is not treated as argument(s) to the aggregate function.) The argument expressions preceding WITHIN GROUP, if any, are called direct arguments to distinguish them from the aggregated arguments listed in the order_by_clause. Unlike normal aggregate arguments, direct arguments are evaluated only once per aggregate call, not once per input row. This means that they can contain variables only if those variables are grouped by GROUP BY; this restriction is the same as if the direct arguments were not inside an aggregate expression at all. Direct arguments are typically used for things like percentile fractions, which only make sense as a single value per aggregation calculation. The direct argument list can be empty; in this case, write just () not (*). (PostgreSQL will actually accept either spelling, but only the first way conforms to the SQL standard.) An example of an ordered-set aggregate call is:
+
+SELECT percentile_disc(0.5) WITHIN GROUP (ORDER BY income) FROM households;
+ percentile_disc
+-----------------
+           50489
+which obtains the 50th percentile, or median, value of the income column from table households. Here, 0.5 is a direct argument; it would make no sense for the percentile fraction to be a value varying across rows.
+
+If FILTER is specified, then only the input rows for which the filter_clause evaluates to true are fed to the aggregate function; other rows are discarded. For example:
+
+SELECT
+    count(*) AS unfiltered,
+    count(*) FILTER (WHERE i < 5) AS filtered
+FROM generate_series(1,10) AS s(i);
+ unfiltered | filtered
+------------+----------
+         10 |        4
+(1 row)
+The predefined aggregate functions are described in Section 9.20. Other aggregate functions can be added by the user.
+
+An aggregate expression can only appear in the result list or HAVING clause of a SELECT command. It is forbidden in other clauses, such as WHERE, because those clauses are logically evaluated before the results of aggregates are formed.
+
+When an aggregate expression appears in a subquery (see Section 4.2.11 and Section 9.22), the aggregate is normally evaluated over the rows of the subquery. But an exception occurs if the aggregate's arguments (and filter_clause if any) contain only outer-level variables: the aggregate then belongs to the nearest such outer level, and is evaluated over the rows of that query. The aggregate expression as a whole is then an outer reference for the subquery it appears in, and acts as a constant over any one evaluation of that subquery. The restriction about appearing only in the result list or HAVING clause applies with respect to the query level that the aggregate belongs to.
+
+===========
+4.2.8. 窗口调用函数
+
+通过查询筛选出的行的某些部分，窗口调用函数实现了类似于聚集函数的功能。 
+不同的是，窗口调用函数不需要将查询结果打包成一行输出，在查询输出中，每一行都是分开的。 
+然而，窗口调用函数可以扫描所有的行，根据窗口调用函数的分组规范(PARTITION BY列)，
+这些行可能会是当前行所在组的一部分。 
+一个窗口调用函数的语法如下：
+
+function_name ([expression [, expression ... ]]) OVER ( window_definition )
+function_name ([expression [, expression ... ]]) OVER window_name
+function_name ( * ) OVER ( window_definition )
+function_name ( * ) OVER window_name
+
+window_definition具有如下语法：
+
+[ existing_window_name ]
+[ PARTITION BY expression [, ...] ]
+[ ORDER BY expression [ ASC | DESC | USING operator ] [ NULLS { FIRST | LAST } ] [, ...] ]
+[ frame_clause ]
+
+同时，选项frame_clause可以是：
+
+[ RANGE | ROWS ] frame_start
+[ RANGE | ROWS ] BETWEEN frame_start AND frame_end
+
+frame_start and frame_end可以是：
+
+UNBOUNDED PRECEDING
+value PRECEDING
+CURRENT ROW
+value FOLLOWING
+UNBOUNDED FOLLOWING
+
+在这里，expression表示的是任何自己不含窗口调用函数的值表达式。 
+PARTITION BY和ORDER BY列，本质上，与所有查询中的GROUP BY和ORDER BY具有相同的语法或语义， 
+除了它们的表达式只能作为表达式不能作为输出列的名子或数。 
+window_name引用的是查询语句中WINDOW子句定义的命名窗口规范。 
+命名窗口规范通常只是用OVERwindow_name来引用，但它也可以在括号里写一个窗口名，
+并且 可以有选择的使用排序和/或结构子句（如果应用这些子句的话，那么被引用的窗口必须不能有这些子句）。 
+后者语法遵循相同的规则（修改WINDOW子句中已有的窗口名）。 
+参阅SELECT查看更过资料。
+
+对这些窗口函数（在这个框架而不是整个分区上的），frame_clause指定构成window frame的行。 
+如果frame_end将它的缺省值省略为 CURRENT ROW，会有如下限制： 
+frame_start不能为UNBOUNDED FOLLOWING，frame_end不能为UNBOUNDED PRECEDING，
+并且 相比frame_start，在上述列表中，frame_end选项不能出现的早。 
+例如：不允许RANGE BETWEEN CURRENT ROW AND valuePRECEDING。 
+默认的帧选项是RANGE UNBOUNDED PRECEDING，该选项与RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW相同； 
+它将帧设置为允许所有分区中的行通过ORDER BY中最后出现的当前行启动（如果没有ORDER BY，那么就是所有行）。 
+一般情况下，UNBOUNDED PRECEDING意味着帧从分区中的第一行启动，
+同样类似的UNBOUNDED FOLLOWING表示帧以分区中的最后一行结束 （不管RANGE或ROWS模式）。 
+ROWS模式中，CURRENT ROW表示帧以当前行启动或结束； 
+但是在RANGE模式中是以ORDER BY中第一次出现的行启动，最后一次出现的行结束。 
+valuePRECEDING和valueFOLLOWING目前只允许ROWS模式。 
+这也就意味着，帧从当前行之前或之后的许多行启动或结束。 
+value必须是整型表达式，而不能包含变量，聚集函数，或者窗口函数。 
+值不能为空或负，但可以是零，表示选择当前行本身。
+
+内置窗口函数在Table 9-44中有描述。 其他窗口函数，用户可以自己添加。
+同样，任意内置或用户自定义聚集函数可以在窗口函数中使用。
+
+使用*的语法可以用来调用参数的聚集函数为窗口函数，如count(*) OVER (PARTITION BY x ORDER BY y)。 
+*通常不用于非聚集的窗口函数。
+与通常的聚集函数不同，聚集窗口函数不允许在 函数参数列中使用DISTINCT或ORDER BY。
+
+窗口调用函数只能在SELECT列，或ORDER BY子句中使用。
+
+More information about window functions can be found in Section 3.5, Section 9.19, Section 7.2.4.
+
+===========
+4.2.8. Window Function Calls
+
+A window function call represents the application of an aggregate-like function over some portion of the rows selected by a query. Unlike regular aggregate function calls, this is not tied to grouping of the selected rows into a single output row — each row remains separate in the query output. However the window function is able to scan all the rows that would be part of the current row's group according to the grouping specification (PARTITION BY list) of the window function call. The syntax of a window function call is one of the following:
+
+function_name ([expression [, expression ... ]]) [ FILTER ( WHERE filter_clause ) ] OVER window_name
+function_name ([expression [, expression ... ]]) [ FILTER ( WHERE filter_clause ) ] OVER ( window_definition )
+function_name ( * ) [ FILTER ( WHERE filter_clause ) ] OVER window_name
+function_name ( * ) [ FILTER ( WHERE filter_clause ) ] OVER ( window_definition )
+
+where window_definition has the syntax
+
+[ existing_window_name ]
+[ PARTITION BY expression [, ...] ]
+[ ORDER BY expression [ ASC | DESC | USING operator ] [ NULLS { FIRST | LAST } ] [, ...] ]
+[ frame_clause ]
+
+and the optional frame_clause can be one of
+
+[ RANGE | ROWS ] frame_start
+[ RANGE | ROWS ] BETWEEN frame_start AND frame_end
+
+where frame_start and frame_end can be one of
+
+UNBOUNDED PRECEDING
+value PRECEDING
+CURRENT ROW
+value FOLLOWING
+UNBOUNDED FOLLOWING
+
+==
+Here, expression represents any value expression that does not itself contain window function calls.
+
+window_name is a reference to a named window specification defined in the query's WINDOW clause. Alternatively, a full window_definition can be given within parentheses, using the same syntax as for defining a named window in the WINDOW clause; see the SELECT reference page for details. It's worth pointing out that OVER wname is not exactly equivalent to OVER (wname); the latter implies copying and modifying the window definition, and will be rejected if the referenced window specification includes a frame clause.
+
+The PARTITION BY option groups the rows of the query into partitions, which are processed separately by the window function. PARTITION BY works similarly to a query-level GROUP BY clause, except that its expressions are always just expressions and cannot be output-column names or numbers. Without PARTITION BY, all rows produced by the query are treated as a single partition. The ORDER BY option determines the order in which the rows of a partition are processed by the window function. It works similarly to a query-level ORDER BY clause, but likewise cannot use output-column names or numbers. Without ORDER BY, rows are processed in an unspecified order.
+
+The frame_clause specifies the set of rows constituting the window frame, which is a subset of the current partition, for those window functions that act on the frame instead of the whole partition. The frame can be specified in either RANGE or ROWS mode; in either case, it runs from the frame_start to the frame_end. If frame_end is omitted, it defaults to CURRENT ROW.
+
+A frame_start of UNBOUNDED PRECEDING means that the frame starts with the first row of the partition, and similarly a frame_end of UNBOUNDED FOLLOWING means that the frame ends with the last row of the partition.
+
+In RANGE mode, a frame_start of CURRENT ROW means the frame starts with the current row's first peer row (a row that ORDER BY considers equivalent to the current row), while a frame_end of CURRENT ROW means the frame ends with the last equivalent peer. In ROWS mode, CURRENT ROW simply means the current row.
+
+The value PRECEDING and value FOLLOWING cases are currently only allowed in ROWS mode. They indicate that the frame starts or ends the specified number of rows before or after the current row. value must be an integer expression not containing any variables, aggregate functions, or window functions. The value must not be null or negative; but it can be zero, which just selects the current row.
+
+The default framing option is RANGE UNBOUNDED PRECEDING, which is the same as RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW. With ORDER BY, this sets the frame to be all rows from the partition start up through the current row's last peer. Without ORDER BY, all rows of the partition are included in the window frame, since all rows become peers of the current row.
+
+Restrictions are that frame_start cannot be UNBOUNDED FOLLOWING, frame_end cannot be UNBOUNDED PRECEDING, and the frame_end choice cannot appear earlier in the above list than the frame_start choice — for example RANGE BETWEEN CURRENT ROW AND value PRECEDING is not allowed.
+
+If FILTER is specified, then only the input rows for which the filter_clause evaluates to true are fed to the window function; other rows are discarded. Only window functions that are aggregates accept a FILTER clause.
+
+The built-in window functions are described in Table 9-53. Other window functions can be added by the user. Also, any built-in or user-defined normal aggregate function can be used as a window function. Ordered-set aggregates presently cannot be used as window functions, however.
+
+The syntaxes using * are used for calling parameter-less aggregate functions as window functions, for example count(*) OVER (PARTITION BY x ORDER BY y). The asterisk (*) is customarily not used for non-aggregate window functions. Aggregate window functions, unlike normal aggregate functions, do not allow DISTINCT or ORDER BY to be used within the function argument list.
+
+Window function calls are permitted only in the SELECT list and the ORDER BY clause of the query.
+
+More information about window functions can be found in Section 3.5, Section 9.21, and Section 7.2.4.
+
+=========
+4.2.10. Collation Expressions
+
+The COLLATE clause overrides the collation of an expression. It is appended to the expression it applies to:
+
+expr COLLATE collation
+where collation is a possibly schema-qualified identifier. The COLLATE clause binds tighter than operators; parentheses can be used when necessary.
+
+If no collation is explicitly specified, the database system either derives a collation from the columns involved in the expression, or it defaults to the default collation of the database if no column is involved in the expression.
+
+The two common uses of the COLLATE clause are overriding the sort order in an ORDER BY clause, for example:
+
+SELECT a, b, c FROM tbl WHERE ... ORDER BY a COLLATE "C";
+and overriding the collation of a function or operator call that has locale-sensitive results, for example:
+
+SELECT * FROM tbl WHERE a > 'foo' COLLATE "C";
+Note that in the latter case the COLLATE clause is attached to an input argument of the operator we wish to affect. It doesn't matter which argument of the operator or function call the COLLATE clause is attached to, because the collation that is applied by the operator or function is derived by considering all arguments, and an explicit COLLATE clause will override the collations of all other arguments. (Attaching non-matching COLLATE clauses to more than one argument, however, is an error. For more details see Section 22.2.) Thus, this gives the same result as the previous example:
+
+SELECT * FROM tbl WHERE a COLLATE "C" > 'foo';
+But this is an error:
+
+SELECT * FROM tbl WHERE (a > 'foo') COLLATE "C";
+because it attempts to apply a collation to the result of the > operator, which is of the non-collatable data type boolean.
+
