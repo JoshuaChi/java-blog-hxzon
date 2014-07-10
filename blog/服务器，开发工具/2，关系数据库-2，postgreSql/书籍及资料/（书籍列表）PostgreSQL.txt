@@ -1,0 +1,36 @@
+﻿（书籍列表）PostgreSQL
+
+PostgreSQL Server Programming (2013) 
+by Hannu Krosing, Kirk Roybal, Jim Mlodgenski
+服务器编程
+
+Instant PostgreSQL Starter (2013) 
+by Daniel K. Lyons
+入门
+
+PostgreSQL Replication (2013) 
+by Zoltan Böszörmenyi, Hans-Jürgen Schönig
+复制
+
+Instant PostgreSQL Backup and Restore How-to (2013) 
+by Shaun M. Thomas
+备份和修复
+
+PostgreSQL: Up and Running (2012) 
+by Regina Obe, Leo Hsu
+
+PostgreSQL 9.0 High Performance (2010) 
+by Gregory Smith
+高性能
+
+PostgreSQL 9 Admin Cookbook (2010) 
+by Simon Riggs, Hannu Krosing
+管理手册
+
+Beginning Databases with PostgreSQL: From Novice to Professional (2005) 
+by Richard Stones, Neil Matthew
+过时。
+
+PostgreSQL (2nd Edition) (2005) 
+by Korry Douglas
+过时。

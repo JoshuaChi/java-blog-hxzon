@@ -33,7 +33,7 @@ II. The SQL Language
 10. Type Conversion
 11. Indexes
 12. Full Text Search
-13. Concurrency Control
+13. Concurrency Control 并发控制
 14. Performance Tips
 
 III. Server Administration
@@ -46,9 +46,9 @@ III. Server Administration
 21. Managing Databases
 22. Localization
 23. Routine Database Maintenance Tasks
-24. Backup and Restore
-25. High Availability, Load Balancing, and Replication
-26. Recovery Configuration
+24. Backup and Restore 备份和修复
+25. High Availability, Load Balancing, and Replication 高可用性，负载均衡，复制
+26. Recovery Configuration 恢复配置
 27. Monitoring Database Activity
 28. Monitoring Disk Usage
 29. Reliability and the Write-Ahead Log

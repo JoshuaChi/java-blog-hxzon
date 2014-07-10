@@ -3,39 +3,104 @@
 https://www.braintreepayments.com/braintrust/scaling-postgresql-at-braintree-four-years-of-evolution
 
 by Paul Gross on October 16, 2012
-We love PostgreSQL at Braintree. Although we use many different data stores (such as Riak, MongoDB, Redis, and Memcached), most of our core data is stored in PostgreSQL. It's not as sexy as the new NoSQL databases, but PostgreSQL is consistent and incredibly reliable, two properties we value when storing payment information.
 
-We also love the ad-hoc querying that we get from a relational database. For example, if our traffic looks fishy, we can answer questions like "What is the percentage of Visa declines coming from Europe?" without having to pre-compute views or write complex map/reduce queries.
+注释by hxzon
+========
+We love PostgreSQL at Braintree. 
+Although we use many different data stores (such as Riak, MongoDB, Redis, and Memcached), 
+most of our core data is stored in PostgreSQL. 
+It's not as sexy as the new NoSQL databases, 
+but PostgreSQL is consistent and incredibly reliable, two properties we value when storing payment information.
+（consistent，一贯。）
+PostgreSQL的一致性和令人难以置信的可靠性，是最突出的两个特性。
 
-Our PostgreSQL setup has changed a lot over the last few years. In this post, I'm going to walk you through the evolution of how we host and use PostgreSQL. We've had a lot of help along the way from the very knowledgeable people at Command Prompt.
+We also love the ad-hoc querying that we get from a relational database. 
+（Ad hoc是拉丁文常用短语中的一个短语。这个短语的意思是“特设的、特定目的的（地）、即席的、临时的、将就的、专案的”。）
+（Ad-Hoc（点对点）模式：ad-hoc模式就和以前的直连双绞线概念一样，是P2P的连接，所以也就无法与其它网络沟通了。
+一般无线终端设备像PMP、PSP、DMA等用的就是ad-hoc模式。 
+在家庭无线局域网的组建，最简单的莫过于两台安装有无线网卡的计算机实施无线互联，其中一台计算机连接Internet就可以共享带宽。）
+For example, if our traffic looks fishy, we can answer questions like "What is the percentage of Visa declines coming from Europe?" 
+without having to pre-compute views or write complex map/reduce queries.
+
+Our PostgreSQL setup has changed a lot over the last few years. 
+In this post, I'm going to walk you through the evolution of how we host and use PostgreSQL. 
+We've had a lot of help along the way from the very knowledgeable people at Command Prompt.
 
 2008: The beginning
-Like most Ruby on Rails apps in 2008, our gateway started out on MySQL. We ran a couple of app servers and two database servers replicated using DRBD. DRBD uses block level replication to mirror partitions between servers. This setup was fine at first, but as our traffic started growing, we began to see problems.
+Like most Ruby on Rails apps in 2008, our gateway started out on MySQL. 
+We ran a couple of app servers and two database servers replicated using DRBD. 
+DRBD uses block level replication to mirror partitions between servers.
+DRBD使用块级别的复制，来监视服务器分区。 
+This setup was fine at first, but as our traffic started growing, we began to see problems.
 
 2010: The problems with MySQL
-The biggest problem we faced was that schema migrations on large tables took a long time with MySQL. As our dataset grew, our deploys started taking longer and longer. We were iterating quickly, and our schema was evolving. We couldn't keep affording to take downtime while we upgraded or even added a new index to a large table.
+The biggest problem we faced was that schema migrations on large tables took a long time with MySQL.
+最大的一个问题是在大表上修改模式，花费时间太长。 
+As our dataset grew, our deploys started taking longer and longer. 
+We were iterating quickly, and our schema was evolving. 
+We couldn't keep affording to take downtime while we upgraded or even added a new index to a large table.
 
-We explored various options with MySQL (such as oak-online-alter-table), but decided that we would rather move to a database that supported it directly. We were also starting to see deadlock issues with MySQL, which were on operations we felt shouldn't deadlock. PostgreSQL solved this problem as well.
+We explored various options with MySQL (such as oak-online-alter-table), 
+but decided that we would rather move to a database that supported it directly. 
+We were also starting to see deadlock issues with MySQL, 
+which were on operations we felt shouldn't deadlock. 
+PostgreSQL solved this problem as well.
+死锁问题。PostgreSQL很好解决了这个问题。
 
-We migrated from MySQL to PostgreSQL in the fall of 2010. You can read more about the migration on the slides from my PgEast talk. PostgreSQL 9.0 was recently released, but we chose to go with version 8.4 since it had been out longer and was more well known.
+We migrated from MySQL to PostgreSQL in the fall of 2010. 
+You can read more about the migration on the slides from my PgEast talk. 
+PostgreSQL 9.0 was recently released, 
+but we chose to go with version 8.4 since it had been out longer and was more well known.
+我们使用了8.4版本。
 
 2010 - 2011: Initial PostgreSQL
-We ran PostgreSQL on modest hardware, and we kept DRBD for replication. This worked fine at first, but as our traffic continued to grow, we needed some upgrades. Unlike most applications, we are much heavier on writes than reads. For every credit card that we charge, we store a lot of data (such as customer information, raw responses from the processing networks, and table audits).
+We ran PostgreSQL on modest hardware, and we kept DRBD for replication. 
+This worked fine at first, but as our traffic continued to grow, we needed some upgrades. 
+Unlike most applications, we are much heavier on writes than reads.
+我们的写比读更多。 
+For every credit card that we charge, we store a lot of data 
+(such as customer information, raw responses from the processing networks, and table audits).
 
 Over the next year, we performed the following upgrades:
+我们进行了下述的升级：
 
 Tweaked our configs around checkpoints, shared buffers, work_mem and more (this is a great start: Tuning Your PostgreSQL Server)
+
 Moved the Write Ahead Log (WAL) to its own partition (so fsyncs of the WAL don't flush all of the dirty data files)
-Moved the WAL to its own pair of disks (so the sequential writes of the WAL are not slowed down by the random read/write of the data files)
+
+Moved the WAL to its own pair of disks 
+(so the sequential writes of the WAL are not slowed down by the random read/write of the data files)
+
 Added more RAM
+
 Moved to better servers (24 cores, 16 disks, even more RAM)
+
 Added more RAM again (kept adding to keep the working set in RAM)
+
+====
 Fall 2011: Sharding
-These incremental improvements worked great for a long time, and our database was able to keep up with our ever increasing volume. In the summer of 2011, we started to feel like our traffic was going to outgrow a single server. We could keep buying better hardware, but we knew there was a limit.
+分片
 
-We talked about a lot of different solutions, and in the end, we decided to horizontally shard our database by merchant. A merchant's traffic would all live on one shard to make querying easier, but different merchants would live on different shards.
+These incremental improvements worked great for a long time, 
+and our database was able to keep up with our ever increasing volume. 
+In the summer of 2011, we started to feel like our traffic was going to outgrow a single server.
+超出了单台服务器的能力。 
+We could keep buying better hardware, but we knew there was a limit.
 
-We used data_fabric to introduce sharding into our Rails app. data_fabric lets you specify which models are sharded, and gives you methods for activating a specific shard. In conjunction with data_fabric, we also wrote a fair amount of custom code for sharding. We sharded every table except for a handful of global tables, such as merchants and users. Since almost every URL has the merchant id in it, we were able to activate shards in application_controller.rb for 99% of our traffic with code that looked roughly like:
+We talked about a lot of different solutions, and in the end, 
+we decided to horizontally shard our database by merchant.
+我们决定水平分割，通过 merchant 。 
+A merchant's traffic would all live on one shard to make querying easier, 
+but different merchants would live on different shards.
+
+We used data_fabric to introduce sharding into our Rails app. 
+data_fabric lets you specify which models are sharded, 
+and gives you methods for activating a specific shard. 
+In conjunction with data_fabric, we also wrote a fair amount of custom code for sharding.
+写定制代码来支持分片。 
+We sharded every table except for a handful of global tables, such as merchants and users. 
+Since almost every URL has the merchant id in it, 
+we were able to activate shards in application_controller.rb for 99% of our traffic with code that looked roughly like:
 
 class ApplicationController < ActionController::Base
   around_filter :activate_shard
@@ -45,38 +110,114 @@ class ApplicationController < ActionController::Base
     DataFabric.activate_shard(:shard => merchant.shard, &block)
   end
 end
-Making our code work with sharding was only half the battle. We still had to migrate merchants to a different shard (without downtime). We did this with londiste, a statement-based replication tool. We set up the new database servers and used londiste to mirror the entire database between the current cluster (which we renamed to shard 0) and the new cluster (shard 1).
 
-Then, we paused traffic[1], stopped replication, updated the shard column in the global database, and resumed traffic. The whole process was automated using capistrano. At this point, some requests went to the new database servers, and some to the old. Once we were sure everything was working, we removed the shard 0 data from shard 1 and vice versa.
+Making our code work with sharding was only half the battle. 
+We still had to migrate merchants to a different shard (without downtime). 
+We did this with londiste, a statement-based replication tool.
+基于语句的复制工具。 
+We set up the new database servers and used londiste to mirror the entire database 
+between the current cluster (which we renamed to shard 0) and the new cluster (shard 1).
+搭建起一个新的数据库服务器，用 londiste 监视集群。
+
+Then, we paused traffic[1], stopped replication, updated the shard column in the global database, and resumed traffic. 
+The whole process was automated using capistrano. 
+At this point, some requests went to the new database servers, and some to the old. 
+Once we were sure everything was working, 
+we removed the shard 0 data from shard 1 and vice versa.
 
 The final cutover was completed in the fall of 2011.
 
 Spring 2012: DRBD Problems
-Sharding took care of our performance problems, but in the spring of 2012, we started running into issues with our DRBD replication:
+Sharding took care of our performance problems, but in the spring of 2012, 
+we started running into issues with our DRBD replication:
+使用 DRBD复制 遇到了问题：
 
-DRBD made replicating between two servers very easy, but more than two required complex stacked resources that were harder to orchestrate. It also required more moving pieces, like DRBD Proxy to prevent blocking writes between data centers.
-DRBD is block level replication, so the filesystem is shared between servers. This means it can never be unmounted and checked (fsck) without taking downtime. We become increasingly concerned that filesystem corruption would go unnoticed and corrupt all servers in the cluster.
-The filesystem can only be mounted on the primary server, so the standby servers sit idle. It is not possible to run read-only queries on them.
-Failover required unmounting and remounting filesystems, so it was slower than desired. Also, since the filesystem was unmounted on the target server, once mounted, the filesystem cache was empty. This meant that our backup PostgreSQL was slow after failover, and we would see slow requests and sometimes timeouts.
-We saw a couple of issues in our sandbox environment where DRBD issues on the secondary prevented writes on the primary node. Thankfully, these never occurred in production, but we had a lot of trouble tracking down the issue.
-We were still using manual failover because we were scared of the horror stories with Pacemaker and DRBD causing split brain scenarios and data corruption. We wanted to get to automated failover, however.
+DRBD made replicating between two servers very easy, 
+but more than two required complex stacked resources that were harder to orchestrate. 
+It also required more moving pieces, like DRBD Proxy to prevent blocking writes between data centers.
+
+DRBD is block level replication, so the filesystem is shared between servers. 
+This means it can never be unmounted and checked (fsck) without taking downtime. 
+We become increasingly concerned that filesystem corruption would go unnoticed and corrupt all servers in the cluster.
+
+The filesystem can only be mounted on the primary server, so the standby servers sit idle. 
+It is not possible to run read-only queries on them.
+
+Failover required unmounting and remounting filesystems, so it was slower than desired. 
+Also, since the filesystem was unmounted on the target server, once mounted, the filesystem cache was empty. 
+This meant that our backup PostgreSQL was slow after failover, 
+and we would see slow requests and sometimes timeouts.
+
+We saw a couple of issues in our sandbox environment 
+where DRBD issues on the secondary prevented writes on the primary node. 
+Thankfully, these never occurred in production, but we had a lot of trouble tracking down the issue.
+
+We were still using manual failover because we were scared of the horror stories with Pacemaker and DRBD 
+causing split brain scenarios and data corruption. 
+仍然人工进行故障转移，因为我们仍恐慌恐怖的事故，导致“脑裂”和数据腐败。
+We wanted to get to automated failover, however.
+
 DRBD required a kernel module, so we had to build and test a new module every time we upgraded the kernel.
-One upgrade of DRBD caused a huge degradation of write performance . Thankfully, we discovered the issue in our test environment, but it was another reason to be wary of kernel level replication.
-Given all of these concerns, we decided to leave DRBD replication and move to PostgreSQL streaming replication (which was new in PostgreSQL 9). We felt like it was a better fit for what we wanted to do. We could replicate to many servers easily, standby servers were queryable letting us offload some expensive queries, and failover was very quick.
+
+One upgrade of DRBD caused a huge degradation of write performance . 
+严重影响写性能。
+Thankfully, we discovered the issue in our test environment, 
+but it was another reason to be wary of kernel level replication.
+内核级别的复制。
+
+Given all of these concerns, we decided to leave DRBD replication 
+and move to PostgreSQL streaming replication (which was new in PostgreSQL 9).
+决定弃用 DRBD复制，改用 PostgreSQL 的 流复制。 
+We felt like it was a better fit for what we wanted to do. 
+We could replicate to many servers easily, 
+standby servers were queryable letting us offload some expensive queries, and failover was very quick.
+待机服务器仍然能够查询，让我们能卸载一些昂贵的查询，且故障转移很快。
 
 We made the switch during the summer of 2012.
 
 Summer 2012: PostgreSQL 9.1
-We updated our code to support PostgreSQL 9.1 (which involved very few code changes). Along with the upgrade, we wanted to move to fully automated failover. We decided to use Pacemaker and these great open source scripts for managing PostgreSQL streaming replication: https://github.com/t-matsuo/resource-agents/wiki. These scripts handle promotion, moving the database IPs, and even switching from sync to async mode if there are no more standby servers.
+We updated our code to support PostgreSQL 9.1 (which involved very few code changes). 
+Along with the upgrade, we wanted to move to fully automated failover. 
+全自动化故障转移。
+We decided to use Pacemaker and these great open source scripts 
+for managing PostgreSQL streaming replication:
+流复制。 
+https://github.com/t-matsuo/resource-agents/wiki. 
+These scripts handle promotion, moving the database IPs, 
+and even switching from sync to async mode if there are no more standby servers.
+如果没有待机服务器，则从同步转为异步模式。
 
-We set up our new database clusters (one per shard). We used two servers per datacenter, with synchronous replication within the datacenter and asynchronous replication between our datacenters. We configured Pacemaker and had the clusters ready to go (but empty). We performed extensive testing on this setup to fully understand the failover scenarios and exactly how Pacemaker would react.
+We set up our new database clusters (one per shard).
+每个分片一个数据库。 
+We used two servers per datacenter,
+每个数据中心两个数据库服务器。 
+with synchronous replication within the datacenter 
+and asynchronous replication between our datacenters.
+数据中心内使用同步复制，数据中心之间使用异步复制。 
+We configured Pacemaker and had the clusters ready to go (but empty). 
+We performed extensive testing on this setup to fully understand the failover scenarios and exactly how Pacemaker would react.
 
-We used londiste again to copy the data. Once the clusters were up to date, we did a similar cutover: we paused traffic, stopped londiste, updated our database.yml, and then resumed traffic. We did this one shard at a time, and the entire procedure was automated with capistrano. Again, we took no downtime.
+We used londiste again to copy the data. 
+Once the clusters were up to date, we did a similar cutover: 
+we paused traffic, stopped londiste, updated our database.yml, and then resumed traffic. 
+We did this one shard at a time, and the entire procedure was automated with capistrano.
+我们每次一个分片。 
+Again, we took no downtime.
+没有下线时间。
 
 Fall 2012: Today
-Today, we're in a good state with PostgreSQL. We have fully automated failover between servers (within a datacenter). Our cross datacenter failover is still manual since we want to be sure before we give up on an entire datacenter. We have automated capistrano tasks to orchestrate controlled failover using Pacemaker and traffic pausing. This means we can perform database maintenance with zero downtime.
+Today, we're in a good state with PostgreSQL. 
+We have fully automated failover between servers (within a datacenter). 
+Our cross datacenter failover is still manual since we want to be sure before we give up on an entire datacenter. 
+We have automated capistrano tasks to orchestrate controlled failover using Pacemaker and traffic pausing. 
+This means we can perform database maintenance with zero downtime.
 
-One of our big lessons learned is that we need to continually invest in our PostgreSQL setup. We're always watching our PostgreSQL performance and making adjustments where needed (new indexes, restructuring our data, config tuning, etc). Since our traffic continues to grow and we record more and more data, we know that our PostgreSQL setup will continue to evolve over the coming years.
+One of our big lessons learned is that we need to continually invest in our PostgreSQL setup. 
+We're always watching our PostgreSQL performance and making adjustments where needed 
+(new indexes, restructuring our data, config tuning, etc). 
+Since our traffic continues to grow and we record more and more data, 
+we know that our PostgreSQL setup will continue to evolve over the coming years.
 
-[1] For more info on how we pause traffic, check out How We Moved Our Data Center 25 Miles Without Downtime and High Availability at Braintree
+[1] For more info on how we pause traffic, check out 
+How We Moved Our Data Center 25 Miles Without Downtime and High Availability at Braintree
 

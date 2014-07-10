@@ -35,3 +35,68 @@ hxzon注释：
 return next 将值收集到结果集中。
 最内层for对存储过程进行了递归调用。
 
+====
+create table menus(
+id varchar(32),
+pid varchar(32)
+);
+
+insert into menus(name,id,pid) values
+('a1',null),('a2',null),
+('b1','a1'),('b2','a1'),('b3','a1'),
+('c1','b1').('c2','b1'),('c3','b1'),
+('c4','b2'),('c5','b2'),('c6','b2'),
+('c7','b3'),('c8','b3'),('c9','b3'),
+('d1','c1'),('d2','c1'),
+('d3','c2'),('d4','c2'),
+('d5','c3'),('d6','c3'),
+('d7','c4'),('d8','c4'),
+('d9','c5'),('d10','c6'),
+('e1','d5'),('e2','d5');
+
+create or replace function public.query_child_menus (itemid varchar(32)) returns setof public.menus as $$  
+declare  
+itemrecord record;  
+begin  
+    select s.* into itemrecord from public.menus s  where id=itemid;  
+    return next itemrecord;  
+     if (select count(1) from public.menus s where s.pid=itemrecord.id) >0  then  
+            for itemrecord in select s.* from public.menus s  where s.pid=itemrecord.id loop  
+                for itemrecord in select * from public.query_child_menus (itemrecord.id) loop  
+                    return next itemrecord;  
+                end loop;  
+            end loop;  
+     end if;  
+    return;  
+end;$$  
+language 'plpgsql'  
+
+select * from public.query_child_menus ('a1');
+
+输出：
+"a1";""
+"b1";"a1"
+"c1";"b1"
+"d1";"c1"
+"d2";"c1"
+"c2";"b1"
+"d3";"c2"
+"d4";"c2"
+"c3";"b1"
+"d5";"c3"
+"e1";"d5"
+"e2";"d5"
+"d6";"c3"
+"b2";"a1"
+"c4";"b2"
+"d7";"c4"
+"d8";"c4"
+"c5";"b2"
+"d9";"c5"
+"c6";"b2"
+"d10";"c6"
+"b3";"a1"
+"c7";"b3"
+"c8";"b3"
+"c9";"b3"
+
