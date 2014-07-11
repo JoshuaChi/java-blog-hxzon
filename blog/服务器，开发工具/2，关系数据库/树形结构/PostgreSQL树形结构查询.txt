@@ -36,15 +36,51 @@ return next 将值收集到结果集中。
 最内层for对存储过程进行了递归调用。
 
 ====
-create table menus(
-id varchar(32),
-pid varchar(32)
+create table if not exists htree_tree(
+	id varchar(4),
+	pid varchar(4)
 );
 
-insert into menus(name,id,pid) values
+create or replace function htree_find_descs(myid varchar(4))
+  returns setof htree_tree as $$
+declare  
+itemrecord record;  
+begin  
+    select t.* into itemrecord from htree_tree t  where id=myid;  
+    return next itemrecord;  
+     if (select count(1) from htree_tree t where t.pid=itemrecord.id) >0  then  
+            for itemrecord in select t.* from htree_tree t  where t.pid=itemrecord.id loop  
+                for itemrecord in select * from htree_find_descs(itemrecord.id) loop  
+                    return next itemrecord;  
+                end loop;  
+            end loop;  
+     end if;  
+    return;  
+end;$$
+language plpgsql volatile;
+
+create or replace function htree_find_ancs(myid varchar(4)) returns setof htree_tree as $$
+declare
+itemrecord record;
+begin
+    select t.* into itemrecord from htree_tree t where id = myid;
+    return next itemrecord;
+     if itemrecord.pid is not null then  
+        for itemrecord in select * from htree_find_ancs(itemrecord.pid) loop  
+            return next itemrecord;  
+        end loop;  
+     end if;  
+    return;  
+end;$$
+language plpgsql volatile;
+
+
+delete from htree_tree;
+
+insert into htree_tree(id,pid) values
 ('a1',null),('a2',null),
 ('b1','a1'),('b2','a1'),('b3','a1'),
-('c1','b1').('c2','b1'),('c3','b1'),
+('c1','b1'),('c2','b1'),('c3','b1'),
 ('c4','b2'),('c5','b2'),('c6','b2'),
 ('c7','b3'),('c8','b3'),('c9','b3'),
 ('d1','c1'),('d2','c1'),
@@ -54,24 +90,7 @@ insert into menus(name,id,pid) values
 ('d9','c5'),('d10','c6'),
 ('e1','d5'),('e2','d5');
 
-create or replace function public.query_child_menus (itemid varchar(32)) returns setof public.menus as $$  
-declare  
-itemrecord record;  
-begin  
-    select s.* into itemrecord from public.menus s  where id=itemid;  
-    return next itemrecord;  
-     if (select count(1) from public.menus s where s.pid=itemrecord.id) >0  then  
-            for itemrecord in select s.* from public.menus s  where s.pid=itemrecord.id loop  
-                for itemrecord in select * from public.query_child_menus (itemrecord.id) loop  
-                    return next itemrecord;  
-                end loop;  
-            end loop;  
-     end if;  
-    return;  
-end;$$  
-language 'plpgsql'  
-
-select * from public.query_child_menus ('a1');
+select * from htree_find_descs('a1');
 
 输出：
 "a1";""
