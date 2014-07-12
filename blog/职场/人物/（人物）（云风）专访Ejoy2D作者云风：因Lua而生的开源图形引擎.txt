@@ -1,6 +1,7 @@
 ﻿专访Ejoy2D作者云风：因Lua而生的开源图形引擎
 发表于2014-02-25 08:27
 http://www.csdn.net/article/2014-02-24/2818506-Ejoy2D
+http://blog.codingnow.com/ 云风博客
 
 摘要：Ejoy2D是一款基于C和Lua开发的游戏图形引擎，旨在帮助开发人员轻松地嵌入到游戏引擎中，方便开发者定制自己所需的功能。
 CSDN记者采访了Ejoy2D项目创始人云风，请他来分享Ejoy2D的开发故事。

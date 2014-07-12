@@ -143,7 +143,10 @@ IGNORE未被指定时，如果数据转化引发错误，则会使语句执行�
 此时，生成警告，但是语句执行不会失败。
 您可以使用mysql_info() C API函数测定有多少行被插入到表中。
 
-如果您指定了ON DUPLICATE KEY UPDATE，并且插入行后会导致在一个UNIQUE索引或PRIMARY KEY中出现重复值，则执行旧行UPDATE。例如，如果列a被定义为UNIQUE，并且包含值1，则以下两个语句具有相同的效果：
+==
+如果您指定了ON DUPLICATE KEY UPDATE，
+并且插入行后会导致在一个UNIQUE索引或PRIMARY KEY中出现重复值，则执行旧行UPDATE。
+例如，如果列a被定义为UNIQUE，并且包含值1，则以下两个语句具有相同的效果：
 
 mysql> INSERT INTO table (a,b,c) VALUES (1,2,3)
     -> ON DUPLICATE KEY UPDATE c=c+1;
@@ -154,40 +157,65 @@ mysql> UPDATE table SET c=c+1 WHERE a=1;
 注释：如果列b也是唯一列，则INSERT与此UPDATE语句相当：
 
 mysql> UPDATE table SET c=c+1 WHERE a=1 OR b=2 LIMIT 1;
-如果a=1 OR b=2与多个行向匹配，则只有一个行被更新。通常，您应该尽量避免对带有多个唯一关键字的表使用ON DUPLICATE KEY子句。
 
-您可以在UPDATE子句中使用VALUES(col_name)函数从INSERT...UPDATE语句的INSERT部分引用列值。换句话说，如果没有发生重复关键字冲突，则UPDATE子句中的VALUES(col_name)可以引用被插入的col_name的值。本函数特别适用于多行插入。VALUES()函数只在INSERT...UPDATE语句中有意义，其它时候会返回NULL。
+如果a=1 OR b=2与多个行向匹配，则只有一个行被更新。
+通常，您应该尽量避免对带有多个唯一关键字的表使用ON DUPLICATE KEY子句。
+
+您可以在UPDATE子句中使用VALUES(col_name)函数从INSERT...UPDATE语句的INSERT部分引用列值。
+换句话说，如果没有发生重复关键字冲突，则UPDATE子句中的VALUES(col_name)可以引用被插入的col_name的值。
+本函数特别适用于多行插入。
+VALUES()函数只在INSERT...UPDATE语句中有意义，其它时候会返回NULL。
 
 示例：
 
 mysql> INSERT INTO table (a,b,c) VALUES (1,2,3),(4,5,6)
     -> ON DUPLICATE KEY UPDATE c=VALUES(a)+VALUES(b);
+
 本语句与以下两个语句作用相同：
 
 mysql> INSERT INTO table (a,b,c) VALUES (1,2,3)
     -> ON DUPLICATE KEY UPDATE c=3;
 mysql> INSERT INTO table (a,b,c) VALUES (4,5,6)
     -> ON DUPLICATE KEY UPDATE c=9;
+
 当您使用ON DUPLICATE KEY UPDATE时，DELAYED选项被忽略。
 
-您可以使用SQL LAST_INSERT_ID()函数查找用于AUTO_INCREMENT列的值。从C API的内部，使用mysql_insert_id()函数。不过，您应该注意，两个函数的作用并不总是相同的。在12.9.3节，“信息函数”和25.2.3.36节，“mysql_insert_id()”中进一步讨论了与AUTO_INCREMENT列有关的INSERT语句的作用。
+==
+您可以使用SQL LAST_INSERT_ID()函数查找用于AUTO_INCREMENT列的值。
+从C API的内部，使用mysql_insert_id()函数。
+不过，您应该注意，两个函数的作用并不总是相同的。
+在12.9.3节，“信息函数”和25.2.3.36节，“mysql_insert_id()”中进一步讨论了与AUTO_INCREMENT列有关的INSERT语句的作用。
 
 如果您使用INSERT...VALUES语句时采用了多个值清单或INSERT...SELECT，则该语句按以下格式返回一个信息字符串：
 
 Records: 100 Duplicates: 0 Warnings: 0
-记录指示了经过语句处理的行的数目。（因为重复数目可以不是零，所以该数目不一定是实际被插入的行的数目。）重复数目指的是不能被插入的行的数目，因为这些行会复制部分原有的唯一索引值。警告指的是插入有错误或有问题的列值的次数。在以下情况下会出现警告：
 
-·         向一个已定义为NOT NULL的列中插入NULL。对于一个多行INSERT语句或INSERT INTO...SELECT语句，根据列数据的类型，列被设置为隐含的默认值。对于数字类型，默认值为0；对于字符串类型，默认值为空字符串('')；对于日期和时间类型，默认值为“zero”值。对INSERT INTO...SELECT语句的处理方法与对多行插入的处理方法一样，因为服务器不能检测来自SELECT的结果，不能判断是否返回单一行。（对于单一行INSERT，当NULL被插入一个NOT NULL列时，不会出现警告，而是出现错误，并且语句运行失败。）
+记录指示了经过语句处理的行的数目。
+（因为重复数目可以不是零，所以该数目不一定是实际被插入的行的数目。）
+重复数目指的是不能被插入的行的数目，因为这些行会复制部分原有的唯一索引值。
+警告指的是插入有错误或有问题的列值的次数。
+在以下情况下会出现警告：
 
-·         数字列的值被设置在列的值范围之外。此值被修改为未最接近的值范围端点。
+·         向一个已定义为NOT NULL的列中插入NULL。
+对于一个多行INSERT语句或INSERT INTO...SELECT语句，根据列数据的类型，列被设置为隐含的默认值。
+对于数字类型，默认值为0；对于字符串类型，默认值为空字符串('')；
+对于日期和时间类型，默认值为“zero”值。
+对INSERT INTO...SELECT语句的处理方法与对多行插入的处理方法一样，
+因为服务器不能检测来自SELECT的结果，不能判断是否返回单一行。
+（对于单一行INSERT，当NULL被插入一个NOT NULL列时，不会出现警告，而是出现错误，并且语句运行失败。）
 
-·         向一个数字列赋予一个例如'10.34 a'的值。尾部的非数字文本被删节，其余的数字部分被插入，如果字符串值没有前导的数字部分，则该列被设置为0。
+·         数字列的值被设置在列的值范围之外。
+此值被修改为未最接近的值范围端点。
+
+·         向一个数字列赋予一个例如'10.34 a'的值。
+尾部的非数字文本被删节，其余的数字部分被插入，如果字符串值没有前导的数字部分，则该列被设置为0。
 
 ·         向一个字符串列（CHAR, VARCHAR, TEXT或BLOB）中插入的字符串超过了列的最大长度。此值被删节到列的最大长度。
 
 ·         向日期或时间列中插入的值对于该列的类型是不合法的。根据列的类型，该列被设置到相应的零值。
 
-如果您正在使用C API，则可以通过调用mysql_info()函数获取信息字符串。请参见25.2.3.34节，“mysql_info()”。
+如果您正在使用C API，则可以通过调用mysql_info()函数获取信息字符串。
+请参见25.2.3.34节，“mysql_info()”。
 
 ====
 13.2.4.1. INSERT ... SELECT语法
@@ -196,6 +224,7 @@ INSERT [LOW_PRIORITY | HIGH_PRIORITY] [IGNORE]
     [INTO] tbl_name [(col_name,...)]
     SELECT ...
     [ ON DUPLICATE KEY UPDATE col_name=expr, ... ]
+
 使用INSERT...SELECT，您可以快速地从一个或多个表中向一个表中插入多个行。
 
 示例：
@@ -217,9 +246,12 @@ INSERT INTO tbl_temp2 (fld_id)
 
 ·         目前，您不能在向一个表插入的同时，又在一个子查询中从同一个表中选择。
 
-在ON DUPLICATE KEY UPDATE的值部分中，只要您不使用SELECT部分中的GROUP BY，您就可以引用在其它表中的列。有一个副作用是，您必须使值部分中的非唯一列的名称符合要求。
+在ON DUPLICATE KEY UPDATE的值部分中，只要您不使用SELECT部分中的GROUP BY，您就可以引用在其它表中的列。
+有一个副作用是，您必须使值部分中的非唯一列的名称符合要求。
 
-您可以使用REPLACE替代INSERT，来覆盖旧行。对于包含唯一关键字值，并复制了旧行的新行，在进行处理时，REPLACE可以作为INSERT IGNORE的同类子句：新行被用于替换旧行，而不是被丢弃。
+您可以使用REPLACE替代INSERT，来覆盖旧行。
+对于包含唯一关键字值，并复制了旧行的新行，
+在进行处理时，REPLACE可以作为INSERT IGNORE的同类子句：新行被用于替换旧行，而不是被丢弃。
 
 ====
 13.2.4.2. INSERT DELAYED语法
@@ -295,5 +327,7 @@ Not_flushed_delayed_rows
 
 ·         您可以通过发送一个SHOW STATUS语句，或者执行一个mysqladmin extended-status命令，来阅览这些变量。
 
-注意，当没有使用表时，INSERT DELAYED比常规的INSERT要慢。对于服务器来说，为每个含有延迟行的表操纵一个独立的线程，也是一个额外的系统开销。这意味着只有当您确认您需要时，才应使用INSERT DELAYED。
+注意，当没有使用表时，INSERT DELAYED比常规的INSERT要慢。
+对于服务器来说，为每个含有延迟行的表操纵一个独立的线程，也是一个额外的系统开销。
+这意味着只有当您确认您需要时，才应使用INSERT DELAYED。
 

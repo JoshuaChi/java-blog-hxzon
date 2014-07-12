@@ -1,0 +1,60 @@
+﻿（hxzon学习笔记）mysql速记
+
+====
+1，数据类型有数值，日期和时间，字符串，还有enum和set。
+没有数组。
+存储函数不能返回“表类型”。
+要返回表，只能是创建一张临时表，然后存储过程返回这个表名。
+
+==
+http://dev.mysql.com/doc/refman/5.1/zh/column-types.html#set
+SET是一个字符串对象，可以有零或多个值，其值来自表创建时规定的允许的一列值。
+指定包括多个SET成员的SET列值时各成员之间用逗号(‘,’)间隔开。
+这样SET成员值本身不能包含逗号。
+
+CREATE TABLE myset (col SET('a', 'b', 'c', 'd'));
+
+INSERT INTO myset (col) VALUES ('a,d'), ('d,a'), ('a,d,a'), ('a,d,d'), ('d,a,d');
+
+==
+ENUM是一个字符串对象，其值来自表创建时在列规定中显式枚举的一列值。
+
+==
+11.5 Extensions for Spatial Data
+http://dev.mysql.com/doc/refman/5.7/en/spatial-extensions.html
+空间数据类型。（hxzon：功能仍然很弱？）
+
+===========
+2，不能在一个子查询中修改一个表，又在同一个表中选择。
+这适用于DELETE, INSERT, REPLACE和UPDATE语句。
+
+DELETE FROM t WHERE ... (SELECT ... FROM t ...);
+UPDATE t ... WHERE col = (SELECT ... FROM t ...);
+{INSERT|REPLACE} INTO t (SELECT ... FROM t ...);
+
+上述语句不能执行。
+可通过下边的语句绕过。
+
+UPDATE t ... WHERE col = (SELECT (SELECT ... FROM t...) AS _t ...);
+这是因为FROM中的子查询已被具体化为临时表，
+因此“t”中的相关行已在满足“t”条件的情况下、在更新时被选中。
+
+====
+3，插入或者更新（类似Oracle的merge语句）
+
+如果您指定了ON DUPLICATE KEY UPDATE，
+并且插入行后会导致在一个UNIQUE索引或PRIMARY KEY中出现重复值，则执行旧行UPDATE。
+
+INSERT INTO table (a,b,c) VALUES (1,2,3)
+ON DUPLICATE KEY UPDATE c=c+1;
+
+上述语句，如果abc中某个或某几个字段是唯一键，则不会插入，而执行更新。
+注意，如果有多个行匹配，则只更新其中一行（不保证哪一行）。
+
+====
+4，LAST_INSERT_ID()函数查找用于AUTO_INCREMENT列的值。
+
+====
+5，
+
+
