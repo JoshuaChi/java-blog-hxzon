@@ -1,4 +1,4 @@
-﻿（hxzon学习笔记）PostgreSQL 9.4beta1 Documentation-Chapter 6. Data Manipulation
+﻿（hxzon学习笔记）PostgreSQL 9.4beta1 Documentation-Chapter 6. Data Manipulation（插删改）
 
 注释by hxzon
 
