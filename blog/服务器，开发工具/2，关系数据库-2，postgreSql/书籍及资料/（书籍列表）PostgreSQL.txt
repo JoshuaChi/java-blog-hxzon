@@ -1,36 +1,117 @@
 ﻿（书籍列表）PostgreSQL
+http://www.postgresql.org/docs/books/
 
-PostgreSQL Server Programming (2013) 
-by Hannu Krosing, Kirk Roybal, Jim Mlodgenski
-服务器编程
+Postgres Succinctly
+安全
+Author: Peter Shaw
+Language: English
+Current version at publication: 9.3
+Format: eBook
+Published: January 2014
 
-Instant PostgreSQL Starter (2013) 
-by Daniel K. Lyons
-入门
-
-PostgreSQL Replication (2013) 
-by Zoltan Böszörmenyi, Hans-Jürgen Schönig
+PostgreSQL Replication
 复制
+Author: Zoltan Böszörmenyi, Hans-Jürgen Schönig
+Language: English
+Current version at publication: 9.2
+Format: Paperback, eBook
+Published: March 2013
 
-Instant PostgreSQL Backup and Restore How-to (2013) 
-by Shaun M. Thomas
-备份和修复
+PostgreSQL Backup and Restore How-to
+备份和恢复
+Author: Shaun M. Thomas
+Language: English
+Current version at publication: 9.2
+Format: eBook
+Published: March 2013
 
-PostgreSQL: Up and Running (2012) 
-by Regina Obe, Leo Hsu
+Instant PostgreSQL Starter
+入门
+Author: Daniel K. Lyons
+Language: English
+Current version at publication: 9.2
+Format: eBook
+Published: March 2013
 
-PostgreSQL 9.0 High Performance (2010) 
-by Gregory Smith
+PostgreSQL Server Programming
+服务端编程
+Author: Hannu Krosing, Kirk Roybal
+Language: English
+Current version at publication: 9.2
+Format: Paperback, eBook
+Published: January 2013
+
+PostgreSQL: Up and Running
+Author: Regina Obe, Leo Hsu
+Language: English
+Current version at publication: 9.2
+Format: Paperback
+Published: July 2012
+
+Bases de données PostgreSQL, Gestion des performances
+Author: Gregory Smith
+Language: French
+Current version at publication: 9.0
+Format: Paperback
+Published: May 2011
+
+PostgreSQL Reference Manual - Volume 1
+Author: The PostgreSQL Global Development Group
+Language: English
+Current version at publication: 9.0
+Format: Paperback
+Published: November 2010
+This is the official reference documentation for the PostgreSQL RDBMS, in printed format.
+
+PostgreSQL 9.0 High Performance
 高性能
+Author: Gregory Smith
+Language: English
+Current version at publication: 9.0
+Format: PDF, Paperback
+Published: October 2010
 
-PostgreSQL 9 Admin Cookbook (2010) 
-by Simon Riggs, Hannu Krosing
+PostgreSQL 9 Administration Cookbook
 管理手册
+Author: Simon Riggs and Hannu Krosing
+Language: English
+Current version at publication: 9.0
+Format: PDF, Paperback
+Published: October 2010
 
-Beginning Databases with PostgreSQL: From Novice to Professional (2005) 
-by Richard Stones, Neil Matthew
-过时。
+=======================
+Utiliser PostgreSQL
+Author: Dominique Colombani
+Language: French
+Current version at publication: 8.4
+Format: PDF
+Published: April 2010
 
-PostgreSQL (2nd Edition) (2005) 
-by Korry Douglas
-过时。
+Installer et débuter avec PostgreSQL
+Author: Dominique Colombani
+Language: French
+Current version at publication: 8.4
+Format: PDF
+Published: September 2009
+
+PostgreSQL.  Datenbankpraxis für Anwender, Administratoren und Entwickler (Broschiert)
+Author: Andreas Scherbaum
+Language: German
+Current version at publication: 8.4
+Format: Paperback
+Published: August 2009
+
+PostgreSQL
+Author: François-Marie Colonna
+Language: French
+Current version at publication: 8.3
+Format: Paperback
+Published: November 2008
+
+PostgreSQL-Administration
+Author: Peter Eisentraut, Bernd Helmle
+Language: German
+Current version at publication: 8.3
+Format: Hardback
+Published: October 2008
+

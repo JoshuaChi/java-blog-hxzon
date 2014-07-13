@@ -1,0 +1,453 @@
+﻿Chapter 11. Indexes-2，部分索引，检查索引的使用
+PostgreSQL 9.5devel Documentation
+http://www.postgresql.org/docs/devel/static/indexes.html
+
+11.1. Introduction
+11.2. Index Types 索引类型
+11.3. Multicolumn Indexes 多字段索引
+11.4. Indexes and ORDER BY 索引和排序
+11.5. Combining Multiple Indexes 组合多个索引
+11.6. Unique Indexes 唯一索引
+11.7. Indexes on Expressions 表达式上的索引
+
+==
+11.8. Partial Indexes 部分索引
+
+11.9. Operator Classes and Operator Families 操作符类和操作符家族
+11.10. Indexes and Collations 索引和排序规则
+11.11. Examining Index Usage 检查索引的使用
+
+
+===========
+11.8. Partial Indexes
+“部分索引”
+
+A partial index is an index built over a subset of a table;
+“部分索引”只对表的一个子集进行索引，例如忽略常见值。 
+the subset is defined by a conditional expression (called the predicate of the partial index). 
+The index contains entries only for those table rows that satisfy the predicate. 
+Partial indexes are a specialized feature, but there are several situations in which they are useful.
+
+One major reason for using a partial index is to avoid indexing common values. 
+Since a query searching for a common value (one that accounts for more than a few percent of all the table rows) 
+will not use the index anyway, 
+there is no point in keeping those rows in the index at all. 
+This reduces the size of the index, which will speed up those queries that do use the index. 
+It will also speed up many table update operations because the index does not need to be updated in all cases.
+有助于减少索引大小，和提升更新速度。 
+Example 11-1 shows a possible application of this idea.
+
+Example 11-1. Setting up a Partial Index to Exclude Common Values
+
+Suppose you are storing web server access logs in a database. 
+Most accesses originate from the IP address range of your organization but some are from elsewhere 
+(say, employees on dial-up connections). 
+If your searches by IP are primarily for outside accesses, 
+you probably do not need to index the IP range that corresponds to your organization's subnet.
+
+如果你主要搜索来自外部访问的IP，那么你就不需要对内网的IP范围进行索引
+
+Assume a table like this:
+
+CREATE TABLE access_log (
+    url varchar,
+    client_ip inet,
+    ...
+);
+
+To create a partial index that suits our example, use a command such as this:
+创建“部分索引”：
+
+CREATE INDEX access_log_client_ip_ix ON access_log (client_ip)
+WHERE NOT (client_ip > inet '192.168.100.0' AND
+           client_ip < inet '192.168.100.255');
+
+A typical query that can use this index would be:
+
+SELECT *
+FROM access_log
+WHERE url = '/index.html' AND client_ip = inet '212.78.10.32';
+
+A query that cannot use this index is:
+
+SELECT *
+FROM access_log
+WHERE client_ip = inet '192.168.100.23';
+
+Observe that this kind of partial index requires that the common values be predetermined, 
+so such partial indexes are best used for data distributions that do not change. 
+最适用于数据分布不改变的场景。
+The indexes can be recreated occasionally to adjust for new data distributions, but this adds maintenance effort.
+
+====
+Another possible use for a partial index is to exclude values from the index that the typical query workload is not interested in; 
+另一使用场景是排除不感兴趣的数据。
+this is shown in Example 11-2. 
+This results in the same advantages as listed above, 
+but it prevents the "uninteresting" values from being accessed via that index, 
+even if an index scan might be profitable in that case. 
+Obviously, setting up partial indexes for this kind of scenario will require a lot of care and experimentation.
+
+Example 11-2. Setting up a Partial Index to Exclude Uninteresting Values
+
+If you have a table that contains both billed and unbilled orders, 
+where the unbilled orders take up a small fraction of the total table and yet those are the most-accessed rows, 
+you can improve performance by creating an index on just the unbilled rows. 
+The command to create the index would look like this:
+
+CREATE INDEX orders_unbilled_index ON orders (order_nr)
+    WHERE billed is not true;
+
+A possible query to use this index would be:
+
+SELECT * FROM orders WHERE billed is not true AND order_nr < 10000;
+
+However, the index can also be used in queries that do not involve order_nr at all, e.g.:
+
+SELECT * FROM orders WHERE billed is not true AND amount > 5000.00;
+
+This is not as efficient as a partial index on the amount column would be, 
+since the system has to scan the entire index. 
+Yet, if there are relatively few unbilled orders, using this partial index just to find the unbilled orders could be a win.
+这个查询不像在amount字段上的部分索引那么有效， 因为系统必须扫描整个索引。
+但是，如果未付款的定单相对较少， 那么用这个部分索引找出未付款的定单将会更快些。
+
+Note that this query cannot use this index:
+
+SELECT * FROM orders WHERE order_nr = 3501;
+
+The order 3501 might be among the billed or unbilled orders.
+上面的查询无法使用这个索引，因为定单3501可能是已付款也可能是未付款。
+
+Example 11-2 also illustrates that the indexed column and the column used in the predicate do not need to match. 
+PostgreSQL supports partial indexes with arbitrary predicates, 
+so long as only columns of the table being indexed are involved. 
+However, keep in mind that the predicate must match the conditions used in the queries 
+that are supposed to benefit from the index. 
+To be precise, a partial index can be used in a query 
+only if the system can recognize that the WHERE condition of the query mathematically implies the predicate of the index. 
+PostgreSQL does not have a sophisticated theorem prover that can recognize mathematically equivalent expressions that are written in different forms. 
+(Not only is such a general theorem prover extremely difficult to create, 
+it would probably be too slow to be of any real use.) 
+The system can recognize simple inequality implications, 
+for example "x < 1" implies "x < 2"; 
+otherwise the predicate condition must exactly match part of the query's WHERE condition or the index will not be recognized as usable. 
+Matching takes place at query planning time, not at run time. 
+As a result, parameterized query clauses do not work with a partial index. 
+For example a prepared query with a parameter might specify "x < ?" which will never imply "x < 2" for all possible values of the parameter.
+
+Example 11-2还说明了建了索引的字段和谓词中的字段不必相配。 
+PostgreSQL支持带任意谓词的部分索引，只要只涉及被索引表的字段就行。 
+不过，我们要记住的是谓词必须和那些希望从该索引中获益的查询条件相匹配。 
+准确说，只有在系统能够识别出该查询的WHERE条件在数学上蕴涵了该索引的谓词时，这个部分索引才能用于该查询。 
+PostgreSQL还没有智能到可以完全识别那些形式不同但数学上相等的谓词。 
+做到这样不仅非常困难，而且在实际使用中也可能非常慢。 
+系统可以识别简单的不相等蕴涵，比如"x < 1"蕴涵"x < 2"； 
+否则，谓词条件必须准确匹配查询的 WHERE 条件，不然系统将无法识别该索引是可用的。 
+匹配发生在查询规划期间，而不是运行期间。
+因此，参数化的查询子句必定不会使用部分索引。 
+例如，一个预先写好的、带有参数的查询可能指定了"x < ?"，它不可能对所有可能的参数值都蕴涵"x < 2"。
+
+====
+A third possible use for partial indexes does not require the index to be used in queries at all. 
+The idea here is to create a unique index over a subset of a table, as in Example 11-3. 
+This enforces uniqueness among the rows that satisfy the index predicate, without constraining those that do not.
+
+部分索引的第三种用途是禁止在查询中使用索引。 
+如Example 11-3所示，这里的概念是在表的子集里创建唯一索引。 
+这样就强制在满足谓词的行中保持唯一性，而并不约束那些不需要唯一的行。（hxzon：重要）
+
+Example 11-3. Setting up a Partial Unique Index
+
+Suppose that we have a table describing test outcomes. 
+We wish to ensure that there is only one "successful" entry for a given subject and target combination, 
+but there might be any number of "unsuccessful" entries. 
+Here is one way to do it:
+
+假设我们有一个记录测试输出的表。 
+我们希望确保在每个目标和课题的组合中只有一个"成功"记录， 但是可以有任意数量的"不成功"记录。
+
+CREATE TABLE tests (
+    subject text,
+    target text,
+    success boolean,
+    ...
+);
+
+CREATE UNIQUE INDEX tests_success_constraint ON tests (subject, target)
+    WHERE success;
+
+This is a particularly efficient approach when there are few successful tests and many unsuccessful ones.
+
+Finally, a partial index can also be used to override the system's query plan choices. 
+Also, data sets with peculiar distributions might cause the system to use an index when it really should not. 
+In that case the index can be set up so that it is not available for the offending query. 
+Normally, PostgreSQL makes reasonable choices about index usage 
+(e.g., it avoids them when retrieving common values, so the earlier example really only saves index size, 
+it is not required to avoid index usage), 
+and grossly incorrect plan choices are cause for a bug report.
+
+最后，部分索引也可以用于取代系统选择的查询规划。 
+可能会出现这样的情况：如果数据集的分布是比较特定的形状， 那么会导致系统在不该使用索引的时候使用它。
+在这种情况下， 我们可以把索引设置为在违反规律的查询中不可用。 
+通常PostgreSQL对索引的使用会做出合理的选择(比如，它在检索普通数值的时候避免使用它， 
+因此前面的例子实际上只是节约了索引的尺寸，它并不要求避免索引的使用)，
+但是如果出现了错误的规划选择，那么请提交一个漏洞报告。
+
+Keep in mind that setting up a partial index indicates that you know at least as much as the query planner knows, 
+in particular you know when an index might be profitable. 
+Forming this knowledge requires experience and understanding of how indexes in PostgreSQL work. 
+In most cases, the advantage of a partial index over a regular index will be minimal.
+
+请记住一件事：设置一个部分索引表示你至少和查询规划器知道的一样多， 特别是你知道什么场合下索引是有效的。
+要形成这些知识要求你经验丰富并且理解PostgreSQL的索引是如何运作的。 
+在大多数情况下，部分索引对普通索引的优势并不太明显。
+
+More information about partial indexes can be found in The case for partial indexes , 
+Partial indexing in POSTGRES: research project, and Generalized Partial Indexes (cached version) .
+
+更多有关部分索引的信息可以在 
+部分索引的实例 , Partial indexing in POSTGRES: research project, 和Generalized Partial Indexes (cached version) 获得。
+
+============
+11.9. Operator Classes and Operator Families
+操作符类和操作符家族
+
+An index definition can specify an operator class for each column of an index.
+定义索引的同时可以为索引的每个字段声明一个操作符类operator class。
+
+CREATE INDEX name ON table (column opclass [sort options] [, ...]);
+
+The operator class identifies the operators to be used by the index for that column. 
+For example, a B-tree index on the type int4 would use the int4_ops class; 
+this operator class includes comparison functions for values of type int4. 
+In practice the default operator class for the column's data type is usually sufficient. 
+The main reason for having operator classes is that for some data types, 
+there could be more than one meaningful index behavior. 
+For example, we might want to sort a complex-number data type either by absolute value or by real part. 
+We could do this by defining two operator classes for the data type 
+and then selecting the proper class when making an index. 
+The operator class determines the basic sort ordering 
+(which can then be modified by adding sort options COLLATE, ASC/DESC and/or NULLS FIRST/NULLS LAST).
+
+这个操作符类指明该索引用于该字段时要使用的操作符。 
+例如，一个在int4上的B-tree索引将使用int4_ops类；这个操作符类包括用于int4的比较函数。 
+实际上，字段类型的缺省操作符通常就足够了。
+拥有操作符类的主要原因是：对于某些数据类型，可能存在多个有意义的索引行为。 
+例如，我们可能想排序两个复数，既可能通过绝对值，也可能通过实部。
+我们可以通过为该数据类型定义两个操作符类，然后在建立索引时选择合适的那个。 
+操作符类决定基本的排序顺序（通过添加排序选项ASC/DESC和（或者） NULLS FIRST/NULLS LAST然后进行修改）
+
+There are also some built-in operator classes besides the default ones:
+
+The operator classes text_pattern_ops, varchar_pattern_ops, and bpchar_pattern_ops 
+support B-tree indexes on the types text, varchar, and char respectively. 
+The difference from the default operator classes is that the values are compared strictly character by character 
+rather than according to the locale-specific collation rules. 
+This makes these operator classes suitable for use by queries involving pattern matching expressions 
+(LIKE or POSIX regular expressions) when the database does not use the standard "C" locale. 
+As an example, you might index a varchar column like this:
+
+除了缺省的以外，还有一些有内置的操作符类：
+
+text_pattern_ops,varchar_pattern_ops, 和bpchar_pattern_ops操作符类
+分别支持在text, varchar,和char类型上的B-tree索引。 
+他们与缺省操作符类的区别在于数值是严格地逐个字节比较的，而不是根据区域相关的集合规则进行比较。 
+这样，如果数据库不使用标准的"C"区域设置， 
+那么这些操作符类适用于那些涉及模式匹配表达式(LIKE或者POSIX正则表达式)的查询。 
+举一个例子，你可以像下面这样对一个varchar字段进行索引：
+
+CREATE INDEX test_index ON test_table (col varchar_pattern_ops);
+
+Note that you should also create an index with the default operator class 
+if you want queries involving ordinary <, <=, >, or >= comparisons to use an index. 
+Such queries cannot use the xxx_pattern_ops operator classes. 
+(Ordinary equality comparisons can use these operator classes, however.) 
+It is possible to create multiple indexes on the same column with different operator classes. 
+If you do use the C locale, you do not need the xxx_pattern_ops operator classes, 
+because an index with the default operator class is usable for pattern-matching queries in the C locale.
+
+请注意，相比较使用索引而言，如果你希望包含普通<,<=, >, 或>=， 那么你还应该创建一个使用缺省操作符类的索引。
+这样的查询不能使用xxx_pattern_ops操作符类。 
+（然而，普通等价的比较，可以使用这些 操作符类。）
+允许在同一个字段上创建多个使用不同操作符类的索引。 
+如果你确实使用了标准的"C"区域设置，那么你就不需要xxx_pattern_ops操作符类， 
+因为使用缺省操作符类的索引可以用于C区域里面的模式匹配查询。
+
+The following query shows all defined operator classes:
+
+SELECT am.amname AS index_method,
+       opc.opcname AS opclass_name,
+       opc.opcintype::regtype AS indexed_type,
+       opc.opcdefault AS is_default
+    FROM pg_am am, pg_opclass opc
+    WHERE opc.opcmethod = am.oid
+    ORDER BY index_method, opclass_name;
+
+An operator class is actually just a subset of a larger structure called an operator family. 
+In cases where several data types have similar behaviors, 
+it is frequently useful to define cross-data-type operators and allow these to work with indexes. 
+To do this, the operator classes for each of the types must be grouped into the same operator family. 
+The cross-type operators are members of the family, but are not associated with any single class within the family.
+
+一个操作符类实际上是一个称为 operator family的更大结构的子集。
+当几个数据类型的作用类似时，可以定义cross-data-type类型操作符并且与索引一起使用。 
+要做到这一点，每个类型的操作符类必须分成相同的操作符家族。
+cross-type型的操作符是家族的成员，但不与家族内的任何单个类关联。
+
+This expanded version of the previous query shows the operator family each operator class belongs to:
+
+SELECT am.amname AS index_method,
+       opc.opcname AS opclass_name,
+       opf.opfname AS opfamily_name,
+       opc.opcintype::regtype AS indexed_type,
+       opc.opcdefault AS is_default
+    FROM pg_am am, pg_opclass opc, pg_opfamily opf
+    WHERE opc.opcmethod = am.oid AND
+          opc.opcfamily = opf.oid
+    ORDER BY index_method, opclass_name;
+
+This query shows all defined operator families and all the operators included in each family:
+这个查询显示所有已定义的操作符组和所有包含在每个组中的所有操作符：
+
+SELECT am.amname AS index_method,
+       opf.opfname AS opfamily_name,
+       amop.amopopr::regoperator AS opfamily_operator
+    FROM pg_am am, pg_opfamily opf, pg_amop amop
+    WHERE opf.opfmethod = am.oid AND
+          amop.amopfamily = opf.oid
+    ORDER BY index_method, opfamily_name, opfamily_operator;
+
+==========
+11.10. Indexes and Collations
+索引和排序规则
+
+An index can support only one collation per index column. 
+If multiple collations are of interest, multiple indexes may be needed.
+一个索引对每个列都只支持一种排序规则。
+
+Consider these statements:
+
+CREATE TABLE test1c (
+    id integer,
+    content varchar COLLATE "x"
+);
+
+CREATE INDEX test1c_content_index ON test1c (content);
+
+The index automatically uses the collation of the underlying column. 
+So a query of the form
+
+SELECT * FROM test1c WHERE content > constant;
+
+could use the index, because the comparison will by default use the collation of the column. 
+However, this index cannot accelerate queries that involve some other collation. 
+So if queries of the form, say,
+
+SELECT * FROM test1c WHERE content > constant COLLATE "y";
+
+are also of interest, an additional index could be created that supports the "y" collation, like this:
+
+CREATE INDEX test1c_content_y_index ON test1c (content COLLATE "y");
+
+=========
+11.11. Examining Index Usage
+检查索引的使用
+
+Although indexes in PostgreSQL do not need maintenance or tuning, 
+it is still important to check which indexes are actually used by the real-life query workload. 
+Examining index usage for an individual query is done with the EXPLAIN command; 
+its application for this purpose is illustrated in Section 14.1. 
+It is also possible to gather overall statistics about index usage in a running server, as described in Section 27.2.
+
+检查索引的使用是通过EXPLAIN命令进行的； 为此目的做的应用在Section 14.1里有演示。 
+我们也可以在一个运行的服务器上收集有关索引使用的统计信息， 就像Section 27.2里描述的那样。
+
+It is difficult to formulate a general procedure for determining which indexes to create. 
+There are a number of typical cases that have been shown in the examples throughout the previous sections. 
+A good deal of experimentation is often necessary. 
+The rest of this section gives some tips for that:
+
+Always run ANALYZE first. 
+This command collects statistics about the distribution of the values in the table. 
+This information is required to estimate the number of rows returned by a query, 
+which is needed by the planner to assign realistic costs to each possible query plan. 
+In absence of any real statistics, some default values are assumed, which are almost certain to be inaccurate. 
+Examining an application's index usage without having run ANALYZE is therefore a lost cause. 
+See Section 23.1.3 and Section 23.1.6 for more information.
+
+总是先运行ANALYZE命令收集关于表中数值分布的统计信息。 
+猜测一个查询返回的行数需要这个信息，而规划器需要这个行数以便给每个可能的查询规划赋予真实开销值。 
+如果缺乏任何真实的统计信息，那么就会假设一些缺省数值，那肯定是不准确的。 
+因此，如果还没有运行ANALYZE就检查一个应用的索引使用状况，那实际上就是一次失败的检查。 
+参阅Section 23.1.3 和Section 23.1.5获得更多的信息。
+
+Use real data for experimentation. 
+Using test data for setting up indexes will tell you what indexes you need for the test data, but that is all.
+
+使用真实的数据做实验。用测试数据设置索引将告诉你在测试数据中需要什么索引，而不是在真实数据中。
+
+It is especially fatal to use very small test data sets. 
+While selecting 1000 out of 100000 rows could be a candidate for an index, selecting 1 out of 100 rows will hardly be, 
+because the 100 rows probably fit within a single disk page, 
+and there is no plan that can beat sequentially fetching 1 disk page.
+
+最要命的是用很小的数据集。
+如果从100000行中选1000行是使用索引的好时机， 那么从100行中选1行很难说也需要索引，
+因为100行很可能是装在一个磁盘页里面的，因此没有任何查询规划能比通过顺序访问抓取一个磁盘页面更有效。
+
+Also be careful when making up test data, which is often unavoidable when the application is not yet in production. 
+Values that are very similar, completely random, 
+or inserted in sorted order will skew the statistics away from the distribution that real data would have.
+
+做测试数据的时候也要小心，如果应用还不能在生产环境中使用，那么这也是不可避免的。
+那些非常相似的数据、完全随机的数据、 或者按照排序顺序插入的数据会令统计信息偏离实际数据的特征。
+
+When indexes are not used, it can be useful for testing to force their use. 
+There are run-time parameters that can turn off various plan types (see Section 18.7.1). 
+For instance, turning off sequential scans (enable_seqscan) and nested-loop joins (enable_nestloop), 
+which are the most basic plans, will force the system to use a different plan. 
+If the system still chooses a sequential scan or nested-loop join 
+then there is probably a more fundamental reason why the index is not being used; 
+for example, the query condition does not match the index. 
+(What kind of query can use what kind of index is explained in the previous sections.)
+
+如果索引没有得到使用，那么在测试中强制它的使用也许有些价值。 
+有一些运行时参数可以关闭各种各样的查询规划(在Section 18.6.1中描述)。 
+比如，关闭顺序扫描(enable_seqscan)和嵌套循环连接(enable_nestloop)将强迫系统使用不同的规划。 
+如果系统仍然选择顺序扫描或者嵌套循环连接，那么在为何索引没有得到使用的问题中可能有更基本的问题， 
+比如，查询条件和索引不匹配等(前面的章节中介绍了什么样的查询可以使用什么样的索引)。
+
+If forcing index usage does use the index, then there are two possibilities: 
+Either the system is right and using the index is indeed not appropriate, 
+or the cost estimates of the query plans are not reflecting reality. 
+So you should time your query with and without indexes. 
+The EXPLAIN ANALYZE command can be useful here.
+
+如果强制索引用法确实使用了索引，那么就有两种可能： 
+要么是系统选择是正确的：使用索引实际上并不合适， 
+要么是查询计划的开销计算并不反映现实情况。 
+这样你就应该对使用和不使用索引的查询进行计时。 
+这个时候EXPLAIN ANALYZE命令就很有用了。
+
+If it turns out that the cost estimates are wrong, there are, again, two possibilities. 
+The total cost is computed from the per-row costs of each plan node times the selectivity estimate of the plan node. 
+The costs estimated for the plan nodes can be adjusted via run-time parameters (described in Section 18.7.2). 
+An inaccurate selectivity estimate is due to insufficient statistics. 
+It might be possible to improve this by tuning the statistics-gathering parameters (see ALTER TABLE).
+
+如果实际情况说明开销计算是错误的，那么仍然有两种可能。 
+总开销是从每行的每个规划节点乘以每个规划节点的选择性估计的开销计算出来的。 
+规划节点的开销可以用一些运行时参数进行调节(在Section 18.6.2中描述)。
+不准确的选择性估计是因为统计信息不够充分。 
+我们可以通过调节统计收集参数(参阅ALTER TABLE)提高选择性估计的精度。
+
+If you do not succeed in adjusting the costs to be more appropriate, 
+then you might have to resort to forcing index usage explicitly. 
+You might also want to contact the PostgreSQL developers to examine the issue.
+
+如果你没能通过将开销调整得更准确而实现索引的使用，那么你可能不得不求助于明确地强制索引使用。
+并且与PostgreSQL开发人员联系并讨论你的情况。
+
+（本章完）
+

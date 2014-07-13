@@ -1,0 +1,602 @@
+﻿Chapter 11. Indexes-1，索引类型，表达式上的索引，多字段索引，索引和排序
+PostgreSQL 9.5devel Documentation
+http://www.postgresql.org/docs/devel/static/indexes.html
+
+11.1. Introduction 简介
+11.2. Index Types 索引类型
+11.3. Multicolumn Indexes 多字段索引
+11.4. Indexes and ORDER BY 索引和排序
+11.5. Combining Multiple Indexes 组合多个索引
+11.6. Unique Indexes 唯一索引
+11.7. Indexes on Expressions 表达式上的索引
+
+==
+11.8. Partial Indexes
+
+11.9. Operator Classes and Operator Families
+11.10. Indexes and Collations
+11.11. Examining Index Usage
+
+===========
+Indexes are a common way to enhance database performance. 
+索引的常见用途是提升性能。
+An index allows the database server to find and retrieve specific rows much faster than it could do without an index. 
+But indexes also add overhead to the database system as a whole, so they should be used sensibly.
+但索引也增加了数据库的负担。
+
+===========
+11.1. Introduction
+
+Suppose we have a table similar to this:
+
+CREATE TABLE test1 (
+    id integer,
+    content varchar
+);
+
+and the application issues many queries of the form:
+
+SELECT content FROM test1 WHERE id = constant;
+
+With no advance preparation, the system would have to scan the entire test1 table, row by row, to find all matching entries.
+如果没有索引，只能全表扫描。 
+If there are many rows in test1 and only a few rows (perhaps zero or one) that would be returned by such a query, 
+this is clearly an inefficient method. 
+But if the system has been instructed to maintain an index on the id column, 
+it can use a more efficient method for locating matching rows. 
+For instance, it might only have to walk a few levels deep into a search tree.
+
+A similar approach is used in most non-fiction books: 
+terms and concepts that are frequently looked up by readers are collected in an alphabetic index at the end of the book. 
+The interested reader can scan the index relatively quickly and flip to the appropriate page(s), 
+rather than having to read the entire book to find the material of interest. 
+Just as it is the task of the author to anticipate the items that readers are likely to look up, 
+it is the task of the database programmer to foresee which indexes will be useful.
+
+The following command can be used to create an index on the id column, as discussed:
+创建索引：
+
+CREATE INDEX test1_id_index ON test1 (id);
+
+The name test1_id_index can be chosen freely, 
+but you should pick something that enables you to remember later what the index was for.
+
+To remove an index, use the DROP INDEX command. 
+Indexes can be added to and removed from tables at any time.
+
+Once an index is created, no further intervention is required: 
+the system will update the index when the table is modified, 
+and it will use the index in queries when it thinks doing so would be more efficient than a sequential table scan. 
+But you might have to run the ANALYZE command regularly to update statistics 
+不过你可能必须经常性地运行ANALYZE命令以更新统计信息，好让查询规划器能够做出有训练有素的判断。 
+to allow the query planner to make educated decisions. 
+See Chapter 14 for information about how to find out whether an index is used 
+参见Chapter 14获取关于如何获知是否使用了索引的信息，以及在什么时候、什么原因下规划器会决定不使用索引。
+and when and why the planner might choose not to use an index.
+
+Indexes can also benefit UPDATE and DELETE commands with search conditions. 
+Indexes can moreover be used in join searches. 
+Thus, an index defined on a column that is part of a join condition can also significantly speed up queries with joins.
+
+Creating an index on a large table can take a long time. 
+By default, PostgreSQL allows reads (SELECT statements) to occur on the table in parallel with index creation,
+默认情况下，PostgreSQL允许在索引创建时读取数据， 
+but writes (INSERT, UPDATE, DELETE) are blocked until the index build is finished.
+但修改数据则得等到索引创建完成后。 
+In production environments this is often unacceptable.
+在生产环境下，这通常是不可接受的。 
+It is possible to allow writes to occur in parallel with index creation, 
+but there are several caveats to be aware of — for more information see Building Indexes Concurrently.
+也允许在创建索引的同时写入表，但是有一些警告需要注意，参见上述网址。
+
+After an index is created, the system has to keep it synchronized with the table. 
+This adds overhead to data manipulation operations. 
+Therefore indexes that are seldom or never used in queries should be removed.
+
+=========
+11.2. Index Types
+索引类型
+
+PostgreSQL provides several index types: 
+B-tree, Hash, GiST, SP-GiST and GIN. 
+Each index type uses a different algorithm that is best suited to different types of queries. 
+By default, the CREATE INDEX command creates B-tree indexes, which fit the most common situations.
+PostgreSQL提供上述索引类型。默认情况下，使用B-树索引。
+
+B-trees can handle equality and range queries on data that can be sorted into some ordering. 
+In particular, the PostgreSQL query planner will consider using a B-tree index 
+whenever an indexed column is involved in a comparison using one of these operators:
+
+<
+<=
+=
+>=
+>
+
+Constructs equivalent to combinations of these operators, such as BETWEEN and IN, 
+can also be implemented with a B-tree index search. 
+Also, an IS NULL or IS NOT NULL condition on an index column can be used with a B-tree index.
+The optimizer can also use a B-tree index for queries involving the pattern matching operators LIKE and ~ 
+if the pattern is a constant and is anchored to the beginning of the string 
+— for example, col LIKE 'foo%' or col ~ '^foo', but not col LIKE '%bar'. 
+However, if your database does not use the C locale 
+you will need to create the index with a special operator class 
+to support indexing of pattern-matching queries; see Section 11.9 below. 
+It is also possible to use B-tree indexes for ILIKE and ~*, 
+but only if the pattern starts with non-alphabetic characters, 
+i.e., characters that are not affected by upper/lower case conversion.
+
+等效于这些操作符组合的构造，比如BETWEEN和IN可以用B-tree索引实现。
+同时，索引列上的IS NULL或者IS NOT NULL条件也可以用B-tree索引实现。
+
+仅当模式是一个常量，并且锚定在字符串开头的时候，优化器才会把B-tree索引用于模式匹配操作符LIKE和~， 
+比如：col LIKE 'foo%'或col ~ '^foo' ，但是 col LIKE '%bar'就不行。
+同时，如果你的服务器未使用C区域设置， 
+那么你需要用一个特殊的操作符类创建索引来支持模式匹配查询上的索引。参阅Section 11.9。
+
+还有可能将B-tree索引用于ILIKE和~*， 但是仅当模式以非字母字符(不受大小写影响的字符)开头才可以。
+
+B-tree indexes can also be used to retrieve data in sorted order. 
+This is not always faster than a simple scan and sort, but it is often helpful.
+B树索引还可用于按序获取数据。
+
+====
+Hash indexes can only handle simple equality comparisons. 
+The query planner will consider using a hash index whenever an indexed column is involved in a comparison using the = operator. 
+The following command is used to create a hash index:
+哈希索引只能用于相等性比较。
+
+CREATE INDEX name ON table USING hash (column);
+
+Caution
+Hash index operations are not presently WAL-logged, 
+so hash indexes might need to be rebuilt with REINDEX after a database crash if there were unwritten changes. 
+Also, changes to hash indexes are not replicated over streaming or file-based replication after the initial base backup, 
+so they give wrong answers to queries that subsequently use them. 
+For these reasons, hash index use is presently discouraged.
+
+Hash索引操作目前没有记录WAL日志，因此如果发生了数据库崩溃，
+我们可能需要用REINDEX重建Hash索引。 
+他们也不会通过流或基于文件复制而被复制。
+
+====
+GiST indexes are not a single kind of index, 
+but rather an infrastructure within which many different indexing strategies can be implemented. 
+Accordingly, the particular operators with which a GiST index 
+can be used vary depending on the indexing strategy (the operator class). 
+As an example, 
+the standard distribution of PostgreSQL includes GiST operator classes for several two-dimensional geometric data types, 
+which support indexed queries using these operators:
+
+GiST索引不是单独一种索引类型，而是一种架构，可以在这种架构上实现很多不同的索引策略。 
+因此，可以使用GiST索引的特定操作符类型高度依赖于索引策略(操作符类)。 
+作为示例，PostgreSQL的标准发布中包含用于二维几何数据类型的 GiST 操作符类，它支持：
+
+<<
+&<
+&>
+>>
+<<|
+&<|
+|&>
+|>>
+@>
+<@
+~=
+&&
+
+(See Section 9.11 for the meaning of these operators.) 
+The GiST operator classes included in the standard distribution are documented in Table 56-1. 
+Many other GiST operator classes are available in the contrib collection or as separate projects. 
+For more information see Chapter 56.
+
+这些操作符的含义参见Section 9.11。
+许多其它GiST操作符类位于contrib中，或者是单独的项目，更多信息参见Chapter 52。
+
+GiST indexes are also capable of optimizing "nearest-neighbor" searches, such as
+GiST索引能优化“最近邻居”查询。
+
+SELECT * FROM places ORDER BY location <-> point '(101,456)' LIMIT 10;
+
+which finds the ten places closest to a given target point. 
+The ability to do this is again dependent on the particular operator class being used. 
+In Table 56-1, operators that can be used in this way are listed in the column "Ordering Operators".
+
+====
+SP-GiST indexes, like GiST indexes, offer an infrastructure that supports various kinds of searches. 
+SP-GiST permits implementation of a wide range of different non-balanced disk-based data structures, 
+such as quadtrees, k-d trees, and radix trees (tries). 
+As an example, the standard distribution of PostgreSQL includes SP-GiST operator classes for two-dimensional points, 
+which support indexed queries using these operators:
+
+<<
+>>
+~=
+<@
+<^
+>^
+
+(See Section 9.11 for the meaning of these operators.) 
+The SP-GiST operator classes included in the standard distribution are documented in Table 57-1. 
+For more information see Chapter 57.
+
+====
+GIN indexes are inverted indexes which can handle values that contain more than one key, 
+arrays for example. 
+Like GiST and SP-GiST, 
+GIN can support many different user-defined indexing strategies 
+and the particular operators with which a GIN index can be used vary depending on the indexing strategy. 
+As an example, the standard distribution of PostgreSQL includes GIN operator classes for one-dimensional arrays, 
+which support indexed queries using these operators:
+
+GIN索引是反转索引，它可以处理包含多个键的值(比如数组)。 
+与GiST类似，GIN支持用户定义的索引策略，可以使用GIN索引的特定操作符类型根据索引策略的不同而不同。 
+作为示例，PostgreSQL的标准发布中包含用于一维数组的GIN操作符类，它支持：
+
+<@
+@>
+=
+&&
+
+(See Section 9.18 for the meaning of these operators.) 
+The GIN operator classes included in the standard distribution are documented in Table 58-1. 
+Many other GIN operator classes are available in the contrib collection or as separate projects. 
+For more information see Chapter 58.
+
+这些操作符的含义参见Section 9.17。 
+许多其它GIN操作符类位于contrib中，或者是单独的项目，更多信息参见Chapter 53。
+
+===========
+11.3. Multicolumn Indexes
+多列索引
+
+An index can be defined on more than one column of a table. 
+For example, if you have a table of this form:
+
+CREATE TABLE test2 (
+  major int,
+  minor int,
+  name varchar
+);
+
+(say, you keep your /dev directory in a database...) and you frequently issue queries like:
+
+SELECT name FROM test2 WHERE major = constant AND minor = constant;
+
+then it might be appropriate to define an index on the columns major and minor together, e.g.:
+
+CREATE INDEX test2_mm_idx ON test2 (major, minor);
+
+Currently, only the B-tree, GiST and GIN index types support multicolumn indexes. 
+Up to 32 columns can be specified. 
+(This limit can be altered when building PostgreSQL; see the file pg_config_manual.h.)
+
+目前，只有B-tree，GiST和GIN支持多字段索引。 
+最多可以声明32个字段(这个限制可以在编译PostgreSQL时改变， 见pg_config_manual.h文件)。
+
+A multicolumn B-tree index can be used with query conditions that involve any subset of the index's columns, 
+but the index is most efficient when there are constraints on the leading (leftmost) columns. 
+The exact rule is that equality constraints on leading columns, 
+plus any inequality constraints on the first column that does not have an equality constraint, 
+will be used to limit the portion of the index that is scanned. 
+Constraints on columns to the right of these columns are checked in the index, 
+so they save visits to the table proper, 
+but they do not reduce the portion of the index that has to be scanned. 
+For example, given an index on (a, b, c) and a query condition WHERE a = 5 AND b >= 42 AND c < 77, 
+the index would have to be scanned from the first entry with a = 5 and b = 42 up through the last entry with a = 5. 
+Index entries with c >= 77 would be skipped, but they'd still have to be scanned through. 
+This index could in principle be used for queries that have constraints on b and/or c with no constraint on a 
+— but the entire index would have to be scanned, 
+so in most cases the planner would prefer a sequential table scan over using the index.
+
+（hxzon：重要，“前导字段”）
+一个多字段的B-tree索引可以用在包含索引字段子集的查询条件里，
+不过，如果在前导字段(最左边)上有约束条件，那么效率最高。 
+准确的规则是前导字段上的“等于约束”，加上第一个没有“等于约束”的非等于约束字段，将用于限制所扫描的索引范围。 
+将检查这两个字段右边字段上的索引以减少对表的访问，但是并不减少需要扫描的索引。 
+比如，假如我们有一个在(a, b, c)上的索引，
+查询条件是WHERE a = 5 AND b >= 42 AND c < 77， 
+那么索引就需要先扫描所有a = 5且b = 42 ，直到所有a = 5的记录扫描完毕。
+那些 c >= 77 的索引条目将被忽略，但是他们仍然会被扫描。 
+这个索引原则上仍然会被用于那些在b和/或c上有约束，但是在a上没有约束的查询
+——但是就必须扫描整个索引了。 
+因此，在大多数这种情况下，优化器会选择顺序扫描表，而不使用索引。
+
+
+A multicolumn GiST index can be used with query conditions that involve any subset of the index's columns. 
+Conditions on additional columns restrict the entries returned by the index, 
+but the condition on the first column is the most important one for determining how much of the index needs to be scanned. 
+A GiST index will be relatively ineffective if its first column has only a few distinct values, 
+even if there are many distinct values in additional columns.
+
+一个多字段的GiST索引只能用于那些在前导字段上有查询条件的查询中。 
+附加字段上的条件会限制索引返回的条目，但是第一个字段上的条件是决定需要扫描多少索引内容的最重要的字段。 
+如果在第一个字段上只有很少的一些唯一的数值，那么GiST就相对来说“不那么高效”了，
+即使在附加字段上有许多独立的数值也如此。
+
+A multicolumn GIN index can be used with query conditions that involve any subset of the index's columns. 
+Unlike B-tree or GiST, index search effectiveness is the same regardless of which index column(s) the query conditions use.
+
+多字段GIN索引可用于涉及任何索引列子集的查询条件。
+与B-tree或GIST不同，不管使用的索引列的查询条件，索引搜索的有效性是相同的。
+
+Of course, each column must be used with operators appropriate to the index type; 
+clauses that involve other operators will not be considered.
+
+当然，每个字段都必须和适合该索引类型的操作符一起使用；包含其它操作符的子句将不会被考虑。
+
+Multicolumn indexes should be used sparingly. 
+In most situations, an index on a single column is sufficient and saves space and time. 
+Indexes with more than three columns are unlikely to be helpful 
+unless the usage of the table is extremely stylized. 
+See also Section 11.5 for some discussion of the merits of different index configurations.
+
+使用多字段索引应该谨慎。 
+在大多数情况下，在单字段上的索引就足够了，并且还节约时间和空间。 
+除非表的使用模式非常固定，否则超过三个字段的索引几乎没什么用处。 
+见Section 11.5获取有关不同索引设置的优缺点的讨论。（hxzon：重要）
+
+=========
+11.4. Indexes and ORDER BY
+索引和排序
+
+In addition to simply finding the rows to be returned by a query, 
+an index may be able to deliver them in a specific sorted order. 
+This allows a query's ORDER BY specification to be honored without a separate sorting step. 
+Of the index types currently supported by PostgreSQL, only B-tree can produce sorted output 
+— the other index types return matching rows in an unspecified, implementation-dependent order.
+
+除了简单地找到被查询返回的行， 索引也能够在一个特定的排序中提供它们。 
+这使得查询的ORDER BY规范在没有一个单独的排序步骤下能够实现。 
+目前PostgreSQL支持的索引类型中，只有B-tree 能产生排序输出
+— 其他索引类型返回匹配行，顺序依赖于实现细节，没有保证。
+
+The planner will consider satisfying an ORDER BY specification either by scanning an available index that matches the specification, 
+or by scanning the table in physical order and doing an explicit sort. 
+For a query that requires scanning a large fraction of the table, 
+an explicit sort is likely to be faster than using an index 
+because it requires less disk I/O due to following a sequential access pattern. 
+Indexes are more useful when only a few rows need be fetched. 
+An important special case is ORDER BY in combination with LIMIT n: 
+an explicit sort will have to process all the data to identify the first n rows, 
+but if there is an index matching the ORDER BY, 
+the first n rows can be retrieved directly, without scanning the remainder at all.
+
+规划器在通过扫描匹配规范的可用索引，或对表进行物理顺序扫描，做一个明确的 排序时会考虑满足ORDER BY规范。
+当对表进行的查询需要大范围扫描时，一个明确的排序很可能比使用索引要快。 
+因为对于顺序访问模式，它需要 减少磁盘I/O。
+当只有几行需要获取时，索引更有用。 
+一个重要的特殊情况是ORDER BY连接 LIMIT n:
+明确的排序将处理 所有的数据，以确定第一个n行，
+但如果有一个索引匹配ORDER BY， 第一个n行可以直接检索，没有扫描其余的。
+
+By default, B-tree indexes store their entries in ascending order with nulls last. 
+This means that a forward scan of an index on column x produces output satisfying ORDER BY x 
+(or more verbosely, ORDER BY x ASC NULLS LAST). 
+The index can also be scanned backward, producing output satisfying ORDER BY x DESC 
+(or more verbosely, ORDER BY x DESC NULLS FIRST, since NULLS FIRST is the default for ORDER BY DESC).
+
+缺省情况下，B-tree索引存储升序存放他们的记录（空记录在最前面）。 
+这意味着，向前索引扫描在列x产生满足ORDER BY x的输出（或更冗长，ORDER BY x ASC NULLS LAST）。 
+索引也可以向后扫描，产生满足ORDER BY x DESC产生输出（或更冗长，ORDER BY x DESC NULLS FIRST，
+因为 NULLS FIRST是 ORDER BY DESC的缺省）。
+
+You can adjust the ordering of a B-tree index by including the options ASC, DESC, NULLS FIRST, 
+and/or NULLS LAST when creating the index; for example:
+
+当创建索引时，你可以通过选项ASC, DESC, NULLS FIRST, 和（或者）NULLS LAST调整B-tree索引的排序，比如：
+
+CREATE INDEX test2_info_nulls_low ON test2 (info NULLS FIRST);
+CREATE INDEX test3_desc_index ON test3 (id DESC NULLS LAST);
+
+An index stored in ascending order with nulls first can satisfy either ORDER BY x ASC NULLS FIRST or ORDER BY x DESC NULLS LAST 
+depending on which direction it is scanned in.
+
+不论是对ORDER BY x ASC NULLS FIRST还是ORDER BY x DESC NULLS LAST，
+索引可以以升序存储空值，这取决于在哪个方向上扫描。
+
+You might wonder why bother providing all four options, 
+when two options together with the possibility of backward scan would cover all the variants of ORDER BY. 
+In single-column indexes the options are indeed redundant, but in multicolumn indexes they can be useful. 
+Consider a two-column index on (x, y): this can satisfy ORDER BY x, y if we scan forward, 
+or ORDER BY x DESC, y DESC if we scan backward. 
+But it might be that the application frequently needs to use ORDER BY x ASC, y DESC. 
+There is no way to get that ordering from a plain index, 
+but it is possible if the index is defined as (x ASC, y DESC) or (x DESC, y ASC).
+
+你可能会问，当两个选项一起向后扫描的可能性将涵盖ORDER BY的所有变化时，为什么还要提供四个选项。 
+在单列索引中，选项确实是多余的，但在多字段索引中却是有用。 
+思考一个关于(x, y)的两字段索引：如果我们向前扫描，这可以 满足ORDER BY x, y，
+或如果我们向后扫描，可以满足 ORDER BY x DESC, y DESC。
+但可能应用程序经常需要使用 ORDER BY x ASC, y DESC。
+没有办法得到 一个普通索引的排序，但如果该指数被定义为(x ASC, y DESC)或者(x DESC, y ASC)，那么就可能得到该排序。
+
+Obviously, indexes with non-default sort orderings are a fairly specialized feature, 
+but sometimes they can produce tremendous speedups for certain queries. 
+Whether it's worth maintaining such an index depends on how often you use queries that require a special sort ordering.
+
+显然，非缺省排序的索引是一个相当专业的功能，但有时却可以提高某些查询的速度。 
+是否值得维护这样一个索引，取决于你使用一个需要特殊排序的查询有多频繁。
+
+=========
+11.5. Combining Multiple Indexes
+组合多个索引
+
+A single index scan can only use query clauses that use the index's columns 
+with operators of its operator class 
+and are joined with AND. 
+For example, given an index on (a, b) a query condition like WHERE a = 5 AND b = 6 could use the index, 
+but a query like WHERE a = 5 OR b = 6 could not directly use the index.
+
+一个单独的索引扫描只能用于这样的条件子句：
+使用被索引字段和索引操作符类中操作符，并且这些条件以 AND连接。 
+假设在(a, b)上有一个索引，那么类似 WHERE a = 5 AND b = 6 的条件可以使用索引， 
+但是像WHERE a = 5 OR b = 6的条件就不能直接使用索引。
+
+Fortunately, PostgreSQL has the ability to combine multiple indexes (including multiple uses of the same index) 
+to handle cases that cannot be implemented by single index scans. 
+The system can form AND and OR conditions across several index scans. 
+For example, a query like WHERE x = 42 OR x = 47 OR x = 53 OR x = 99 
+could be broken down into four separate scans of an index on x, each scan using one of the query clauses. 
+The results of these scans are then ORed together to produce the result. 
+Another example is that if we have separate indexes on x and y, 
+one possible implementation of a query like WHERE x = 5 AND y = 6 is to use each index 
+with the appropriate query clause and then AND together the index results to identify the result rows.
+
+幸运的是，PostgreSQL能够组合多个索引(包括同一索引的多次使用)来处理单个索引扫描不能实现的情况。 
+系统可以在多个索引扫描之间组成AND和OR条件。 
+比如，一个类似WHERE x = 42 OR x = 47 OR x = 53 OR x = 99
+这样的查询可以分解成四个在x上的独立扫描， 每个扫描使用一个条件，最后将这些扫描的结果OR在一起，生成最终结果。 
+另外一个例子是，如果我们在x 和y上有独立的索引，
+一个类似WHERE x = 5 AND y = 6
+这样的查询可以分解为几个使用独立索引的子句， 然后把这几个结果AND在一起，生成最终结果。
+
+To combine multiple indexes, 
+the system scans each needed index and prepares a bitmap in memory giving the locations of table rows 
+that are reported as matching that index's conditions. 
+The bitmaps are then ANDed and ORed together as needed by the query. 
+Finally, the actual table rows are visited and returned. 
+The table rows are visited in physical order, because that is how the bitmap is laid out; 
+this means that any ordering of the original indexes is lost, 
+and so a separate sort step will be needed if the query has an ORDER BY clause. 
+For this reason, and because each additional index scan adds extra time, 
+the planner will sometimes choose to use a simple index scan 
+even though additional indexes are available that could have been used as well.
+
+为了组合多个索引，系统扫描每个需要的索引，然后在内存里组织一个位图，
+它给出索引扫描报告中符合索引条件的表数据行位置。 
+然后，根据查询的需要，把这个位图使用AND和OR合并在一起。 
+最后，访问实际的表检索并返回数据行。
+表的数据行是按照物理顺序进行访问的，因为那就是位图的布局； 
+这就意味着任何原来的索引排序都将消失，
+而如果查询有一个 ORDER BY子句，那么还需要一个额外的排序步骤。 
+因为这个原因，以及每个额外的索引扫描都增加了额外的时间，
+规划器有时候会选择使用简单的索引扫描，即使有多个索引可用也如此。（hxzon：注意）
+
+In all but the simplest applications, there are various combinations of indexes that might be useful, 
+and the database developer must make trade-offs to decide which indexes to provide. 
+Sometimes multicolumn indexes are best, 
+but sometimes it's better to create separate indexes and rely on the index-combination feature. 
+For example, if your workload includes a mix of queries 
+that sometimes involve only column x, sometimes only column y, and sometimes both columns, 
+you might choose to create two separate indexes on x and y, 
+relying on index combination to process the queries that use both columns. 
+You could also create a multicolumn index on (x, y). 
+This index would typically be more efficient than index combination for queries involving both columns, 
+but as discussed in Section 11.3, it would be almost useless for queries involving only y, so it should not be the only index. 
+A combination of the multicolumn index and a separate index on y would serve reasonably well. 
+For queries involving only x, the multicolumn index could be used, 
+though it would be larger and hence slower than an index on x alone. 
+The last alternative is to create all three indexes, 
+but this is probably only reasonable if the table is searched much more 
+often than it is updated and all three types of query are common. 
+If one of the types of query is much less common than the others, 
+you'd probably settle for creating just the two indexes that best match the common types.
+
+在所有最简单的应用里，可能有多种索引组合都是有用的，
+数据库开发人员必须在使用哪个索引之间作出平衡。 
+有时候多字段索引是最好的，但有时候创建一个独立索引并依靠索引组合是最好的。 
+比如，假如你的查询有时候只涉及字段x，有时候只涉及字段y，有时候两个字段都涉及， 
+那么你可能会选择在 x和y上创建两个独立的索引，然后依靠索引组合来处理同时使用两个字段的查询。 
+你也可以在(x, y)上创建一个“多字段索引”，这样索引通常会比“索引组合”更高效， 
+但是，正如我们在Section 11.3里面讨论的，它对那些只包含y的查询几乎没有用，
+因此它不能是唯一一个索引。 
+一个多字段索引和y上的独立索引可能会更好。
+因为对那些只涉及x的查询，可以使用多字段索引，尽管它会更大， 会比只在x上的索引更慢。 
+最后一个选择是创建三个索引，但是这种方法只有在表的更新远比查询少得多，
+并且所有三种查询都很普遍的情况下才是合理的。 
+如果其中一种查询比其它的少很多，那么你可能更愿意仅仅创建两种匹配更常见查询的索引。
+
+========
+11.6. Unique Indexes
+唯一索引
+
+Indexes can also be used to enforce uniqueness of a column's value, 
+or the uniqueness of the combined values of more than one column.
+
+CREATE UNIQUE INDEX name ON table (column [, ...]);
+
+Currently, only B-tree indexes can be declared unique.
+目前，只有B-树能声明唯一性。
+
+When an index is declared unique, multiple table rows with equal indexed values are not allowed. 
+Null values are not considered equal.
+null值不视为相等。 
+A multicolumn unique index will only reject cases where all indexed columns are equal in multiple rows.
+
+PostgreSQL automatically creates a unique index when a unique constraint or primary key is defined for a table. 
+The index covers the columns that make up the primary key or unique constraint (a multicolumn index, if appropriate), 
+and is the mechanism that enforces the constraint.
+
+Note: The preferred way to add a unique constraint to a table is ALTER TABLE ... ADD CONSTRAINT. 
+The use of indexes to enforce unique constraints could be considered an implementation detail 
+that should not be accessed directly. 
+One should, however, be aware that there's no need to manually create indexes on unique columns; 
+doing so would just duplicate the automatically-created index.
+
+注意：一个给表增加唯一约束更好的方法是ALTER TABLE ... ADD CONSTRAINT。 
+用索引强制唯一约束应该认为是一个实现细节，而不应该直接访问。 
+不过，我们应该知道没有必要在唯一字段上建立索引，那样做只会重复建立自动创建的索引。（hxzon：重复建立索引）
+
+=========
+11.7. Indexes on Expressions
+表达式上的索引（hxzon：重要）
+
+An index column need not be just a column of the underlying table, 
+but can be a function or scalar expression computed from one or more columns of the table. 
+This feature is useful to obtain fast access to tables based on the results of computations.
+For example, a common way to do case-insensitive comparisons is to use the lower function:
+
+索引并非一定要是一个底层表的字段， 
+还可以是一个函数或者从一个或多个字段计算出来的标量表达式。 
+这个特性对于快速访问那些基于计算结果的表非常有用。
+比如，做大小写无关比较的常用方法是使用lower函数：
+
+SELECT * FROM test1 WHERE lower(col1) = 'value';
+
+This query can use an index if one has been defined on the result of the lower(col1) function:
+如果已经在lower(col1)函数的结果上定义了索引，那么这个查询可以使用索引：
+
+CREATE INDEX test1_lower_col1_idx ON test1 (lower(col1));
+
+If we were to declare this index UNIQUE, 
+it would prevent creation of rows whose col1 values differ only in case, 
+as well as rows whose col1 values are actually identical. 
+Thus, indexes on expressions can be used to enforce constraints 
+that are not definable as simple unique constraints.
+
+As another example, if one often does queries like:
+
+如果我们把这个索引声明为UNIQUE， 那么它会禁止创建那种col1数值只是大小写有别或完全相同的数据行。 
+因此，在表达式上的索引可以用于强制那些无法定义为简单唯一约束的约束。
+
+另外一个例子是，如果我们经常使用下面这样的查询：
+
+SELECT * FROM people WHERE (first_name || ' ' || last_name) = 'John Smith';
+
+then it might be worth creating an index like this:
+
+CREATE INDEX people_names ON people ((first_name || ' ' || last_name));
+
+The syntax of the CREATE INDEX command normally requires writing parentheses around index expressions, 
+as shown in the second example. 
+The parentheses can be omitted when the expression is just a function call, as in the first example.
+
+Index expressions are relatively expensive to maintain, 
+because the derived expression(s) must be computed for each row upon insertion and whenever it is updated. 
+However, the index expressions are not recomputed during an indexed search, since they are already stored in the index. 
+In both examples above, the system sees the query as just WHERE indexedcolumn = 'constant' 
+and so the speed of the search is equivalent to any other simple index query. 
+Thus, indexes on expressions are useful when retrieval speed is more important than insertion and update speed.
+
+CREATE INDEX命令的语法通常要求在索引表达式周围书写圆括弧， 
+就像我们在第二个例子里显示的那样。
+如果表达式只是一个函数调用， 那么可以省略，就像我们在第一个例子里显示的那样。
+
+从维护角度来看，索引表达式相对代价昂贵一些，
+因为在插入数据行或者更新数据行的时候，都必须为每一行计算生成的表达式。 
+不过，索引表达式不必在索引查找时重新计算，因为它们已经存储在索引里了。 
+在上面的两个例子里，系统都把查询看做只是WHERE indexedcolumn = 'constant'，
+所以搜索的速度等效于任何其它简单的索引查询。 
+因此，表达式上的索引“在检索速度”比“插入和更新速度”“更重要”的场合下是有用的。
+
