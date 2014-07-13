@@ -1,0 +1,193 @@
+﻿Chapter 11. Indexes-2
+PostgreSQL 9.5devel Documentation
+http://www.postgresql.org/docs/devel/static/indexes.html
+
+11.1. Introduction
+11.2. Index Types
+11.3. Multicolumn Indexes
+11.4. Indexes and ORDER BY
+11.5. Combining Multiple Indexes
+11.6. Unique Indexes
+11.7. Indexes on Expressions
+
+==
+11.8. Partial Indexes
+
+11.9. Operator Classes and Operator Families
+11.10. Indexes and Collations
+11.11. Examining Index Usage
+
+
+===========
+11.8. Partial Indexes
+
+A partial index is an index built over a subset of a table; the subset is defined by a conditional expression (called the predicate of the partial index). The index contains entries only for those table rows that satisfy the predicate. Partial indexes are a specialized feature, but there are several situations in which they are useful.
+
+One major reason for using a partial index is to avoid indexing common values. Since a query searching for a common value (one that accounts for more than a few percent of all the table rows) will not use the index anyway, there is no point in keeping those rows in the index at all. This reduces the size of the index, which will speed up those queries that do use the index. It will also speed up many table update operations because the index does not need to be updated in all cases. Example 11-1 shows a possible application of this idea.
+
+Example 11-1. Setting up a Partial Index to Exclude Common Values
+
+Suppose you are storing web server access logs in a database. Most accesses originate from the IP address range of your organization but some are from elsewhere (say, employees on dial-up connections). If your searches by IP are primarily for outside accesses, you probably do not need to index the IP range that corresponds to your organization's subnet.
+
+Assume a table like this:
+
+CREATE TABLE access_log (
+    url varchar,
+    client_ip inet,
+    ...
+);
+To create a partial index that suits our example, use a command such as this:
+
+CREATE INDEX access_log_client_ip_ix ON access_log (client_ip)
+WHERE NOT (client_ip > inet '192.168.100.0' AND
+           client_ip < inet '192.168.100.255');
+A typical query that can use this index would be:
+
+SELECT *
+FROM access_log
+WHERE url = '/index.html' AND client_ip = inet '212.78.10.32';
+A query that cannot use this index is:
+
+SELECT *
+FROM access_log
+WHERE client_ip = inet '192.168.100.23';
+Observe that this kind of partial index requires that the common values be predetermined, so such partial indexes are best used for data distributions that do not change. The indexes can be recreated occasionally to adjust for new data distributions, but this adds maintenance effort.
+
+Another possible use for a partial index is to exclude values from the index that the typical query workload is not interested in; this is shown in Example 11-2. This results in the same advantages as listed above, but it prevents the "uninteresting" values from being accessed via that index, even if an index scan might be profitable in that case. Obviously, setting up partial indexes for this kind of scenario will require a lot of care and experimentation.
+
+Example 11-2. Setting up a Partial Index to Exclude Uninteresting Values
+
+If you have a table that contains both billed and unbilled orders, where the unbilled orders take up a small fraction of the total table and yet those are the most-accessed rows, you can improve performance by creating an index on just the unbilled rows. The command to create the index would look like this:
+
+CREATE INDEX orders_unbilled_index ON orders (order_nr)
+    WHERE billed is not true;
+A possible query to use this index would be:
+
+SELECT * FROM orders WHERE billed is not true AND order_nr < 10000;
+However, the index can also be used in queries that do not involve order_nr at all, e.g.:
+
+SELECT * FROM orders WHERE billed is not true AND amount > 5000.00;
+This is not as efficient as a partial index on the amount column would be, since the system has to scan the entire index. Yet, if there are relatively few unbilled orders, using this partial index just to find the unbilled orders could be a win.
+
+Note that this query cannot use this index:
+
+SELECT * FROM orders WHERE order_nr = 3501;
+The order 3501 might be among the billed or unbilled orders.
+
+Example 11-2 also illustrates that the indexed column and the column used in the predicate do not need to match. PostgreSQL supports partial indexes with arbitrary predicates, so long as only columns of the table being indexed are involved. However, keep in mind that the predicate must match the conditions used in the queries that are supposed to benefit from the index. To be precise, a partial index can be used in a query only if the system can recognize that the WHERE condition of the query mathematically implies the predicate of the index. PostgreSQL does not have a sophisticated theorem prover that can recognize mathematically equivalent expressions that are written in different forms. (Not only is such a general theorem prover extremely difficult to create, it would probably be too slow to be of any real use.) The system can recognize simple inequality implications, for example "x < 1" implies "x < 2"; otherwise the predicate condition must exactly match part of the query's WHERE condition or the index will not be recognized as usable. Matching takes place at query planning time, not at run time. As a result, parameterized query clauses do not work with a partial index. For example a prepared query with a parameter might specify "x < ?" which will never imply "x < 2" for all possible values of the parameter.
+
+A third possible use for partial indexes does not require the index to be used in queries at all. The idea here is to create a unique index over a subset of a table, as in Example 11-3. This enforces uniqueness among the rows that satisfy the index predicate, without constraining those that do not.
+
+Example 11-3. Setting up a Partial Unique Index
+
+Suppose that we have a table describing test outcomes. We wish to ensure that there is only one "successful" entry for a given subject and target combination, but there might be any number of "unsuccessful" entries. Here is one way to do it:
+
+CREATE TABLE tests (
+    subject text,
+    target text,
+    success boolean,
+    ...
+);
+
+CREATE UNIQUE INDEX tests_success_constraint ON tests (subject, target)
+    WHERE success;
+This is a particularly efficient approach when there are few successful tests and many unsuccessful ones.
+
+Finally, a partial index can also be used to override the system's query plan choices. Also, data sets with peculiar distributions might cause the system to use an index when it really should not. In that case the index can be set up so that it is not available for the offending query. Normally, PostgreSQL makes reasonable choices about index usage (e.g., it avoids them when retrieving common values, so the earlier example really only saves index size, it is not required to avoid index usage), and grossly incorrect plan choices are cause for a bug report.
+
+Keep in mind that setting up a partial index indicates that you know at least as much as the query planner knows, in particular you know when an index might be profitable. Forming this knowledge requires experience and understanding of how indexes in PostgreSQL work. In most cases, the advantage of a partial index over a regular index will be minimal.
+
+More information about partial indexes can be found in The case for partial indexes , Partial indexing in POSTGRES: research project, and Generalized Partial Indexes (cached version) .
+
+============
+11.9. Operator Classes and Operator Families
+An index definition can specify an operator class for each column of an index.
+
+CREATE INDEX name ON table (column opclass [sort options] [, ...]);
+The operator class identifies the operators to be used by the index for that column. For example, a B-tree index on the type int4 would use the int4_ops class; this operator class includes comparison functions for values of type int4. In practice the default operator class for the column's data type is usually sufficient. The main reason for having operator classes is that for some data types, there could be more than one meaningful index behavior. For example, we might want to sort a complex-number data type either by absolute value or by real part. We could do this by defining two operator classes for the data type and then selecting the proper class when making an index. The operator class determines the basic sort ordering (which can then be modified by adding sort options COLLATE, ASC/DESC and/or NULLS FIRST/NULLS LAST).
+
+There are also some built-in operator classes besides the default ones:
+
+The operator classes text_pattern_ops, varchar_pattern_ops, and bpchar_pattern_ops support B-tree indexes on the types text, varchar, and char respectively. The difference from the default operator classes is that the values are compared strictly character by character rather than according to the locale-specific collation rules. This makes these operator classes suitable for use by queries involving pattern matching expressions (LIKE or POSIX regular expressions) when the database does not use the standard "C" locale. As an example, you might index a varchar column like this:
+
+CREATE INDEX test_index ON test_table (col varchar_pattern_ops);
+Note that you should also create an index with the default operator class if you want queries involving ordinary <, <=, >, or >= comparisons to use an index. Such queries cannot use the xxx_pattern_ops operator classes. (Ordinary equality comparisons can use these operator classes, however.) It is possible to create multiple indexes on the same column with different operator classes. If you do use the C locale, you do not need the xxx_pattern_ops operator classes, because an index with the default operator class is usable for pattern-matching queries in the C locale.
+
+The following query shows all defined operator classes:
+
+SELECT am.amname AS index_method,
+       opc.opcname AS opclass_name,
+       opc.opcintype::regtype AS indexed_type,
+       opc.opcdefault AS is_default
+    FROM pg_am am, pg_opclass opc
+    WHERE opc.opcmethod = am.oid
+    ORDER BY index_method, opclass_name;
+An operator class is actually just a subset of a larger structure called an operator family. In cases where several data types have similar behaviors, it is frequently useful to define cross-data-type operators and allow these to work with indexes. To do this, the operator classes for each of the types must be grouped into the same operator family. The cross-type operators are members of the family, but are not associated with any single class within the family.
+
+This expanded version of the previous query shows the operator family each operator class belongs to:
+
+SELECT am.amname AS index_method,
+       opc.opcname AS opclass_name,
+       opf.opfname AS opfamily_name,
+       opc.opcintype::regtype AS indexed_type,
+       opc.opcdefault AS is_default
+    FROM pg_am am, pg_opclass opc, pg_opfamily opf
+    WHERE opc.opcmethod = am.oid AND
+          opc.opcfamily = opf.oid
+    ORDER BY index_method, opclass_name;
+This query shows all defined operator families and all the operators included in each family:
+
+SELECT am.amname AS index_method,
+       opf.opfname AS opfamily_name,
+       amop.amopopr::regoperator AS opfamily_operator
+    FROM pg_am am, pg_opfamily opf, pg_amop amop
+    WHERE opf.opfmethod = am.oid AND
+          amop.amopfamily = opf.oid
+    ORDER BY index_method, opfamily_name, opfamily_operator;
+
+==========
+11.10. Indexes and Collations
+An index can support only one collation per index column. If multiple collations are of interest, multiple indexes may be needed.
+
+Consider these statements:
+
+CREATE TABLE test1c (
+    id integer,
+    content varchar COLLATE "x"
+);
+
+CREATE INDEX test1c_content_index ON test1c (content);
+The index automatically uses the collation of the underlying column. So a query of the form
+
+SELECT * FROM test1c WHERE content > constant;
+could use the index, because the comparison will by default use the collation of the column. However, this index cannot accelerate queries that involve some other collation. So if queries of the form, say,
+
+SELECT * FROM test1c WHERE content > constant COLLATE "y";
+are also of interest, an additional index could be created that supports the "y" collation, like this:
+
+CREATE INDEX test1c_content_y_index ON test1c (content COLLATE "y");
+
+=========
+11.11. Examining Index Usage
+Although indexes in PostgreSQL do not need maintenance or tuning, it is still important to check which indexes are actually used by the real-life query workload. Examining index usage for an individual query is done with the EXPLAIN command; its application for this purpose is illustrated in Section 14.1. It is also possible to gather overall statistics about index usage in a running server, as described in Section 27.2.
+
+It is difficult to formulate a general procedure for determining which indexes to create. There are a number of typical cases that have been shown in the examples throughout the previous sections. A good deal of experimentation is often necessary. The rest of this section gives some tips for that:
+
+Always run ANALYZE first. This command collects statistics about the distribution of the values in the table. This information is required to estimate the number of rows returned by a query, which is needed by the planner to assign realistic costs to each possible query plan. In absence of any real statistics, some default values are assumed, which are almost certain to be inaccurate. Examining an application's index usage without having run ANALYZE is therefore a lost cause. See Section 23.1.3 and Section 23.1.6 for more information.
+
+Use real data for experimentation. Using test data for setting up indexes will tell you what indexes you need for the test data, but that is all.
+
+It is especially fatal to use very small test data sets. While selecting 1000 out of 100000 rows could be a candidate for an index, selecting 1 out of 100 rows will hardly be, because the 100 rows probably fit within a single disk page, and there is no plan that can beat sequentially fetching 1 disk page.
+
+Also be careful when making up test data, which is often unavoidable when the application is not yet in production. Values that are very similar, completely random, or inserted in sorted order will skew the statistics away from the distribution that real data would have.
+
+When indexes are not used, it can be useful for testing to force their use. There are run-time parameters that can turn off various plan types (see Section 18.7.1). For instance, turning off sequential scans (enable_seqscan) and nested-loop joins (enable_nestloop), which are the most basic plans, will force the system to use a different plan. If the system still chooses a sequential scan or nested-loop join then there is probably a more fundamental reason why the index is not being used; for example, the query condition does not match the index. (What kind of query can use what kind of index is explained in the previous sections.)
+
+If forcing index usage does use the index, then there are two possibilities: Either the system is right and using the index is indeed not appropriate, or the cost estimates of the query plans are not reflecting reality. So you should time your query with and without indexes. The EXPLAIN ANALYZE command can be useful here.
+
+If it turns out that the cost estimates are wrong, there are, again, two possibilities. The total cost is computed from the per-row costs of each plan node times the selectivity estimate of the plan node. The costs estimated for the plan nodes can be adjusted via run-time parameters (described in Section 18.7.2). An inaccurate selectivity estimate is due to insufficient statistics. It might be possible to improve this by tuning the statistics-gathering parameters (see ALTER TABLE).
+
+If you do not succeed in adjusting the costs to be more appropriate, then you might have to resort to forcing index usage explicitly. You might also want to contact the PostgreSQL developers to examine the issue.
+
+（本章完）
+

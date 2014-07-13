@@ -2,6 +2,9 @@
 The PostgreSQL Global Development Group
 http://www.postgresql.org/docs/9.4/static/index.html
 
+PostgreSQL 9.5devel Documentation
+http://www.postgresql.org/docs/devel/static/index.html
+
 PostgreSQL 9.0.4中文文档
 http://www.highgo.com.cn/docs/docs90cn/index.html
 
@@ -24,33 +27,33 @@ I. Tutorial
 3. Advanced Features
 
 II. The SQL Language
-4. SQL Syntax
-5. Data Definition
-6. Data Manipulation
-7. Queries
-8. Data Types
-9. Functions and Operators
-10. Type Conversion
-11. Indexes
-12. Full Text Search
+4. SQL Syntax 语法
+5. Data Definition 数据定义
+6. Data Manipulation 数据操作（插删改）
+7. Queries 查询
+8. Data Types 数据类型
+9. Functions and Operators 函数和操作符
+10. Type Conversion 类型转换
+11. Indexes 索引
+12. Full Text Search 全文搜索
 13. Concurrency Control 并发控制
-14. Performance Tips
+14. Performance Tips 性能提示
 
 III. Server Administration
 15. Installation from Source Code
 16. Installation from Source Code on Windows
-17. Server Setup and Operation
-18. Server Configuration
-19. Client Authentication
-20. Database Roles
-21. Managing Databases
-22. Localization
-23. Routine Database Maintenance Tasks
+17. Server Setup and Operation 服务器安装和操作
+18. Server Configuration 服务器配置
+19. Client Authentication 客户端身份验证
+20. Database Roles 数据库角色
+21. Managing Databases 管理数据库
+22. Localization 本地化
+23. Routine Database Maintenance Tasks 运维任务
 24. Backup and Restore 备份和修复
 25. High Availability, Load Balancing, and Replication 高可用性，负载均衡，复制
 26. Recovery Configuration 恢复配置
-27. Monitoring Database Activity
-28. Monitoring Disk Usage
+27. Monitoring Database Activity 监视数据库状态
+28. Monitoring Disk Usage 监视硬盘
 29. Reliability and the Write-Ahead Log
 30. Regression Tests
 
@@ -62,9 +65,9 @@ IV. Client Interfaces
 
 V. Server Programming
 35. Extending SQL
-36. Triggers
-37. Event Triggers
-38. The Rule System
+36. Triggers 触发器
+37. Event Triggers 事件触发器
+38. The Rule System “查询重写”规则系统
 39. Procedural Languages
 40. PL/pgSQL - SQL Procedural Language
 41. PL/Tcl - Tcl Procedural Language
@@ -114,8 +117,10 @@ K. Acronyms
 Bibliography
 Index
 
-=================
+=======================
+=======================
 Table of Contents
+
 Preface
 What is PostgreSQL?
 A Brief History of PostgreSQL
@@ -131,8 +136,10 @@ I. Tutorial
 II. The SQL Language
 4. SQL Syntax
 
+====
 5. Data Definition
 
+====
 http://www.postgresql.org/docs/9.4/static/dml.html
 6. Data Manipulation
 6.1. Inserting Data
@@ -140,6 +147,7 @@ http://www.postgresql.org/docs/9.4/static/dml.html
 6.3. Deleting Data
 （hxzon：使用default关键字来显示指定插入默认值。本章无其它重要内容。）
 
+====
 http://www.postgresql.org/docs/9.4/static/queries.html
 7. Queries
 7.1. Overview
@@ -160,8 +168,10 @@ http://www.postgresql.org/docs/9.4/static/queries.html
 7.8.1. SELECT in WITH
 7.8.2. Data-Modifying Statements in WITH
 
+====
 8. Data Types
 
+====
 http://www.postgresql.org/docs/9.4/static/functions.html
 9. Functions and Operators
 9.1. Logical Operators
@@ -230,18 +240,34 @@ http://www.postgresql.org/docs/9.4/static/functions.html
 9.27. Trigger Functions
 9.28. Event Trigger Functions
 
-
+====
 10. Type Conversion
 
+====
 11. Indexes
 
+11.1. Introduction
+11.2. Index Types
+11.3. Multicolumn Indexes
+11.4. Indexes and ORDER BY
+11.5. Combining Multiple Indexes
+11.6. Unique Indexes
+11.7. Indexes on Expressions
+
+11.8. Partial Indexes
+
+11.9. Operator Classes and Operator Families
+11.10. Indexes and Collations
+11.11. Examining Index Usage
+
+====
 12. Full Text Search
 
 13. Concurrency Control
 
 14. Performance Tips
 
-====
+================
 III. Server Administration
 
 15. Installation from Source Code
@@ -261,7 +287,7 @@ III. Server Administration
 29. Reliability and the Write-Ahead Log
 30. Regression Tests
 
-====
+============
 IV. Client Interfaces
 
 31. libpq - C Library
@@ -269,9 +295,10 @@ IV. Client Interfaces
 33. ECPG - Embedded SQL in C
 34. The Information Schema
 
-====
+============
 V. Server Programming
 
+====
 http://www.postgresql.org/docs/9.4/static/extend.html
 35. Extending SQL
 35.1. How Extensibility Works
@@ -343,17 +370,19 @@ http://www.postgresql.org/docs/9.4/static/extend.html
 35.15.5. Extension Example
 35.16. Extension Building Infrastructure
 
-
+====
 36. Triggers
 
 37. Event Triggers
 
 38. The Rule System
 
+====
 http://www.postgresql.org/docs/9.4/static/xplang.html
 39. Procedural Languages
 39.1. Installing Procedural Languages
 
+====
 http://www.postgresql.org/docs/9.4/static/plpgsql.html
 40. PL/pgSQL - SQL Procedural Language
 40.1. Overview
