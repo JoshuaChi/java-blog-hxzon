@@ -3,38 +3,70 @@
 PostgreSQL 9.5devel Documentation
 http://www.postgresql.org/docs/devel/static/performance-tips.html
 
-14.1. Using EXPLAIN
+14.1. Using EXPLAIN 查看执行计划
 14.1.1. EXPLAIN Basics
 14.1.2. EXPLAIN ANALYZE
 14.1.3. Caveats
-14.2. Statistics Used by the Planner
-14.3. Controlling the Planner with Explicit JOIN Clauses
+
+14.2. Statistics Used by the Planner 计划器所使用的统计信息
+14.3. Controlling the Planner with Explicit JOIN Clauses 显式join子句
+
 14.4. Populating a Database
-14.4.1. Disable Autocommit
+14.4.1. Disable Autocommit 禁用“自动提交”
 14.4.2. Use COPY
-14.4.3. Remove Indexes
-14.4.4. Remove Foreign Key Constraints
+14.4.3. Remove Indexes 移除索引
+14.4.4. Remove Foreign Key Constraints 移除外键约束
 14.4.5. Increase maintenance_work_mem
 14.4.6. Increase checkpoint_segments
-14.4.7. Disable WAL Archival and Streaming Replication
+14.4.7. Disable WAL Archival and Streaming Replication 禁用“WAL归档”和“流复制”
 14.4.8. Run ANALYZE Afterwards
 14.4.9. Some Notes About pg_dump
+
 14.5. Non-Durable Settings
 
 ============
-Query performance can be affected by many things. Some of these can be controlled by the user, while others are fundamental to the underlying design of the system. This chapter provides some hints about understanding and tuning PostgreSQL performance.
+Query performance can be affected by many things. 
+Some of these can be controlled by the user, while others are fundamental to the underlying design of the system. 
+This chapter provides some hints about understanding and tuning PostgreSQL performance.
 
 ============
 14.1. Using EXPLAIN
-PostgreSQL devises a query plan for each query it receives. Choosing the right plan to match the query structure and the properties of the data is absolutely critical for good performance, so the system includes a complex planner that tries to choose good plans. You can use the EXPLAIN command to see what query plan the planner creates for any query. Plan-reading is an art that requires some experience to master, but this section attempts to cover the basics.
+查看执行计划
 
-Examples in this section are drawn from the regression test database after doing a VACUUM ANALYZE, using 9.3 development sources. You should be able to get similar results if you try the examples yourself, but your estimated costs and row counts might vary slightly because ANALYZE's statistics are random samples rather than exact, and because costs are inherently somewhat platform-dependent.
+PostgreSQL devises a query plan for each query it receives. 
+Choosing the right plan to match the query structure and the properties of the data is absolutely critical for good performance, 
+so the system includes a complex planner that tries to choose good plans. 
+You can use the EXPLAIN command to see what query plan the planner creates for any query. 
+Plan-reading is an art that requires some experience to master, but this section attempts to cover the basics.
 
-The examples use EXPLAIN's default "text" output format, which is compact and convenient for humans to read. If you want to feed EXPLAIN's output to a program for further analysis, you should use one of its machine-readable output formats (XML, JSON, or YAML) instead.
+Examples in this section are drawn from the regression test database after doing a VACUUM ANALYZE, 
+using 9.3 development sources. 
+You should be able to get similar results if you try the examples yourself, 
+but your estimated costs and row counts might vary slightly 
+because ANALYZE's statistics are random samples rather than exact, 
+and because costs are inherently somewhat platform-dependent.
 
+The examples use EXPLAIN's default "text" output format, which is compact and convenient for humans to read. 
+If you want to feed EXPLAIN's output to a program for further analysis, 
+you should use one of its machine-readable output formats (XML, JSON, or YAML) instead.
+
+====
 14.1.1. EXPLAIN Basics
 
-The structure of a query plan is a tree of plan nodes. Nodes at the bottom level of the tree are scan nodes: they return raw rows from a table. There are different types of scan nodes for different table access methods: sequential scans, index scans, and bitmap index scans. There are also non-table row sources, such as VALUES clauses and set-returning functions in FROM, which have their own scan node types. If the query requires joining, aggregation, sorting, or other operations on the raw rows, then there will be additional nodes above the scan nodes to perform these operations. Again, there is usually more than one possible way to do these operations, so different node types can appear here too. The output of EXPLAIN has one line for each node in the plan tree, showing the basic node type plus the cost estimates that the planner made for the execution of that plan node. Additional lines might appear, indented from the node's summary line, to show additional properties of the node. The very first line (the summary line for the topmost node) has the estimated total execution cost for the plan; it is this number that the planner seeks to minimize.
+The structure of a query plan is a tree of plan nodes. 
+Nodes at the bottom level of the tree are scan nodes: they return raw rows from a table. 
+There are different types of scan nodes for different table access methods: 
+sequential scans, index scans, and bitmap index scans. 
+There are also non-table row sources, such as VALUES clauses and set-returning functions in FROM, which have their own scan node types. 
+If the query requires joining, aggregation, sorting, or other operations on the raw rows, 
+then there will be additional nodes above the scan nodes to perform these operations. 
+Again, there is usually more than one possible way to do these operations, so different node types can appear here too. 
+The output of EXPLAIN has one line for each node in the plan tree, 
+showing the basic node type plus the cost estimates that the planner made for the execution of that plan node. 
+Additional lines might appear, indented from the node's summary line, to show additional properties of the node. 
+The very first line (the summary line for the topmost node) has the estimated total execution cost for the plan; 
+第一行是总的执行开销。
+it is this number that the planner seeks to minimize.
 
 Here is a trivial example, just to show what the output looks like:
 
@@ -44,23 +76,47 @@ EXPLAIN SELECT * FROM tenk1;
 -------------------------------------------------------------
  Seq Scan on tenk1  (cost=0.00..458.00 rows=10000 width=244)
  Planning time: 0.113 ms
-Since this query has no WHERE clause, it must scan all the rows of the table, so the planner has chosen to use a simple sequential scan plan. The numbers that are quoted in parentheses are (left to right):
 
-Estimated start-up cost. This is the time expended before the output phase can begin, e.g., time to do the sorting in a sort node.
+Since this query has no WHERE clause, it must scan all the rows of the table,
+顺序扫描。 
+so the planner has chosen to use a simple sequential scan plan. 
+The numbers that are quoted in parentheses are (left to right):
 
-Estimated total cost. This is stated on the assumption that the plan node is run to completion, i.e., all available rows are retrieved. In practice a node's parent node might stop short of reading all available rows (see the LIMIT example below).
+Estimated start-up cost. 
+This is the time expended before the output phase can begin, 
+e.g., time to do the sorting in a sort node.
 
-Estimated number of rows output by this plan node. Again, the node is assumed to be run to completion.
+Estimated total cost. 
+This is stated on the assumption that the plan node is run to completion, 
+i.e., all available rows are retrieved. 
+In practice a node's parent node might stop short of reading all available rows (see the LIMIT example below).
+
+Estimated number of rows output by this plan node. 
+Again, the node is assumed to be run to completion.
 
 Estimated average width of rows output by this plan node (in bytes).
 
-The costs are measured in arbitrary units determined by the planner's cost parameters (see Section 18.7.2). Traditional practice is to measure the costs in units of disk page fetches; that is, seq_page_cost is conventionally set to 1.0 and the other cost parameters are set relative to that. The examples in this section are run with the default cost parameters.
+The costs are measured in arbitrary units determined by the planner's cost parameters (see Section 18.7.2). 
+Traditional practice is to measure the costs in units of disk page fetches; 
+that is, seq_page_cost is conventionally set to 1.0 and the other cost parameters are set relative to that. 
+The examples in this section are run with the default cost parameters.
 
-It's important to understand that the cost of an upper-level node includes the cost of all its child nodes. It's also important to realize that the cost only reflects things that the planner cares about. In particular, the cost does not consider the time spent transmitting result rows to the client, which could be an important factor in the real elapsed time; but the planner ignores it because it cannot change it by altering the plan. (Every correct plan will output the same row set, we trust.)
+It's important to understand that the cost of an upper-level node includes the cost of all its child nodes. 
+It's also important to realize that the cost only reflects things that the planner cares about. 
+In particular, the cost does not consider the time spent transmitting result rows to the client, 
+which could be an important factor in the real elapsed time; 
+but the planner ignores it because it cannot change it by altering the plan. 
+(Every correct plan will output the same row set, we trust.)
 
-The rows value is a little tricky because it is not the number of rows processed or scanned by the plan node, but rather the number emitted by the node. This is often less than the number scanned, as a result of filtering by any WHERE-clause conditions that are being applied at the node. Ideally the top-level rows estimate will approximate the number of rows actually returned, updated, or deleted by the query.
+The rows value is a little tricky because it is not the number of rows processed or scanned by the plan node, 
+but rather the number emitted by the node. 
+This is often less than the number scanned, 
+as a result of filtering by any WHERE-clause conditions that are being applied at the node. 
+Ideally the top-level rows estimate will approximate the number of rows actually returned, updated, or deleted by the query.
 
-The Planning time shown is the time it took to generate the query plan from the parsed query and optimize it. It does not include rewriting and parsing.
+The Planning time shown is the time it took to generate the query plan from the parsed query and optimize it. 
+It does not include rewriting and parsing.
+不包括“查询重写”和解析查询语句的时间。
 
 Returning to our example:
 
@@ -70,10 +126,14 @@ EXPLAIN SELECT * FROM tenk1;
 -------------------------------------------------------------
  Seq Scan on tenk1  (cost=0.00..458.00 rows=10000 width=244)
  Planning time: 0.113 ms
+
 These numbers are derived very straightforwardly. If you do:
 
 SELECT relpages, reltuples FROM pg_class WHERE relname = 'tenk1';
-you will find that tenk1 has 358 disk pages and 10000 rows. The estimated cost is computed as (disk pages read * seq_page_cost) + (rows scanned * cpu_tuple_cost). By default, seq_page_cost is 1.0 and cpu_tuple_cost is 0.01, so the estimated cost is (358 * 1.0) + (10000 * 0.01) = 458.
+
+you will find that tenk1 has 358 disk pages and 10000 rows. 
+The estimated cost is computed as (disk pages read * seq_page_cost) + (rows scanned * cpu_tuple_cost). 
+By default, seq_page_cost is 1.0 and cpu_tuple_cost is 0.01, so the estimated cost is (358 * 1.0) + (10000 * 0.01) = 458.
 
 Now let's modify the query to add a WHERE condition:
 
@@ -84,9 +144,17 @@ EXPLAIN SELECT * FROM tenk1 WHERE unique1 < 7000;
  Seq Scan on tenk1  (cost=0.00..483.00 rows=7001 width=244)
    Filter: (unique1 < 7000)
  Planning time: 0.104 ms
-Notice that the EXPLAIN output shows the WHERE clause being applied as a "filter" condition attached to the Seq Scan plan node. This means that the plan node checks the condition for each row it scans, and outputs only the ones that pass the condition. The estimate of output rows has been reduced because of the WHERE clause. However, the scan will still have to visit all 10000 rows, so the cost hasn't decreased; in fact it has gone up a bit (by 10000 * cpu_operator_cost, to be exact) to reflect the extra CPU time spent checking the WHERE condition.
 
-The actual number of rows this query would select is 7000, but the rows estimate is only approximate. If you try to duplicate this experiment, you will probably get a slightly different estimate; moreover, it can change after each ANALYZE command, because the statistics produced by ANALYZE are taken from a randomized sample of the table.
+Notice that the EXPLAIN output shows the WHERE clause being applied as a "filter" condition attached to the Seq Scan plan node. 
+This means that the plan node checks the condition for each row it scans, and outputs only the ones that pass the condition. 
+The estimate of output rows has been reduced because of the WHERE clause. 
+However, the scan will still have to visit all 10000 rows, so the cost hasn't decreased; 
+in fact it has gone up a bit (by 10000 * cpu_operator_cost, to be exact) to reflect the extra CPU time spent checking the WHERE condition.
+
+The actual number of rows this query would select is 7000, but the rows estimate is only approximate. 
+If you try to duplicate this experiment, you will probably get a slightly different estimate; moreover, 
+it can change after each ANALYZE command, 
+because the statistics produced by ANALYZE are taken from a randomized sample of the table.
 
 Now, let's make the condition more restrictive:
 
@@ -99,7 +167,16 @@ EXPLAIN SELECT * FROM tenk1 WHERE unique1 < 100;
    ->  Bitmap Index Scan on tenk1_unique1  (cost=0.00..5.04 rows=101 width=0)
          Index Cond: (unique1 < 100)
  Planning time: 0.093 ms
-Here the planner has decided to use a two-step plan: the child plan node visits an index to find the locations of rows matching the index condition, and then the upper plan node actually fetches those rows from the table itself. Fetching rows separately is much more expensive than reading them sequentially, but because not all the pages of the table have to be visited, this is still cheaper than a sequential scan. (The reason for using two plan levels is that the upper plan node sorts the row locations identified by the index into physical order before reading them, to minimize the cost of separate fetches. The "bitmap" mentioned in the node names is the mechanism that does the sorting.)
+
+Here the planner has decided to use a two-step plan: 
+the child plan node visits an index to find the locations of rows matching the index condition, 
+and then the upper plan node actually fetches those rows from the table itself. 
+Fetching rows separately is much more expensive than reading them sequentially, 
+but because not all the pages of the table have to be visited, this is still cheaper than a sequential scan. 
+(The reason for using two plan levels is that the upper plan node 
+sorts the row locations identified by the index into physical order before reading them, 
+to minimize the cost of separate fetches. 
+The "bitmap" mentioned in the node names is the mechanism that does the sorting.)
 
 Now let's add another condition to the WHERE clause:
 
@@ -113,7 +190,13 @@ EXPLAIN SELECT * FROM tenk1 WHERE unique1 < 100 AND stringu1 = 'xxx';
    ->  Bitmap Index Scan on tenk1_unique1  (cost=0.00..5.04 rows=101 width=0)
          Index Cond: (unique1 < 100)
  Planning time: 0.089 ms
-The added condition stringu1 = 'xxx' reduces the output row count estimate, but not the cost because we still have to visit the same set of rows. Notice that the stringu1 clause cannot be applied as an index condition, since this index is only on the unique1 column. Instead it is applied as a filter on the rows retrieved by the index. Thus the cost has actually gone up slightly to reflect this extra checking.
+
+The added condition stringu1 = 'xxx' reduces the output row count estimate, 
+but not the cost because we still have to visit the same set of rows. 
+Notice that the stringu1 clause cannot be applied as an index condition, 
+since this index is only on the unique1 column. 
+Instead it is applied as a filter on the rows retrieved by the index. 
+Thus the cost has actually gone up slightly to reflect this extra checking.
 
 In some cases the planner will prefer a "simple" index scan plan:
 
@@ -124,9 +207,16 @@ EXPLAIN SELECT * FROM tenk1 WHERE unique1 = 42;
  Index Scan using tenk1_unique1 on tenk1  (cost=0.29..8.30 rows=1 width=244)
    Index Cond: (unique1 = 42)
  Planning time: 0.076 ms
-In this type of plan the table rows are fetched in index order, which makes them even more expensive to read, but there are so few that the extra cost of sorting the row locations is not worth it. You'll most often see this plan type for queries that fetch just a single row. It's also often used for queries that have an ORDER BY condition that matches the index order, because then no extra sorting step is needed to satisfy the ORDER BY.
 
-If there are separate indexes on several of the columns referenced in WHERE, the planner might choose to use an AND or OR combination of the indexes:
+In this type of plan the table rows are fetched in index order, 
+which makes them even more expensive to read, 
+but there are so few that the extra cost of sorting the row locations is not worth it. 
+You'll most often see this plan type for queries that fetch just a single row. 
+It's also often used for queries that have an ORDER BY condition that matches the index order, 
+because then no extra sorting step is needed to satisfy the ORDER BY.
+
+If there are separate indexes on several of the columns referenced in WHERE, 
+the planner might choose to use an AND or OR combination of the indexes:
 
 EXPLAIN SELECT * FROM tenk1 WHERE unique1 < 100 AND unique2 > 9000;
 
@@ -140,7 +230,9 @@ EXPLAIN SELECT * FROM tenk1 WHERE unique1 < 100 AND unique2 > 9000;
          ->  Bitmap Index Scan on tenk1_unique2  (cost=0.00..19.78 rows=999 width=0)
                Index Cond: (unique2 > 9000)
  Planning time: 0.094 ms
-But this requires visiting both indexes, so it's not necessarily a win compared to using just one index and treating the other condition as a filter. If you vary the ranges involved you'll see the plan change accordingly.
+
+But this requires visiting both indexes, so it's not necessarily a win compared to using just one index and treating the other condition as a filter. 
+If you vary the ranges involved you'll see the plan change accordingly.
 
 Here is an example showing the effects of LIMIT:
 
@@ -153,7 +245,15 @@ EXPLAIN SELECT * FROM tenk1 WHERE unique1 < 100 AND unique2 > 9000 LIMIT 2;
          Index Cond: (unique2 > 9000)
          Filter: (unique1 < 100)
  Planning time: 0.087 ms
-This is the same query as above, but we added a LIMIT so that not all the rows need be retrieved, and the planner changed its mind about what to do. Notice that the total cost and row count of the Index Scan node are shown as if it were run to completion. However, the Limit node is expected to stop after retrieving only a fifth of those rows, so its total cost is only a fifth as much, and that's the actual estimated cost of the query. This plan is preferred over adding a Limit node to the previous plan because the Limit could not avoid paying the startup cost of the bitmap scan, so the total cost would be something over 25 units with that approach.
+
+This is the same query as above, but we added a LIMIT so that not all the rows need be retrieved, 
+and the planner changed its mind about what to do. 
+Notice that the total cost and row count of the Index Scan node are shown as if it were run to completion. 
+However, the Limit node is expected to stop after retrieving only a fifth of those rows, 
+so its total cost is only a fifth as much, and that's the actual estimated cost of the query. 
+This plan is preferred over adding a Limit node to the previous plan 
+because the Limit could not avoid paying the startup cost of the bitmap scan, 
+so the total cost would be something over 25 units with that approach.
 
 Let's try joining two tables, using the columns we have been discussing:
 
