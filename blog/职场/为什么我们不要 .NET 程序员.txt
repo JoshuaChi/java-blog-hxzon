@@ -1,4 +1,4 @@
-为什么我们不要 .NET 程序员
+﻿为什么我们不要 .NET 程序员
 
 http://www.aqee.net/why-we-dont-hire-net-programmers/
 [英文原文：Why we don’t hire .NET programmers ]
