@@ -195,7 +195,174 @@ MyISAM表支持空间索引，可以用作地理数据存储。
 （2014.7.1）
 
 ===============
-2，
+2，索引的优点
+
+-1，大大减少服务器需要扫描的数据量。
+-2，可以帮助服务器避免排序和临时表。
+-3，可以将随机IO变为顺序IO。
+
+推荐书籍：《relational database Index design and 天河 optimizers》
+Wiley出版，Tapio lahdenmaki和mike leach编写。
+
+“三星系统”：
+一星：索引将相关的记录放到一起。
+二星：索引中的数据顺序和查找中的排列顺序一致。
+三星：索引中的列包含了查询中需要的全部列。
+
+对于非常小的表，简单的全表扫描更高效。
+对于特大的表，建立和使用索引的代价将随之增长。这时可以使用“分区”。
+
+===========
+3，高性能的索引策略
+
+3.1，列独立书写（原文“独立的列”）
+
+列独立书写，指，索引列不能是表达式的一部分，也不能是函数的参数。
+
+select actor_id from actor where actor+1=5;//MySQL无法使用索引，改成 where actor=5-1
+
+select ... where to_days(current_date) - to_days(data_col) <=10;//MySQL也无法使用索引
+
+====
+3.2，“前缀索引”，即索引字符列的开头若干字符
+
+很长的字符列，一种方法是模拟哈希索引。（见前文1.2，手动哈希）
+
+另一种方案，索引开头的若干字符。
+
+索引的选择性，指，不重复的索引值（也称为基数，cardinality），和数据表总记录数的比值。
+索引的选择性高，则效率越高。
+唯一索引的选择性是一，所以性能最好。
+
+诀窍在于选择足够长的前缀，但又不能太长。
+即，前缀的基数，应该接近完整列的基数。
+
+计算合适的前缀长度：
+select count(distinct city)/count(*) from city_demo;
+
+select count(distinct left(city,3)/count(*) as sel3,
+count(distinct left(city,4)count(*) as sel4,
+count(distinct left(city,5)count(*) as sel5,
+count(distinct left(city,6)count(*) as sel6
+from city_demo;
+
+只看“平均选择性”是不够的，如果数据分布不均匀，还需要考虑“最差选择性”。
+
+建立前缀索引：
+alter table city_demo add key(city(7));//hxzon：？不用substring？
+
+前缀索引缺点：
+MySQL无法使用前缀索引做order by和group by，也无法使用前缀索引做“覆盖扫描”。
+
+==
+“后缀索引”也很有用，例如，找某个域名的所有电子邮件地址。
+MySQL原生不支持反向索引，但是可以把字符串反转后再存储。
+可以用触发器来维护这种索引。
+
+====
+3.3，多列索引
+
+常见错误：
+-1，为每个列创建独立的索引。
+-2，按照错误的顺序建立多列索引。
+
+在多个列上建立单独的单列索引，大部分情况下不能提高MySQL的查询性能。
+不过，MySQL5.0和更新版本，引入“索引合并”策略，
+一定程序上可以使用表上的多个单列索引来定位行。
+
+select film_id,actor_id from film_actor
+where actor_id=1 or film_id=1;
+
+上述查询，两个单列索引都不是好选择。（注意是or）
+老版本MySQL会使用全表扫描。
+
+可以改写成union方式：
+select film_id,actor_id from actor where actor_id=1
+union all
+select film_id,actor_id from actor where film_id=1 and actor_id<>1;
+
+但mysql5.0及之后，查询能够同时使用这两个单列索引进行扫描，并将结果进行合并。
+这种算法有三个变种：
+or条件的联合（union），and条件的相交（intersection），组合前两种情况的联合及相交。
+
+所以上述语句，会使用using union(primary,idx_fk_film_id),using where 。
+
+“索引合并”策略是一种优化结果，实际上说明表上的索引建得很糟糕。
+
+如果有多个索引做相交操作（多个and条件），通常意味着需要一个包含所有相关列的多列索引。
+
+通常来讲，将查询改写成union的方式往往更好。
+
+====
+3.4，索引列的顺序（只适用于b-tree索引）
+
+在一个多列的b-tree索引中，索引列的顺序意味着索引首先按最左列排序，其次是第二列，第三列。
+
+“将选择性最高的列，放在索引的最前列”，这条经验法则“没你想象的重要”。
+通常不如“避免随机IO”和“排序”那么重要。
+
+当不需要考虑排序和分组时，选择性最高的列放在最前面通常是很好的。
+然而，性能不只依赖于所有索引列的选择性，也和查询条件的具体值有关，即“值的分布”。
+
+select count(distinct staff_id)/count(*) as staff_id_selectivity,
+count(distinct customer_id)/count(*) as customer_id_selectivity,
+count(*)
+from payment\G;
+
+看哪列的选择性高，就作为索引第一列。
+
+要注意一些特殊值。
+例如，很多应用中，未登陆的用户，用户名都是guest。
+此外，系统账号也可能很特殊。
+还有一些特别受关注的名人的账号等。
+
+一种解决办法，就是修改应用程序的代码，
+区分这类特殊用户和组，使用特别定制的查询。（hxzon：注意）
+
+====
+3.5，聚簇索引
+
+====
+3.6，覆盖索引
+
+====
+3.7，使用索引扫描来做排序
+
+====
+3.8，压缩（前缀压缩）索引
+
+====
+3.9，冗余和重复索引
+
+====
+3.10，没被使用的索引
+
+====
+3.11，索引和锁
+
+===============
+4，索引案例学习
+
+支持多种过滤条件
+避免多个范围条件
+优化排序
+
+===============
+5，索引和表的维护
+
+找到并修复损坏的表
+更新索引统计信息
+减少索引和数据的碎片
+
+
+
+
+
+
+
+
+
+
 
 
 
