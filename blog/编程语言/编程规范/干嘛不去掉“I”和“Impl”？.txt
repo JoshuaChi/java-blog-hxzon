@@ -1,0 +1,64 @@
+﻿干嘛不去掉“I”和“Impl”？
+http://www.vaikan.com/why-drop-the-i-if-you%E2%80%99re-going-to-just-add-an-impl/
+
+今天早上我仔细研究TopShelf项目的源代码，想追查里面一个API的修改，
+突然发现TopShelf终于向新近流行的去掉接口名称上的“I”字母做法屈服了。
+在.NET上这还是个新事物，使用Java的人这样做了有一段时间了，但在.NET里很多都还是新事物。
+这些可不是从ruby偷来的。
+
+如果你对此不太熟悉，我先解释一下，传统的习惯是在接口的名称前加入一个毫无必要的“I”字母，
+事实上这个接口的使用者并不在意这个接口前是否有个“I”字母，
+这种加入“I”字母的形式是一种匈牙利标记法，文明世界里几乎一致认为这是一种糟糕的做法。
+
+所以你的代码…
+
+1	public interface ISomeBehavior { }
+
+..应该写成..
+
+1	public interface SomeBehavior { }
+
+这样合情合理。而有问题的是当你把一个实现这个接口的类像下面这样命名时：
+
+1	public interface SomeBehavior { }
+2	public class SomeBehaviorImpl { }
+
+我不知道把接口上的“I”移到实现类上然后再加三个字母究竟有什么好处。
+除了让我的指头关节多活动几下还能做什么？
+难道这个程序的使用方还在意这是一个没有“I”的接口实现类吗？
+
+从一些基础层面上讲，接口就是个契约。
+契约声明一个类要实现接口提供的特定用途的一些方法和属性。
+从另一个角度看这个问题可以观察接口的行为。
+
+考察一下.NET里提供的IDisposable这个接口。
+没有一个DisposableImpl伴随着它。
+这个接口描述的是一个实现类型的特征，它可以代表任何的东西。
+
+接口跟实现类并不是一对一的关系。
+事实上，一个类可以实现多个接口。
+引用Brett L. Schuchert的例子：
+
+1	class Manager : public ISing, public IDance {}
+
+保持简洁的接口，让manager们尽情放纵
+
+我相信你看到这里已经露出愤怒的表情了，会想“那好，聪明人，你想让我们怎么做？”
+
+对于我，我喜欢这个“I”字母，但喜欢的是它读起来像一种声明。
+
+1	public interface IReadFiles { }//我读取文件
+2	public interface ICalculateRates { }//我计算比例
+3	public interface ISingAndDance {//我唱歌跳舞}
+
+你会发现这和传统的“I”/“Impl”用法相反。
+但这很酷不是？每个“I”都代表我，但这该死的“Impl”里不是。
+
+[英文原文：Why drop the I if you’re going to just add an Impl? ]
+
+==========
+网友评论：
+
+看到I 就知道是接口，看到Impl就知道是接口实现~~不需要想更多的东西，就知道是……
+是滴，所谓的规范就有这样的貌似不必要的好处。
+

@@ -1,0 +1,380 @@
+﻿Java 6,7,8中的String.intern —— 多线程访问
+原文链接： java-performance 翻译： ImportNew.com - hejiani
+译文链接： http://www.importnew.com/12452.html
+
+本文是Java 6,7,8中的String.intern —— 字符串池的后续，“字符串池”这篇文章介绍了Java 7和8中String.intern()方法的实现以及使用它的优势，鉴于其篇幅已经很长，所以我写了本文来介绍多线程访问String.intern时的性能特征。
+
+测试程序将从多个线程调用String.intern()。它们将模拟大多数现代服务器应用的行为(比如特定的网络爬虫)。为测试高竞争的场景，这些程序将在新工作站运行，配置是Intel Xeon E5-2650 CPU (8物理16虚拟内核@ 2 Ghz)，128 Gb RAM。为利用所有的物理内核我们将创建8个线程。
+
+四个测试程序如下：
+
+参照程序——前一篇文章中的testLongLoop方法单线程调用String.intern()，用来展示没有任何竞争时运行速度。
+8个线程调用不同字符串的String.intern()方法，该interned字符串用每个线程的线程号作为前缀。该测试展示了String.intern()的同步开销。理论上这是最坏的情况：一个实际应用所做的唯一事情就是多个线程都循环调用String.intern()，这样的情况几乎不可能出现。
+开始时启动第一个线程interning字符串集合。2秒延迟后启动第二个线程interning相同的字符串集合。我们希望对于第一个线程以下的假设为true：str.intern()==str；第二个线程str.intern()!=str为true。这将证明不存在线程本地的JVM字符串池。
+所有8个线程intern相同字符串集合。这种情况更加接近真实的情形——对于JVM字符串池添加和查询字符串的混合操作。但是，如此高的JVM字符串池读竞争也很少发生。
+单线程循环调用String.intern()——参照测试
+
+测试一：使用前一篇文章中的testLongLoop方法在单个线程中将字符串循环添加到JVM字符串池。与之前不同，这次我们每一百万字符串输出时间快照。比如log中3000000; time = 0.402 sec这一行表示，当初始时字符串池有二百万字符串时增加一百万花费0.402秒(现在池中有三百万字符串)。测试程序(本文的其他程序也一样)运行设置-Xmx64G -XX:StringTableSize=1000003(JVM字符串池大小)。
+
+
+1000000; time = 0.362 sec
+2000000; time = 0.377 sec
+3000000; time = 0.402 sec
+4000000; time = 0.434 sec
+5000000; time = 0.36 sec
+6000000; time = 0.364 sec
+7000000; time = 0.351 sec
+8000000; time = 0.379 sec
+9000000; time = 0.445 sec
+10000000; time = 0.487 sec
+11000000; time = 0.518 sec
+12000000; time = 0.59 sec
+13000000; time = 0.695 sec
+14000000; time = 0.768 sec
+15000000; time = 0.815 sec
+16000000; time = 0.873 sec
+17000000; time = 0.954 sec
+18000000; time = 1.031 sec
+19000000; time = 1.081 sec
+20000000; time = 1.12 sec
+21000000; time = 1.17 sec
+22000000; time = 1.194 sec
+23000000; time = 1.264 sec
+24000000; time = 1.291 sec
+25000000; time = 1.352 sec
+26000000; time = 1.421 sec
+27000000; time = 1.476 sec
+28000000; time = 1.514 sec
+29000000; time = 1.612 sec
+30000000; time = 1.643 sec
+31000000; time = 1.695 sec
+32000000; time = 1.703 sec
+33000000; time = 1.81 sec
+34000000; time = 1.854 sec
+35000000; time = 1.943 sec
+36000000; time = 1.937 sec
+37000000; time = 2.0 sec
+38000000; time = 2.102 sec
+39000000; time = 2.124 sec
+40000000; time = 2.212 sec
+41000000; time = 2.225 sec
+42000000; time = 2.305 sec
+43000000; time = 2.344 sec
+44000000; time = 2.379 sec
+45000000; time = 2.46 sec
+46000000; time = 2.557 sec
+47000000; time = 2.656 sec
+48000000; time = 2.627 sec
+49000000; time = 2.629 sec
+50000000; time = 2.735 sec
+51000000; time = 2.738 sec
+52000000; time = 2.823 sec
+53000000; time = 2.861 sec
+54000000; time = 2.974 sec
+55000000; time = 3.027 sec
+56000000; time = 3.05 sec
+57000000; time = 3.088 sec
+58000000; time = 3.161 sec
+59000000; time = 3.244 sec
+60000000; time = 3.31 sec
+61000000; time = 3.327 sec
+62000000; time = 3.382 sec
+63000000; time = 3.445 sec
+64000000; time = 3.524 sec
+65000000; time = 3.669 sec
+66000000; time = 3.596 sec
+67000000; time = 3.673 sec
+68000000; time = 3.705 sec
+69000000; time = 3.752 sec
+70000000; time = 3.81 sec
+71000000; time = 3.898 sec
+72000000; time = 3.93 sec
+73000000; time = 4.0 sec
+74000000; time = 4.133 sec
+75000000; time = 4.109 sec
+76000000; time = 4.193 sec
+77000000; time = 4.182 sec
+78000000; time = 4.283 sec
+79000000; time = 4.349 sec
+80000000; time = 4.395 sec
+
+可以看到，结果呈线性增加，这也确认了“字符串池是个固定大小的hash map，每个bucket中包含了字符串链表”的实现。稍后将看到它与多线程结果的比较。
+
+8个线程interning不同的字符串集合
+
+下一个测试将检测JVM线程池的同步限制：每个线程都将创建唯一的字符串集合并在循环中intern字符串。这是个竞争相当高的场景——实际应用中很少出现超过2或3个String.intern()同时调用(这个假设基于现代CPU当前的核数)。
+
+我们使用下面的方法测试多线程。测试#2和#4的唯一不同点在于将要intern的字符串(仔细阅读方法的注释)。
+
+
+private static void multiThreadedInternTest( final int threads, final int cnt )
+{
+    final CountDownLatch latch = new CountDownLatch( threads );
+    for ( int i = 0; i < threads; ++i )
+    {
+        final int threadNo = i;
+        final Runnable task = new Runnable() {
+            @Override
+            public void run() {
+                latch.countDown();
+                try {
+                    latch.await(); //start all threads simultaneously
+                } catch ( InterruptedException ignored ) {
+                }
+  
+                final List<String> lst = new ArrayList<String>( 100 );
+                long start = System.currentTimeMillis();
+                for ( int i = 0; i < cnt; ++i )
+                {
+                    //this line is used in 8 writers scenario
+                    final String str = "Thread #" + threadNo + " : " + i;
+                    //use the following line for 1 writer, 7 readers scenario
+                    //final String str = "Thread #0 : " + i;
+                    lst.add( str.intern() );
+                    if ( i % 10000 == 0 )
+                    {
+                        System.out.println( "Thread # " + threadNo + " : " + i +
+                            "; time = " + ( System.currentTimeMillis() - start ) / 1000.0 + " sec" );
+                        start = System.currentTimeMillis();
+                    }
+                }
+                System.out.println( "Total length = " + lst.size() );
+            }
+        };
+        new Thread( task ).start();
+    }
+}
+
+这是“8个线程同时写入”的测试用例(JVM设置相同-XX:StringTableSize=1000003 -Xmx64G)。我排除了被垃圾回收影响的行（-verbose:gc）。log的含义也与之前的测试相同，只有一点不同是增加了线程号。
+
+
+Thread # 6 : 1000000; time = 5.922 sec
+Thread # 3 : 1000000; time = 6.037 sec
+Thread # 4 : 1000000; time = 6.065 sec
+Thread # 0 : 1000000; time = 6.066 sec
+Thread # 1 : 1000000; time = 6.075 sec
+Thread # 5 : 1000000; time = 6.091 sec
+Thread # 2 : 1000000; time = 6.169 sec
+Thread # 7 : 1000000; time = 6.288 sec
+Thread # 1 : 4000000; time = 4.991 sec
+Thread # 0 : 4000000; time = 4.983 sec
+Thread # 3 : 4000000; time = 5.067 sec
+Thread # 2 : 4000000; time = 5.024 sec
+Thread # 4 : 4000000; time = 5.028 sec
+Thread # 6 : 4000000; time = 5.052 sec
+Thread # 5 : 4000000; time = 5.102 sec
+Thread # 7 : 4000000; time = 5.083 sec
+Thread # 1 : 6000000; time = 7.012 sec
+Thread # 0 : 6000000; time = 7.06 sec
+Thread # 2 : 6000000; time = 6.99 sec
+Thread # 3 : 6000000; time = 7.09 sec
+Thread # 4 : 6000000; time = 7.045 sec
+Thread # 6 : 6000000; time = 7.173 sec
+Thread # 5 : 6000000; time = 7.16 sec
+Thread # 7 : 6000000; time = 7.175 sec
+Thread # 1 : 8000000; time = 9.098 sec
+Thread # 0 : 8000000; time = 9.157 sec
+Thread # 2 : 8000000; time = 9.157 sec
+Thread # 3 : 8000000; time = 9.2 sec
+Thread # 4 : 8000000; time = 9.222 sec
+Thread # 6 : 8000000; time = 9.308 sec
+Thread # 5 : 8000000; time = 9.314 sec
+Thread # 7 : 8000000; time = 9.332 sec
+Thread # 1 : 11000000; time = 12.987 sec
+Thread # 2 : 11000000; time = 13.028 sec
+Thread # 0 : 11000000; time = 13.063 sec
+Thread # 4 : 11000000; time = 13.007 sec
+Thread # 3 : 11000000; time = 13.04 sec
+Thread # 6 : 11000000; time = 13.238 sec
+Thread # 5 : 11000000; time = 13.268 sec
+Thread # 7 : 11000000; time = 13.209 sec
+Thread # 1 : 15000000; time = 21.826 sec
+Thread # 2 : 15000000; time = 22.124 sec
+Thread # 4 : 15000000; time = 22.142 sec
+Thread # 3 : 15000000; time = 22.144 sec
+Thread # 0 : 15000000; time = 22.384 sec
+Thread # 7 : 15000000; time = 23.129 sec
+Thread # 6 : 15000000; time = 23.228 sec
+Thread # 5 : 15000000; time = 23.244 sec
+Thread # 1 : 17000000; time = 32.329 sec
+Thread # 2 : 17000000; time = 32.488 sec
+Thread # 4 : 17000000; time = 32.489 sec
+Thread # 3 : 17000000; time = 32.448 sec
+Thread # 0 : 17000000; time = 32.603 sec
+Thread # 7 : 17000000; time = 32.567 sec
+Thread # 5 : 17000000; time = 32.574 sec
+Thread # 6 : 17000000; time = 32.791 sec
+Thread # 1 : 19000000; time = 37.914 sec
+Thread # 2 : 19000000; time = 37.895 sec
+Thread # 3 : 19000000; time = 37.827 sec
+Thread # 4 : 19000000; time = 38.014 sec
+Thread # 0 : 19000000; time = 37.981 sec
+[GC 15464352K->15461583K(23223936K), 31.1850310 secs]
+Thread # 7 : 19000000; time = 69.329 sec
+Thread # 5 : 19000000; time = 69.291 sec
+Thread # 6 : 19000000; time = 69.446 sec
+Thread # 1 : 21000000; time = 43.171 sec
+Thread # 2 : 21000000; time = 43.225 sec
+Thread # 3 : 21000000; time = 43.265 sec
+Thread # 4 : 21000000; time = 43.175 sec
+Thread # 0 : 21000000; time = 43.206 sec
+Thread # 7 : 21000000; time = 42.972 sec
+Thread # 5 : 21000000; time = 42.983 sec
+Thread # 6 : 21000000; time = 43.025 sec
+将线程分组来解释该测试结果。比如，下面的小片段表示intern八百万字符串花费将近43秒(每个线程intern一百万字符串)，当时jvm池中已有的字符串数量为20M*8=160M(1.6亿)。
+
+Thread # 1 : 21000000; time = 43.171 sec
+Thread # 2 : 21000000; time = 43.225 sec
+Thread # 3 : 21000000; time = 43.265 sec
+Thread # 4 : 21000000; time = 43.175 sec
+Thread # 0 : 21000000; time = 43.206 sec
+Thread # 7 : 21000000; time = 42.972 sec
+Thread # 5 : 21000000; time = 42.983 sec
+Thread # 6 : 21000000; time = 43.025 sec
+单线程与多线程String.intern测试比较
+
+未被垃圾回收影响的第一组信息为处理字符串数量为11M（一千百万）——对应到单线程情况
+为intern字符串88M。简单估算一下。假设单线程时结果线性增加，需要计算单线程时间(84M)作为我们[80M;88M]的単线程用例的平均时间。大约为time(80M) + (time(80M) - time(76M)) = 4.4 sec + (4.4 sec - 4.2 sec) = 4.6 sec。相同情况的多线程模式下增加一百万字符串的时间约为43 sec / 8 = 5.375 sec，可以看到8个并发线程添加字符串到字符串池中仅增加了17%的开销。即多线程写入字符串到池中付出的代价是很小的。
+
+JVM字符串池线程本地化测试
+
+在同步开销很低的情况下，我开始思考JVM字符串池实际上是否是线程本地的？在那种情况下如果我们从两个不同的线程intern相同的字符串我们会获取到两个不同的对象。下面的测试先启动第一个线程intern字符串，sleep两秒后开始另一个相同的线程。我们期望第一个线程中str.intern() == str，因为我们intern一个新的字符串，那么它保存在JVM池中，但是第二个线程中str.intern() != str，因为这个字符串已经在第一个线程中。
+
+这个测试有另一个副作用——某些时刻第二个线程将弥补时间差距，因为JVM字符串池读操作要比写入快很多。
+
+下面是测试代码：
+
+
+private static void multiThreadedLocalPoolTest( final int cnt ) throws InterruptedException {
+    final Runnable task1 = new Runnable() {
+        @Override
+        public void run() {
+            final List<String> lst = new ArrayList<String>( 100 );
+            long start = System.currentTimeMillis();
+            for ( int i = 0; i < cnt; ++i )
+            {
+                final String str = Integer.toString( i );
+                final String interned = str.intern();
+                if ( str != interned )
+                    System.out.println( "Thread 0: different interned " + str );
+                lst.add( interned );
+                if ( i % 1000000 == 0 )
+                {
+                    System.out.println( "Thread 0 : " + i + "; time = " + ( System.currentTimeMillis() - start ) / 1000.0 + " sec" );
+                    start = System.currentTimeMillis();
+                }
+            }
+        System.out.println( "Total length = " + lst.size() );
+        }
+    };
+  
+    final Runnable task2 = new Runnable() {
+    @Override
+    public void run() {
+        final List<String> lst = new ArrayList<String>( 100 );
+        long start = System.currentTimeMillis();
+        for ( int i = 0; i < cnt; ++i )
+        {
+            final String str = Integer.toString( i );
+            final String interned = str.intern();
+            if ( str == interned )
+                System.out.println( "Thread 1: same interned " + str );
+            lst.add( interned );
+            if ( i % 1000000 == 0 )
+            {
+                System.out.println( "Thread 1 : " + i + "; time = " + ( System.currentTimeMillis() - start ) / 1000.0 + " sec" );
+                start = System.currentTimeMillis();
+            }
+        }
+        System.out.println( "Total length = " + lst.size() );
+    }
+};
+  
+final Thread thread1 = new Thread( task1 );
+thread1.start();
+  
+Thread.sleep( 2000 );
+  
+final Thread thread2 = new Thread( task2 );
+thread2.start();}
+测试的输出显示了一些1000以下的interned字符串(至少我这里是的)。之后的输出为空直到线程#1追上线程#0。这个点后面的输出就没有什么意义了。这个测试证明了没有本地线程池(否则线程#1将从开始打印所有的interned值)。
+
+“1写入7读取”测试
+
+最后将测试“1线程写入7线程读取”场景的性能。我们将启动8个线程interning相同的字符串集合。就是说只有一个线程添加字符串到字符串池，而其他线程仅仅从池中查询数据。使用测试2中的multiThreadedInternTest方法。唯一不同的地方是intern的字符串不包含特定的线程前缀。
+
+以下是测试结果。每一百万个字符串输出一行。
+
+
+Thread # 4 : 1000000; time = 0.807 sec
+Thread # 6 : 7000000; time = 1.201 sec
+Thread # 2 : 8000000; time = 1.244 sec
+Thread # 2 : 10000000; time = 1.639 sec
+Thread # 6 : 11000000; time = 1.65 sec
+Thread # 6 : 12000000; time = 1.726 sec
+Thread # 5 : 14000000; time = 1.588 sec
+Thread # 7 : 15000000; time = 1.612 sec
+Thread # 6 : 17000000; time = 1.715 sec
+Thread # 6 : 18000000; time = 1.711 sec
+Thread # 2 : 19000000; time = 1.762 sec
+Thread # 3 : 21000000; time = 1.857 sec
+Thread # 1 : 21000000; time = 1.858 sec
+Thread # 3 : 22000000; time = 1.877 sec
+Thread # 6 : 23000000; time = 1.991 sec
+Thread # 7 : 25000000; time = 2.052 sec
+Thread # 2 : 26000000; time = 2.15 sec
+Thread # 3 : 27000000; time = 2.17 sec
+Thread # 7 : 28000000; time = 2.145 sec
+Thread # 0 : 31000000; time = 2.341 sec
+Thread # 2 : 32000000; time = 2.353 sec
+Thread # 1 : 33000000; time = 2.392 sec
+Thread # 2 : 35000000; time = 2.548 sec
+Thread # 7 : 36000000; time = 2.499 sec
+Thread # 0 : 37000000; time = 2.532 sec
+Thread # 0 : 38000000; time = 2.622 sec
+Thread # 7 : 40000000; time = 2.748 sec
+Thread # 6 : 41000000; time = 2.768 sec
+Thread # 3 : 42000000; time = 2.835 sec
+Thread # 0 : 44000000; time = 2.813 sec
+Thread # 5 : 45000000; time = 2.979 sec
+Thread # 4 : 46000000; time = 2.996 sec
+Thread # 4 : 47000000; time = 3.067 sec
+Thread # 7 : 49000000; time = 2.976 sec
+Thread # 0 : 50000000; time = 3.191 sec
+Thread # 3 : 51000000; time = 3.102 sec
+Thread # 7 : 52000000; time = 3.214 sec
+Thread # 3 : 54000000; time = 3.401 sec
+Thread # 4 : 55000000; time = 3.409 sec
+Thread # 2 : 56000000; time = 3.471 sec
+Thread # 2 : 57000000; time = 3.448 sec
+Thread # 6 : 59000000; time = 3.67 sec
+Thread # 5 : 60000000; time = 3.797 sec
+Thread # 6 : 61000000; time = 3.744 sec
+Thread # 0 : 62000000; time = 3.748 sec
+Thread # 1 : 64000000; time = 3.921 sec
+Thread # 1 : 66000000; time = 4.042 sec
+Thread # 4 : 68000000; time = 4.115 sec
+Thread # 2 : 69000000; time = 4.167 sec
+Thread # 2 : 70000000; time = 4.276 sec
+Thread # 7 : 71000000; time = 4.23 sec
+Thread # 7 : 73000000; time = 4.38 sec
+Thread # 6 : 74000000; time = 4.439 sec
+Thread # 3 : 75000000; time = 4.403 sec
+Thread # 4 : 76000000; time = 4.414 sec
+Thread # 6 : 77000000; time = 4.499 sec
+Thread # 6 : 78000000; time = 4.582 sec
+Thread # 0 : 80000000; time = 4.706 sec
+Thread # 6 : 80000000; time = 4.706 sec
+Thread # 1 : 80000000; time = 4.706 sec
+Thread # 4 : 80000000; time = 4.706 sec
+Thread # 2 : 80000000; time = 4.706 sec
+Thread # 3 : 80000000; time = 4.706 sec
+Thread # 7 : 80000000; time = 4.706 sec
+Thread # 5 : 80000000; time = 4.706 sec
+将该结果与第一个测试比较，可以看到这种场景与单线程情形相比开销大约增加了9%。
+
+总结
+
+在多线程代码中也自由地使用String.intern()方法吧。“8写入”场景下与“1写入”(单线程)相比仅仅增加17%的开销。测试中“1写入7读取”场景下与单线程相比增加9%开销。
+JVM字符串池不是线程本地的。添加到池中的每个字符串对于JVM的所有线程都是可用的，这进一步增加了程序内存消耗。
+ 

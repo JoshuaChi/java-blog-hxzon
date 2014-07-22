@@ -1,0 +1,414 @@
+﻿String.intern in Java 6, 7 and 8 – string pooling
+by Mikhail Vorontsov
+http://java-performance.info/string-intern-in-java-6-7-8/
+
+This article will describe how String.intern method was implemented in Java 6 and what changes were made in it in Java 7 and Java 8.
+
+First of all I want to thank Yannis Bres for inspiring me to write this article.
+
+07 June 2014 update: added 60013 as a default string pool size since Java 7u40 (instead of Java 8), added -XX:+PrintFlagsFinal and -XX:+PrintStringTableStatistics JVM parameter references, cleaned up a few typos.
+
+This is an updated version of this article including -XX:StringTableSize=N JVM parameter description. This article is followed by String.intern in Java 6, 7 and 8 – multithreaded access article describing the performance characteristics of the multithreaded access to String.intern().
+
+String pooling
+
+String pooling (aka string canonicalisation) is a process of replacing several String objects with equal value but different identity with a single shared String object. You can achieve this goal by keeping your own Map<String, String> (with possibly soft or weak references depending on your requirements) and using map values as canonicalised values. Or you can use String.intern() method which is provided to you by JDK.
+
+At times of Java 6 using String.intern() was forbidden by many standards due to a high possibility to get an OutOfMemoryException if pooling went out of control. Oracle Java 7 implementation of string pooling was changed considerably. You can look for details in http://bugs.sun.com/view_bug.do?bug_id=6962931 and http://bugs.sun.com/view_bug.do?bug_id=6962930.
+
+String.intern() in Java 6
+
+In those good old days all interned strings were stored in the PermGen – the fixed size part of heap mainly used for storing loaded classes and string pool. Besides explicitly interned strings, PermGen string pool also contained all literal strings earlier used in your program (the important word here is used – if a class or method was never loaded/called, any constants defined in it will not be loaded).
+
+The biggest issue with such string pool in Java 6 was its location – the PermGen. PermGen has a fixed size and can not be expanded at runtime. You can set it using -XX:MaxPermSize=N option. As far as I know, the default PermGen size varies between 32M and 96M depending on the platform. You can increase its size, but its size will still be fixed. Such limitation required very careful usage of String.intern – you’d better not intern any uncontrolled user input using this method. That’s why string pooling at times of Java 6 was mostly implemented in the manually managed maps.
+
+String.intern() in Java 7
+
+Oracle engineers made an extremely important change to the string pooling logic in Java 7 – the string pool was relocated to the heap. It means that you are no longer limited by a separate fixed size memory area. All strings are now located in the heap, as most of other ordinary objects, which allows you to manage only the heap size while tuning your application. Technically, this alone could be a sufficient reason to reconsider using String.intern() in your Java 7 programs. But there are other reasons.
+
+
+
+String pool values are garbage collected
+
+Yes, all strings in the JVM string pool are eligible for garbage collection if there are no references to them from your program roots. It applies to all discussed versions of Java. It means that if your interned string went out of scope and there are no other references to it – it will be garbage collected from the JVM string pool.
+
+Being eligible for garbage collection and residing in the heap, a JVM string pool seems to be a right place for all your strings, isn’t it? In theory it is true – non-used strings will be garbage collected from the pool, used strings will allow you to save memory in case then you get an equal string from the input. Seems to be a perfect memory saving strategy? Nearly so. You must know how the string pool is implemented before making any decisions.
+
+JVM string pool implementation in Java 6, 7 and 8
+
+The string pool is implemented as a fixed capacity hash map with each bucket containing a list of strings with the same hash code. Some implementation details could be obtained from the following Java bug report: http://bugs.sun.com/view_bug.do?bug_id=6962930.
+
+The default pool size is 1009 (it is present in the source code of the above mentioned bug report, increased in Java7u40). It was a constant in the early versions of Java 6 and became configurable between Java6u30 and Java6u41. It is configurable in Java 7 from the beginning (at least it is configurable in Java7u02). You need to specify -XX:StringTableSize=N, where N is the string pool map size. Ensure it is a prime number for the better performance.
+
+This parameter will not help you a lot in Java 6, because you are still limited by a fixed size PermGen size. The further discussion will exclude Java 6.
+
+Java7 (until Java7u40)
+
+In Java 7, on the other hand, you are limited only by a much higher heap size. It means that you can set the string pool size to a rather high value in advance (this value depends on your application requirements). As a rule, one starts worrying about the memory consumption when the memory data set size grows to at least several hundred megabytes. In this situation, allocating 8-16 MB for a string pool with one million entries seems to be a reasonable trade off (do not use 1,000,000 as a -XX:StringTableSize value – it is not prime; use 1,000,003 instead).
+
+You may expect a uniform distribution of interned strings in the buckets – read my experiments in the hashCode method performance tuning article.
+
+You must set a higher -XX:StringTableSize value (compared to the default 1009) if you intend to actively use String.intern() – otherwise this method performance will soon degrade to a linked list performance.
+
+I have not noticed a dependency from a string length to a time to intern a string for string lengths under 100 characters (I feel that duplicates of even 50 character long strings are rather unlikely in the real world data, so 100 chars seems to be a good test limit for me).
+
+Here is an extract from the test application log with the default pool size: time to intern 10.000 strings (second number) after a given number of strings was already interned (first number); Integer.toString( i ), where i between 0 and 999,999 were interned:
+
+0; time = 0.0 sec
+50000; time = 0.03 sec
+100000; time = 0.073 sec
+150000; time = 0.13 sec
+200000; time = 0.196 sec
+250000; time = 0.279 sec
+300000; time = 0.376 sec
+350000; time = 0.471 sec
+400000; time = 0.574 sec
+450000; time = 0.666 sec
+500000; time = 0.755 sec
+550000; time = 0.854 sec
+600000; time = 0.916 sec
+650000; time = 1.006 sec
+700000; time = 1.095 sec
+750000; time = 1.273 sec
+800000; time = 1.248 sec
+850000; time = 1.446 sec
+900000; time = 1.585 sec
+950000; time = 1.635 sec
+1000000; time = 1.913 sec
+These test results were obtained on Core i5-3317U@1.7Ghz CPU. As you can see, they grow linearly and I was able to intern only approximately 5,000 strings per second when the JVM string pool size contained one million strings. It is unacceptably slow for most of applications having to handle a large amount of data in memory.
+
+Now the same test results with -XX:StringTableSize=100003 option:
+
+50000; time = 0.017 sec
+100000; time = 0.009 sec
+150000; time = 0.01 sec
+200000; time = 0.009 sec
+250000; time = 0.007 sec
+300000; time = 0.008 sec
+350000; time = 0.009 sec
+400000; time = 0.009 sec
+450000; time = 0.01 sec
+500000; time = 0.013 sec
+550000; time = 0.011 sec
+600000; time = 0.012 sec
+650000; time = 0.015 sec
+700000; time = 0.015 sec
+750000; time = 0.01 sec
+800000; time = 0.01 sec
+850000; time = 0.011 sec
+900000; time = 0.011 sec
+950000; time = 0.012 sec
+1000000; time = 0.012 sec
+As you can see, in this situation it takes nearly constant time to insert strings in the pool (there is no more than 10 strings in the bucket on average). Here are results with the same settings, but now we will insert up to 10 million strings in the pool (which means 100 strings in the bucket on average)
+
+2000000; time = 0.024 sec
+3000000; time = 0.028 sec
+4000000; time = 0.053 sec
+5000000; time = 0.051 sec
+6000000; time = 0.034 sec
+7000000; time = 0.041 sec
+8000000; time = 0.089 sec
+9000000; time = 0.111 sec
+10000000; time = 0.123 sec
+Now let’s increase the pool size to one million buckets: (1,000,003 to be precise):
+
+1000000; time = 0.005 sec
+2000000; time = 0.005 sec
+3000000; time = 0.005 sec
+4000000; time = 0.004 sec
+5000000; time = 0.004 sec
+6000000; time = 0.009 sec
+7000000; time = 0.01 sec
+8000000; time = 0.009 sec
+9000000; time = 0.009 sec
+10000000; time = 0.009 sec
+As you can see, times are flat and do not look much different from “zero to one million” table for the ten times small string pool. Even my slow laptop can add one million new strings to the JVM string pool per second provided that the pool size is high enough.
+
+Shall we still use manual string pools?
+
+Now we need to compare this JVM string pool with a WeakHashMap<String, WeakReference<String>>, which could be used in order to emulate the JVM string pool. The following method is used for String.intern replacement:
+
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+private static final WeakHashMap<String, WeakReference<String>> s_manualCache =
+    new WeakHashMap<String, WeakReference<String>>( 100000 );
+ 
+private static String manualIntern( final String str )
+{
+    final WeakReference<String> cached = s_manualCache.get( str );
+    if ( cached != null )
+    {
+        final String value = cached.get();
+        if ( value != null )
+            return value;
+    }
+    s_manualCache.put( str, new WeakReference<String>( str ) );
+    return str;
+}
+This is the output for the same test using this manual pool:
+
+0; manual time = 0.001 sec
+50000; manual time = 0.03 sec
+100000; manual time = 0.034 sec
+150000; manual time = 0.008 sec
+200000; manual time = 0.019 sec
+250000; manual time = 0.011 sec
+300000; manual time = 0.011 sec
+350000; manual time = 0.008 sec
+400000; manual time = 0.027 sec
+450000; manual time = 0.008 sec
+500000; manual time = 0.009 sec
+550000; manual time = 0.008 sec
+600000; manual time = 0.008 sec
+650000; manual time = 0.008 sec
+700000; manual time = 0.008 sec
+750000; manual time = 0.011 sec
+800000; manual time = 0.007 sec
+850000; manual time = 0.008 sec
+900000; manual time = 0.008 sec
+950000; manual time = 0.008 sec
+1000000; manual time = 0.008 sec
+Manually written pool has provided comparable performance when JVM has sufficient memory. Unfortunately, for my test case (interning String.valueOf(0 < N < 1,000,000,000) ) of very short strings to intern, it allowed me to keep only ~2.5M such strings with -Xmx1280M. JVM string pool (size=1,000,003), on the other hand, provided the same flat performance characteristics until JVM ran out of memory with 12,72M strings in the pool (5 times more). As I think, it is a valuable hint to get rid of manual string pooling in your programs.
+
+String.intern() in Java 7u40+ and Java 8
+
+String pool size was increased in Java7u40 (this was a major performance update) to 60013. This value allows you to have approximately 30.000 distinct strings in the pool before your start experiencing collisions. Generally, this is sufficient for data which actually worth to intern. You can obtain this value using -XX:+PrintFlagsFinal JVM parameter.
+
+I have tried to run the same tests on the original release of Java 8. Java 8 still accepts -XX:StringTableSize parameter and provides the comparable to Java 7 performance. The only important difference is that the default pool size was increased in Java 8 to 60013:
+
+50000; time = 0.019 sec
+100000; time = 0.009 sec
+150000; time = 0.009 sec
+200000; time = 0.009 sec
+250000; time = 0.009 sec
+300000; time = 0.009 sec
+350000; time = 0.011 sec
+400000; time = 0.012 sec
+450000; time = 0.01 sec
+500000; time = 0.013 sec
+550000; time = 0.013 sec
+600000; time = 0.014 sec
+650000; time = 0.018 sec
+700000; time = 0.015 sec
+750000; time = 0.029 sec
+800000; time = 0.018 sec
+850000; time = 0.02 sec
+900000; time = 0.017 sec
+950000; time = 0.018 sec
+1000000; time = 0.021 sec
+Test code
+
+Test code for this article is rather simple: a method creates and interns new strings in a loop. We also measure time it took to intern the current 10.000 strings. It worth to run this program with -verbose:gc JVM parameter to see when and what garbage collections will happen. You may also want to specify the maximal heap size using -Xmx parameter.
+
+There are 2 tests: testStringPoolGarbageCollection will show you that a JVM string pool is actually garbage collected - check the garbage collection log messages as well as time it took to intern the strings on the second pass. This test will fail on Java 6 default PermGen size, so either update it, or update the test method argument, or use Java 7.
+
+Second test will show you how many interned strings could be stored in memory. Run it on Java 6 with 2 different memory settings - for example -Xmx128M and -Xmx1280M (10 times more). Most likely you will see that it will not affect the number of strings you can put in the pool. On the other hand, in Java 7 you will be able to fill the whole heap with your strings.
+
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+46
+47
+48
+49
+50
+51
+52
+53
+54
+55
+56
+57
+58
+59
+60
+61
+62
+63
+64
+65
+66
+67
+68
+69
+70
+71
+72
+73
+74
+75
+76
+77
+78
+79
+80
+81
+82
+83
+84
+85
+86
+87
+88
+89
+90
+/**
+ * Testing String.intern.
+ *
+ * Run this class at least with -verbose:gc JVM parameter.
+ */
+public class InternTest {
+    public static void main( String[] args ) {
+        testStringPoolGarbageCollection();
+        testLongLoop();
+    }
+ 
+    /**
+     * Use this method to see where interned strings are stored
+     * and how many of them can you fit for the given heap size.
+     */
+    private static void testLongLoop()
+    {
+        test( 1000 * 1000 * 1000 );
+        //uncomment the following line to see the hand-written cache performance
+        //testManual( 1000 * 1000 * 1000 );
+    }
+ 
+    /**
+     * Use this method to check that not used interned strings are garbage collected.
+     */
+    private static void testStringPoolGarbageCollection()
+    {
+        //first method call - use it as a reference
+        test( 1000 * 1000 );
+        //we are going to clean the cache here.
+        System.gc();
+        //check the memory consumption and how long does it take to intern strings
+        //in the second method call.
+        test( 1000 * 1000 );
+    }
+ 
+    private static void test( final int cnt )
+    {
+        final List<String> lst = new ArrayList<String>( 100 );
+        long start = System.currentTimeMillis();
+        for ( int i = 0; i < cnt; ++i )
+        {
+            final String str = "Very long test string, which tells you about something " +
+            "very-very important, definitely deserving to be interned #" + i;
+//uncomment the following line to test dependency from string length
+//            final String str = Integer.toString( i );
+            lst.add( str.intern() );
+            if ( i % 10000 == 0 )
+            {
+                System.out.println( i + "; time = " + ( System.currentTimeMillis() - start ) / 1000.0 + " sec" );
+                start = System.currentTimeMillis();
+            }
+        }
+        System.out.println( "Total length = " + lst.size() );
+    }
+ 
+    private static final WeakHashMap<String, WeakReference<String>> s_manualCache =
+        new WeakHashMap<String, WeakReference<String>>( 100000 );
+ 
+    private static String manualIntern( final String str )
+    {
+        final WeakReference<String> cached = s_manualCache.get( str );
+        if ( cached != null )
+        {
+            final String value = cached.get();
+            if ( value != null )
+                return value;
+        }
+        s_manualCache.put( str, new WeakReference<String>( str ) );
+        return str;
+    }
+ 
+    private static void testManual( final int cnt )
+    {
+        final List<String> lst = new ArrayList<String>( 100 );
+        long start = System.currentTimeMillis();
+        for ( int i = 0; i < cnt; ++i )
+        {
+            final String str = "Very long test string, which tells you about something " +
+                "very-very important, definitely deserving to be interned #" + i;
+            lst.add( manualIntern( str ) );
+            if ( i % 10000 == 0 )
+            {
+                System.out.println( i + "; manual time = " + ( System.currentTimeMillis() - start ) / 1000.0 + " sec" );
+                start = System.currentTimeMillis();
+            }
+        }
+        System.out.println( "Total length = " + lst.size() );
+    }
+}
+Summary
+
+Stay away from String.intern() method on Java 6 due to a fixed size memory area (PermGen) used for JVM string pool storage.
+Java 7 and 8 implement the string pool in the heap memory. It means that you are limited by the whole application memory for string pooling in Java 7 and 8.
+Use -XX:StringTableSize JVM parameter in Java 7 and 8 to set the string pool map size. It is fixed, because it is implemented as a hash map with lists in the buckets. Approximate the number of distinct strings in your application (which you intend to intern) and set the pool size equal to some prime number close to this value multiplied by 2 (to reduce the likelihood of collisions). It will allow String.intern to run in the constant time and requires a rather small memory consumption per interned string (explicitly used Java WeakHashMap will consume 4-5 times more memory for the same task).
+The default value of -XX:StringTableSize parameter is 1009 in Java 6 and Java 7 until Java7u40. It was increased to 60013 in Java 7u40 (same value is used in Java 8 as well).
+If you are not sure about the string pool usage, try -XX:+PrintStringTableStatistics JVM argument. It will print you the string pool usage when your program terminates.
+See also
+
+String.intern in Java 6, 7 and 8 - multithreaded access
+An overview of memory saving techniques in Java
+Memory consumption of popular Java data types - part 1
+Memory consumption of popular Java data types - part 2
+A few more memory saving techniques in Java
+Changes to String internal representation made in Java 1.7.0_06

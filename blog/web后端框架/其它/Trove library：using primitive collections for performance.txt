@@ -1,0 +1,665 @@
+﻿Trove library：using primitive collections for performance
+
+by Mikhail Vorontsov
+http://java-performance.info/primitive-types-collections-trove-library/
+
+19 July 2014: article text cleanup, added a chapter on JDK to Trove migration.
+16 July 2012: original version.
+
+注释by hxzon
+原始类型的集合类库，高性能。
+
+====
+This article would describe Trove library, which contains a set of primitive collection implementations. 
+The latest version of Trove (3.1a1 at the time of writing) would be described here.
+
+Why should you use Trove? 
+Why not to keep using well known JDK collections? 
+The answer is performance and memory consumption. 
+Trove doesn’t use any java.lang.Number subclasses internally, 
+so you don’t have to pay for boxing/unboxing each time you want to pass/query a primitive value to/from the collection. 
+Besides, you don’t have to waste memory on the boxed numbers 
+(24 bytes for Long/Double, 16 bytes for smaller types) and reference to them. 
+For example, if you want to store an Integer in JDK map, 
+you need 4 bytes for a reference (or 8 bytes on huge heaps) and 16 bytes for an Integer instance. 
+Trove, on the other hand, uses just 4 bytes to store an int. 
+不使用装箱拆箱，节省内存。
+Trove also doesn’t create Map.Entry for each key-value pair unlike java.util.HashMap, 
+further reducing the map memory footprint. 
+对于映射，内部不使用 Map.Entry 保存每个键值对。
+For sets, it doesn’t use a Map internally, just keeping set values.
+对于集，内部不使用Map。
+
+There are 3 main collection types in Trove: array lists, sets and maps. 
+There are also queues, stacks and linked lists, 
+but they are not so important (and usually instances of these collections tend to be rather small).
+
+====
+Array lists
+
+All array lists are built on top of an array of corresponding data type (for example, int[] for TIntArrayList). 
+There is a small problem which you should deal with: a value for the absent elements (default value). 
+It is zero by default, but you can override it using
+有一个问题，必须制定默认值（因为原始类型不能为null）。
+
+public TIntArrayList(int capacity, int no_entry_value);
+
+public static TIntArrayList wrap(int[] values, int no_entry_value);
+
+There are 2 useful methods called getQuick/setQuick – they just access the underlying array without any additional checks. 
+As a side-effect they would allow to access elements between list size and capacity 
+(don’t use it too much – it is still better to add values legally 
+and when getQuick values as long as you are inside array list boundaries.
+
+Each Trove array list has several helper methods which implement the java.util.Collections functionality:
+
+public void reverse()
+public void reverse(int from, int to)
+public void shuffle(java.util.Random rand)
+public void sort()
+public void sort(int fromIndex, int toIndex)
+public void fill(int val)
+public void fill(int fromIndex, int toIndex, int val)
+public int binarySearch(int value)
+public int binarySearch(int value, int fromIndex, int toIndex)
+public int max()
+public int min()
+public int sum()
+
+
+Trove array lists support three iteration types:
+支持三种迭代方式：
+
+By index – use any loop from index = 0 to list.size() – 1. 
+This approach is useful when you need to know the index of current element.
+
+Using iterator: 
+there are several iterators defined for each primitive type. 
+This one seems to be less useful because it doesn’t provide any new functionality compared to other methods.
+
+Using functional approach 
+– a user-defined method implementing one of Trove interfaces would be called for each value in the list.
+
+Two first iteration methods are rather common to Java developers, 
+so let’s take a closer look at the last one. 
+There are two iteration methods defined for Trove array lists (example for TIntArrayList):
+
+
+public boolean forEach( TIntProcedure procedure );
+
+public boolean forEachDescending( TIntProcedure procedure );
+
+First method iterates all elements from the beginning of the list to the end, 
+second – from the end to the beginning. 
+Implemented method should usually return true. 
+If it returns false an iteration will stop. 
+That’s how one could print all elements in the array list (yeah, too verbose compared to Scala…):
+
+lst.forEach( new TIntProcedure() {
+    @Override
+    public boolean execute( final int value ) {
+        System.out.println( value );
+        return true;
+    }
+});
+
+There is another pair of methods:
+
+public TIntList grep( TIntProcedure condition );
+public TIntList inverseGrep( TIntProcedure condition );
+
+They grep the array list. 
+First method accumulates all values for which implemented method returns true, 
+second does the opposite, accumulating all values for which false was returned.
+
+This approach has one disadvantage – if you need to update a primitive variable from these methods, 
+you’ll have to use either any of Mutable* classes from Apache Commons Lang package or implement one yourself:
+
+private static final class MutableInt
+{
+    public int value;
+}
+
+You have to use such class because all variables accessed from inner classes must be final, 
+so you can’t use primitive type variable, but instead use not-final field of some class.
+
+for*-methods are also IDE friendly – most IDEs support autocompleting methods parameters, including interface implementations. 
+You simply need to type forEach( new and press your IDE autocomplete key combination.
+
+====
+Sets
+
+Trove primitive sets use one array to store set values (using open indexed approach) 
+and one more array of bytes to save each cell status: open, used or deleted.
+使用一个数组存储集的值，使用灵一个字节数组存储各个单元的状态：打开，使用，删除。 
+Besides, there are THashSet<E> and TLinkedHashSet<E>, 
+which can replace java.util.HashSet and java.util.LinkedHashSet from JDK. 
+These object sets don’t use a separate array of bytes to keep the slot state (unlike primitive sets).
+
+Both JDK sets are based on the HashMap<E,Object>, 
+where Object values are just cell state flags. 
+HashMaps, in turn, are based on array of Map.Entry. 
+As a result, JDK HashSet uses three Objects per each stored values. 
+jdk自带的哈希集，每个值都使用了三个对象。
+This is especially expensive in case when you need to store primitive values in a set.
+
+JDK LinkedHashSet is built on top of HashSet 
+by adding double linked references to each map entry to keep order in which records have been inserted. 
+Let’s see how much memory will consume a set of 10M integers 
+(in all cases we create a set with initial capacity=10M elements 
+and fill factor=0.75, which is the default fill factor of JDK maps/sets):
+内存占用对比：
+
+JDK HashSet<Integer>	JDK LinkedHashSet<Integer>	Trove THashSet<Integer>	Trove TLinkedHashSet<Integer>	Trove TIntHashSet
+521M	598M	207M	258M	69M
+
+Here is the memory consumption test code:
+
+public class TroveTests {
+    private static final int SIZE = 10 * 1000 * 1000;
+    private static final float FILL_FACTOR = 0.75f;
+ 
+    public static void main(String[] args) {
+        testJdkHashSet();
+        testJdkLinkedHashSet();
+        testTHashSet();
+        testTLinkedHashSet();
+        testTIntHashSet();
+    }
+ 
+    private static long getUsedMemory()
+    {
+        System.gc();
+        return Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
+    }
+ 
+    private static void testJdkHashSet()
+    {
+        final long start = getUsedMemory();
+        final Set<Integer> set = new HashSet<>( SIZE, FILL_FACTOR );
+        for ( int i = 0; i < SIZE; ++i )
+            set.add( i );
+        final long size = ( getUsedMemory() - start ) / 1024 / 1024;
+        System.out.println( "HashSet<Integer> = " + size + 'M' );
+        if ( set.size() == 1 ) System.out.println( 1 );
+    }
+ 
+    private static void testJdkLinkedHashSet()
+    {
+        final long start = getUsedMemory();
+        final Set<Integer> set = new LinkedHashSet<>( SIZE, FILL_FACTOR );
+        for ( int i = 0; i < SIZE; ++i )
+            set.add( i );
+        final long size = ( getUsedMemory() - start ) / 1024 / 1024;
+        System.out.println( "LinkedHashSet<Integer> = " + size + 'M' );
+        if ( set.size() == 1 ) System.out.println( 1 );
+    }
+ 
+    private static void testTHashSet()
+    {
+        final long start = getUsedMemory();
+        final Set<Integer> set = new THashSet<>( SIZE, FILL_FACTOR );
+        for ( int i = 0; i < SIZE; ++i )
+            set.add( i );
+        final long size = ( getUsedMemory() - start ) / 1024 / 1024;
+        System.out.println( "THashSet<Integer> = " + size + 'M' );
+        if ( set.size() == 1 ) System.out.println( 1 );
+    }
+ 
+    private static void testTLinkedHashSet()
+    {
+        final long start = getUsedMemory();
+        final Set<Integer> set = new TLinkedHashSet<>( SIZE, FILL_FACTOR );
+        for ( int i = 0; i < SIZE; ++i )
+            set.add( i );
+        final long size = ( getUsedMemory() - start ) / 1024 / 1024;
+        System.out.println( "TLinkedHashSet<Integer> = " + size + 'M' );
+        if ( set.size() == 1 ) System.out.println( 1 );
+    }
+ 
+    private static void testTIntHashSet()
+    {
+        final long start = getUsedMemory();
+        final TIntSet set = new TIntHashSet( SIZE, FILL_FACTOR, -1 );
+        for ( int i = 0; i < SIZE; ++i )
+            set.add( i );
+        final long size = ( getUsedMemory() - start ) / 1024 / 1024;
+        System.out.println( "TIntHashSet<Integer> = " + size + 'M' );
+        if ( set.size() == 1 ) System.out.println( 1 );
+    }
+}
+
+There is no difference between Java 7 and 8 in this test. 
+Trove THashSet uses simple array of Objects to keep the set. 
+TLinkedHashSet adds TIntList to keep order of records. 
+So, it makes sense to use Trove Object sets as a replacement for JDK sets, 
+because they implement Collection, Set and Iterable interfaces.
+它们实现了集合，集，“可迭代”等接口。
+
+Note that for a set of integer values (short/int/long) it may be worth to replace such set with a bit set. 
+Read "Bit sets" article for more details.
+对于整数集，建议使用位集。
+
+Let's return to primitive type sets. addAll, containsAll, removeAll and retainAll methods 
+are overloaded in order to support java.util.Collection as well as TTypeCollection, 
+where Type is any of primitive types, and primitive type arrays as arguments, 
+providing compatibility to JDK collections, 
+Trove collections and lower level code.
+
+====
+Maps
+
+Trove maps could be divided into 4 groups:
+
+Maps from one primitive type to another.
+
+Maps from objects to primitive types and vice versa.
+
+java.util.HashMap replacement called THashMap.
+
+Maps from objects to primitive types/objects which use user-defined hashing strategy.
+
+All primitive value maps are built on top of three arrays 
+- one for keys, another for values and the last one for cell states (free, occupied, deleted).
+所有的原始类型的映射，基于三个数组。
+一个保存键，一个保存值，一个保存单元状态（空闲，占用，已删除）。 
+Object value maps need only 2 arrays - keys and values. 
+All of them use open addressing to determine position of key in a map. 
+值为对象的映射，则只需要两个数组。
+How does it work?
+
+A key hash code is calculated and modulo of dividing it by internal array length is taken. 
+That would be initial position in the search. 
+After that some prime number would be added to this position 
+(still by modulo equal to array length) to find next attempt position. 
+Any other function could also be applied to define new position. 
+Finally an empty cell would be found and new element would be inserted at that position. 
+Same logic is used to find a key in the set, 
+the only difference is that search key should be compared to existing keys on each step.
+
+This means that if your keys implement sufficiently good hashCode method and your map fill factor is not too close to 1 
+(by too close I mean something above 0.9), then the cost of hash map operations is expected to be O(1). 
+You should keep in mind that hashCode method should also be sufficiently fast, 
+otherwise you risk spending more time calculating hash codes rather than working with a hash map.
+
+Methods called keys, keySet, valueCollection and values could be used to iterate map keys and values, 
+but it is more recommended to use either iterator or functional approach: forEachEntry/Key/Value. 
+Both iterators and callbacks are roughly similarly fast, 
+but use iterator if you need to throw an exception or to accumulate some scalar value. 
+Otherwise use any of for* methods - they provide more structured code.
+
+You should also keep in mind that any Trove map/set methods returning an array have to allocate that array (it costs CPU and RAM). 
+注意，返回数组的方法，都重分配了一个新的数组。
+On the other hand, methods returning collections or iterators return the thin wrappers over the Trove sets/maps.
+而返回集合或迭代器的方法，则只是用包装器封装了一下。
+
+Trove map iterators are slightly unusual. 
+The main difference from JDK iterators is that two fields are accessible on each step - a key and a value. 
+That's why you can't implicitly advance to the next value by calling next method if it were here. 
+Instead, there is an advance method, which sole purpose is to get to the next map entry. 
+Keys and values are accessible via key and value methods. 
+Current entry could be removed from the map by remove method. 
+Current entry value could be updated by setValue method.
+
+Trove JavaDoc provides the perfect examples:
+
+
+// accessing keys/values through an iterator:
+for ( TDoubleIntIterator it = map.iterator(); it.hasNext(); ) {
+    it.advance();
+    if ( satisfiesCondition( it.key() ) {
+        doSomethingWithValue( it.value() );
+    }
+}
+ 
+// modifying values in-place through iteration:
+for ( TDoubleIntIterator it = map.iterator(); it.hasNext(); ) {
+    it.advance();
+    if ( satisfiesCondition( it.key() ) {
+        it.setValue( newValueForKey( it.key() ) );
+    }
+}
+ 
+// deleting entries during iteration:
+for ( TDoubleIntIterator it = map.iterator(); it.hasNext(); ) {
+    it.advance();
+    if ( satisfiesCondition( it.key() ) {
+        it.remove();
+    }
+}
+ 
+// faster iteration by avoiding hasNext():
+TDoubleIntIterator iterator = map.iterator();
+for ( int i = map.size(); i-- > 0; ) {
+    iterator.advance();
+    doSomethingWithKeyAndValue( iterator.key(), iterator.value() );
+}
+
+==
+New map methods
+
+Trove collections are not a plain vanilla collections. 
+There is always something new around. 
+All examples are given for TDoubleIntMap. 
+First of all, there is
+
+
+int putIfAbsent( double v, int i )
+
+which proved to be useful in ConcurrentHashMap. 
+It allows user to get rid of containsKey call in
+
+if ( !map.containsKey( key ) )
+    map.put( key, value );
+
+making only one map lookup instead of two.
+
+The next useful method is
+
+public key adjustOrPutValue( double key, int adjust_amount, int put_amount )
+
+If you are building a frequency map (number of occurrences of values in some collection), 
+you usually write something like:
+用于计算频率的映射：
+
+final double[] array = new double[ 100 ];
+...
+array is filled here
+...
+final TDoubleIntMap map = new TDoubleIntHashMap( 100 );
+for ( final double key : array )
+{
+    final int cnt = map.get( key );
+    map.put( key, cnt + 1 );
+}
+
+With Trove maps this could be simplified to:
+
+for ( final double key : array )
+{
+    map.adjustOrPutValue( key, 1, 1 );
+}
+
+There are two more similar methods:
+
+public boolean increment( double key )
+public boolean adjustValue( double key, int amount )
+
+They update value for the given key, but they wouldn't set it up initially. 
+So, if a key is in the map, its value would be updated and both methods would return true, 
+otherwise nothing would happen and false would be returned. 
+That's why they are not the best candidates for the previous example.
+
+The last but not the least useful method is
+清理映射：
+
+boolean retainEntries( TDoubleIntProcedure tDoubleIntProcedure )
+
+If you need to clean a map from some entries, this is the right method for that job. 
+Just provide a predicate which returns true for all entries to be retained and false for all other entries. 
+The only small disadvantage of this method is that it doesn't compact a map after cleaning, 
+so if you expect to clean a lot of entries, call
+唯一缺陷，不会自动压缩。
+
+public void compact()
+
+afterwards to shrink and rehash a map.
+
+==
+Hashing strategies (foreign classes, arrays)
+哈希策略
+
+Maps usually depend on their keys to override equals and hashCode methods. 
+This is fine as long as you can modify that class. 
+But in some cases you can't. 
+Either you aren't allowed to modify a class, or you want to use a different hashing/comparison logic in some special cases. 
+For example, if there is a set of strings representing some sort of ids 
+and all these strings start with some common prefix (state code, for example), 
+when we may want to skip this prefix in order to improve hashCode quality.
+
+Another case is arrays. 
+By default they use implementations inherited from Object. 
+java.util.Arrays provide implementations for two these methods for all array types (all primitive types and Object). 
+So, in order to use these helper methods, we need to use custom hashing strategy:
+java.util.Arrays 提供了两个用于哈希的方法，使用示例如下：
+
+final TObjectIntCustomHashMap<String[]> map = new TObjectIntCustomHashMap<String[]>( new HashingStrategy<String[]>() {
+    @Override
+    public int computeHashCode( String[] array ) {
+        return Arrays.hashCode( array );
+    }
+ 
+    @Override
+    public boolean equals( String[] ar1, String[] ar2 ) {
+        return Arrays.equals( ar1, ar2 );
+    }
+});
+
+Now such map would print 100 in a following code snippet:
+
+final String[] array1 = new String[] { "String 1", "String 2" } ;
+final String[] array2 = new String[] { "String 1", "String 2" } ;
+map.put( array1, 100 );
+System.out.println( map.get( array2 ) );
+
+Another useful case is to replace java.util.IdentityHashMap. 
+For Object to primitive type mappings we can use TObject<primitive type>CustomHashMap 
+(for example, TObjectIntCustomHashMap), for object to object mappings - TCustomHashMap. 
+We can implement required hashing strategy for this case manually:
+
+final TObjectIntCustomHashMap<String> identityMap1 = new TObjectIntCustomHashMap<String>( new HashingStrategy<String>() {
+    @Override
+    public int computeHashCode( String str ) {
+        return System.identityHashCode( str );
+    }
+ 
+    @Override
+    public boolean equals( String str1, String str2 ) {
+        return str1 == str2;
+    }
+});
+
+But it has been already implemented by library developers:
+
+
+final TObjectIntCustomHashMap<String> identityMap2 = new TObjectIntCustomHashMap<String>( IdentityHashingStrategy.INSTANCE );
+
+JDK IdentityHashMap uses its own data structure to store data - keys and values are interleaved in the same array. 
+This is CPU cache-friendly solution 
+(provided that you have found the correct slot in the array using the key hash code on the first attempt). 
+It also doesn't keep redundant Map.Entry objects, so it consumes less memory than java.util.HashMap. 
+Here is a small test. 
+We would add 10M mappings from string to int to three maps: IdentityHashMap, HashMap, TObjectIntCustomHashMap. 
+Of course, this is just a memory consumption test, because HashMap can not substitute IdentityHashMap.
+
+public class TroveTests {
+  private static final int SIZE = 10 * 1000 * 1000;
+  private static final float FILL_FACTOR = 0.75f;
+ 
+  public static void main(String[] args) {
+      testJdkHashMap();
+      testJdkIdentityHashMap();
+      testTroveIdentityHashMap();
+  }
+ 
+  private static long getUsedMemory()
+  {
+      System.gc();
+      return Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
+  }
+ 
+  private static void testJdkHashMap()
+  {
+      final long start = getUsedMemory();
+      final Map<String, Integer> map = new HashMap<>( SIZE, FILL_FACTOR );
+      for ( int i = 0; i < SIZE; ++i )
+          map.put( "string #" + i, i );
+      final long size = ( getUsedMemory() - start ) / 1024 / 1024;
+      System.out.println( "HashMap<String, Integer> = " + size + 'M' );
+      if ( map.size() == 1 ) System.out.println( 1 );
+  }
+ 
+  private static void testJdkIdentityHashMap()
+  {
+      final long start = getUsedMemory();
+      final Map<String, Integer> map = new IdentityHashMap<>( SIZE );
+      for ( int i = 0; i < SIZE; ++i )
+          map.put("string #" + i, i);
+      final long size = ( getUsedMemory() - start ) / 1024 / 1024;
+      System.out.println( "IdentityHashMap<String, Integer> = " + size + 'M' );
+      if ( map.size() == 1 ) System.out.println( 1 );
+  }
+ 
+  private static void testTroveIdentityHashMap()
+  {
+      final long start = getUsedMemory();
+      //INSTANCE is available from Trove 3.1a1
+      final TObjectIntCustomHashMap<String> map = new TObjectIntCustomHashMap<>( IdentityHashingStrategy.INSTANCE, SIZE, FILL_FACTOR, -1 );
+      for ( int i = 0; i < SIZE; ++i )
+          map.put("string #" + i, i);
+      final long size = ( getUsedMemory() - start ) / 1024 / 1024;
+      System.out.println( "TObjectIntCustomHashMap<String> = " + size + 'M' );
+      if ( map.size() == 1 ) System.out.println( 1 );
+  }
+}
+
+JDK HashMap<String, Integer>	JDK IdentityHashMap<String, Integer>	Trove TObjectIntCustomHashMap<String>
+1207M	967M	797M
+
+====
+JDK to Trove migration hints
+迁移指南
+
+Migrating your code from JDK maps/sets to Trove maps/sets is quite straightforward. 
+Nevertheless, there are a few traps to remember.
+
+Converting object-to-object maps
+
+HashMap<T, V> (where T and V are not Number-s)
+
+This is the easiest case - just change the collection type in its initialization from HashMap to THashMap 
+(just add letter 'T' and imports). 
+Your code should work without any other changes provided that you have defined your maps by Map interface instead of HashMap class 
+(otherwise it is a good time to start using this good practice).
+对象到对象的映射，将实现类从HashMap切换到THashMap即可。
+
+HashMap<Number, T>
+
+You need to change both definition and initialization of this map. 
+For example, Map<Integer, String> should be replaced with TIntObjectHashMap<String>. 
+Generally you would not need any other changes except the case of keySet method 
+- it returns a Trove primitive-based set (TIntSet in the example). 
+You may want (note the difference from 'need') to check the map key accesses and get rid of now redundant boxed types.
+
+HashMap<T, Number>
+
+Similar to previous case, both definition and initialization should be changed. 
+For example, Map<String, Integer> should be replaced with TObjectIntHashMap<String>. 
+But this time you must pay much more attention.
+
+All Trove "something-into-primitive" maps require specifying a "no value", which is zero by default. 
+You need it because get/remove methods can not return null now - they return a primitive instead. 
+You have 2 possible solutions:
+
+Choose a "no value". 
+For example, it could be any negative value for time since epoch.
+
+Don't make such choice. 
+Instead wrap all methods relying on "no value" with containsKey call. 
+The disadvantage of this method is a double lookup costs in too many cases. 
+So, choose a "no value".
+
+A common mistake in this type of migration is keeping null-checks for get/remove results. 
+Remember, these methods return "no value" instead of null in Trove!
+
+HashMap<Number, Number>
+
+You new type would be a fully primitive map like TIntLongHashMap. 
+Besides that look for the same problems as listed above in "object-to-number map" section.
+
+IdentityHashMap
+
+As I have mentioned above, 
+IdentityHashMap initialization should be replaced with new TCustomHashMap<>( IdentityHashingStrategy.INSTANCE ). 
+You don't need any other changes if your IdentityHashMap was defined by an interface.
+
+LinkedHashMap
+
+Sorry, Trove does not have any maps with a fixed iteration order. 
+But it may be a good time to check if you actually need a fixed iteration order for your map.
+有序哈希映射，Trove没有提供。
+
+SortedMap
+
+There are no sorted maps in Trove.
+有序映射，Trove也没有提供。
+
+HashSet
+
+Similarly to HashMap, all you need to do is to replace HashSet with THashSet in the map initialization.
+
+LinkedHashSet
+
+Similarly to HashSet, all you need to do is to replace LinkedHashSet with TLinkedHashSet in the map initialization.
+
+Map/set keys/values iteration
+
+You should avoid using any methods returning an array of keys/values in the high performance code.
+为了性能，避免使用返回数组的方法，因为它们新建一个数组。 
+These methods allocate a new array, iterate the whole collection to collect the valid keys/values and return an array of results. 
+Try using iterators, methods returning collections or forEach* methods 
+- all of them return the thin wrappers over underlying collections.
+
+Trove to JDK memory consumption comparison
+
+The following table was borrowed from Memory consumption of popular Java data types - part 2 article.
+
+JDK collection	Size	Possible Trove substitution	Size
+HashMap	32 * SIZE + 4 * CAPACITY bytes	THashMap	8 * CAPACITY bytes
+HashSet	32 * SIZE + 4 * CAPACITY bytes	THashSet	4 * CAPACITY bytes
+LinkedHashMap	40 * SIZE + 4 * CAPACITY bytes	None	 
+LinkedHashSet	40 * SIZE + 4 * CAPACITY bytes	TLinkedHashSet	8 * CAPACITY bytes
+TreeMap, TreeSet	40 * SIZE bytes	None	 
+
+Let's compare the memory consumption of a few numeric hash maps/sets. 
+Note that sets/maps with primitive values require one more byte per slot - it is used to track the slot state.
+
+JDK collection	Size	Possible Trove substitution	Size
+HashMap<Integer, Integer>	(32(Map.Entry) + 16(Integer1) + 16(Integer2)) * SIZE + 4 * CAPACITY bytes	TIntIntHashMap	9(int+int+byte state) * CAPACITY bytes
+HashSet<Integer>	(32(Map.Entry) + 16(Integer)) * SIZE + 4 * CAPACITY bytes	TIntHashSet	5(int+byte state) * CAPACITY bytes
+LinkedHashSet<Integer>	(40(LinkedHashMap.Entry) + 16(Integer)) * SIZE + 4 * CAPACITY bytes	TLinkedHashSet	8(data ref+int order) * CAPACITY + 16(Integer) * SIZE bytes
+
+Let's compare theory with practice. 
+We will create maps/sets with 10M size and fill factor 0.75 (which means the initial actual capacity of 13.33M slots):
+
+Collection	Theoretical size (fill factor=0.75)	Actual size (fill factor=0.75)
+HashMap<Integer, Integer>	(32(Map.Entry) + 16(Integer1) + 16(Integer2)) * SIZE + 4 * CAPACITY = 64*SIZE + 4*CAPACITY = 610M+53M = 663M	669M
+TIntIntHashMap	9(int+int+byte state) * CAPACITY bytes = 120M	124M
+HashSet<Integer>	(32(Map.Entry) + 16(Integer)) * SIZE + 4 * CAPACITY bytes = 458M + 53M = 511M	521M
+TIntHashSet	5(int+byte state) * CAPACITY bytes = 67M	69M
+LinkedHashSet<Integer>	(40(LinkedHashMap.Entry) + 16(Integer)) * SIZE + 4 * CAPACITY bytes = 534M + 53M = 587M	598M
+TLinkedHashSet<Integer>	8(data ref+int order) * CAPACITY + 16(Integer) * SIZE bytes = 106M + 152M = 258M	258M
+
+The lesson you can learn from these numbers is that the combination of boxed primitives 
+and inefficient data structures could skyrocket the data storage cost 
+(compare 521M required by HashSet<Integer> with a theoretical limit of 40M per 10M int values).
+
+Summary
+
+The main reason to use Trove maps/sets is the seriously reduced memory consumption compared to JDK maps/sets. 
+If there is a large array list/set/map with keys or values that could be a primitive type, 
+it is worth replacing it with Trove collection. 
+If there are some maps from a primitive type to a primitive type, it is especially worth to replace them.
+Trove maps and sets support custom hashing strategies which allow to implement map/set specific equals and hashCode, 
+for example to implement identity set or map.
+Trove collections implement several additional methods, like grep, retainEntries or adjustOrPutValue. 
+They allow to reduce code required for many common tasks.
+JDK to Trove migration is quite an easy task 
+- all you need to do in a lot of cases is to add letter 'T' to initialization: new HashMap should be rewritten as new THashMap. 
+Migration to primitive-based collections require a bit more work, 
+but this work will be paid off by massive reduction in memory consumption.
+
+Article source code
+
+Trove memory consumption tests
+
