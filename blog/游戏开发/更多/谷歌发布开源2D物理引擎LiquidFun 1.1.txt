@@ -1,0 +1,40 @@
+﻿谷歌发布开源2D物理引擎LiquidFun 1.1
+作者 Sergio De Simone ，译者 马德奎 发布于 2014年7月22日 |
+http://www.infoq.com/cn/news/2014/07/google-liquid-fun11-physics
+
+谷歌发布了开源2D物理引擎LiquidFun 1.1，该引擎包含流体模拟功能。
+按照谷歌的说法，它为游戏开发人员和UI设计人员带来了新的可能性。
+除Android、Linux和OS X之外，LiquidFun现在正式支持iOS。
+
+LiquidFun是一款执行受约束刚体模拟的物理引擎，它以Box2D为基础，
+并在其上添加了基于粒子的流体模拟。
+按照谷歌的说法，LiquidFun可以用作Box2D的替代实现，
+这使得它很容易集成到任何用C++、Java或JavaScript编写的程序中。
+该库用平台无关的C++编写，可以用在任何有C++编译器的平台上。
+谷歌针对Android、Linux、OS X和Windows平台提供了构建LiquidFun库的方法、示例应用程序和单元测试。
+
+以下是LiquidFun 1.1增加的部分新特性：
+
+浏览器兼容性：
+谷歌使用Emscripten将LiquidFun转换成JavaScript。
+
+支持iOS。
+
+性能优化：
+LiquidFun 1.1借助部分用NEON编写的代码提升了在ARM处理器上的性能。
+
+新版本还包含两个来自谷歌的、基于物理特性的开源游戏：
+用C++编写的VoltAir和
+通过SWIG绑定用Java编写的LiquidFunPaint。
+目前，两个程序均在US Play Store上提供，
+它们的源代码已经以开源方式发布，为开发人员提供了如何在应用程序中集成引擎的示例。
+
+按照谷歌的说法，LiquidFun不止对游戏开发人员有用，对UI设计人员也有用。
+游戏开发人员可以使用物理引擎驱动新的游戏机制，并添加真实的物理效果，
+而通过向用户界面增加诸如重力、弹性和流体模拟等行为，设计人员可以用该库构建感觉真实的交互体验。
+
+在2014年3月推出以来，LiquidFun已经集成进多个现有的游戏中，
+包括Cocos2d-X、Corona Pro和YoYo Games的GameMaker：Studio。
+
+查看英文原文：Google Released LiquidFun 1.1, Open-source 2D Physics Engine
+

@@ -1,0 +1,99 @@
+﻿选择或者放弃MySQL的理由
+作者 崔康 发布于 2013年7月18日 |
+http://www.infoq.com/cn/news/2013/07/mysql-decision
+
+MySQL作为一个开源数据库，自从被Oracle接管后，
+其发展前景就一直受到开发社区的关注，其中也有质疑，
+最近，两位开发者分别发表了选择和放弃MySQL的理由，值得数据库相关人员参考。
+
+Andy Patrizio列举了放弃MySQL的五个理由，包括：
+
+MySQL并不像其他关系型数据库那样成熟。
+MySQL刚起步时并不是一个RDBMS，但是后来改变了发展方向，增加了更多的功能。
+在许多人眼里，其他成熟、历史久的关系型数据库依然比MySQL功能更加丰富。
+如果你想要一个功能丰富的RDBMS，那么可能会选择PostgreSQL 或者其他商业产品，比如Oracle或者微软SQL Server。
+PostgreSQL代码贡献者Selena Deckelmann表示
+Postgres对于需要关系型数据库的Web开发者来说是一个正确的选择，
+随着对JSON数据结构和PLV8的支持，Postgres会成为NoSQL的默认选择。
+
+MySQL虽然是开源的，但只是形似。
+从技术上说，MySQL是一个开源数据库，但是实际上，开发者已经感觉异样。
+在Oracle的管理下，MySQL现在有一些专利保护和私有模块。
+Paula Rooney表示，MySQL的活跃只停留在表面，Oracle控制着开发进程，并且拒绝发布测试用例，安全补丁也受到严格控制。
+Oracle是不是应该把MySQL奉献给Apache？
+其实你有其他开源替代品，比如MySQL的一个分支MariaDB一致是真正的开源。
+MariaDB的所有代码都是在在GPL、LPGL或BSD协议下发布的，
+不存在类似MySQL 5.5企业版那样的私有模块。
+
+MySQL的性能表现没有其他竞争者好。
+MariaDB博客提供了MySQL和MariaDB基准测试的结果，后者胜出。
+PostgreSQL开发者表示Heroku Postgres更有吸引力，
+“它们是Postgres最大的托管环境，自动处理应用的扩展，支持插件……”
+
+MySQL由Oracle掌控，而不是社区驱动。MySQL自从被Oracle接管折后，虽然没有明显改变过方向，但是Oracle的存在还是让开发者感到紧张。MySQL和MariaDB地创始人Michael “Monty” Widenius表示，最糟糕的是，社区不可能与Oracle的开发人员一起参与MySQL。而且，Oracle拒绝接受补丁，也不愿意公布路线图。
+
+放弃MySQL的人越来越多。就那今年来说，Redhat、Slackware Linux、OpenSUSE、Wikipedia都先后宣布放弃MySQL，
+采用MariaDB。Wikimedia架构师Asher Feldman解释说，
+MariaDB的优化程序增强功能和Percona的XtraDB功能设置是作出改变的根本原因。
+“我们欢迎并支持MariaDB Foundation成为一个非盈利组织。”
+
+而Rikki Endsley则列出了选择MySQL的五个理由：
+
+MySQL的投入和创新超过以往。
+自收购以来，Oracle已经增加了MySQL的开发人员，并提供了更加成熟的工程模式，
+不再像以前典型的开源项目一样，开发人员散落在世界各地。
+同时，MySQL的代码更加模块化，这意味着短期的投入会获得长期的回报。
+在MySQL 5.6中，他们分解了MySQL服务器的关键锁——LOCK_open，
+性能改进了一倍多。
+此外，MySQL的存储引擎是InnoDB，Oracle在2005年收购了InnoDB。
+因此，两者可以更好的结合。
+
+MyDQL产品依然健壮。MariaDB和其他开源产品抱怨MySQL 5.5没有测试用例和某些企业功能是私有模块，
+但是它依然表现突出，Oracle花费了两年发布DMR给MySQL社区来测试和得到反馈。
+MySQL 5.6从之前的4 CPU线程增长到64 CPU线程，还有其他新功能。
+
+MySQL关注Web、Cloud和Big Data。为了支持云服务，MySQL的备份做了极大地改进，
+比如Global Transaction Identifiers (GTIDs). 
+GTIDs可以轻松地跟踪和比较master和slave服务器之间的进度状态。
+在2013年4月，Oracle发布了针对Hadoop的MySQL Applier。
+Nokia首先将MySQL应用于大数据环境中，包括集中的Hadoop集群等等。
+
+MySQL企业版5.6增加了高可用性功能，比如备份等，
+还有企业版监控器，可以持续的帮你监控数据库并提供最佳实践。
+还有Query Analyzer来监控应用的性能，同时还有丰富的管理工具用于服务器配置和用户管理。
+
+MySQL的项目越来越多。在收购之前，MySQL在25个国家有400名员工，但是存在交流问题。
+现在Oracle组织了工作在一起的新团队，
+有的小组在做集群化软件，有的在做数据库算法，有的在做备份功能等。
+
+在不久之前，Infoq报道过系统可扩展性的问题，其中有两处提到了MySQL，包括：
+
+用数据库处理队列——MySQL在很多地方都做得很好，但是在处理应用程序排队方面却并不理想。
+你的数据库中是不是有类似JOBS这样的表，其中有一个状态列，包括“queued”、“working”、“completed”这样的值。
+如果是，你可能把数据库来处理应用中的队列工作了。
+这样使用MySQL不好，因为会出现锁的问题，还有查找下一个任务时的搜索和扫描任务也会遇到麻烦。
+建议使用RabbitMQ或者Amazon的SQS方案，因为这些外部服务更容易扩展。
+
+用数据库进行全文搜索——Oracle提供全文搜索支持，为什么MySQL却不能用呢？
+MySQL确实有这项功能，但是在很多版本中，只能配合老的MyISAM存储引擎使用。
+最好采用Apache Solr等经过验证的搜索解决方案，它专门用作搜索，有非常好的库，
+开发者可以使用多种现代web语言进行开发，并且非常容易扩展。
+只要在网络中增加服务器，或者做整体分布即可。
+对于前沿技术感兴趣的同学，MySQL 5.6中提供了Innodb的崩溃安全和事务存储引擎。
+既便如此，还是建议使用外部解决方案，如Solr，或者Sphinx及MySQL Sphinx SE插件解决。
+
+当然，MySQL依然受到Google的青睐，Google目前正在把MySQL做成全面管理的服务纳入云中，
+其中包括一套用编程方式管理MySQL的JSON API。
+Google补充提供了Cloud SQL，用来扩展自己的云服务。
+这个“全面管理”的Web服务提供了一个可伸缩的MySQL数据库，运行在Google的基础架构之上。
+用户可以通过好几种方式连接到云里的MySQL实例：命令提示符、API控制台、管理和报告工具、外部应用、
+GAE上的Java应用和Python应用，还有GAE脚本。
+用户还可以用mysqldump导入、导出实例。
+Google还提供了一套实验性质的JSON API，
+这套RESTful接口可以用来对MySQL进行编程式管理：
+创建、删除、重启、从备份恢复、导入/导出，以及各种实例信息的获取。
+虽然Google同时提供了命令行和API管理功能，但MySQL实例还是被自动管理的，
+比如跨不同地理位置进行同步或异步的复制、随需伸缩、需要时进行备份和打补丁。
+
+对于MySQL参考架构感兴趣的读者，可以查看“从小型网站到超大规模网站的MySQL参考架构”。
+
