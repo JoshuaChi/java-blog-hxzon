@@ -1,0 +1,43 @@
+﻿（文章列表）并发框架Disruptor译文
+http://ifeve.com/disruptor/
+
+Martin Fowler在自己网站上写了一篇LMAX架构的文章，
+在文章中他介绍了LMAX是一种新型零售金融交易平台，它能够以很低的延迟产生大量交易。
+这个系统是建立在JVM平台上，其核心是一个业务逻辑处理器，它能够在一个线程里每秒处理6百万订单。
+业务逻辑处理器完全是运行在内存中，使用事件源驱动方式。
+业务逻辑处理器的核心是Disruptor。
+
+Disruptor它是一个开源的并发框架，并获得2011 Duke’s 程序框架创新奖，
+能够在无锁的情况下实现网络的Queue并发操作。
+本文是Disruptor官网中发布的文章的译文（现在被移到了GitHub）。
+
+==
+剖析Disruptor:为什么会这么快
+
+剖析Disruptor:为什么会这么快？(一)锁的缺点
+剖析Disruptor:为什么会这么快？(二)神奇的缓存行填充
+剖析Disruptor:为什么会这么快？(三)伪共享
+剖析Disruptor:为什么会这么快？(四)揭秘内存屏障
+
+==
+Disruptor如何工作和使用
+
+如何使用Disruptor（一）Ringbuffer的特别之处
+如何使用Disruptor（二）如何从Ringbuffer读取
+如何使用Disruptor（三）写入Ringbuffer
+
+解析Disruptor关系组装
+Disruptor(无锁并发框架)-发布
+LMAX Disruptor——一个高性能、低延迟且简单的框架
+Disruptor Wizard已死，Disruptor Wizard永存！
+Disruptor 2.0更新摘要
+线程间共享数据不需要竞争
+
+==
+Disruptor的应用
+
+LMAX的架构
+通过Axon和Disruptor处理1M tps
+
+（全文完）
+
