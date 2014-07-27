@@ -1,4 +1,4 @@
-﻿Ember.js in Action
+﻿《Ember.js in Action》
 http://www.manning.com/skeie/
 
 http://www.manning-source.com/books/skeie/Ember.js-in-Action-Source.zip

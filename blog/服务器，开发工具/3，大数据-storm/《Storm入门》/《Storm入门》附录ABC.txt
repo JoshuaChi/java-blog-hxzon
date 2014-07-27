@@ -1,0 +1,276 @@
+﻿《Storm入门》附录ABC
+
+======
+Storm入门之附录A
+
+本文翻译自《Getting Started With Storm》译者：吴京润    编辑：郭蕾 方腾飞
+
+安装Storm客户端
+
+Storm客户端能让我们使用命令管理集群中的拓扑。
+按照以下步骤安装Storm客户端：
+
+从Storm站点下载最新的稳定版本（https://github.com/nathanmarz/storm/downloads）当前最新版本是storm-0.8.1。
+（译者注：原文是storm-0.6.2，不过翻译的时候已经是storm-0.8.1了）
+
+把下载的文件解压缩到/usr/local/bin/storm的Storm共享目录。
+
+把Storm目录加入PATH环境变量，这样就不用每次都输入全路径执行Storm了。
+如果我们使用了/usr/local/bin/storm，执行export PATH=$PATH:/usr/local/bin/storm。
+
+最后，创建Storm本地配置文件：~/.storm/storm.yaml，在配置文件中按如下格式加入nimbus主机：
+      nimbus.host:"我们的nimbus主机"
+
+
+现在，你可以管理你的Storm集群中的拓扑了。
+
+NOTE：Storm客户端包含运行一个Storm集群所需的所有Storm命令，
+但是要运行它你需要安装一些其它的工具并做一些配置。详见附录B。
+
+有许多简单且有用的命令可以用来管理拓扑，它们可以提交、杀死、禁用、再平衡拓扑。
+
+jar命令负责把拓扑提交到集群，并执行它，通过StormSubmitter执行主类。
+
+storm jar path-to-topology-jar class-with-the-main arg1 arg2 argN
+
+path-to-topology-jar是拓扑jar文件的全路径，它包含拓扑代码和依赖的库。 
+class-with-the-main是包含main方法的类，这个类将由StormSubmitter执行，其余的参数作为main方法的参数。
+
+我们能够挂起或停用运行中的拓扑。
+当停用拓扑时，所有已分发的元组都会得到处理，但是spouts的nextTuple方法不会被调用。
+
+停用拓扑：
+
+storm deactivte topology-name
+
+启动一个停用的拓扑：
+
+storm activate topology-name
+
+销毁一个拓扑，可以使用kill命令。
+它会以一种安全的方式销毁一个拓扑，首先停用拓扑，在等待拓扑消息的时间段内允许拓扑完成当前的数据流。
+
+杀死一个拓扑：
+
+storm kill topology-name
+
+NOTE:执行kill命令时可以通过-w [等待秒数]指定拓扑停用以后的等待时间。
+
+再平衡使你重分配集群任务。这是个很强大的命令。
+比如，你向一个运行中的集群增加了节点。
+再平衡命令将会停用拓扑，然后在相应超时时间之后重分配工人，并重启拓扑。
+
+再平衡拓扑：
+
+storm rebalance topology-name
+
+NOTE:执行不带参数的Storm客户端可以列出所有的Storm命令。
+完整的命令描述请见：https://github.com/nathanmarz/storm/wiki/Command-line-client。
+
+（全文完）
+
+================
+Storm入门之附录B
+
+本文翻译自《Getting Started With Storm》译者：吴京润    编辑：郭蕾 方腾飞
+
+安装Storm集群
+
+译者注：本附录的内容已经有些陈旧了。
+最新的Storm已不再必须依赖ZeroMQ，各种依赖的库和软件也已经有更新的版本。
+
+有以下两种方式创建Storm集群：
+
+使用Storm部署在亚马逊EC2上面创建一个集群，就像你在第6章看到的。
+手工安装（详见本附录）
+
+要手工安装Storm，需要先安装以下软件
+
+Zookeeper集群（安装方法详见管理向导）
+Java6.0
+Python2.6.6
+Unzip命令
+
+NOTE: Nimbus和管理进程将要依赖Java、Python和unzip命令
+
+安装本地库：
+
+安装ZeroMQ：
+
+
+wget http://download.zeromq.org/historic/zeromq-2.1.7.tar.gz
+
+tar -xzf zeromq-2.1.7.tar.gz
+
+cd zeromq-2.1.7
+
+./configure
+
+make
+
+sudo make install
+
+安装JZMQ：
+
+
+     git clone https://github.com/nathanmarz/jzmq.git
+     cd jzmq
+     ./autogen.sh
+     ./configure
+     make
+     sudo make install
+
+本地库安装完了，下载最新的Storm稳定版（写作本书时是Storm0.7.1。译者注：翻译本章时已是v0.9.1，
+可从http://storm.incubator.apache.org/或https://github.com/apache/incubator-storm/releases下载），并解压缩。
+
+编辑配置文件，增加Storm集群配置（可以从Storm仓库的defaults.yaml看到所有的默认配置）。
+
+编辑Storm目录下的conf/storm.yaml，添加以下参数，增加集群配置：
+
+storm.zookeeper.servers:
+– "zookeeper addres 1"
+– "zookeeper addres 2"
+– "zookeeper addres N"
+storm.local.dir: "a local directory"
+nimbus.host: "Nimbus host addres"
+supervisor.slots.ports:
+– supervisor slot port 1
+– supervisor slot port 2
+– supervisor slot port N
+
+参数解释：
+storm.zookeeper.servers
+
+你的zookeeper服务器地址。
+
+storm.local.dir：
+
+    Storm进程保存内部数据的本地目录。（务必保证运行Storm进程的用户拥有这个目录的写权限。）
+nimbus.host
+
+    Nimbus运行的机器的地址
+supervisor.slots.ports
+
+    接收消息的工人进程监听的端口号（通常从6700开始）；管理进程为这个属性指定的每个端口号运行一个工人进程。
+
+当你完成了这些配置，就可以运行所有的Storm进程了。
+如果你想运行一个本地进程测试一下，就把nimbus.host配置成localhost。
+
+启动一个Storm进程，在Storm目录下执行：./bin/storm 进程名。
+
+NOTE：Storm提供了一个出色的叫做Storm UI的工具，用来辅助监控拓扑。
+
+（全文完）
+
+============
+Storm入门之附录C
+本文翻译自《Getting Started With Storm》译者：吴京润    编辑：郭蕾 方腾飞
+
+安装实际的例子
+译者注：有些软件的最新版本已有变化，译文不会完全按照原文翻译，而是列出当前最新版本的软件。
+
+首先，从下述GitHub的URL克隆这个例子：
+
+> git clone git://github.com/storm-book/examples-ch06-real-life-app.git
+
+src/main
+
+包含拓扑的源码
+
+src/test
+
+包含拓扑的测试用例
+
+webapps目录
+
+包含Node.js Web可以执行拓扑应用
+
+.
+├── pom.xml
+├── src
+│ ├── main
+│ │ └── java
+│ └── test
+│ └── groovy
+└── webapp
+
+安装Redis
+
+Redis的安装是相当简单的：
+
+从Redis站点下载最新的稳定版（译者注：翻译本章时最新版本是2.8.9。）
+解压缩
+运行make，和make install。
+
+上述命令会编译Redis并在PATH目录（译者注：/usr/local/bin）创建可执行文件。
+
+可以从Redis网站上获取更多信息，包括相关命令文档及设计理念。
+
+安装Node.js
+
+安装Node.js也很简单。
+从http://www.nodejs.org/#download下载最新版本的Node.js源码。
+
+当前最新版本是v0.10.28
+
+下载完成，解压缩，执行
+
+
+<b>./configure</b>
+
+<b>make</b>
+
+<b>make install</b>
+
+可以从官方站点得到更多信息，包括在不同平台上安装Node.js的方法。
+
+构建与测试
+
+为了构建这个例子，需要先启动redis-server
+
+>nohup redis-server &
+
+然后执行mvn命令编译并测试这个应用。
+
+>mvn package
+…
+[INFO] ————————————————————————
+[INFO] BUILD SUCCESS
+[INFO] ————————————————————————
+[INFO] Total time: 32.163s
+[INFO] Finished at: Sun Jun 17 18:55:10 GMT-03:00 2012
+[INFO] Final Memory: 9M/81M
+[INFO]
+
+运行拓扑
+
+启动了redis-service并成功构建之后，在LocalCluster启动拓扑。
+
+>java -jar target/storm-analytics-0.0.1-jar-with-dependencies.jar
+
+启动拓扑之后，用以下命令启动Node.js Web应用：
+
+>node webapp/app.js
+
+NOTE：拓扑和Node.js命令会互相阻塞。尝试在不同的终端运行它们。
+
+演示这个例子
+
+在浏览器输入http://localhost:3000/开始演示这个例子！
+
+====
+关于作者
+
+Jonathan Leibiusky，MercadoLibre的主要研究与开发人员，已在软件开发领域工作逾10年之久。
+他已为诸多开源项目贡献过源码，包括“Jedis”，它在VMware和SpringSource得到广泛使用。
+
+Gabriel Eisbruch一位计算机科学学生，从2007年开始在Mercadolibre(NASDAQ MELI)任架构师。
+主要负责研究与开发软件项目。
+去年，他专门负责大数据分析，为MercadoLibre实现了Hadoop集群。
+
+Dario Simonassi在软件开发领域有10年以上工作经验。
+从2004年开，他专门负责大型站点的操作与性能。
+现在他是MercadoLibre(NASDAQ MELI)的首席架构师，领导着该公司的架构师团队。
+
+（全文完）
+

@@ -1,0 +1,39 @@
+﻿Apache Onami Persist 1.0.0发布
+作者 李士窑 发布于 2014年7月24日 |
+http://www.infoq.com/cn/news/2014/07/apache-onami-persist
+
+Guice Persist是Google Guice的官方扩展，它允许开发者配置和注入一个持久化单元到自己的类中。
+Guice Persist仅支持一个应用只有一个持久化单元，
+且这个持久化单元只能由应用程序管理，不支持容器管理。
+
+近日，Apache Onami团队宣布Onami Persist 1.0.0发布，它是Guice在JPA和JTA两个方面的扩展。
+Onami Persist拟补了Guice Persist的不足，
+它支持应用程序管理和容器管理多个持久化单元以及支持本地事务和JTA事务。
+Onami Persist和Guice Persist主要不同点如下：
+
+Onami Persist支持多个持久化单元的JTA和自定义注解的事务管理
+在Guice Persist中，EntityManager不能被注入；
+而在Onami Persist中，EntityManagerProvider必须被注入
+Onami Persist中，@Transactional注解使开发者能够指定事务所在的持久化单元
+
+Onami Persist为UnitOfWork新增了isActive()方法
+在Guice Persist中，恢复EntityManager对象后，不能启动UnitOfWork；
+而在Onami Persist中，UnitOfWork如果不是存活的，将抛出异常
+
+Onami Persist中，PersistenceService在停止后仍可以重启
+
+Onami Persist的maven资源库已经可以使用，开发者需将以下依赖添加到自己的pom.xml文件中：
+
+<dependencies> 
+ <dependency>
+  <groupId>org.apache.onami</groupId>
+  <artifactId>org.apache.onami.persist</artifactId>
+  <version>1.0.0</version>
+ </dependency> 
+</dependencies>
+
+更多关于Onami Persist的详细信息请登陆其首页查看。
+另外，Onami Persist是Guice的扩展，
+Guice是一个轻量级、基于Java5（主要运用泛型与注释特性）的依赖注入框架(IOC)。
+它非常小而且快，且是类型安全的，能够对构造函数、属性、方法进行注入。
+
