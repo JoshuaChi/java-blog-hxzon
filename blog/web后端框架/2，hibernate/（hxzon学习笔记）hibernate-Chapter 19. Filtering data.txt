@@ -1,6 +1,6 @@
 ﻿（hxzon学习笔记）hibernate-Chapter 19. Filtering data
 
-by hxzon
+注释by hxzon
 
 
 http://docs.jboss.org/hibernate/orm/4.1/manual/en-US/html/ch19.html
@@ -13,29 +13,50 @@ Table of Contents
 
 
 ===============
-Hibernate3 provides an innovative new approach to handling data with "visibility" rules. A Hibernate filter is a global, named, parameterized filter that can be enabled or disabled for a particular Hibernate session.
+Hibernate3 provides an innovative new approach to handling data with "visibility" rules. 
+A Hibernate filter is a global, named, parameterized filter 
+that can be enabled or disabled for a particular Hibernate session.
 
 hibernate3提供了一种机制来处理数据。
 hibernate过滤器是全局，命名，参数化的，能够在hibernate会话中局部的开启或关闭。
+（hxzon：即过滤器是会话级别的。）
 
 -------------
 19.1. Hibernate filters
 
 hibernate过滤器，用于筛选数据。
 
-Hibernate3 has the ability to pre-define filter criteria and attach those filters at both a class level and a collection level. A filter criteria allows you to define a restriction clause similar to the existing "where" attribute available on the class and various collection elements. These filter conditions, however, can be parameterized. The application can then decide at runtime whether certain filters should be enabled and what their parameter values should be. Filters can be used like database views, but they are parameterized inside the application.
+Hibernate3 has the ability to pre-define filter criteria 
+and attach those filters at both a class level and a collection level. 
+A filter criteria allows you to define a restriction clause 
+similar to the existing "where" attribute available on the class and various collection elements. 
+These filter conditions, however, can be parameterized. 
+The application can then decide at runtime whether certain filters should be enabled 
+and what their parameter values should be. 
+Filters can be used like database views, but they are parameterized inside the application.
 
 过滤器能够在类级别和集合级别使用。
+过滤器允许你定义限制子句，用于类级别和各种集合元素级别。
 这些过滤器的过滤条件是参数化的。应用程序能在运行时决定是否启用过滤器，并指定参数值。
 过滤器像数据库的视图，但在应用程序内部参数化。
 
-Using annotatons filters are defined via @org.hibernate.annotations.FilterDef or @org.hibernate.annotations.FilterDefs. A filter definition has a name() and an array of parameters(). A parameter will allow you to adjust the behavior of the filter at runtime. Each parameter is defined by a @ParamDef which has a name and a type. You can also define a defaultCondition() parameter for a given @FilterDef to set the default condition to use when none are defined in each individual @Filter. @FilterDef(s) can be defined at the class or package level.
+Using annotatons filters are defined via @org.hibernate.annotations.FilterDef 
+or @org.hibernate.annotations.FilterDefs. 
+A filter definition has a name() and an array of parameters(). 
+A parameter will allow you to adjust the behavior of the filter at runtime. 
+Each parameter is defined by a @ParamDef which has a name and a type. 
+You can also define a defaultCondition() parameter for a given @FilterDef 
+to set the default condition to use when none are defined in each individual @Filter. 
+@FilterDef(s) can be defined at the class or package level.
 
-使用@FilterDef和@FilterDefs注解来定义过滤器。一个过滤器拥有名字和参数。参数在运行时控制过滤器的行为。
+使用@FilterDef和@FilterDefs注解来定义过滤器。
+一个过滤器拥有名字和参数。参数在运行时控制过滤器的行为。
 参数使用@ParamDef注解定义，拥有一个名字和类型。
 你可以使用defaultCondition参数来设置默认的条件。
 
-We now need to define the SQL filter clause applied to either the entity load or the collection load. @Filter is used and placed either on the entity or the collection element. The connection between @FilterName and @Filter is a matching name.
+We now need to define the SQL filter clause applied to either the entity load or the collection load. 
+@Filter is used and placed either on the entity or the collection element. 
+The connection between @FilterName and @Filter is a matching name.
 
 我们需要定义一个sql过滤器子句用来加载实体或集合。
 @Filter注解可放置在实体或集合上。
@@ -53,7 +74,10 @@ public class Forest { ... }
 
 
 
-When the collection use an association table as a relational representation, you might want to apply the filter condition to the association table itself or to the target entity table. To apply the constraint on the target entity, use the regular @Filter annotation. However, if you want to target the association table, use the @FilterJoinTable annotation.
+When the collection use an association table as a relational representation, 
+you might want to apply the filter condition to the association table itself or to the target entity table. 
+To apply the constraint on the target entity, use the regular @Filter annotation. 
+However, if you want to target the association table, use the @FilterJoinTable annotation.
 
 当集合使用关联表作为关联，你也许想要在关联表和实体表上使用过滤器。
 在实体上使用@Filter注解即可。
@@ -64,15 +88,19 @@ Example 19.2. Using @FilterJoinTable for filterting on the association table
 
     @OneToMany
     @JoinTable
+
     //filter on the target entity table
     @Filter(name="betweenLength", condition=":minLength <= length and :maxLength >= length")
+
     //filter on the association table
     @FilterJoinTable(name="security", condition=":userlevel >= requredLevel")
     public Set<Forest> getForests() { ... }
 
 
 
-Using Hibernate mapping files for defining filters the situtation is very similar. The filters must first be defined and then attached to the appropriate mapping elements. To define a filter, use the <filter-def/> element within a <hibernate-mapping/> element:
+Using Hibernate mapping files for defining filters the situtation is very similar. 
+The filters must first be defined and then attached to the appropriate mapping elements. 
+To define a filter, use the <filter-def/> element within a <hibernate-mapping/> element:
 
 在映射文件中定义过滤器的方法相似，在hibernate-mapping元素内使用filter-def元素。
 
@@ -97,9 +125,19 @@ Example 19.4. Attaching a filter to a class or collection using <filter>
 </class>
 
 
-The methods on Session are: enableFilter(String filterName), getEnabledFilter(String filterName), and disableFilter(String filterName). By default, filters are not enabled for a given session. Filters must be enabled through use of the Session.enableFilter() method, which returns an instance of the Filter interface. If you used the simple filter defined above, it would look like this:
+The methods on Session are: 
 
-使用session上的方法。默认情况下，过滤器在给定会话上启用。
+enableFilter(String filterName), 
+getEnabledFilter(String filterName), 
+and disableFilter(String filterName). 
+
+By default, filters are not enabled for a given session. 
+Filters must be enabled through use of the Session.enableFilter() method, 
+which returns an instance of the Filter interface. 
+If you used the simple filter defined above, it would look like this:
+
+使用session上的方法。
+默认情况下，过滤器在给定会话上不启用。
 
 
 session.enableFilter("myFilter").setParameter("myFilterParam", "some-value");
@@ -109,6 +147,7 @@ Methods on the org.hibernate.Filter interface do allow the method-chaining commo
 
 
 The following is a full example, using temporal data with an effective record date pattern:
+示例：（hxzon：重点理解）
 
 <filter-def name="effectiveDate">
     <filter-param name="asOfDate" type="date"/>
@@ -139,7 +178,8 @@ The following is a full example, using temporal data with an effective record da
 </class>
 
 
-In order to ensure that you are provided with currently effective records, enable the filter on the session prior to retrieving employee data:
+In order to ensure that you are provided with currently effective records, 
+enable the filter on the session prior to retrieving employee data:
 
 
 Session session = ...;
@@ -149,23 +189,34 @@ List results = session.createQuery("from Employee as e where e.salary > :targetS
          .list();
 
 
-Even though a salary constraint was mentioned explicitly on the results in the above HQL, because of the enabled filter, the query will return only currently active employees who have a salary greater than one million dollars.
+Even though a salary constraint was mentioned explicitly on the results in the above HQL, 
+because of the enabled filter, the query will return only currently active employees 
+who have a salary greater than one million dollars.
 
 因为过滤器的启用，上述查询只会返回当前活跃且工资大于1百万美元的雇员。
 
-If you want to use filters with outer joining, either through HQL or load fetching, be careful of the direction of the condition expression. It is safest to set this up for left outer joining. Place the parameter first followed by the column name(s) after the operator.
+If you want to use filters with outer joining, either through HQL or load fetching, 
+be careful of the direction of the condition expression. 
+It is safest to set this up for left outer joining. 
+Place the parameter first followed by the column name(s) after the operator.
 
-如果你在hql或load fetching中使用过滤器和outer joining，需要注意条件表达式的方向。
-在左联接时设置过滤器是安全的。在列名和操作符后放置条件参数。
+如果你在 hql 或 load fetching 中使用过滤器和 outer joining ，需要注意条件表达式的方向。
+在左联接时设置过滤器是安全的。
+在列名和操作符后放置条件参数。
 
-After being defined, a filter might be attached to multiple entities and/or collections each with its own condition. This can be problematic when the conditions are the same each time. Using <filter-def/> allows you to definine a default condition, either as an attribute or CDATA:
+After being defined, a filter might be attached to multiple entities and/or collections each with its own condition. 
+This can be problematic when the conditions are the same each time. 
+Using <filter-def/> allows you to definine a default condition, either as an attribute or CDATA:
 
-
+<filter-def> 可以给过滤器设置默认参数值。
 
 <filter-def name="myFilter" condition="abc > xyz">...</filter-def>
 <filter-def name="myOtherFilter">abc=xyz</filter-def>
 
 
-This default condition will be used whenever the filter is attached to something without specifying a condition. This means you can give a specific condition as part of the attachment of the filter that overrides the default condition in that particular case.
+This default condition will be used whenever the filter is attached to something without specifying a condition. 
+This means you can give a specific condition as part of the attachment of the filter 
+that overrides the default condition in that particular case.
 
 当过滤器没有提供条件参数时，默认条件会被使用。
+
