@@ -489,7 +489,8 @@ Generally these are just abbreviated forms or other expressions for the sake of 
 
 ----
 SIZE
-Calculate the size of a collection. Equates to a subquery!
+Calculate the size of a collection. 
+Equates to a subquery!
 
 计算集合的大小。相当于子查询。（Equates相当于。）
 
@@ -520,7 +521,8 @@ Refers to the minimum index (key/position) as determined by applying the min SQL
 ----
 ELEMENTS
 Used to refer to the elements of a collection as a whole. 
-Only allowed in the where clause. Often used in conjunction with ALL, ANY or SOME restrictions.
+Only allowed in the where clause. 
+Often used in conjunction with ALL, ANY or SOME restrictions.
 
 集合的元素集合。
 
@@ -548,6 +550,8 @@ where minelement(o.items) > 10000
 select m
 from Cat as m, Cat as kit
 where kit in elements(m.kittens)
+
+（hxzon：为何不能直接写 where kit in m.kittens ？）
 
 // the above query can be re-written in jpql standard way:
 select m

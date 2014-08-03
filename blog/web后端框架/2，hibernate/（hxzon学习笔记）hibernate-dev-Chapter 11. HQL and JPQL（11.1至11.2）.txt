@@ -1,4 +1,4 @@
-﻿（hxzon学习笔记）hibernate-dev-Chapter 11. HQL and JPQL（11.1至11.3）
+﻿（hxzon学习笔记）hibernate-dev-Chapter 11. HQL and JPQL（11.1至11.2）
 
 by hxzon
 
@@ -20,19 +20,19 @@ Table of Contents
 11.3.2. Root entity references
 11.3.3. Explicit joins
 11.3.4. Implicit joins (path expressions)
-11.3.5. Collection member references
+11.3.5. Collection member references （集合成员的引用）
 11.3.6. Polymorphism
 
 11.4. Expressions（表达式。）
 11.4.1. Identification variable
-11.4.2. Path expressions
+11.4.2. Path expressions （路径表达式）
 11.4.3. Literals
 11.4.4. Parameters
 11.4.5. Arithmetic
 11.4.6. Concatenation (operation)
 11.4.7. Aggregate functions
 11.4.8. Scalar functions
-11.4.9. Collection-related expressions
+11.4.9. Collection-related expressions （集合相关的表达式）
 11.4.10. Entity type
 11.4.11. CASE expressions
 
@@ -54,7 +54,7 @@ Table of Contents
 11.7. The WHERE clause（where子句。）
 11.8. Grouping（分组。）
 11.9. Ordering（排序。）
-11.10. Query API
+11.10. Query API （原文缺失）
 
 
 ==========

@@ -130,14 +130,18 @@ the HQL index() function, that applies to aliases of a joined indexed collection
 HQL functions that take collection-valued path expressions:
 
 size(), minelement(), maxelement(), minindex(), maxindex(), 
+集合元素个数，最小元素，最大元素，最小索引，最大索引。
 
 --
 
 along with the special elements() and indices functions that can be quantified using some, all, exists, any, in.
 
+elements()，和 indices() 函数可以配合 some，all，exists，any，in 使用。
+
 --
 数据库支持的标量函数：
-Any database-supported SQL scalar function like sign(), trunc(), rtrim(), and sin()
+Any database-supported SQL scalar function like 
+sign(), trunc(), rtrim(), and sin()
 
 jdbc基于位置的参数：
 JDBC-style positional parameters ?
@@ -157,9 +161,6 @@ in and between can be used as follows:
 in和between示例如下：
 
 from DomesticCat cat where cat.name between 'A' and 'B'
-
-？？
-
 
 from DomesticCat cat where cat.name in ( 'Foo', 'Bar', 'Baz' )
 
@@ -230,7 +231,7 @@ from Order order where maxindex(order.items) > 100
 
 from Order order where minelement(order.items) > 10000
 
-（？？）
+（？？所有条目都大于10000的订单）
 
 
 --
@@ -250,7 +251,7 @@ where kit in elements(foo.kittens)
 select p from NameList list, Person p
 where p.name = some elements(list.names)
 
-（返回名字属于“list.names”的人。）
+（返回名字在“list.names”中的人。）
 
 
 from Cat cat where exists elements(cat.kittens)
@@ -263,9 +264,10 @@ from Player p where 3 > all elements(p.scores)
 
 from Show show where 'fizard' in indices(show.acts)
 
-（？？）
+（返回“有 fizard 出演”的电影。）
 
-Note that these constructs - size, elements, indices, minindex, maxindex, minelement, maxelement - can only be used in the where clause in Hibernate3.
+Note that these constructs - size, elements, indices, minindex, maxindex, minelement, maxelement 
+- can only be used in the where clause in Hibernate3.
 
 注意，这些结构在hibernate3中只能用于where子句。
 

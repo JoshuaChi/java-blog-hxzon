@@ -17,7 +17,6 @@ http://docs.jboss.org/hibernate/orm/4.1/devguide/en-US/html/ch11.html
 
 
 ==============
-
 11.3. The FROM clause
 from子句。
 
@@ -43,6 +42,7 @@ but this does not make it good practice.
 
 ==============
 11.3.2. Root entity references
+根实体的引用
 
 A root entity reference, or what JPA calls a range variable declaration, 
 is specifically a reference to a mapped entity type from the application. 
@@ -157,6 +157,7 @@ In the example, using an inner join instead would have resulted in customers wit
 Important
 
 Fetch joins are not valid in sub-queries.
+在子查询中，fetch join是不合法的。
 Care should be taken when fetch joining a collection-valued association which is in any way further restricted; 
 the fetched collection will be restricted too! 
 For this reason it is usually considered best practice 
@@ -281,6 +282,8 @@ where o.status = 'pending'
   and p.status = 'backorder'
 
 // alternate syntax
+另一种写法：
+
 select c
 from Customer c,
     in(c.orders) o,
@@ -293,7 +296,8 @@ where o.status = 'pending'
 In the example, the identification variable o actually refers to the object model type Order 
 which is the type of the elements of the Customer#orders association.
 
-The example also shows the alternate syntax for specifying collection association joins using the IN syntax. 
+The example also shows the alternate syntax 
+for specifying collection association joins using the IN syntax. 
 Both forms are equivalent. 
 Which form an application chooses to use is simply a matter of taste.
 
@@ -302,7 +306,7 @@ Which form an application chooses to use is simply a matter of taste.
 
 ------------
 11.3.5.1. Special case - qualified path expressions
-
+特殊情况：带限定的路径表达式
 
 We said earlier that collection-valued associations actually refer to the values of that collection. 
 Based on the type of collection, there are also available a set of explicit qualification expressions.
@@ -312,21 +316,27 @@ Example 11.13. Qualified collection references example
 示例：
 
 // Product.images is a Map<String,String> : key = a name, value = file path
+// images是一个映射。
 
 // select all the image file paths (the map value) for Product#123
 // （选择Product#123的所有的图片路径。）
+
 select i
 from Product p
     join p.images i
 where p.id = 123
 
 // same as above
+// 同上，使用了value(i)
+
 select value(i)
 from Product p
     join p.images i
 where p.id = 123
 
 // select all the image names (the map key) for Product#123
+// 获取映射的键，使用了 key(i)
+
 select key(i)
 from Product p
     join p.images i
@@ -345,6 +355,8 @@ from Customer c
         join o.lineItems li
 where c.id = 123
   and index(li) = 1
+
+可选的限定如下：
 
 --
 VALUE

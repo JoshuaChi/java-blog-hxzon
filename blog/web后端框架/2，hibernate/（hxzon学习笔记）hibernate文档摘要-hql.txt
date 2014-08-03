@@ -213,3 +213,115 @@ where not ( cat.name, cat.color ) in (
 当你判断是否使用元组语法时，有一件事需考虑，
 那就是查询会依赖于组件的子字段的顺序。
 
+=====================
+=====================
+《（hxzon学习笔记）hibernate-dev-Chapter 11. HQL and JPQL》
+
+15，引用集合的成员
+
+select c
+from Customer c
+    join c.orders o
+    join o.lineItems l
+    join l.product p
+where o.status = 'pending'
+  and p.status = 'backorder'
+
+// alternate syntax
+另一种写法：
+
+select c
+from Customer c,
+    in(c.orders) o,
+    in(o.lineItems) l
+    join l.product p
+where o.status = 'pending'
+  and p.status = 'backorder'
+
+====
+16，集合相关的表达式
+
+注意，只能在where子句中使用（hibernate3）。
+
+可以使用特殊属性size或特殊函数size()来测试一个集合的大小。
+
+from Cat cat where cat.kittens.size > 0
+
+from Cat cat where size(cat.kittens) > 0
+
+==
+select cal
+from Calendar cal
+where maxelement(cal.holidays) > current_date()
+最大元素
+
+
+select o
+from Order o
+where maxindex(o.items) > 100
+最小索引
+
+select o
+from Order o
+where minelement(o.items) > 10000
+最小元素
+
+select m
+from Cat as m, Cat as kit
+where kit in elements(m.kittens)
+
+（hxzon：为何不能直接写 where kit in m.kittens ？）
+
+// the above query can be re-written in jpql standard way:
+select m
+from Cat as m, Cat as kit
+where kit member of m.kittens
+是否是集合成员
+
+select p
+from NameList l, Person p
+where p.name = some elements(l.names)
+等于其中一个元素
+
+select cat
+from Cat cat
+where exists elements(cat.kittens)
+
+select p
+from Player p
+where 3 > all elements(p.scores)
+大于所有元素
+
+select show
+from Show show
+where 'fizard' in indices(show.acts)
+索引的集合（返回“有 fizard 出演”的电影。）
+
+==
+使用索引操作符：
+
+from Order order where order.items[0].id = 1234
+
+（返回“第1个条目的ID是1234”的订单。）
+
+select person from Person person, Calendar calendar
+where calendar.holidays['national day'] = person.birthDay
+    and person.nationality.calendar = calendar
+
+（返回“生日和祖国的国庆日相同”的人。）
+
+select item from Item item, Order order
+where order.items[ size(order.items) - 1 ] = item
+
+（返回每个订单的最后一个条目。）
+
+select item, index(item) from Order order
+    join order.items item
+where index(item) < 5
+
+（返回每个订单的前5个条目，同时返回这些条目在订单中的次序。）
+
+====
+17，
+
+

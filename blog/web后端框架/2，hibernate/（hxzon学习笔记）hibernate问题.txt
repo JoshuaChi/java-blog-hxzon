@@ -19,6 +19,20 @@ and exists
 
 反思：因为这个中间表并没有对应一个类，“创建时间”字段在应用程序中如何使用？
 
+Example 18.14. Overriding SQL statements for secondary tables
+
+@Entity
+@SecondaryTables({
+    @SecondaryTable(name = "`Cat nbr1`"),
+    @SecondaryTable(name = "Cat2"})
+
+@org.hibernate.annotations.Tables( {
+    @Table(appliesTo = "Cat", comment = "My cat table" ),
+    @Table(appliesTo = "Cat2", foreignKey = @ForeignKey(name="FK_CAT2_CAT"), fetch = FetchMode.SELECT,
+        sqlInsert=@SQLInsert(sql="insert into Cat2(storyPart2, id) values(upper(?), ?)") )
+} )
+public class Cat implements Serializable {
+
 
 ----
 3，
@@ -41,6 +55,8 @@ sqlQuery有setResultTransformer(Transformers.aliasToBean(clazz));
 所以常常会出现字段数据类型不匹配的错误。
 
 即便使用实体类，实体类的“非持久字段”也无法参与映射。
+
+另注意，setResultTransformer 返回的对象，是不受管理的。
 
 ----
 5，
