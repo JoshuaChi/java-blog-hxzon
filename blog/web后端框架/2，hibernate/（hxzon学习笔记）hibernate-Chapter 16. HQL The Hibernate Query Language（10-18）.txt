@@ -1,9 +1,7 @@
 ﻿（hxzon学习笔记）hibernate-Chapter 16. HQL The Hibernate Query Language（10-18）
 
 by hxzon
-
 http://docs.jboss.org/hibernate/orm/4.1/manual/en-US/html/ch16.html
-
 
 ===========
 Chapter 16. HQL: The Hibernate Query Language

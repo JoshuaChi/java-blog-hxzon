@@ -1,6 +1,7 @@
-﻿（hxzon学习笔记）hibernate文档摘要
+﻿（hxzon学习笔记）hibernate文档摘要-hql
 
 by hxzon
+《（hxzon学习笔记）hibernate-Chapter 16. HQL The Hibernate Query Language》
 ========
 1，使用with关键字，你可以为join指定更多条件。（hxzon：重要）
 
