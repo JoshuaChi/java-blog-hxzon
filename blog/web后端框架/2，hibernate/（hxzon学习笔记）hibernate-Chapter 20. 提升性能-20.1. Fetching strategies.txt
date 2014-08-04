@@ -1,9 +1,20 @@
-﻿（hxzon学习笔记）hibernate-20.1. Fetching strategies
+﻿（hxzon学习笔记）hibernate-Chapter 20. 提升性能-20.1. Fetching strategies
 
 by hxzon
 
 http://docs.jboss.org/hibernate/orm/4.1/manual/en-US/html/ch20.html#performance-fetching
 
+Chapter 20. Improving performance
+
+20.1. Fetching strategies
+20.1.1. Working with lazy associations
+20.1.2. Tuning fetch strategies
+20.1.3. Single-ended association proxies
+20.1.4. Initializing collections and proxies
+20.1.5. Using batch fetching
+20.1.6. Using subselect fetching
+20.1.7. Fetch profiles
+20.1.8. Using lazy property fetching
 
 =================
 20.1. Fetching strategies
