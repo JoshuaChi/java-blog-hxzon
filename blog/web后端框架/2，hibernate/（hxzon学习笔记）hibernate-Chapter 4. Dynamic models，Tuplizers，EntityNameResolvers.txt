@@ -1,10 +1,9 @@
 ﻿（hxzon学习笔记）hibernate-Chapter 4. Dynamic models，Tuplizers，EntityNameResolvers
 
+注释by hxzon
 http://docs.jboss.org/hibernate/orm/4.3/manual/en-US/html/ch04.html#persistent-classes-dynamicmodels
 =========
 Chapter 4. Persistent Classes
-
-Table of Contents
 
 4.1. A simple POJO example
 4.1.1. Implement a no-argument constructor
@@ -25,11 +24,19 @@ Table of Contents
 
 Note
 The following features are currently considered experimental and may change in the near future.
-Persistent entities do not necessarily have to be represented as POJO classes or as JavaBean objects at runtime. Hibernate also supports dynamic models (using Maps of Maps at runtime). With this approach, you do not write persistent classes, only mapping files.
+下面的功能属于实验性质，将来有可能改变。
+Persistent entities do not necessarily have to be represented as POJO classes or as JavaBean objects at runtime. 
+Hibernate also supports dynamic models (using Maps of Maps at runtime). 
+With this approach, you do not write persistent classes, only mapping files.
+实体不一定需要pojo类。
+hibernate支持动态模型（在运行时使用map），因此只需要写映射文件，不需要实体类。
 
-By default, Hibernate works in normal POJO mode. You can set a default entity representation mode for a particular SessionFactory using the default_entity_mode configuration option (see Table 3.3, “Hibernate Configuration Properties”).
+By default, Hibernate works in normal POJO mode. 
+You can set a default entity representation mode for a particular SessionFactory using the default_entity_mode configuration option 
+(see Table 3.3, “Hibernate Configuration Properties”).
 
-The following examples demonstrate the representation using Maps. First, in the mapping file an entity-name has to be declared instead of, or in addition to, a class name:
+The following examples demonstrate the representation using Maps. 
+First, in the mapping file an entity-name has to be declared instead of, or in addition to, a class name:
 
 <hibernate-mapping>
 
@@ -64,7 +71,9 @@ The following examples demonstrate the representation using Maps. First, in the 
     </class>
     
 </hibernate-mapping>
-Even though associations are declared using target class names, the target type of associations can also be a dynamic entity instead of a POJO.
+
+Even though associations are declared using target class names, 
+the target type of associations can also be a dynamic entity instead of a POJO.
 
 After setting the default entity mode to dynamic-map for the SessionFactory, you can, at runtime, work with Maps of Maps:
 
@@ -88,7 +97,12 @@ s.save("Organization", foobar);
 
 tx.commit();
 s.close();
-One of the main advantages of dynamic mapping is quick turnaround time for prototyping, without the need for entity class implementation. However, you lose compile-time type checking and will likely deal with many exceptions at runtime. As a result of the Hibernate mapping, the database schema can easily be normalized and sound, allowing to add a proper domain model implementation on top later on.
+
+One of the main advantages of dynamic mapping is quick turnaround time for prototyping, 
+without the need for entity class implementation. 
+However, you lose compile-time type checking and will likely deal with many exceptions at runtime. 
+As a result of the Hibernate mapping, the database schema can easily be normalized and sound, 
+allowing to add a proper domain model implementation on top later on.
 
 Entity representation modes can also be set on a per Session basis:
 
@@ -103,23 +117,51 @@ dynamicSession.flush();
 dynamicSession.close()
 ...
 // Continue on pojoSession
-Please note that the call to getSession() using an EntityMode is on the Session API, not the SessionFactory. That way, the new Session shares the underlying JDBC connection, transaction, and other context information. This means you do not have to call flush() and close() on the secondary Session, and also leave the transaction and connection handling to the primary unit of work.
 
+Please note that the call to getSession() using an EntityMode is on the Session API, not the SessionFactory. 
+That way, the new Session shares the underlying JDBC connection, transaction, and other context information. 
+This means you do not have to call flush() and close() on the secondary Session, 
+and also leave the transaction and connection handling to the primary unit of work.
+
+====
 4.5. Tuplizers
+元组片段映射器
 
-org.hibernate.tuple.Tuplizer and its sub-interfaces are responsible for managing a particular representation of a piece of data given that representation's org.hibernate.EntityMode. If a given piece of data is thought of as a data structure, then a tuplizer is the thing that knows how to create such a data structure, how to extract values from such a data structure and how to inject values into such a data structure. For example, for the POJO entity mode, the corresponding tuplizer knows how create the POJO through its constructor. It also knows how to access the POJO properties using the defined property accessors.
+org.hibernate.tuple.Tuplizer and its sub-interfaces are responsible for 
+managing a particular representation of a piece of data given that representation's org.hibernate.EntityMode.
+数据的一个片段。“实体模式”。 
+org.hibernate.tuple.Tuplizer，以及其子接口，负责根据给定的org.hibernate.EntityMode，来复现片断数据。
+If a given piece of data is thought of as a data structure, then a tuplizer is the thing 
+that knows how to create such a data structure, 
+how to extract values from such a data structure 
+and how to inject values into such a data structure.
+ 
+For example, for the POJO entity mode, the corresponding tuplizer knows how create the POJO through its constructor. 
+It also knows how to access the POJO properties using the defined property accessors.
 
 There are two (high-level) types of Tuplizers:
 
 org.hibernate.tuple.entity.EntityTuplizer which is responsible for managing the above mentioned contracts in regards to entities
+
 org.hibernate.tuple.component.ComponentTuplizer which does the same for components
-Users can also plug in their own tuplizers. Perhaps you require that java.util.Map implementation other than java.util.HashMap be used while in the dynamic-map entity-mode. Or perhaps you need to define a different proxy generation strategy than the one used by default. Both would be achieved by defining a custom tuplizer implementation. Tuplizer definitions are attached to the entity or component mapping they are meant to manage. Going back to the example of our Customer entity, Example 4.6, “Specify custom tuplizers in annotations” shows how to specify a custom org.hibernate.tuple.entity.EntityTuplizer using annotations while Example 4.7, “Specify custom tuplizers in hbm.xml” shows how to do the same in hbm.xml
+
+EntityTuplizer负责管理上面提到的实体的契约，而ComponentTuplizer则是针对组件的。 
+
+Users can also plug in their own tuplizers. 
+Perhaps you require that java.util.Map implementation other than java.util.HashMap be used while in the dynamic-map entity-mode. 
+Or perhaps you need to define a different proxy generation strategy than the one used by default. 
+Both would be achieved by defining a custom tuplizer implementation. 
+Tuplizer definitions are attached to the entity or component mapping they are meant to manage. 
+Going back to the example of our Customer entity, 
+Example 4.6, “Specify custom tuplizers in annotations” 
+shows how to specify a custom org.hibernate.tuple.entity.EntityTuplizer using annotations 
+while Example 4.7, “Specify custom tuplizers in hbm.xml” shows how to do the same in hbm.xml
 
 Example 4.6. Specify custom tuplizers in annotations
 
 @Entity
 @Tuplizer(impl = DynamicEntityTuplizer.class)
-public interface Cuisine {
+public interface Cuisine {    //定义为接口
     @Id
     @GeneratedValue
     public Long getId();
@@ -153,9 +195,21 @@ Example 4.7. Specify custom tuplizers in hbm.xml
     </class>
 </hibernate-mapping>
 
+====
 4.6. EntityNameResolvers
+实体名字解决器
 
-org.hibernate.EntityNameResolver is a contract for resolving the entity name of a given entity instance. The interface defines a single method resolveEntityName which is passed the entity instance and is expected to return the appropriate entity name (null is allowed and would indicate that the resolver does not know how to resolve the entity name of the given entity instance). Generally speaking, an org.hibernate.EntityNameResolver is going to be most useful in the case of dynamic models. One example might be using proxied interfaces as your domain model. The hibernate test suite has an example of this exact style of usage under the org.hibernate.test.dynamicentity.tuplizer2. Here is some of the code from that package for illustration.
+org.hibernate.EntityNameResolver is a contract for resolving the entity name of a given entity instance. 
+The interface defines a single method resolveEntityName which is passed the entity instance 
+and is expected to return the appropriate entity name 
+(null is allowed and would indicate that the resolver does not know how to resolve the entity name of the given entity instance).
+传入一个实体对象，返回该实体对象的实体名字。 
+Generally speaking, an org.hibernate.EntityNameResolver is going to be most useful in the case of dynamic models.
+在动态模式时，非常有用。 
+One example might be using proxied interfaces as your domain model.
+一个示例是使用代理接口作为你的领域模型。 
+The hibernate test suite has an example of this exact style of usage under the org.hibernate.test.dynamicentity.tuplizer2. 
+Here is some of the code from that package for illustration.
 
 /**
  * A very trivial JDK Proxy InvocationHandler implementation where we proxy an
@@ -263,9 +317,12 @@ public class MyEntityTuplizer extends PojoEntityTuplizer {
     }
 
     ...
+
 In order to register an org.hibernate.EntityNameResolver users must either:
 
 Implement a custom tuplizer (see Section 4.5, “Tuplizers”), implementing the getEntityNameResolvers method
 
-Register it with the org.hibernate.impl.SessionFactoryImpl (which is the implementation class for org.hibernate.SessionFactory) using the registerEntityNameResolver method.
+Register it with the 
+org.hibernate.impl.SessionFactoryImpl (which is the implementation class for org.hibernate.SessionFactory) 
+using the registerEntityNameResolver method.
 

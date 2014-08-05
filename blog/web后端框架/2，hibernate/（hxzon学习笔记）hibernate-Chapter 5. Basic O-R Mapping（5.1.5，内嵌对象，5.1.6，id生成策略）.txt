@@ -1,0 +1,523 @@
+﻿（hxzon学习笔记）hibernate-Chapter 5. Basic O-R Mapping（5.1.5，内嵌对象，5.1.6，id生成策略）
+
+
+http://docs.jboss.org/hibernate/orm/4.3/manual/en-US/html/ch05.html#mapping-declaration
+=======
+5.1. Mapping declaration
+
+5.1.1. Entity
+5.1.2. Identifiers
+5.1.3. Optimistic locking properties (optional)
+5.1.4. Property
+5.1.5. Embedded objects (aka components)
+5.1.6. Inheritance strategy
+5.1.7. Mapping one to one and one to many associations
+5.1.8. Natural-id
+5.1.9. Any
+5.1.10. Properties
+5.1.11. Some hbm.xml specificities
+
+==
+5.2. Hibernate types
+5.2.1. Entities and values
+5.2.2. Basic value types
+5.2.3. Custom value types
+
+5.3. Mapping a class more than once
+5.4. SQL quoted identifiers
+5.5. Generated properties
+5.6. Column transformers: read and write expressions
+5.7. Auxiliary database objects
+
+========
+5.1.5. Embedded objects (aka components)
+
+Embeddable objects (or components) are objects whose properties are mapped to the same table as the owning entity's table. Components can, in turn, declare their own properties, components or collections
+
+It is possible to declare an embedded component inside an entity and even override its column mapping. Component classes have to be annotated at the class level with the @Embeddable annotation. It is possible to override the column mapping of an embedded object for a particular entity using the @Embedded and @AttributeOverride annotation in the associated property:
+
+@Entity
+public class Person implements Serializable {
+
+    // Persistent component using defaults
+    Address homeAddress;
+
+    @Embedded
+    @AttributeOverrides( {
+            @AttributeOverride(name="iso2", column = @Column(name="bornIso2") ),
+            @AttributeOverride(name="name", column = @Column(name="bornCountryName") )
+    } )
+    Country bornIn;
+    ...
+}          
+@Embeddable
+public class Address implements Serializable {
+    String city;
+    Country nationality; //no overriding here
+}            
+@Embeddable
+public class Country implements Serializable {
+    private String iso2;
+    @Column(name="countryName") private String name;
+
+    public String getIso2() { return iso2; }
+    public void setIso2(String iso2) { this.iso2 = iso2; }
+
+    
+    public String getName() { return name; }
+    public void setName(String name) { this.name = name; }
+    ...
+}            
+An embeddable object inherits the access type of its owning entity (note that you can override that using the @Access annotation).
+
+The Person entity has two component properties, homeAddress and bornIn. homeAddress property has not been annotated, but Hibernate will guess that it is a persistent component by looking for the @Embeddable annotation in the Address class. We also override the mapping of a column name (to bornCountryName) with the @Embedded and @AttributeOverride annotations for each mapped attribute of Country. As you can see, Country is also a nested component of Address, again using auto-detection by Hibernate and JPA defaults. Overriding columns of embedded objects of embedded objects is through dotted expressions.
+
+    @Embedded
+    @AttributeOverrides( {
+            @AttributeOverride(name="city", column = @Column(name="fld_city") ),
+            @AttributeOverride(name="nationality.iso2", column = @Column(name="nat_Iso2") ),
+            @AttributeOverride(name="nationality.name", column = @Column(name="nat_CountryName") )
+            //nationality columns in homeAddress are overridden
+    } )
+    Address homeAddress;
+Hibernate Annotations supports something that is not explicitly supported by the JPA specification. You can annotate a embedded object with the @MappedSuperclass annotation to make the superclass properties persistent (see @MappedSuperclass for more informations).
+
+You can also use association annotations in an embeddable object (ie @OneToOne, @ManyToOne, @OneToMany or @ManyToMany). To override the association columns you can use @AssociationOverride.
+
+If you want to have the same embeddable object type twice in the same entity, the column name defaulting will not work as several embedded objects would share the same set of columns. In plain JPA, you need to override at least one set of columns. Hibernate, however, allows you to enhance the default naming mechanism through the NamingStrategy interface. You can write a strategy that prevent name clashing in such a situation. DefaultComponentSafeNamingStrategy is an example of this.
+
+If a property of the embedded object points back to the owning entity, annotate it with the @Parent annotation. Hibernate will make sure this property is properly loaded with the entity reference.
+
+In XML, use the <component> element.
+
+<component
+        name="propertyName"                                (1)
+        class="className"                                  (2)
+        insert="true|false"                                (3)
+        update="true|false"                                (4)
+        access="field|property|ClassName"                  (5)
+        lazy="true|false"                                  (6)
+        optimistic-lock="true|false"                       (7)
+        unique="true|false"                                (8)
+        node="element-name|."
+>
+
+        <property ...../>
+        <many-to-one .... />
+        ........
+</component>
+1	name: the name of the property.
+2	class (optional - defaults to the property type determined by reflection): the name of the component (child) class.
+3	insert: do the mapped columns appear in SQL INSERTs?
+4	update: do the mapped columns appear in SQL UPDATEs?
+5	access (optional - defaults to property): the strategy Hibernate uses for accessing the property value.
+6	lazy (optional - defaults to false): specifies that this component should be fetched lazily when the instance variable is first accessed. It requires build-time bytecode instrumentation.
+7	optimistic-lock (optional - defaults to true): specifies that updates to this component either do or do not require acquisition of the optimistic lock. It determines if a version increment should occur when this property is dirty.
+8	unique (optional - defaults to false): specifies that a unique constraint exists upon all mapped columns of the component.
+The child <property> tags map properties of the child class to table columns.
+
+The <component> element allows a <parent> subelement that maps a property of the component class as a reference back to the containing entity.
+
+The <dynamic-component> element allows a Map to be mapped as a component, where the property names refer to keys of the map. See Section 9.5, “Dynamic components” for more information. This feature is not supported in annotations.
+
+========
+5.1.6. Inheritance strategy
+
+Java is a language supporting polymorphism: a class can inherit from another. Several strategies are possible to persist a class hierarchy:
+
+Single table per class hierarchy strategy: a single table hosts all the instances of a class hierarchy
+Joined subclass strategy: one table per class and subclass is present and each table persist the properties specific to a given subclass. The state of the entity is then stored in its corresponding class table and all its superclasses
+Table per class strategy: one table per concrete class and subclass is present and each table persist the properties of the class and its superclasses. The state of the entity is then stored entirely in the dedicated table for its class.
+5.1.6.1. Single table per class hierarchy strategy
+
+With this approach the properties of all the subclasses in a given mapped class hierarchy are stored in a single table.
+
+Each subclass declares its own persistent properties and subclasses. Version and id properties are assumed to be inherited from the root class. Each subclass in a hierarchy must define a unique discriminator value. If this is not specified, the fully qualified Java class name is used.
+
+@Entity
+@Inheritance(strategy=InheritanceType.SINGLE_TABLE)
+@DiscriminatorColumn(
+    name="planetype",
+    discriminatorType=DiscriminatorType.STRING
+)
+@DiscriminatorValue("Plane")
+public class Plane { ... }
+
+@Entity
+@DiscriminatorValue("A320")
+public class A320 extends Plane { ... }          
+In hbm.xml, for the table-per-class-hierarchy mapping strategy, the <subclass> declaration is used. For example:
+
+<subclass
+        name="ClassName"                                   (1)
+        discriminator-value="discriminator_value"          (2)
+        proxy="ProxyInterface"                             (3)
+        lazy="true|false"                                  (4)
+        dynamic-update="true|false"
+        dynamic-insert="true|false"
+        entity-name="EntityName"
+        node="element-name"
+        extends="SuperclassName">
+
+        <property .... />
+        .....
+</subclass>
+1	name: the fully qualified class name of the subclass.
+2	discriminator-value (optional - defaults to the class name): a value that distinguishes individual subclasses.
+3	proxy (optional): specifies a class or interface used for lazy initializing proxies.
+4	lazy (optional - defaults to true): setting lazy="false" disables the use of lazy fetching.
+For information about inheritance mappings see Chapter 10, Inheritance mapping.
+
+5.1.6.1.1. Discriminator
+
+Discriminators are required for polymorphic persistence using the table-per-class-hierarchy mapping strategy. It declares a discriminator column of the table. The discriminator column contains marker values that tell the persistence layer what subclass to instantiate for a particular row. Hibernate Core supports the follwoing restricted set of types as discriminator column: string, character, integer, byte, short, boolean, yes_no, true_false.
+
+Use the @DiscriminatorColumn to define the discriminator column as well as the discriminator type.
+
+Note
+The enum DiscriminatorType used in javax.persitence.DiscriminatorColumn only contains the values STRING, CHAR and INTEGER which means that not all Hibernate supported types are available via the @DiscriminatorColumn annotation.
+You can also use @DiscriminatorFormula to express in SQL a virtual discriminator column. This is particularly useful when the discriminator value can be extracted from one or more columns of the table. Both @DiscriminatorColumn and @DiscriminatorFormula are to be set on the root entity (once per persisted hierarchy).
+
+@org.hibernate.annotations.DiscriminatorOptions allows to optionally specify Hibernate specific discriminator options which are not standardized in JPA. The available options are force and insert. The force attribute is useful if the table contains rows with "extra" discriminator values that are not mapped to a persistent class. This could for example occur when working with a legacy database. If force is set to true Hibernate will specify the allowed discriminator values in the SELECT query, even when retrieving all instances of the root class. The second option - insert - tells Hibernate whether or not to include the discriminator column in SQL INSERTs. Usually the column should be part of the INSERT statement, but if your discriminator column is also part of a mapped composite identifier you have to set this option to false.
+
+Tip
+There is also a @org.hibernate.annotations.ForceDiscriminator annotation which is deprecated since version 3.6. Use @DiscriminatorOptions instead.
+Finally, use @DiscriminatorValue on each class of the hierarchy to specify the value stored in the discriminator column for a given entity. If you do not set @DiscriminatorValue on a class, the fully qualified class name is used.
+
+@Entity
+@Inheritance(strategy=InheritanceType.SINGLE_TABLE)
+@DiscriminatorColumn(
+    name="planetype",
+    discriminatorType=DiscriminatorType.STRING
+)
+@DiscriminatorValue("Plane")
+public class Plane { ... }
+
+@Entity
+@DiscriminatorValue("A320")
+public class A320 extends Plane { ... }          
+In hbm.xml, the <discriminator> element is used to define the discriminator column or formula:
+
+<discriminator
+        column="discriminator_column"                      (1)
+        type="discriminator_type"                          (2)
+        force="true|false"                                 (3)
+        insert="true|false"                                (4)
+        formula="arbitrary sql expression"                 (5)
+/>
+
+1	column (optional - defaults to class): the name of the discriminator column.
+2	type (optional - defaults to string): a name that indicates the Hibernate type
+3	force (optional - defaults to false): "forces" Hibernate to specify the allowed discriminator values, even when retrieving all instances of the root class.
+4	insert (optional - defaults to true): set this to false if your discriminator column is also part of a mapped composite identifier. It tells Hibernate not to include the column in SQL INSERTs.
+5	formula (optional): an arbitrary SQL expression that is executed when a type has to be evaluated. It allows content-based discrimination.
+Actual values of the discriminator column are specified by the discriminator-value attribute of the <class> and <subclass> elements.
+
+The formula attribute allows you to declare an arbitrary SQL expression that will be used to evaluate the type of a row. For example:
+
+<discriminator
+    formula="case when CLASS_TYPE in ('a', 'b', 'c') then 0 else 1 end"
+    type="integer"/>
+
+5.1.6.2. Joined subclass strategy
+
+Each subclass can also be mapped to its own table. This is called the table-per-subclass mapping strategy. An inherited state is retrieved by joining with the table of the superclass. A discriminator column is not required for this mapping strategy. Each subclass must, however, declare a table column holding the object identifier. The primary key of this table is also a foreign key to the superclass table and described by the @PrimaryKeyJoinColumns or the <key> element.
+
+@Entity @Table(name="CATS")
+@Inheritance(strategy=InheritanceType.JOINED)
+public class Cat implements Serializable { 
+    @Id @GeneratedValue(generator="cat-uuid") 
+    @GenericGenerator(name="cat-uuid", strategy="uuid")
+    String getId() { return id; }
+
+    ...
+}
+
+@Entity @Table(name="DOMESTIC_CATS")
+@PrimaryKeyJoinColumn(name="CAT")
+public class DomesticCat extends Cat { 
+    public String getName() { return name; }
+}            
+Note
+The table name still defaults to the non qualified class name. Also if @PrimaryKeyJoinColumn is not set, the primary key / foreign key columns are assumed to have the same names as the primary key columns of the primary table of the superclass.
+In hbm.xml, use the <joined-subclass> element. For example:
+
+<joined-subclass
+        name="ClassName"                                   (1)
+        table="tablename"                                  (2)
+        proxy="ProxyInterface"                             (3)
+        lazy="true|false"                                  (4)
+        dynamic-update="true|false"
+        dynamic-insert="true|false"
+        schema="schema"
+        catalog="catalog"
+        extends="SuperclassName"
+        persister="ClassName"
+        subselect="SQL expression"
+        entity-name="EntityName"
+        node="element-name">
+
+        <key .... >
+
+        <property .... />
+        .....
+</joined-subclass>
+1	name: the fully qualified class name of the subclass.
+2	table: the name of the subclass table.
+3	proxy (optional): specifies a class or interface to use for lazy initializing proxies.
+4	lazy (optional, defaults to true): setting lazy="false" disables the use of lazy fetching.
+Use the <key> element to declare the primary key / foreign key column. The mapping at the start of the chapter would then be re-written as:
+
+<?xml version="1.0"?>
+<!DOCTYPE hibernate-mapping PUBLIC
+        "-//Hibernate/Hibernate Mapping DTD//EN"
+        "http://www.hibernate.org/dtd/hibernate-mapping-3.0.dtd">
+
+<hibernate-mapping package="eg">
+
+        <class name="Cat" table="CATS">
+                <id name="id" column="uid" type="long">
+                        <generator class="hilo"/>
+                </id>
+                <property name="birthdate" type="date"/>
+                <property name="color" not-null="true"/>
+                <property name="sex" not-null="true"/>
+                <property name="weight"/>
+                <many-to-one name="mate"/>
+                <set name="kittens">
+                        <key column="MOTHER"/>
+                        <one-to-many class="Cat"/>
+                </set>
+                <joined-subclass name="DomesticCat" table="DOMESTIC_CATS">
+                    <key column="CAT"/>
+                    <property name="name" type="string"/>
+                </joined-subclass>
+        </class>
+
+        <class name="eg.Dog">
+                <!-- mapping for Dog could go here -->
+        </class>
+
+</hibernate-mapping>
+For information about inheritance mappings see Chapter 10, Inheritance mapping.
+
+5.1.6.3. Table per class strategy
+
+A third option is to map only the concrete classes of an inheritance hierarchy to tables. This is called the table-per-concrete-class strategy. Each table defines all persistent states of the class, including the inherited state. In Hibernate, it is not necessary to explicitly map such inheritance hierarchies. You can map each class as a separate entity root. However, if you wish use polymorphic associations (e.g. an association to the superclass of your hierarchy), you need to use the union subclass mapping.
+
+@Entity
+@Inheritance(strategy = InheritanceType.TABLE_PER_CLASS)
+public class Flight implements Serializable { ... }            
+Or in hbm.xml:
+
+<union-subclass
+        name="ClassName"                                   (1)
+        table="tablename"                                  (2)
+        proxy="ProxyInterface"                             (3)
+        lazy="true|false"                                  (4)
+        dynamic-update="true|false"
+        dynamic-insert="true|false"
+        schema="schema"
+        catalog="catalog"
+        extends="SuperclassName"
+        abstract="true|false"
+        persister="ClassName"
+        subselect="SQL expression"
+        entity-name="EntityName"
+        node="element-name">
+
+        <property .... />
+        .....
+</union-subclass>
+1	name: the fully qualified class name of the subclass.
+2	table: the name of the subclass table.
+3	proxy (optional): specifies a class or interface to use for lazy initializing proxies.
+4	lazy (optional, defaults to true): setting lazy="false" disables the use of lazy fetching.
+No discriminator column or key column is required for this mapping strategy.
+
+For information about inheritance mappings see Chapter 10, Inheritance mapping.
+
+5.1.6.4. Inherit properties from superclasses
+
+This is sometimes useful to share common properties through a technical or a business superclass without including it as a regular mapped entity (ie no specific table for this entity). For that purpose you can map them as @MappedSuperclass.
+
+@MappedSuperclass
+public class BaseEntity {
+    @Basic
+    @Temporal(TemporalType.TIMESTAMP)
+    public Date getLastUpdate() { ... }
+    public String getLastUpdater() { ... }
+    ...
+}
+
+@Entity class Order extends BaseEntity {
+    @Id public Integer getId() { ... }
+    ...
+}
+In database, this hierarchy will be represented as an Order table having the id, lastUpdate and lastUpdater columns. The embedded superclass property mappings are copied into their entity subclasses. Remember that the embeddable superclass is not the root of the hierarchy though.
+
+Note
+Properties from superclasses not mapped as @MappedSuperclass are ignored.
+Note
+The default access type (field or methods) is used, unless you use the @Access annotation.
+Note
+The same notion can be applied to @Embeddable objects to persist properties from their superclasses. You also need to use @MappedSuperclass to do that (this should not be considered as a standard EJB3 feature though)
+Note
+It is allowed to mark a class as @MappedSuperclass in the middle of the mapped inheritance hierarchy.
+Note
+Any class in the hierarchy non annotated with @MappedSuperclass nor @Entity will be ignored.
+You can override columns defined in entity superclasses at the root entity level using the @AttributeOverride annotation.
+
+@MappedSuperclass
+public class FlyingObject implements Serializable {
+
+    public int getAltitude() {
+        return altitude;
+    }
+
+    @Transient
+    public int getMetricAltitude() {
+        return metricAltitude;
+    }
+
+    @ManyToOne
+    public PropulsionType getPropulsion() {
+        return metricAltitude;
+    }
+    ...
+}
+
+@Entity
+@AttributeOverride( name="altitude", column = @Column(name="fld_altitude") )
+@AssociationOverride( 
+   name="propulsion", 
+   joinColumns = @JoinColumn(name="fld_propulsion_fk") 
+)
+public class Plane extends FlyingObject {
+    ...
+}
+The altitude property will be persisted in an fld_altitude column of table Plane and the propulsion association will be materialized in a fld_propulsion_fk foreign key column.
+
+You can define @AttributeOverride(s) and @AssociationOverride(s) on @Entity classes, @MappedSuperclass classes and properties pointing to an @Embeddable object.
+
+In hbm.xml, simply map the properties of the superclass in the <class> element of the entity that needs to inherit them.
+
+5.1.6.5. Mapping one entity to several tables
+
+While not recommended for a fresh schema, some legacy databases force your to map a single entity on several tables.
+
+Using the @SecondaryTable or @SecondaryTables class level annotations. To express that a column is in a particular table, use the table parameter of @Column or @JoinColumn.
+
+@Entity
+@Table(name="MainCat")
+@SecondaryTables({
+    @SecondaryTable(name="Cat1", pkJoinColumns={
+        @PrimaryKeyJoinColumn(name="cat_id", referencedColumnName="id")
+    ),
+    @SecondaryTable(name="Cat2", uniqueConstraints={@UniqueConstraint(columnNames={"storyPart2"})})
+})
+public class Cat implements Serializable {
+
+    private Integer id;
+    private String name;
+    private String storyPart1;
+    private String storyPart2;
+
+    @Id @GeneratedValue
+    public Integer getId() {
+        return id;
+    }
+
+    public String getName() {
+        return name;
+    }
+    
+    @Column(table="Cat1")
+    public String getStoryPart1() {
+        return storyPart1;
+    }
+
+    @Column(table="Cat2")
+    public String getStoryPart2() {
+        return storyPart2;
+    }
+}
+In this example, name will be in MainCat. storyPart1 will be in Cat1 and storyPart2 will be in Cat2. Cat1 will be joined to MainCat using the cat_id as a foreign key, and Cat2 using id (ie the same column name, the MainCat id column has). Plus a unique constraint on storyPart2 has been set.
+
+There is also additional tuning accessible via the @org.hibernate.annotations.Table annotation:
+
+fetch: If set to JOIN, the default, Hibernate will use an inner join to retrieve a secondary table defined by a class or its superclasses and an outer join for a secondary table defined by a subclass. If set to SELECT then Hibernate will use a sequential select for a secondary table defined on a subclass, which will be issued only if a row turns out to represent an instance of the subclass. Inner joins will still be used to retrieve a secondary defined by the class and its superclasses.
+inverse: If true, Hibernate will not try to insert or update the properties defined by this join. Default to false.
+optional: If enabled (the default), Hibernate will insert a row only if the properties defined by this join are non-null and will always use an outer join to retrieve the properties.
+foreignKey: defines the Foreign Key name of a secondary table pointing back to the primary table.
+Make sure to use the secondary table name in the appliesto property
+
+@Entity
+@Table(name="MainCat")
+@SecondaryTable(name="Cat1")
+@org.hibernate.annotations.Table(
+   appliesTo="Cat1",
+   fetch=FetchMode.SELECT,
+   optional=true)
+public class Cat implements Serializable {
+
+    private Integer id;
+    private String name;
+    private String storyPart1;
+    private String storyPart2;
+
+    @Id @GeneratedValue
+    public Integer getId() {
+        return id;
+    }
+
+    public String getName() {
+        return name;
+    }
+    
+    @Column(table="Cat1")
+    public String getStoryPart1() {
+        return storyPart1;
+    }
+
+    @Column(table="Cat2")
+    public String getStoryPart2() {
+        return storyPart2;
+    }
+}
+In hbm.xml, use the <join> element.
+
+<join
+        table="tablename"                                  (1)
+        schema="owner"                                     (2)
+        catalog="catalog"                                  (3)
+        fetch="join|select"                                (4)
+        inverse="true|false"                               (5)
+        optional="true|false">                             (6)
+
+        <key ... />
+
+        <property ... />
+        ...
+</join>
+1	table: the name of the joined table.
+2	schema (optional): overrides the schema name specified by the root <hibernate-mapping> element.
+3	catalog (optional): overrides the catalog name specified by the root <hibernate-mapping> element.
+4	fetch (optional - defaults to join): if set to join, the default, Hibernate will use an inner join to retrieve a <join> defined by a class or its superclasses. It will use an outer join for a <join> defined by a subclass. If set to select then Hibernate will use a sequential select for a <join> defined on a subclass. This will be issued only if a row represents an instance of the subclass. Inner joins will still be used to retrieve a <join> defined by the class and its superclasses.
+5	inverse (optional - defaults to false): if enabled, Hibernate will not insert or update the properties defined by this join.
+6	optional (optional - defaults to false): if enabled, Hibernate will insert a row only if the properties defined by this join are non-null. It will always use an outer join to retrieve the properties.
+For example, address information for a person can be mapped to a separate table while preserving value type semantics for all properties:
+
+<class name="Person"
+    table="PERSON">
+
+    <id name="id" column="PERSON_ID">...</id>
+
+    <join table="ADDRESS">
+        <key column="ADDRESS_ID"/>
+        <property name="address"/>
+        <property name="zip"/>
+        <property name="country"/>
+    </join>
+    ...
+This feature is often only useful for legacy data models. We recommend fewer tables than classes and a fine-grained domain model. However, it is useful for switching between inheritance mapping strategies in a single hierarchy, as explained later.

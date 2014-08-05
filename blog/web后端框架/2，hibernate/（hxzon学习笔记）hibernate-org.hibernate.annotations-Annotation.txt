@@ -438,6 +438,7 @@ Ensures that auto-flush happens correctly and that queries against the derived e
 Table
 
 Complementary information to a table either primary or secondary.
+主表或辅助表（中间表）的更多配置。
 
 --
 Tables

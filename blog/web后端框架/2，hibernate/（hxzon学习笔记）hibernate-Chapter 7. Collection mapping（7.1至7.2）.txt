@@ -1,15 +1,11 @@
 ﻿（hxzon学习笔记）hibernate-Chapter 7. Collection mapping（7.1至7.2）
 
-
-by hxzon
+注释by hxzon
 
 http://docs.jboss.org/hibernate/orm/4.1/manual/en-US/html/index
-
 http://docs.jboss.org/hibernate/orm/4.1/manual/en-US/html/ch07.html
 
 ==============
-Table of Contents
-
 7.1. Persistent collections
 
 7.2. How to map collections
@@ -29,11 +25,30 @@ Table of Contents
 =====================
 7.1. Persistent collections
 
-Naturally Hibernate also allows to persist collections. These persistent collections can contain almost any other Hibernate type, including: basic types, custom types, components and references to other entities. The distinction between value and reference semantics is in this context very important. An object in a collection might be handled with "value" semantics (its life cycle fully depends on the collection owner), or it might be a reference to another entity with its own life cycle. In the latter case, only the "link" between the two objects is considered to be a state held by the collection.
+Naturally Hibernate also allows to persist collections. 
+These persistent collections can contain almost any other Hibernate type, 
+including: basic types, custom types, components and references to other entities. 
+The distinction between value and reference semantics is in this context very important. 
+An object in a collection might be handled with "value" semantics (its life cycle fully depends on the collection owner),
+“值”语义。 
+or it might be a reference to another entity with its own life cycle. 
+“实体”语义。
+In the latter case, only the "link" between the two objects is considered to be a state held by the collection.
 
-As a requirement persistent collection-valued fields must be declared as an interface type (see Example 7.2, “Collection mapping using @OneToMany and @JoinColumn”). The actual interface might be java.util.Set, java.util.Collection, java.util.List, java.util.Map, java.util.SortedSet, java.util.SortedMap or anything you like ("anything you like" means you will have to write an implementation of org.hibernate.usertype.UserCollectionType).
+As a requirement persistent collection-valued fields must be declared as an interface type
+集合字段的定义，必须使用接口。 
+(see Example 7.2, “Collection mapping using @OneToMany and @JoinColumn”). 
+The actual interface might be java.util.Set, java.util.Collection, java.util.List, java.util.Map, java.util.SortedSet, java.util.SortedMap 
+or anything you like ("anything you like" means you will have to write an implementation of org.hibernate.usertype.UserCollectionType).
+或者实现 org.hibernate.usertype.UserCollectionType 接口。
 
-Notice how in Example 7.2, “Collection mapping using @OneToMany and @JoinColumn” the instance variable parts was initialized with an instance of HashSet. This is the best way to initialize collection valued properties of newly instantiated (non-persistent) instances. When you make the instance persistent, by calling persist(), Hibernate will actually replace the HashSet with an instance of Hibernate's own implementation of Set. Be aware of the following error:
+Notice how in Example 7.2, “Collection mapping using @OneToMany and @JoinColumn” 
+the instance variable parts was initialized with an instance of HashSet. 
+This is the best way to initialize collection valued properties of newly instantiated (non-persistent) instances. 
+When you make the instance persistent, by calling persist(), 
+Hibernate will actually replace the HashSet with an instance of Hibernate's own implementation of Set.
+当持久化时，被替换为hibernate自己的实现类。 
+Be aware of the following error:
 
 Example 7.1. Hibernate uses its own collection implementations
 
@@ -50,13 +65,28 @@ kittens = cat.getKittens(); // Okay, kittens collection is a Set
 
 The persistent collections injected by Hibernate behave like HashMap, HashSet, TreeMap, TreeSet or ArrayList, depending on the interface type.
 
-Collections instances have the usual behavior of value types. They are automatically persisted when referenced by a persistent object and are automatically deleted when unreferenced. If a collection is passed from one persistent object to another, its elements might be moved from one table to another. Two entities cannot share a reference to the same collection instance. Due to the underlying relational model, collection-valued properties do not support null value semantics. Hibernate does not distinguish between a null collection reference and an empty collection.
+Collections instances have the usual behavior of value types. 
+They are automatically persisted when referenced by a persistent object and are automatically deleted when unreferenced.
+当集合对象被引用时，自动被持久化，当解除引用时，会自动删除。 
+If a collection is passed from one persistent object to another, 
+its elements might be moved from one table to another. 
+Two entities cannot share a reference to the same collection instance. 
+Due to the underlying relational model, collection-valued properties do not support null value semantics.
+不支持null语义。 
+Hibernate does not distinguish between a null collection reference and an empty collection.
+hibernate无法区分null和空集合。
 
 Note
-Use persistent collections the same way you use ordinary Java collections. However, ensure you understand the semantics of bidirectional associations (see Section 7.3.2, “Bidirectional associations”).
+Use persistent collections the same way you use ordinary Java collections. 
+However, ensure you understand the semantics of bidirectional associations (see Section 7.3.2, “Bidirectional associations”).
+
+==============
 7.2. How to map collections
 
-Using annotations you can map Collections, Lists, Maps and Sets of associated entities using @OneToMany and @ManyToMany. For collections of a basic or embeddable type use @ElementCollection. In the simplest case a collection mapping looks like this:
+Using annotations you can map Collections, Lists, Maps and Sets of associated entities using @OneToMany and @ManyToMany. 
+For collections of a basic or embeddable type use @ElementCollection. 
+
+In the simplest case a collection mapping looks like this:
 
 Example 7.2. Collection mapping using @OneToMany and @JoinColumn
 
@@ -71,7 +101,7 @@ public class Product {
     void setSerialNumber(String sn) { serialNumber = sn; }
    
     @OneToMany
-    @JoinColumn(name="PART_ID")
+    @JoinColumn(name="PART_ID") //指明用哪个列关联
     public Set<Part> getParts() { return parts; }
     void setParts(Set parts) { this.parts = parts; }
 }
@@ -82,7 +112,10 @@ public class Part {
    ...
 }
 
-Product describes a unidirectional relationship with Part using the join column PART_ID. In this unidirectional one to many scenario you can also use a join table as seen in Example 7.3, “Collection mapping using @OneToMany and @JoinTable”.
+Product describes a unidirectional relationship with Part using the join column PART_ID.
+单向关联。 
+In this unidirectional one to many scenario you can also use a join table 
+as seen in Example 7.3, “Collection mapping using @OneToMany and @JoinTable”.
 
 Example 7.3. Collection mapping using @OneToMany and @JoinTable
 
@@ -97,7 +130,7 @@ public class Product {
     void setSerialNumber(String sn) { serialNumber = sn; }
    
     @OneToMany
-    @JoinTable(
+    @JoinTable(    //使用关联表
             name="PRODUCT_PARTS",
             joinColumns = @JoinColumn( name="PRODUCT_ID"),
             inverseJoinColumns = @JoinColumn( name="PART_ID")
@@ -112,9 +145,22 @@ public class Part {
    ...
 }
 
-Without describing any physical mapping (no @JoinColumn or @JoinTable), a unidirectional one to many with join table is used. The table name is the concatenation of the owner table name, _, and the other side table name. The foreign key name(s) referencing the owner table is the concatenation of the owner table, _, and the owner primary key column(s) name. The foreign key name(s) referencing the other side is the concatenation of the owner property name, _, and the other side primary key column(s) name. A unique constraint is added to the foreign key referencing the other side table to reflect the one to many.
+Without describing any physical mapping (no @JoinColumn or @JoinTable), 
+a unidirectional one to many with join table is used.
+单向关联，不使用注解时，默认使用关联表。 
+The table name is the concatenation of the owner table name, _, and the other side table name. 
+The foreign key name(s) referencing the owner table is the concatenation of the owner table, _, 
+and the owner primary key column(s) name. 
+The foreign key name(s) referencing the other side is the concatenation of the owner property name, _, 
+and the other side primary key column(s) name. 
+A unique constraint is added to the foreign key referencing the other side table to reflect the one to many.
+会添加唯一约束。
 
-Lets have a look now how collections are mapped using Hibernate mapping files. In this case the first step is to chose the right mapping element. It depends on the type of interface. For example, a <set> element is used for mapping properties of type Set.
+==
+Lets have a look now how collections are mapped using Hibernate mapping files. 
+In this case the first step is to chose the right mapping element. 
+It depends on the type of interface. 
+For example, a <set> element is used for mapping properties of type Set.
 
 Example 7.4. Mapping a Set using <set>
 
@@ -126,10 +172,14 @@ Example 7.4. Mapping a Set using <set>
     </set>
 </class>
 
-In Example 7.4, “Mapping a Set using <set>” a one-to-many association links the Product and Part entities. This association requires the existence of a foreign key column and possibly an index column to the Part table. This mapping loses certain semantics of normal Java collections:
+In Example 7.4, “Mapping a Set using <set>” 
+a one-to-many association links the Product and Part entities. 
+This association requires the existence of a foreign key column and possibly an index column to the Part table. 
+This mapping loses certain semantics of normal Java collections:
 
 An instance of the contained entity class cannot belong to more than one instance of the collection.
 An instance of the contained entity class cannot appear at more than one value of the collection index.
+
 Looking closer at the used <one-to-many> tag we see that it has the following options.
 
 Example 7.5. options of <one-to-many> element
@@ -141,15 +191,27 @@ Example 7.5. options of <one-to-many> element
         node="element-name"
         embed-xml="true|false"
     />
-1	class (required): the name of the associated class.
-2	not-found (optional - defaults to exception): specifies how cached identifiers that reference missing rows will be handled. ignore will treat a missing row as a null association.
-3	entity-name (optional): the entity name of the associated class, as an alternative to class.
 
-The <one-to-many> element does not need to declare any columns. Nor is it necessary to specify the table name anywhere.
+1	class (required): the name of the associated class.
+2	not-found (optional - defaults to exception): 
+specifies how cached identifiers that reference missing rows will be handled. 
+ignore will treat a missing row as a null association.
+3	entity-name (optional): the entity name of the associated class, as an alternative to class.
+实体名，作为class属性的替代。
+
+The <one-to-many> element does not need to declare any columns. 
+Nor is it necessary to specify the table name anywhere.
 
 Warning
-If the foreign key column of a <one-to-many> association is declared NOT NULL, you must declare the <key> mapping not-null="true" or use a bidirectional association with the collection mapping marked inverse="true". See Section 7.3.2, “Bidirectional associations”.
-Apart from the <set> tag as shown in Example 7.4, “Mapping a Set using <set>”, there is also <list>, <map>, <bag>, <array> and <primitive-array> mapping elements. The <map> element is representative:
+If the foreign key column of a <one-to-many> association is declared NOT NULL, 
+you must declare the <key> mapping not-null="true" 
+or use a bidirectional association with the collection mapping marked inverse="true". 
+See Section 7.3.2, “Bidirectional associations”.
+
+Apart from the <set> tag as shown in Example 7.4, “Mapping a Set using <set>”, 
+there is also <list>, <map>, <bag>, <array> and <primitive-array> mapping elements. 
+
+The <map> element is representative:
 
 Example 7.6. Elements of the <map> mapping
 
@@ -176,6 +238,7 @@ Example 7.6. Elements of the <map> mapping
     <map-key .... />
     <element .... />
 </map>
+
 1	name: the collection property name
 2	table (optional - defaults to property name): the name of the collection table. It is not used for one-to-many associations.
 3	schema (optional): the name of a table schema to override the schema declared on the root element
@@ -191,37 +254,59 @@ Example 7.6. Elements of the <map> mapping
 13	optimistic-lock (optional - defaults to true): specifies that changes to the state of the collection results in increments of the owning entity's version. For one-to-many associations you may want to disable this setting.
 14	mutable (optional - defaults to true): a value of false specifies that the elements of the collection never change. This allows for minor performance optimization in some cases.
 
-After exploring the basic mapping of collections in the preceding paragraphs we will now focus details like physical mapping considerations, indexed collections and collections of value types.
+After exploring the basic mapping of collections in the preceding paragraphs 
+we will now focus details like physical mapping considerations, indexed collections and collections of value types.
 
+====
 7.2.1. Collection foreign keys
+关联所使用的外键
 
-On the database level collection instances are distinguished by the foreign key of the entity that owns the collection. This foreign key is referred to as the collection key column, or columns, of the collection table. The collection key column is mapped by the @JoinColumn annotation respectively the <key> XML element.
+On the database level collection instances are distinguished by the foreign key of the entity that owns the collection. 
+This foreign key is referred to as the collection key column, or columns, of the collection table. 
+The collection key column is mapped by the @JoinColumn annotation respectively the <key> XML element.
 
-There can be a nullability constraint on the foreign key column. For most collections, this is implied. For unidirectional one-to-many associations, the foreign key column is nullable by default, so you may need to specify
+There can be a nullability constraint on the foreign key column. 
+For most collections, this is implied. 
+For unidirectional one-to-many associations, the foreign key column is nullable by default, so you may need to specify
 
 @JoinColumn(nullable=false)
+
 or
 
 <key column="productSerialNumber" not-null="true"/>
-The foreign key constraint can use ON DELETE CASCADE. In XML this can be expressed via:
+
+The foreign key constraint can use ON DELETE CASCADE. 
+In XML this can be expressed via:
 
 <key column="productSerialNumber" on-delete="cascade"/>
+
 In annotations the Hibernate specific annotation @OnDelete has to be used.
 
 @OnDelete(action=OnDeleteAction.CASCADE)
+
 See Section 5.1.11.3, “Key” for more information about the <key> element.
 
+====
 7.2.2. Indexed collections
+可索引的集合类型
 
-In the following paragraphs we have a closer look at the indexed collections List and Map how the their index can be mapped in Hibernate.
+In the following paragraphs we have a closer look at the indexed collections List and Map 
+how the their index can be mapped in Hibernate.
 
+==
 7.2.2.1. Lists
 
 Lists can be mapped in two different ways:
 
 as ordered lists, where the order is not materialized in the database
+排序，顺序没有保存在数据库。
 as indexed lists, where the order is materialized in the database
-To order lists in memory, add @javax.persistence.OrderBy to your property. This annotation takes as parameter a list of comma separated properties (of the target entity) and orders the collection accordingly (eg firstname asc, age desc), if the string is empty, the collection will be ordered by the primary key of the target entity.
+顺序保存在数据库中。
+
+To order lists in memory, add @javax.persistence.OrderBy to your property. 
+This annotation takes as parameter a list of comma separated properties (of the target entity) 
+and orders the collection accordingly (eg firstname asc, age desc), 
+if the string is empty, the collection will be ordered by the primary key of the target entity.
 
 Example 7.7. Ordered lists using @OrderBy
 
@@ -263,7 +348,12 @@ public class Order {
 | customer_id |
 |-------------|
 
-To store the index value in a dedicated column, use the @javax.persistence.OrderColumn annotation on your property. This annotations describes the column name and attributes of the column keeping the index value. This column is hosted on the table containing the association foreign key. If the column name is not specified, the default is the name of the referencing property, followed by underscore, followed by ORDER (in the following example, it would be orders_ORDER).
+To store the index value in a dedicated column, use the @javax.persistence.OrderColumn annotation on your property.
+使用  @javax.persistence.OrderColumn 注解来保存列表元素的顺序（在数据库表中添加了一列）。
+This annotations describes the column name and attributes of the column keeping the index value. 
+This column is hosted on the table containing the association foreign key. 
+If the column name is not specified, the default is the name of the referencing property, 
+followed by underscore, followed by ORDER (in the following example, it would be orders_ORDER).
 
 Example 7.8. Explicit index column using @OrderColumn
 
@@ -307,24 +397,45 @@ public class Order {
 |--------------|
 
 Note
-We recommend you to convert the legacy @org.hibernate.annotations.IndexColumn usages to @OrderColumn unless you are making use of the base property. The base property lets you define the index value of the first element (aka as base index). The usual value is 0 or 1. The default is 0 like in Java.
-Looking again at the Hibernate mapping file equivalent, the index of an array or list is always of type integer and is mapped using the <list-index> element. The mapped column contains sequential integers that are numbered from zero by default.
+We recommend you to convert the legacy @org.hibernate.annotations.IndexColumn usages 
+to @OrderColumn unless you are making use of the base property. 
+The base property lets you define the index value of the first element (aka as base index). 
+The usual value is 0 or 1. The default is 0 like in Java.
+
+Looking again at the Hibernate mapping file equivalent, 
+the index of an array or list is always of type integer and is mapped using the <list-index> element. 
+The mapped column contains sequential integers that are numbered from zero by default.
 
 Example 7.9. index-list element for indexed collections in xml mapping
 
 <list-index
         column="column_name"                               (1)
         base="0|1|..."/>
+
 1	column_name (required): the name of the column holding the collection index values.
 1	base (optional - defaults to 0): the value of the index column that corresponds to the first element of the list or array.
 
 If your table does not have an index column, and you still wish to use List as the property type, you can map the property as a Hibernate <bag>. A bag does not retain its order when it is retrieved from the database, but it can be optionally sorted or ordered.
 
+==
 7.2.2.2. Maps
 
-The question with Maps is where the key value is stored. There are everal options. Maps can borrow their keys from one of the associated entity properties or have dedicated columns to store an explicit key.
+The question with Maps is where the key value is stored. 
+There are everal options. 
+Maps can borrow their keys from one of the associated entity properties
+可以使用元素的某个属性作为map的键， 
+or have dedicated columns to store an explicit key.
+也可使用额外的键。
 
-To use one of the target entity property as a key of the map, use @MapKey(name="myProperty"), where myProperty is a property name in the target entity. When using @MapKey without the name attribuate, the target entity primary key is used. The map key uses the same column as the property pointed out. There is no additional column defined to hold the map key, because the map key represent a target property. Be aware that once loaded, the key is no longer kept in sync with the property. In other words, if you change the property value, the key will not change automatically in your Java model.
+To use one of the target entity property as a key of the map, use @MapKey(name="myProperty"), 
+where myProperty is a property name in the target entity. 
+When using @MapKey without the name attribuate, the target entity primary key is used. 
+The map key uses the same column as the property pointed out. 
+There is no additional column defined to hold the map key, because the map key represent a target property. 
+Be aware that once loaded, the key is no longer kept in sync with the property. 
+In other words, if you change the property value, the key will not change automatically in your Java model.
+注意，一旦加载，键和该属性就不再同步。
+如果你修改了该属性值，键不会跟着变。
 
 Example 7.10. Use of target entity property as map key via @MapKey
 
@@ -335,7 +446,7 @@ public class Customer {
    private Integer id;
 
    @OneToMany(mappedBy="customer")
-   @MapKey(name="number")
+   @MapKey(name="number") //指明哪个属性值作为map的键
    public Map<String,Order> getOrders() { return orders; }
    public void setOrders(Map<String,Order> order) { this.orders = orders; }
    private Map<String,Order> orders;
@@ -366,12 +477,25 @@ public class Order {
 | customer_id |
 |-------------|
 
-Alternatively the map key is mapped to a dedicated column or columns. In order to customize the mapping use one of the following annotations:
 
-@MapKeyColumn if the map key is a basic type. If you don't specify the column name, the name of the property followed by underscore followed by KEY is used (for example orders_KEY).
-@MapKeyEnumerated / @MapKeyTemporal if the map key type is respectively an enum or a Date.
-@MapKeyJoinColumn/@MapKeyJoinColumns if the map key type is another entity.
-@AttributeOverride/@AttributeOverrides when the map key is a embeddable object. Use key. as a prefix for your embeddable object property names.
+Alternatively the map key is mapped to a dedicated column or columns. 
+In order to customize the mapping use one of the following annotations:
+另一种方式是使用额外的列来作为map的键。
+
+@MapKeyColumn 
+if the map key is a basic type. 
+If you don't specify the column name, the name of the property followed by underscore followed by KEY is used (for example orders_KEY).
+
+@MapKeyEnumerated / @MapKeyTemporal 
+if the map key type is respectively an enum or a Date.
+
+@MapKeyJoinColumn/@MapKeyJoinColumns 
+if the map key type is another entity.
+
+@AttributeOverride/@AttributeOverrides 
+when the map key is a embeddable object. 
+Use key. as a prefix for your embeddable object property names.
+
 You can also use @MapKeyClass to define the type of the key if you don't use generics.
 
 Example 7.11. Map key as basic type using @MapKeyColumn
@@ -415,8 +539,14 @@ public class Order {
 |-------------|              |---------------|
 
 Note
-We recommend you to migrate from @org.hibernate.annotations.MapKey / @org.hibernate.annotation.MapKeyManyToMany to the new standard approach described above
-Using Hibernate mapping files there exists equivalent concepts to the descibed annotations. You have to use <map-key>, <map-key-many-to-many> and <composite-map-key>. <map-key> is used for any basic type, <map-key-many-to-many> for an entity reference and <composite-map-key> for a composite type.
+We recommend you to migrate from @org.hibernate.annotations.MapKey / @org.hibernate.annotation.MapKeyManyToMany 
+to the new standard approach described above
+
+Using Hibernate mapping files there exists equivalent concepts to the descibed annotations. 
+You have to use <map-key>, <map-key-many-to-many> and <composite-map-key>. 
+<map-key> is used for any basic type, 
+<map-key-many-to-many> for an entity reference 
+and <composite-map-key> for a composite type.
 
 Example 7.12. map-key xml mapping element
 
@@ -426,6 +556,7 @@ Example 7.12. map-key xml mapping element
         type="type_name"                                   (3)
         node="@attribute-name"
         length="N"/>
+
 1	column (optional): the name of the column holding the collection index values.
 2	formula (optional): a SQL formula used to evaluate the key of the map.
 3	type (required): the type of the map keys.
@@ -437,13 +568,17 @@ Example 7.13. map-key-many-to-many
         formula="any SQL expression"                       (2)(3)
         class="ClassName"
 />
+
 1	column (optional): the name of the foreign key column for the collection index values.
 2	formula (optional): a SQ formula used to evaluate the foreign key of the map key.
 3	class (required): the entity class used as the map key.
 
+==
 7.2.3. Collections of basic types and embeddable objects
 
-In some situations you don't need to associate two entities but simply create a collection of basic types or embeddable objects. Use the @ElementCollection for this case.
+In some situations you don't need to associate two entities but simply create a collection of basic types or embeddable objects. 
+元素是基础类型，或内嵌对象。
+Use the @ElementCollection for this case.
 
 Example 7.14. Collection of basic types mapped via @ElementCollection
 
@@ -458,11 +593,19 @@ public class User {
    public Set<String> getNicknames() { ... } 
 }
 
-The collection table holding the collection data is set using the @CollectionTable annotation. If omitted the collection table name defaults to the concatenation of the name of the containing entity and the name of the collection attribute, separated by an underscore. In our example, it would be User_nicknames.
+The collection table holding the collection data is set using the @CollectionTable annotation. 
+If omitted the collection table name defaults to the concatenation of the name of the containing entity 
+and the name of the collection attribute, 
+separated by an underscore. 
+In our example, it would be User_nicknames.
 
-The column holding the basic type is set using the @Column annotation. If omitted, the column name defaults to the property name: in our example, it would be nicknames.
+The column holding the basic type is set using the @Column annotation. 
+指明哪个列（保存了元素的值）。
+If omitted, the column name defaults to the property name: 
+in our example, it would be nicknames.
 
-But you are not limited to basic types, the collection type can be any embeddable object. To override the columns of the embeddable object in the collection table, use the @AttributeOverride annotation.
+But you are not limited to basic types, the collection type can be any embeddable object. 
+To override the columns of the embeddable object in the collection table, use the @AttributeOverride annotation.
 
 Example 7.15. @ElementCollection for embeddable objects
 
@@ -485,10 +628,15 @@ public class Address {
    [...]
 }
 
+----
 Such an embeddable object cannot contains a collection itself.
+内嵌对象自身不能含有集合类型的字段。
 
 Note
-in @AttributeOverride, you must use the value. prefix to override properties of the embeddable object used in the map value and the key. prefix to override properties of the embeddable object used in the map key.
+in @AttributeOverride, you must use the value. prefix to override properties of the embeddable object used in the map value 
+and the key. prefix to override properties of the embeddable object used in the map key.
+必须分别使用 value. 和 key. 这两个前缀。
+
 @Entity
 public class User {
    @ElementCollection
@@ -497,9 +645,13 @@ public class User {
       @AttributeOverride(name="value.stars", column=@Column(name="fld_note"))
    })
    public Map<Address,Rating> getFavHomes() { ... }
+
 Note
-We recommend you to migrate from @org.hibernate.annotations.CollectionOfElements to the new @ElementCollection annotation.
-Using the mapping file approach a collection of values is mapped using the <element> tag. For example:
+We recommend you to migrate from @org.hibernate.annotations.CollectionOfElements 
+to the new @ElementCollection annotation.
+
+Using the mapping file approach a collection of values is mapped using the <element> tag. 
+For example:
 
 Example 7.16. <element> tag for collection values using mapping files
 
@@ -514,7 +666,9 @@ Example 7.16. <element> tag for collection values using mapping files
         unique="true|false"
         node="element-name"
 />
+
 1	column (optional): the name of the column holding the collection element values.
+指明哪一列（保存了元素的值）。
 2	formula (optional): an SQL formula used to evaluate the element.
 3	type (required): the type of the collection element.
 

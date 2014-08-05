@@ -19,6 +19,9 @@ and exists
 
 反思：因为这个中间表并没有对应一个类，“创建时间”字段在应用程序中如何使用？
 
+解决方案1：自己创建表，同时使用 @Table 注解 自定制插删改语句。
+解决方案2：转化成两个一对多。
+
 Example 18.14. Overriding SQL statements for secondary tables
 
 @Entity
