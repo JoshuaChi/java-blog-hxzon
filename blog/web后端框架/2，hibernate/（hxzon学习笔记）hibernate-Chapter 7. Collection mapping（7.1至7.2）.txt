@@ -240,19 +240,43 @@ Example 7.6. Elements of the <map> mapping
 </map>
 
 1	name: the collection property name
+
 2	table (optional - defaults to property name): the name of the collection table. It is not used for one-to-many associations.
+
 3	schema (optional): the name of a table schema to override the schema declared on the root element
+
 4	lazy (optional - defaults to true): disables lazy fetching and specifies that the association is always eagerly fetched. It can also be used to enable "extra-lazy" fetching where most operations do not initialize the collection. This is suitable for large collections.
+
 5	inverse (optional - defaults to false): marks this collection as the "inverse" end of a bidirectional association.
+
 6	cascade (optional - defaults to none): enables operations to cascade to child entities.
+
 7	sort (optional): specifies a sorted collection with natural sort order or a given comparator class.
+
 8	order-by (optional): specifies a table column or columns that define the iteration order of the Map, Set or bag, together with an optional asc or desc.
-9	where (optional): specifies an arbitrary SQL WHERE condition that is used when retrieving or removing the collection. This is useful if the collection needs to contain only a subset of the available data.
-10	fetch (optional, defaults to select): chooses between outer-join fetching, fetching by sequential select, and fetching by sequential subselect.
-11	batch-size (optional, defaults to 1): specifies a "batch size" for lazily fetching instances of this collection.
-12	access (optional - defaults to property): the strategy Hibernate uses for accessing the collection property value.
-13	optimistic-lock (optional - defaults to true): specifies that changes to the state of the collection results in increments of the owning entity's version. For one-to-many associations you may want to disable this setting.
-14	mutable (optional - defaults to true): a value of false specifies that the elements of the collection never change. This allows for minor performance optimization in some cases.
+
+9	where (optional): 
+specifies an arbitrary SQL WHERE condition that is used when retrieving or removing the collection. 
+This is useful if the collection needs to contain only a subset of the available data.
+读取或删除集合时的where语句。
+
+10	fetch (optional, defaults to select): 
+chooses between outer-join fetching, fetching by sequential select, and fetching by sequential subselect.
+
+11	batch-size (optional, defaults to 1): 
+specifies a "batch size" for lazily fetching instances of this collection.
+
+12	access (optional - defaults to property): 
+the strategy Hibernate uses for accessing the collection property value.
+
+13	optimistic-lock (optional - defaults to true): 
+specifies that changes to the state of the collection results in increments of the owning entity's version. 
+For one-to-many associations you may want to disable this setting.
+
+14	mutable (optional - defaults to true): 
+a value of false specifies that the elements of the collection never change. 
+This allows for minor performance optimization in some cases.
+指明该集合永远不会被更新。
 
 After exploring the basic mapping of collections in the preceding paragraphs 
 we will now focus details like physical mapping considerations, indexed collections and collections of value types.
@@ -295,13 +319,14 @@ how the their index can be mapped in Hibernate.
 
 ==
 7.2.2.1. Lists
+列表
 
 Lists can be mapped in two different ways:
 
 as ordered lists, where the order is not materialized in the database
-排序，顺序没有保存在数据库。
+有序列表，顺序没有保存在数据库。
 as indexed lists, where the order is materialized in the database
-顺序保存在数据库中。
+可索引列表，顺序保存在数据库中。
 
 To order lists in memory, add @javax.persistence.OrderBy to your property. 
 This annotation takes as parameter a list of comma separated properties (of the target entity) 
@@ -364,7 +389,7 @@ public class Customer {
    private Integer id;
 
    @OneToMany(mappedBy="customer")
-   @OrderColumn(name="orders_index")
+   @OrderColumn(name="orders_index")  //使得额外多一列，用来自动保存列表元素的顺序
    public List<Order> getOrders() { return orders; }
    public void setOrders(List<Order> orders) { this.orders = orders; }
    private List<Order> orders;
@@ -412,13 +437,21 @@ Example 7.9. index-list element for indexed collections in xml mapping
         column="column_name"                               (1)
         base="0|1|..."/>
 
-1	column_name (required): the name of the column holding the collection index values.
-1	base (optional - defaults to 0): the value of the index column that corresponds to the first element of the list or array.
+1	column_name (required): 
+the name of the column holding the collection index values.
 
-If your table does not have an index column, and you still wish to use List as the property type, you can map the property as a Hibernate <bag>. A bag does not retain its order when it is retrieved from the database, but it can be optionally sorted or ordered.
+1	base (optional - defaults to 0): 
+the value of the index column that corresponds to the first element of the list or array.
+
+If your table does not have an index column, and you still wish to use List as the property type, 
+you can map the property as a Hibernate <bag>. 
+A bag does not retain its order when it is retrieved from the database, but it can be optionally sorted or ordered.
+如果你的表中没有用于保存顺序的列，你可以使用 <bag> 。
+当从数据库获取数据时，bag不保持顺序，但它可以被排序。
 
 ==
 7.2.2.2. Maps
+映射
 
 The question with Maps is where the key value is stored. 
 There are everal options. 
@@ -498,6 +531,7 @@ Use key. as a prefix for your embeddable object property names.
 
 You can also use @MapKeyClass to define the type of the key if you don't use generics.
 
+
 Example 7.11. Map key as basic type using @MapKeyColumn
 
 @Entity
@@ -558,7 +592,9 @@ Example 7.12. map-key xml mapping element
         length="N"/>
 
 1	column (optional): the name of the column holding the collection index values.
+
 2	formula (optional): a SQL formula used to evaluate the key of the map.
+
 3	type (required): the type of the map keys.
 
 Example 7.13. map-key-many-to-many
@@ -570,7 +606,9 @@ Example 7.13. map-key-many-to-many
 />
 
 1	column (optional): the name of the foreign key column for the collection index values.
+
 2	formula (optional): a SQ formula used to evaluate the foreign key of the map key.
+
 3	class (required): the entity class used as the map key.
 
 ==

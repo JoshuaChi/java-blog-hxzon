@@ -23,7 +23,7 @@ http://docs.jboss.org/hibernate/orm/4.1/manual/en-US/html/ch18.html
 18.3. Custom SQL for create, update and delete
 18.4. Custom SQL for loading
 
-
+===========
 Chapter 18. Native SQL
 
 You can also express queries in the native SQL dialect of your database. 

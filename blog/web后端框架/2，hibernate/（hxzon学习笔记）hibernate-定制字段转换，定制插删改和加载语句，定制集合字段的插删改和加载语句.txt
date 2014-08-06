@@ -99,6 +99,7 @@ Example 18.11. Custom CRUD via annotations
 @Table(name="CHAOS")
 
 @SQLInsert( sql="INSERT INTO CHAOS(size, name, nickname, id) VALUES(?,upper(?),?,?)")
+（hxzon：语句中的参数顺序，依赖于hibernate处理器的顺序，见下文。）
 
 @SQLUpdate( sql="UPDATE CHAOS SET size = ?, name = upper(?), nickname = ? WHERE id = ?")
 
@@ -122,7 +123,8 @@ public class Chaos {
 使用@NamedNativeQuery定义命名的sql语句。
 
 
-@SQLInsert, @SQLUpdate, @SQLDelete, @SQLDeleteAll respectively override the INSERT, UPDATE, DELETE, and DELETE all statement. 
+@SQLInsert, @SQLUpdate, @SQLDelete, @SQLDeleteAll 
+respectively override the INSERT, UPDATE, DELETE, and DELETE all statement. 
 The same can be achieved using Hibernate mapping files and the<sql-insert>,<sql-update> and <sql-delete> nodes. 
 This can be seen in Example 18.12, “Custom CRUD XML”.
 也可以在映射文件中配置。
@@ -153,7 +155,7 @@ count: use of rowcount to check that the update is successful
 param: like COUNT but using an output parameter rather that the standard mechanism
 
 To define the result check style, use the check parameter which is again available in annoations as well as in xml.
-使用check属性（注解或者xml文件）指定那种检查策略。
+使用check属性（注解或者xml文件）指定使用哪种检查策略。
 
 ====
 定制集合字段的插删改语句
@@ -163,8 +165,8 @@ to override the collection related statements
 -see Example 18.13, “Overriding SQL statements for collections using annotations”.
 
 
-使用@SQLInsert和@SQLDelete注解来定制集合字段。
 Example 18.13. Overriding SQL statements for collections using annotations
+使用@SQLInsert和@SQLDelete注解来定制集合字段。
 
 @OneToMany
 @JoinColumn(name="chaos_fk")

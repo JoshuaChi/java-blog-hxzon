@@ -36,6 +36,8 @@ Example 18.14. Overriding SQL statements for secondary tables
 } )
 public class Cat implements Serializable {
 
+注意，参数顺序是很重要的，它依赖于hibernate处理器的属性。
+你可以将 org.hibernate.persister.entity 设为调试级别来看这些参数的顺序。
 
 ----
 3，

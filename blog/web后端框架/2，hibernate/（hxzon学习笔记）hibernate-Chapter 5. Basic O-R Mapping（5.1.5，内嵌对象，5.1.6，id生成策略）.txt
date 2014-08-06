@@ -1,6 +1,6 @@
 ﻿（hxzon学习笔记）hibernate-Chapter 5. Basic O-R Mapping（5.1.5，内嵌对象，5.1.6，id生成策略）
 
-
+注释by hxzon
 http://docs.jboss.org/hibernate/orm/4.3/manual/en-US/html/ch05.html#mapping-declaration
 =======
 5.1. Mapping declaration
@@ -31,10 +31,17 @@ http://docs.jboss.org/hibernate/orm/4.3/manual/en-US/html/ch05.html#mapping-decl
 
 ========
 5.1.5. Embedded objects (aka components)
+内嵌对象（称为“组件”）
 
-Embeddable objects (or components) are objects whose properties are mapped to the same table as the owning entity's table. Components can, in turn, declare their own properties, components or collections
+Embeddable objects (or components) are objects whose properties are mapped to the same table as the owning entity's table.
+内嵌对象的字段，存储在拥有它的实体的表中。 
+Components can, in turn, declare their own properties, components or collections
 
-It is possible to declare an embedded component inside an entity and even override its column mapping. Component classes have to be annotated at the class level with the @Embeddable annotation. It is possible to override the column mapping of an embedded object for a particular entity using the @Embedded and @AttributeOverride annotation in the associated property:
+It is possible to declare an embedded component inside an entity and even override its column mapping. 
+Component classes have to be annotated at the class level with the @Embeddable annotation. 
+It is possible to override the column mapping of an embedded object for a particular entity 
+using the @Embedded and @AttributeOverride annotation in the associated property:
+属性重写。
 
 @Entity
 public class Person implements Serializable {
@@ -50,11 +57,13 @@ public class Person implements Serializable {
     Country bornIn;
     ...
 }          
+
 @Embeddable
 public class Address implements Serializable {
     String city;
     Country nationality; //no overriding here
 }            
+
 @Embeddable
 public class Country implements Serializable {
     private String iso2;
@@ -68,9 +77,18 @@ public class Country implements Serializable {
     public void setName(String name) { this.name = name; }
     ...
 }            
-An embeddable object inherits the access type of its owning entity (note that you can override that using the @Access annotation).
 
-The Person entity has two component properties, homeAddress and bornIn. homeAddress property has not been annotated, but Hibernate will guess that it is a persistent component by looking for the @Embeddable annotation in the Address class. We also override the mapping of a column name (to bornCountryName) with the @Embedded and @AttributeOverride annotations for each mapped attribute of Country. As you can see, Country is also a nested component of Address, again using auto-detection by Hibernate and JPA defaults. Overriding columns of embedded objects of embedded objects is through dotted expressions.
+An embeddable object inherits the access type of its owning entity 
+(note that you can override that using the @Access annotation).
+
+The Person entity has two component properties, homeAddress and bornIn. 
+homeAddress property has not been annotated, 
+but Hibernate will guess that it is a persistent component by looking for the @Embeddable annotation in the Address class. 
+We also override the mapping of a column name (to bornCountryName) with the @Embedded and @AttributeOverride annotations 
+for each mapped attribute of Country. 
+As you can see, Country is also a nested component of Address, 
+again using auto-detection by Hibernate and JPA defaults. 
+Overriding columns of embedded objects of embedded objects is through dotted expressions.
 
     @Embedded
     @AttributeOverrides( {
@@ -80,13 +98,25 @@ The Person entity has two component properties, homeAddress and bornIn. homeAddr
             //nationality columns in homeAddress are overridden
     } )
     Address homeAddress;
-Hibernate Annotations supports something that is not explicitly supported by the JPA specification. You can annotate a embedded object with the @MappedSuperclass annotation to make the superclass properties persistent (see @MappedSuperclass for more informations).
 
-You can also use association annotations in an embeddable object (ie @OneToOne, @ManyToOne, @OneToMany or @ManyToMany). To override the association columns you can use @AssociationOverride.
+Hibernate Annotations supports something that is not explicitly supported by the JPA specification.
+hibernate提供了一些jpa规范未明确要求的功能。 
+You can annotate a embedded object with the @MappedSuperclass annotation 
+to make the superclass properties persistent (see @MappedSuperclass for more informations).
 
-If you want to have the same embeddable object type twice in the same entity, the column name defaulting will not work as several embedded objects would share the same set of columns. In plain JPA, you need to override at least one set of columns. Hibernate, however, allows you to enhance the default naming mechanism through the NamingStrategy interface. You can write a strategy that prevent name clashing in such a situation. DefaultComponentSafeNamingStrategy is an example of this.
+You can also use association annotations in an embeddable object (ie @OneToOne, @ManyToOne, @OneToMany or @ManyToMany). 
+To override the association columns you can use @AssociationOverride.
 
-If a property of the embedded object points back to the owning entity, annotate it with the @Parent annotation. Hibernate will make sure this property is properly loaded with the entity reference.
+If you want to have the same embeddable object type twice in the same entity, 
+the column name defaulting will not work as several embedded objects would share the same set of columns. 
+In plain JPA, you need to override at least one set of columns. 
+Hibernate, however, allows you to enhance the default naming mechanism through the NamingStrategy interface. 
+You can write a strategy that prevent name clashing in such a situation. 
+DefaultComponentSafeNamingStrategy is an example of this.
+
+If a property of the embedded object points back to the owning entity, annotate it with the @Parent annotation.
+如果一个组件需要指向它的所有者，使用 @Parent 注解。 
+Hibernate will make sure this property is properly loaded with the entity reference.
 
 In XML, use the <component> element.
 
@@ -106,22 +136,38 @@ In XML, use the <component> element.
         <many-to-one .... />
         ........
 </component>
+
 1	name: the name of the property.
+
 2	class (optional - defaults to the property type determined by reflection): the name of the component (child) class.
+
 3	insert: do the mapped columns appear in SQL INSERTs?
+
 4	update: do the mapped columns appear in SQL UPDATEs?
+
 5	access (optional - defaults to property): the strategy Hibernate uses for accessing the property value.
+
 6	lazy (optional - defaults to false): specifies that this component should be fetched lazily when the instance variable is first accessed. It requires build-time bytecode instrumentation.
+
 7	optimistic-lock (optional - defaults to true): specifies that updates to this component either do or do not require acquisition of the optimistic lock. It determines if a version increment should occur when this property is dirty.
+
 8	unique (optional - defaults to false): specifies that a unique constraint exists upon all mapped columns of the component.
+
 The child <property> tags map properties of the child class to table columns.
 
-The <component> element allows a <parent> subelement that maps a property of the component class as a reference back to the containing entity.
+The <component> element allows a <parent> subelement 
+that maps a property of the component class as a reference back to the containing entity.
 
-The <dynamic-component> element allows a Map to be mapped as a component, where the property names refer to keys of the map. See Section 9.5, “Dynamic components” for more information. This feature is not supported in annotations.
+The <dynamic-component> element allows a Map to be mapped as a component,
+“动态组件”允许你将一个map作为组件。 
+where the property names refer to keys of the map. 
+See Section 9.5, “Dynamic components” for more information. 
+This feature is not supported in annotations.
+这个功能，注解不支持。
 
 ========
 5.1.6. Inheritance strategy
+继承策略
 
 Java is a language supporting polymorphism: a class can inherit from another. Several strategies are possible to persist a class hierarchy:
 

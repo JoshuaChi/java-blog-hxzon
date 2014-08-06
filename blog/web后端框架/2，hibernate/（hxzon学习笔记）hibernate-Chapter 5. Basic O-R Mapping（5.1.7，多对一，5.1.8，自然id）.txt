@@ -1,6 +1,6 @@
 ﻿（hxzon学习笔记）hibernate-Chapter 5. Basic O-R Mapping（5.1.7，多对一，5.1.8，自然id）
 
-
+注释by hxzon
 http://docs.jboss.org/hibernate/orm/4.3/manual/en-US/html/ch05.html#mapping-declaration
 =======
 5.1. Mapping declaration
@@ -31,23 +31,47 @@ http://docs.jboss.org/hibernate/orm/4.3/manual/en-US/html/ch05.html#mapping-decl
 
 ========
 5.1.7. Mapping one to one and one to many associations
+一对一，一对多
 
-To link one entity to an other, you need to map the association property as a to one association. In the relational model, you can either use a foreign key or an association table, or (a bit less common) share the same primary key value between the two entities.
+To link one entity to an other, you need to map the association property as a to one association. 
+In the relational model, you can either use a foreign key or an association table, 
+or (a bit less common) share the same primary key value between the two entities.
 
-To mark an association, use either @ManyToOne or @OnetoOne.
+To mark an association, use either @ManyToOne or @OneToOne.
 
-@ManyToOne and @OneToOne have a parameter named targetEntity which describes the target entity name. You usually don't need this parameter since the default value (the type of the property that stores the association) is good in almost all cases. However this is useful when you want to use interfaces as the return type instead of the regular entity.
+@ManyToOne and @OneToOne have a parameter named targetEntity which describes the target entity name. 
+You usually don't need this parameter since the default value (the type of the property that stores the association) is good in almost all cases. 
+However this is useful when you want to use interfaces as the return type instead of the regular entity.
+targetEntity属性可以配置元素的实体名。
+在你使用接口类型时特别有用。
 
-Setting a value of the cascade attribute to any meaningful value other than nothing will propagate certain operations to the associated object. The meaningful values are divided into three categories.
+Setting a value of the cascade attribute to any meaningful value other than nothing will propagate certain operations to the associated object. 
+The meaningful values are divided into three categories.
 
 basic operations, which include: persist, merge, delete, save-update, evict, replicate, lock and refresh;
+
 special values: delete-orphan or all ;
-comma-separated combinations of operation names: cascade="persist,merge,evict" or cascade="all,delete-orphan". See Section 11.11, “Transitive persistence” for a full explanation. Note that single valued many-to-one associations do not support orphan delete.
 
-By default, single point associations are eagerly fetched in JPA 2. You can mark it as lazily fetched by using @ManyToOne(fetch=FetchType.LAZY) in which case Hibernate will proxy the association and load it when the state of the associated entity is reached. You can force Hibernate not to use a proxy by using @LazyToOne(NO_PROXY). In this case, the property is fetched lazily when the instance variable is first accessed. This requires build-time bytecode instrumentation. lazy="false" specifies that the association will always be eagerly fetched.
+comma-separated combinations of operation names: cascade="persist,merge,evict" or cascade="all,delete-orphan". 
+See Section 11.11, “Transitive persistence” for a full explanation. 
+Note that single valued many-to-one associations do not support orphan delete.
 
-With the default JPA options, single-ended associations are loaded with a subsequent select if set to LAZY, or a SQL JOIN is used for EAGER associations. You can however adjust the fetching strategy, ie how data is fetched by using @Fetch. FetchMode can be SELECT (a select is triggered when the association needs to be loaded) or JOIN (use a SQL JOIN to load the association while loading the owner entity). JOIN overrides any lazy attribute (an association loaded through a JOIN strategy cannot be lazy).
+By default, single point associations are eagerly fetched in JPA 2. 
+You can mark it as lazily fetched by using @ManyToOne(fetch=FetchType.LAZY) in which case 
+Hibernate will proxy the association and load it when the state of the associated entity is reached. 
+You can force Hibernate not to use a proxy by using @LazyToOne(NO_PROXY). 
+In this case, the property is fetched lazily when the instance variable is first accessed. 
+This requires build-time bytecode instrumentation. 
+lazy="false" specifies that the association will always be eagerly fetched.
 
+With the default JPA options, single-ended associations are loaded with a subsequent select if set to LAZY, 
+or a SQL JOIN is used for EAGER associations. 
+You can however adjust the fetching strategy, ie how data is fetched by using @Fetch. 
+FetchMode can be SELECT (a select is triggered when the association needs to be loaded) 
+or JOIN (use a SQL JOIN to load the association while loading the owner entity). 
+JOIN overrides any lazy attribute (an association loaded through a JOIN strategy cannot be lazy).
+
+====
 5.1.7.1. Using a foreign key or an association table
 
 An ordinary association to another persistent class is declared using a
@@ -64,8 +88,11 @@ public class Flight implements Serializable {
         return company;
     }
     ...
-}            
-The @JoinColumn attribute is optional, the default value(s) is the concatenation of the name of the relationship in the owner side, _ (underscore), and the name of the primary key column in the owned side. In this example company_id because the property name is company and the column id of Company is id.
+}
+
+The @JoinColumn attribute is optional, the default value(s) is the concatenation of the name of the relationship in the owner side, 
+_ (underscore), and the name of the primary key column in the owned side. 
+In this example company_id because the property name is company and the column id of Company is id.
 
 @Entity
 public class Flight implements Serializable {
@@ -80,7 +107,10 @@ public class Flight implements Serializable {
 public interface Company {
     ...
 }
-You can also map a to one association through an association table. This association table described by the @JoinTable annotation will contains a foreign key referencing back the entity table (through @JoinTable.joinColumns) and a a foreign key referencing the target entity table (through @JoinTable.inverseJoinColumns).
+
+You can also map a to one association through an association table. 
+This association table described by the @JoinTable annotation will contains a foreign key referencing back the entity table 
+(through @JoinTable.joinColumns) and a a foreign key referencing the target entity table (through @JoinTable.inverseJoinColumns).
 
 @Entity
 public class Flight implements Serializable {
@@ -94,8 +124,12 @@ public class Flight implements Serializable {
     }
     ...
 }       
+
 Note
-You can use a SQL fragment to simulate a physical join column using the @JoinColumnOrFormula / @JoinColumnOrformulas annotations (just like you can use a SQL fragment to simulate a property column via the @Formula annotation).
+You can use a SQL fragment to simulate a physical join column using the @JoinColumnOrFormula / @JoinColumnOrformulas annotations 
+(just like you can use a SQL fragment to simulate a property column via the @Formula annotation).
+注意，可以使用 @JoinColumnOrFormula 注解。
+
 @Entity
 public class Ticket implements Serializable {
     @ManyToOne
@@ -104,10 +138,16 @@ public class Ticket implements Serializable {
         return person;
     }
     ...
-}       
-You can mark an association as mandatory by using the optional=false attribute. We recommend to use Bean Validation's @NotNull annotation as a better alternative however. As a consequence, the foreign key column(s) will be marked as not nullable (if possible).
+}
 
-When Hibernate cannot resolve the association because the expected associated element is not in database (wrong id on the association column), an exception is raised. This might be inconvenient for legacy and badly maintained schemas. You can ask Hibernate to ignore such elements instead of raising an exception using the @NotFound annotation.
+You can mark an association as mandatory by using the optional=false attribute. 
+We recommend to use Bean Validation's @NotNull annotation as a better alternative however. 
+As a consequence, the foreign key column(s) will be marked as not nullable (if possible).
+
+When Hibernate cannot resolve the association because the expected associated element is not in database 
+(wrong id on the association column), an exception is raised. 
+This might be inconvenient for legacy and badly maintained schemas. 
+You can ask Hibernate to ignore such elements instead of raising an exception using the @NotFound annotation.
 
 Example 5.1. @NotFound annotation
 
@@ -120,7 +160,9 @@ public class Child {
     ...
 }
 
-Sometimes you want to delegate to your database the deletion of cascade when a given entity is deleted. In this case Hibernate generates a cascade delete constraint at the database level.
+Sometimes you want to delegate to your database the deletion of cascade when a given entity is deleted. 
+In this case Hibernate generates a cascade delete constraint at the database level.
+级联删除。
 
 Example 5.2. @OnDelete annotation
 
@@ -133,7 +175,9 @@ public class Child {
     ...
 }
 
-Foreign key constraints, while generated by Hibernate, have a fairly unreadable name. You can override the constraint name using @ForeignKey.
+Foreign key constraints, while generated by Hibernate, have a fairly unreadable name. 
+You can override the constraint name using @ForeignKey.
+指定主键的约束名。
 
 Example 5.3. @ForeignKey annotation
 
@@ -148,7 +192,8 @@ public class Child {
 
 alter table Child add constraint FK_PARENT foreign key (parent_id) references Parent
 
-Sometimes, you want to link one entity to an other not by the target entity primary key but by a different unique key. You can achieve that by referencing the unique key column(s) in @JoinColumn.referenceColumnName.
+Sometimes, you want to link one entity to an other not by the target entity primary key but by a different unique key. 
+You can achieve that by referencing the unique key column(s) in @JoinColumn.referenceColumnName.
 
 @Entity
 class Person {
@@ -169,9 +214,11 @@ class Home {
    })
    Person owner
 }
+
 This is not encouraged however and should be reserved to legacy mappings.
 
-In hbm.xml, mapping an association is similar. The main difference is that a @OneToOne is mapped as <many-to-one unique="true"/>, let's dive into the subject.
+In hbm.xml, mapping an association is similar. 
+The main difference is that a @OneToOne is mapped as <many-to-one unique="true"/>, let's dive into the subject.
 
 <many-to-one
         name="propertyName"                                (1)
@@ -196,22 +243,41 @@ In hbm.xml, mapping an association is similar. The main difference is that a @On
         unique_key="unique_key_id"
         foreign-key="foreign_key_name"
 />
+
 1	name: the name of the property.
+
 2	column (optional): the name of the foreign key column. This can also be specified by nested <column> element(s).
+
 3	class (optional - defaults to the property type determined by reflection): the name of the associated class.
+
 4	cascade (optional): specifies which operations should be cascaded from the parent object to the associated object.
+
 5	fetch (optional - defaults to select): chooses between outer-join fetching or sequential select fetching.
+
 6	update, insert (optional - defaults to true): specifies that the mapped columns should be included in SQL UPDATE and/or INSERT statements. Setting both to false allows a pure "derived" association whose value is initialized from another property that maps to the same column(s), or by a trigger or other application.
+
 7	property-ref (optional): the name of a property of the associated class that is joined to this foreign key. If not specified, the primary key of the associated class is used.
+
 8	access (optional - defaults to property): the strategy Hibernate uses for accessing the property value.
+
 9	unique (optional): enables the DDL generation of a unique constraint for the foreign-key column. By allowing this to be the target of a property-ref, you can make the association multiplicity one-to-one.
+
 10	not-null (optional): enables the DDL generation of a nullability constraint for the foreign key columns.
+
 11	optimistic-lock (optional - defaults to true): specifies that updates to this property do or do not require acquisition of the optimistic lock. In other words, it determines if a version increment should occur when this property is dirty.
+
 12	lazy (optional - defaults to proxy): by default, single point associations are proxied. lazy="no-proxy" specifies that the property should be fetched lazily when the instance variable is first accessed. This requires build-time bytecode instrumentation. lazy="false" specifies that the association will always be eagerly fetched.
+
 13	not-found (optional - defaults to exception): specifies how foreign keys that reference missing rows will be handled. ignore will treat a missing row as a null association.
+
 14	entity-name (optional): the entity name of the associated class.
-15	formula (optional): an SQL expression that defines the value for a computed foreign key.
-Setting a value of the cascade attribute to any meaningful value other than none will propagate certain operations to the associated object. The meaningful values are divided into three categories. First, basic operations, which include: persist, merge, delete, save-update, evict, replicate, lock and refresh; second, special values: delete-orphan; and third,all comma-separated combinations of operation names: cascade="persist,merge,evict" or cascade="all,delete-orphan". See Section 11.11, “Transitive persistence” for a full explanation. Note that single valued, many-to-one and one-to-one, associations do not support orphan delete.
+
+15	formula (optional): 
+an SQL expression that defines the value for a computed foreign key.
+
+Setting a value of the cascade attribute to any meaningful value other than none will propagate certain operations to the associated object. 
+The meaningful values are divided into three categories. 
+First, basic operations, which include: persist, merge, delete, save-update, evict, replicate, lock and refresh; second, special values: delete-orphan; and third,all comma-separated combinations of operation names: cascade="persist,merge,evict" or cascade="all,delete-orphan". See Section 11.11, “Transitive persistence” for a full explanation. Note that single valued, many-to-one and one-to-one, associations do not support orphan delete.
 
 Here is an example of a typical many-to-one declaration:
 
@@ -230,7 +296,9 @@ If the referenced unique key is the property of a component, you can specify a p
 
 <many-to-one name="owner" property-ref="identity.ssn" column="OWNER_SSN"/>
 
+====
 5.1.7.2. Sharing the primary key with the associated entity
+关联对象间共享主键
 
 The second approach is to ensure an entity and its associated entity share the same primary key. In this case the primary key column is also a foreign key and there is no extra column. These associations are always one to one.
 
@@ -274,16 +342,27 @@ In hbm.xml, use the following mapping.
         embed-xml="true|false"
         foreign-key="foreign_key_name"
 />
+
 1	name: the name of the property.
+
 2	class (optional - defaults to the property type determined by reflection): the name of the associated class.
+
 3	cascade (optional): specifies which operations should be cascaded from the parent object to the associated object.
+
 4	constrained (optional): specifies that a foreign key constraint on the primary key of the mapped table and references the table of the associated class. This option affects the order in which save() and delete() are cascaded, and determines whether the association can be proxied. It is also used by the schema export tool.
+
 5	fetch (optional - defaults to select): chooses between outer-join fetching or sequential select fetching.
+
 6	property-ref (optional): the name of a property of the associated class that is joined to the primary key of this class. If not specified, the primary key of the associated class is used.
+
 7	access (optional - defaults to property): the strategy Hibernate uses for accessing the property value.
+
 8	formula (optional): almost all one-to-one associations map to the primary key of the owning entity. If this is not the case, you can specify another column, columns or expression to join on using an SQL formula. See org.hibernate.test.onetooneformula for an example.
+
 9	lazy (optional - defaults to proxy): by default, single point associations are proxied. lazy="no-proxy" specifies that the property should be fetched lazily when the instance variable is first accessed. It requires build-time bytecode instrumentation. lazy="false" specifies that the association will always be eagerly fetched. Note that if constrained="false", proxying is impossible and Hibernate will eagerly fetch the association.
+
 10	entity-name (optional): the entity name of the associated class.
+
 Primary key associations do not need an extra table column. If two rows are related by the association, then the two table rows share the same primary key value. To relate two objects by a primary key association, ensure that they are assigned the same identifier value.
 
 For a primary key association, add the following mappings to Employee and Person respectively:
@@ -303,12 +382,20 @@ Ensure that the primary keys of the related rows in the PERSON and EMPLOYEE tabl
         class="Employee"
         constrained="true"/>
 </class>
+
 A newly saved instance of Person is assigned the same primary key value as the Employee instance referred with the employee property of that Person.
 
 =======
 5.1.8. Natural-id
+自然主键
 
-Although we recommend the use of surrogate keys as primary keys, you should try to identify natural keys for all entities. A natural key is a property or combination of properties that is unique and non-null. It is also immutable. Map the properties of the natural key as @NaturalId or map them inside the <natural-id> element. Hibernate will generate the necessary unique key and nullability constraints and, as a result, your mapping will be more self-documenting.
+Although we recommend the use of surrogate keys as primary keys, 
+you should try to identify natural keys for all entities. 
+A natural key is a property or combination of properties that is unique and non-null. 
+It is also immutable. 
+Map the properties of the natural key as @NaturalId or map them inside the <natural-id> element. 
+Hibernate will generate the necessary unique key and nullability constraints and, 
+as a result, your mapping will be more self-documenting.
 
 @Entity
 public class Citizen {
@@ -328,11 +415,11 @@ public class Citizen {
 }
 
 
-
 //and later on query
 List results = s.createCriteria( Citizen.class )
                 .add( Restrictions.naturalId().set( "ssn", "1234" ).set( "state", ste ) )
                 .list();
+
 Or in XML,
 
 <natural-id mutable="true|false"/>
@@ -340,9 +427,12 @@ Or in XML,
         <many-to-one ... />
         ......
 </natural-id>
-It is recommended that you implement equals() and hashCode() to compare the natural key properties of the entity.
+
+It is recommended that you implement equals() and hashCode() 
+to compare the natural key properties of the entity.
 
 This mapping is not intended for use with entities that have natural primary keys.
 
-mutable (optional - defaults to false): by default, natural identifier properties are assumed to be immutable (constant).
+mutable (optional - defaults to false): 
+by default, natural identifier properties are assumed to be immutable (constant).
 

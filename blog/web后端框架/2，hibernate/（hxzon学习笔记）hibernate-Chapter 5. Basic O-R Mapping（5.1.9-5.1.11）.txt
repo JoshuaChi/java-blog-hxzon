@@ -1,6 +1,6 @@
 ﻿（hxzon学习笔记）hibernate-Chapter 5. Basic O-R Mapping（5.1.9-5.1.11）
 
-
+注释by hxzon
 http://docs.jboss.org/hibernate/orm/4.3/manual/en-US/html/ch05.html#mapping-declaration
 =======
 5.1. Mapping declaration
@@ -13,6 +13,7 @@ http://docs.jboss.org/hibernate/orm/4.3/manual/en-US/html/ch05.html#mapping-decl
 5.1.6. Inheritance strategy
 5.1.7. Mapping one to one and one to many associations
 5.1.8. Natural-id
+
 5.1.9. Any
 5.1.10. Properties
 5.1.11. Some hbm.xml specificities
@@ -32,9 +33,24 @@ http://docs.jboss.org/hibernate/orm/4.3/manual/en-US/html/ch05.html#mapping-decl
 ========
 5.1.9. Any
 
-There is one more type of property mapping. The @Any mapping defines a polymorphic association to classes from multiple tables. This type of mapping requires more than one column. The first column contains the type of the associated entity. The remaining columns contain the identifier. It is impossible to specify a foreign key constraint for this kind of association. This is not the usual way of mapping polymorphic associations and you should use this only in special cases. For example, for audit logs, user session data, etc.
+There is one more type of property mapping. 
+The @Any mapping defines a polymorphic association to classes from multiple tables. 
+允许映射到多个表。
+This type of mapping requires more than one column. 
+The first column contains the type of the associated entity. 
+The remaining columns contain the identifier.
+这种方式需要两个列，一个列表明关联对象的类型，一个列为关联对象的id。 
+It is impossible to specify a foreign key constraint for this kind of association.
+无法在这种映射上使用外键。 
+This is not the usual way of mapping polymorphic associations and you should use this only in special cases. 
+For example, for audit logs, user session data, etc.
 
-The @Any annotation describes the column holding the metadata information. To link the value of the metadata information and an actual entity type, The @AnyDef and @AnyDefs annotations are used. The metaType attribute allows the application to specify a custom type that maps database column values to persistent classes that have identifier properties of the type specified by idType. You must specify the mapping from values of the metaType to class names.
+The @Any annotation describes the column holding the metadata information. 
+To link the value of the metadata information and an actual entity type, 
+The @AnyDef and @AnyDefs annotations are used. 
+The metaType attribute allows the application to specify a custom type that maps database column values 
+to persistent classes that have identifier properties of the type specified by idType. 
+You must specify the mapping from values of the metaType to class names.
 
 @Any( metaColumn = @Column( name = "property_type" ), fetch=FetchType.EAGER )
 @AnyMetaDef( 
@@ -48,7 +64,11 @@ The @Any annotation describes the column holding the metadata information. To li
 public Property getMainProperty() {
     return mainProperty;
 }
-Note that @AnyDef can be mutualized and reused. It is recommended to place it as a package metadata in this case.
+
+Note that @AnyDef can be mutualized and reused. 
+It is recommended to place it as a package metadata in this case.
+
+@AnyMetaDef 可以分开书写，从而能被复用，建议放到包文件。
 
 //on a package
 @AnyMetaDef( name="property" 
@@ -67,6 +87,7 @@ package org.hibernate.test.annotations.any;
     public Property getMainProperty() {
         return mainProperty;
     }
+
 The hbm.xml equivalent is:
 
 <any name="being" id-type="long" meta-type="string">
@@ -76,8 +97,11 @@ The hbm.xml equivalent is:
     <column name="table_name"/>
     <column name="id"/>
 </any>
+
 Note
 You cannot mutualize the metadata in hbm.xml as you can in annotations.
+注意，使用xml配置时，则无法分开书写。
+
 <any
         name="propertyName"                                (1)
         id-type="idtypename"                               (2)
@@ -93,6 +117,7 @@ You cannot mutualize the metadata in hbm.xml as you can in annotations.
         <column .... />
         .....
 </any>
+
 1	name: the property name.
 2	id-type: the identifier type.
 3	meta-type (optional - defaults to string): any type that is allowed for a discriminator mapping.
@@ -102,8 +127,13 @@ You cannot mutualize the metadata in hbm.xml as you can in annotations.
 
 ========
 5.1.10. Properties
+属性集
 
-The <properties> element allows the definition of a named, logical grouping of the properties of a class. The most important use of the construct is that it allows a combination of properties to be the target of a property-ref. It is also a convenient way to define a multi-column unique constraint. For example:
+The <properties> element allows the definition of a named, logical grouping of the properties of a class. 
+可用来对属性进行分组。
+The most important use of the construct is that it allows a combination of properties to be the target of a property-ref. 
+It is also a convenient way to define a multi-column unique constraint. For example:
+它也是定义“多列唯一约束”的一种方便的方式。
 
 <properties
         name="logicalName"                                 (1)
@@ -117,11 +147,13 @@ The <properties> element allows the definition of a named, logical grouping of t
         <many-to-one .... />
         ........
 </properties>
+
 1	name: the logical name of the grouping. It is not an actual property name.
 2	insert: do the mapped columns appear in SQL INSERTs?
 3	update: do the mapped columns appear in SQL UPDATEs?
 4	optimistic-lock (optional - defaults to true): specifies that updates to these properties either do or do not require acquisition of the optimistic lock. It determines if a version increment should occur when these properties are dirty.
 5	unique (optional - defaults to false): specifies that a unique constraint exists upon all mapped columns of the component.
+
 For example, if we have the following <properties> mapping:
 
 <class name="Person">
@@ -135,6 +167,7 @@ For example, if we have the following <properties> mapping:
         <property name="lastName"/>
     </properties>
 </class>
+
 You might have some legacy data association that refers to this unique key of the Person table, instead of to the primary key:
 
 <many-to-one name="owner"
@@ -143,8 +176,11 @@ You might have some legacy data association that refers to this unique key of th
     <column name="initial"/>
     <column name="lastName"/>
 </many-to-one>
+
 Note
-When using annotations as a mapping strategy, such construct is not necessary as the binding between a column and its related column on the associated table is done directly
+When using annotations as a mapping strategy, 
+such construct is not necessary as the binding between a column and its related column on the associated table is done directly
+
 @Entity
 class Person {
    @Id Integer personNumber;
@@ -164,23 +200,38 @@ class Home {
    })
    Person owner
 }
+
 The use of this outside the context of mapping legacy data is not recommended.
 
 =======
 5.1.11. Some hbm.xml specificities
 
 The hbm.xml structure has some specificities naturally not present when using annotations, let's describe them briefly.
+xml配置有些功能，是注解配置所没有的。
 
+====
 5.1.11.1. Doctype
 
-All XML mappings should declare the doctype shown. The actual DTD can be found at the URL above, in the directory hibernate-x.x.x/src/org/hibernate , or in hibernate3.jar. Hibernate will always look for the DTD in its classpath first. If you experience lookups of the DTD using an Internet connection, check the DTD declaration against the contents of your classpath.
+All XML mappings should declare the doctype shown. 
+The actual DTD can be found at the URL above, in the directory hibernate-x.x.x/src/org/hibernate , or in hibernate3.jar. 
+Hibernate will always look for the DTD in its classpath first. 
+If you experience lookups of the DTD using an Internet connection, 
+check the DTD declaration against the contents of your classpath.
 
 5.1.11.1.1. EntityResolver
+实体识别器
 
-Hibernate will first attempt to resolve DTDs in its classpath. It does this is by registering a custom org.xml.sax.EntityResolver implementation with the SAXReader it uses to read in the xml files. This custom EntityResolver recognizes two different systemId namespaces:
+Hibernate will first attempt to resolve DTDs in its classpath. 
+It does this is by registering a custom org.xml.sax.EntityResolver implementation with the SAXReader it uses to read in the xml files. 
+This custom EntityResolver recognizes two different systemId namespaces:
 
-a hibernate namespace is recognized whenever the resolver encounters a systemId starting with http://www.hibernate.org/dtd/. The resolver attempts to resolve these entities via the classloader which loaded the Hibernate classes.
-a user namespace is recognized whenever the resolver encounters a systemId using a classpath:// URL protocol. The resolver will attempt to resolve these entities via (1) the current thread context classloader and (2) the classloader which loaded the Hibernate classes.
+a hibernate namespace is recognized whenever the resolver encounters a systemId starting with http://www.hibernate.org/dtd/. 
+The resolver attempts to resolve these entities via the classloader which loaded the Hibernate classes.
+
+a user namespace is recognized whenever the resolver encounters a systemId using a classpath:// URL protocol. 
+The resolver will attempt to resolve these entities via (1) the current thread context classloader 
+and (2) the classloader which loaded the Hibernate classes.
+
 The following is an example of utilizing user namespacing:
 
 
@@ -203,9 +254,17 @@ The following is an example of utilizing user namespacing:
 
 Where types.xml is a resource in the your.domain package and contains a custom typedef.
 
+====
 5.1.11.2. Hibernate-mapping
 
-This element has several optional attributes. The schema and catalog attributes specify that tables referred to in this mapping belong to the named schema and/or catalog. If they are specified, tablenames will be qualified by the given schema and catalog names. If they are missing, tablenames will be unqualified. The default-cascade attribute specifies what cascade style should be assumed for properties and collections that do not specify a cascade attribute. By default, the auto-import attribute allows you to use unqualified class names in the query language.
+This element has several optional attributes. 
+The schema and catalog attributes specify that tables referred to in this mapping belong to the named schema and/or catalog. 
+If they are specified, tablenames will be qualified by the given schema and catalog names. 
+If they are missing, tablenames will be unqualified. 
+The default-cascade attribute specifies what cascade style should be assumed 
+for properties and collections that do not specify a cascade attribute. 
+By default, the auto-import attribute allows you to use unqualified class names in the query language.
+“auto-import”允许你在hql语句中，不用使用限定名。
 
 <hibernate-mapping
          schema="schemaName"                               (1)
@@ -216,20 +275,44 @@ This element has several optional attributes. The schema and catalog attributes 
          auto-import="true|false"                          (6)
          package="package.name"                            (7)
  />
+ 
 1	schema (optional): the name of a database schema.
 2	catalog (optional): the name of a database catalog.
-3	default-cascade (optional - defaults to none): a default cascade style.
-4	default-access (optional - defaults to property): the strategy Hibernate should use for accessing all properties. It can be a custom implementation of PropertyAccessor.
-5	default-lazy (optional - defaults to true): the default value for unspecified lazy attributes of class and collection mappings.
-6	auto-import (optional - defaults to true): specifies whether we can use unqualified class names of classes in this mapping in the query language.
-7	package (optional): specifies a package prefix to use for unqualified class names in the mapping document.
-If you have two persistent classes with the same unqualified name, you should set auto-import="false". An exception will result if you attempt to assign two classes to the same "imported" name.
 
-The hibernate-mapping element allows you to nest several persistent <class> mappings, as shown above. It is, however, good practice (and expected by some tools) to map only a single persistent class, or a single class hierarchy, in one mapping file and name it after the persistent superclass. For example, Cat.hbm.xml, Dog.hbm.xml, or if using inheritance, Animal.hbm.xml.
+3	default-cascade (optional - defaults to none): 
+a default cascade style.
 
+4	default-access (optional - defaults to property): 
+the strategy Hibernate should use for accessing all properties. 
+It can be a custom implementation of PropertyAccessor.
+
+5	default-lazy (optional - defaults to true): 
+the default value for unspecified lazy attributes of class and collection mappings.
+lazy属性的默认值。
+
+6	auto-import (optional - defaults to true): 
+specifies whether we can use unqualified class names of classes in this mapping in the query language.
+
+7	package (optional): 
+specifies a package prefix to use for unqualified class names in the mapping document.
+未限定实体的包前缀。
+
+If you have two persistent classes with the same unqualified name, you should set auto-import="false". 
+An exception will result if you attempt to assign two classes to the same "imported" name.
+如果你有两个持久化类，拥有相同的非限定名，则不能使用“auto-import”，否则抛出异常。
+
+The hibernate-mapping element allows you to nest several persistent <class> mappings, as shown above. 
+It is, however, good practice (and expected by some tools) to map only a single persistent class, 
+or a single class hierarchy, in one mapping file and name it after the persistent superclass. 
+For example, Cat.hbm.xml, Dog.hbm.xml, or if using inheritance, Animal.hbm.xml.
+
+====
 5.1.11.3. Key
 
-The <key> element is featured a few times within this guide. It appears anywhere the parent mapping element defines a join to a new table that references the primary key of the original table. It also defines the foreign key in the joined table:
+The <key> element is featured a few times within this guide. 
+It appears anywhere the parent mapping element defines a join to a new table that references the primary key of the original table. 
+It also defines the foreign key in the joined table:
+用来定义关联的外键。
 
 <key
         column="columnname"                                (1)
@@ -239,32 +322,71 @@ The <key> element is featured a few times within this guide. It appears anywhere
         update="true|false"                                (5)
         unique="true|false"                                (6)
 />
-1	column (optional): the name of the foreign key column. This can also be specified by nested <column> element(s).
-2	on-delete (optional - defaults to noaction): specifies whether the foreign key constraint has database-level cascade delete enabled.
-3	property-ref (optional): specifies that the foreign key refers to columns that are not the primary key of the original table. It is provided for legacy data.
-4	not-null (optional): specifies that the foreign key columns are not nullable. This is implied whenever the foreign key is also part of the primary key.
-5	update (optional): specifies that the foreign key should never be updated. This is implied whenever the foreign key is also part of the primary key.
-6	unique (optional): specifies that the foreign key should have a unique constraint. This is implied whenever the foreign key is also the primary key.
-For systems where delete performance is important, we recommend that all keys should be defined on-delete="cascade". Hibernate uses a database-level ON CASCADE DELETE constraint, instead of many individual DELETE statements. Be aware that this feature bypasses Hibernate's usual optimistic locking strategy for versioned data.
 
-The not-null and update attributes are useful when mapping a unidirectional one-to-many association. If you map a unidirectional one-to-many association to a non-nullable foreign key, you must declare the key column using <key not-null="true">.
+1	column (optional): the name of the foreign key column. 
+This can also be specified by nested <column> element(s).
+作为外键的列名。也可以通过内嵌 <column>节点来配置。
 
+2	on-delete (optional - defaults to noaction): 
+specifies whether the foreign key constraint has database-level cascade delete enabled.
+级联删除的策略。
+
+3	property-ref (optional): 
+specifies that the foreign key refers to columns that are not the primary key of the original table. 
+It is provided for legacy data.
+
+4	not-null (optional): 
+specifies that the foreign key columns are not nullable. 
+This is implied whenever the foreign key is also part of the primary key.
+
+5	update (optional): 
+specifies that the foreign key should never be updated. 
+This is implied whenever the foreign key is also part of the primary key.
+指明外键永远不会被更新，例如作为主键的一部分时。
+
+6	unique (optional): 
+specifies that the foreign key should have a unique constraint. 
+This is implied whenever the foreign key is also the primary key.
+指明外键有唯一约束。
+
+For systems where delete performance is important, we recommend that all keys should be defined on-delete="cascade". 
+Hibernate uses a database-level ON CASCADE DELETE constraint, instead of many individual DELETE statements.
+hibernate使用的是数据库的“级联删除约束”，则不是多条删除语句。 
+Be aware that this feature bypasses Hibernate's usual optimistic locking strategy for versioned data.
+
+The not-null and update attributes are useful when mapping a unidirectional one-to-many association. 
+If you map a unidirectional one-to-many association to a non-nullable foreign key, 
+you must declare the key column using <key not-null="true">.
+
+====
 5.1.11.4. Import
 
-If your application has two persistent classes with the same name, and you do not want to specify the fully qualified package name in Hibernate queries, classes can be "imported" explicitly, rather than relying upon auto-import="true". You can also import classes and interfaces that are not explicitly mapped:
+If your application has two persistent classes with the same name, 
+and you do not want to specify the fully qualified package name in Hibernate queries, 
+classes can be "imported" explicitly, rather than relying upon auto-import="true". 
+You can also import classes and interfaces that are not explicitly mapped:
+可以使用“import”单独导入某个实体名。
 
 <import class="java.lang.Object" rename="Universe"/>
 <import
         class="ClassName"                                  (1)
         rename="ShortName"                                 (2)
 />
+
 1	class: the fully qualified class name of any Java class.
+
 2	rename (optional - defaults to the unqualified class name): a name that can be used in the query language.
+
 Note
 This feature is unique to hbm.xml and is not supported in annotations.
-5.1.11.5. Column and formula elements
+注意，这个功能，注解配置没有。
 
-Mapping elements which accept a column attribute will alternatively accept a <column> subelement. Likewise, <formula> is an alternative to the formula attribute. For example:
+====
+5.1.11.5. Column and formula elements
+列和公式
+
+Mapping elements which accept a column attribute will alternatively accept a <column> subelement. 
+Likewise, <formula> is an alternative to the formula attribute. For example:
 
 <column
         name="column_name"
@@ -280,10 +402,17 @@ Mapping elements which accept a column attribute will alternatively accept a <co
         default="SQL expression"
         read="SQL expression"
         write="SQL expression"/>
-<formula>SQL expression</formula>
-Most of the attributes on column provide a means of tailoring the DDL during automatic schema generation. The read and write attributes allow you to specify custom SQL that Hibernate will use to access the column's value. For more on this, see the discussion of column read and write expressions.
 
-The column and formula elements can even be combined within the same property or association mapping to express, for example, exotic join conditions.
+<formula>SQL expression</formula>
+
+Most of the attributes on column provide a means of tailoring the DDL during automatic schema generation. 
+The read and write attributes allow you to specify custom SQL that Hibernate will use to access the column's value. 
+For more on this, see the discussion of column read and write expressions.
+“read”和“write”属性，允许你配置列值在读取和写入时的转换。
+
+The column and formula elements can even be combined within the same property or association mapping to express, 
+for example, exotic join conditions.
+列和公式节点，可以共同使用。
 
 <many-to-one name="homeAddress" class="Address"
         insert="false" update="false">
