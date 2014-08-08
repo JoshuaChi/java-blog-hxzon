@@ -18,13 +18,14 @@ from Cat as cat
 
 from Cat as cat
     inner join fetch cat.mate
-    left join fetch cat.kittens child
-    left join fetch child.kittens
+    left join fetch cat.kittens child  //获取第一层关联对象
+    left join fetch child.kittens  //获取第二层关联对象
 
 （获取猫的孩子，这些孩子往下继续获取它们自己的孩子。）
 
 如果你使用属性级别的延迟加载（利用字节码增强），
-你可以使用“fetch all”强制让hibernate立即加载“所有字段”。
+你可以使用“fetch all”（hxzon：必须是  fetch all properties ）
+强制让hibernate立即加载“所有字段”。
 
 示例：
 

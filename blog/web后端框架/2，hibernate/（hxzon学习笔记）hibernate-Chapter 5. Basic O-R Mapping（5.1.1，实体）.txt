@@ -37,10 +37,18 @@ Object/relational mappings can be defined in three approaches:
 using Java 5 annotations (via the Java Persistence 2 annotations)
 using JPA 2 XML deployment descriptors (described in chapter XXX)
 using the Hibernate legacy XML files approach known as hbm.xml
-Annotations are split in two categories, the logical mapping annotations (describing the object model, the association between two entities etc.) and the physical mapping annotations (describing the physical schema, tables, columns, indexes, etc). We will mix annotations from both categories in the following code examples.
 
-JPA annotations are in the javax.persistence.* package. Hibernate specific extensions are in org.hibernate.annotations.*. You favorite IDE can auto-complete annotations and their attributes for you (even without a specific "JPA" plugin, since JPA annotations are plain Java 5 annotations).
+Annotations are split in two categories, the logical mapping annotations 
+(describing the object model, the association between two entities etc.) 
+and the physical mapping annotations (describing the physical schema, tables, columns, indexes, etc). 
+We will mix annotations from both categories in the following code examples.
 
+JPA annotations are in the javax.persistence.* package. 
+Hibernate specific extensions are in org.hibernate.annotations.*. 
+You favorite IDE can auto-complete annotations and their attributes for you 
+(even without a specific "JPA" plugin, since JPA annotations are plain Java 5 annotations).
+
+==
 Here is an example of mapping
 
 package eg;
@@ -101,9 +109,15 @@ public class DomesticCat extends Cat {
 
 @Entity
 public class Dog { ... }
-The legacy hbm.xml approach uses an XML schema designed to be readable and hand-editable. The mapping language is Java-centric, meaning that mappings are constructed around persistent class declarations and not table declarations.
 
-Please note that even though many Hibernate users choose to write the XML by hand, a number of tools exist to generate the mapping document. These include XDoclet, Middlegen and AndroMDA.
+The legacy hbm.xml approach uses an XML schema designed to be readable and hand-editable. 
+The mapping language is Java-centric, meaning that mappings 
+are constructed around persistent class declarations and not table declarations.
+围绕着实体类，而不是数据库表。
+
+Please note that even though many Hibernate users choose to write the XML by hand, 
+a number of tools exist to generate the mapping document. 
+These include XDoclet, Middlegen and AndroMDA.
 
 Here is an example mapping:
 
@@ -171,10 +185,16 @@ Here is an example mapping:
         </class>
 
 </hibernate-mapping>
-We will now discuss the concepts of the mapping documents (both annotations and XML). We will only describe, however, the document elements and attributes that are used by Hibernate at runtime. The mapping document also contains some extra optional attributes and elements that affect the database schemas exported by the schema export tool (for example, the not-null attribute).
 
-====
+We will now discuss the concepts of the mapping documents (both annotations and XML). 
+We will only describe, however, the document elements and attributes that are used by Hibernate at runtime. 
+The mapping document also contains some extra optional attributes and elements 
+that affect the database schemas exported by the schema export tool (for example, the not-null attribute).
+映射文件还有一些额外的选项。
+
+===========
 5.1.1. Entity
+实体
 
 An entity is a regular Java object (aka POJO) which will be persisted by Hibernate.
 
@@ -188,10 +208,15 @@ public class Flight implements Serializable {
     public Long getId() { return id; }
 
     public void setId(Long id) { this.id = id; }
-}         
-That's pretty much it, the rest is optional. There are however any options to tweak your entity mapping, let's explore them.
+}
 
-@Table lets you define the table the entity will be persisted into. If undefined, the table name is the unqualified class name of the entity. You can also optionally define the catalog, the schema as well as unique constraints on the table.
+That's pretty much it, the rest is optional. 
+There are however any options to tweak your entity mapping, let's explore them.
+
+@Table lets you define the table the entity will be persisted into. 
+If undefined, the table name is the unqualified class name of the entity. 
+You can also optionally define the catalog, the schema as well as unique constraints on the table.
+@Table注解，定制一些数据库表信息。
 
 @Entity
 @Table(name="TBL_FLIGHT", 
@@ -207,37 +232,111 @@ public class Flight implements Serializable {
     @Column(name="flight_number")
     public String getNumber() { return number; }
 }
-The constraint name is optional (generated if left undefined). The column names composing the constraint correspond to the column names as defined before the Hibernate NamingStrategy is applied.
+
+The constraint name is optional (generated if left undefined). 
+The column names composing the constraint correspond to the column names as defined before the Hibernate NamingStrategy is applied.
 
 Tip
-Be sure to use the database-level column names for the columnNames property of a @UniqueConstraint. For example, whilst for simple types the database-level column name may be the same as the entity-level property name, this is often not the case for relational properties.
-@Entity.name lets you define the shortcut name of the entity you can used in JP-QL and HQL queries. It defaults to the unqualified class name of the class.
+Be sure to use the database-level column names for the columnNames property of a @UniqueConstraint. 
+For example, whilst for simple types the database-level column name may be the same as the entity-level property name, 
+this is often not the case for relational properties.
 
-Hibernate goes beyond the JPA specification and provide additional configurations. Some of them are hosted on @org.hibernate.annotations.Entity:
+@Entity.name lets you define the shortcut name of the entity you can used in JP-QL and HQL queries. 
+It defaults to the unqualified class name of the class.
+@Entity.name 用来定义实体的缩写名，不要和表名混淆。
 
-dynamicInsert / dynamicUpdate (defaults to false): specifies that INSERT / UPDATE SQL should be generated at runtime and contain only the columns whose values are not null. The dynamic-update and dynamic-insert settings are not inherited by subclasses. Although these settings can increase performance in some cases, they can actually decrease performance in others.
-selectBeforeUpdate (defaults to false): specifies that Hibernate should never perform an SQL UPDATE unless it is certain that an object is actually modified. Only when a transient object has been associated with a new session using update(), will Hibernate perform an extra SQL SELECT to determine if an UPDATE is actually required. Use of select-before-update will usually decrease performance. It is useful to prevent a database update trigger being called unnecessarily if you reattach a graph of detached instances to a Session.
-polymorphisms (defaults to IMPLICIT): determines whether implicit or explicit query polymorphisms is used. Implicit polymorphisms means that instances of the class will be returned by a query that names any superclass or implemented interface or class, and that instances of any subclass of the class will be returned by a query that names the class itself. Explicit polymorphisms means that class instances will be returned only by queries that explicitly name that class. Queries that name the class will return only instances of subclasses mapped. For most purposes, the default polymorphisms=IMPLICIT is appropriate. Explicit polymorphisms is useful when two different classes are mapped to the same table This allows a "lightweight" class that contains a subset of the table columns.
-persister: specifies a custom ClassPersister. The persister attribute lets you customize the persistence strategy used for the class. You can, for example, specify your own subclass of org.hibernate.persister.EntityPersister, or you can even provide a completely new implementation of the interface org.hibernate.persister.ClassPersister that implements, for example, persistence via stored procedure calls, serialization to flat files or LDAP. See org.hibernate.test.CustomPersister for a simple example of "persistence" to a Hashtable.
-optimisticLock (defaults to VERSION): determines the optimistic locking strategy. If you enable dynamicUpdate, you will have a choice of optimistic locking strategies:
+Hibernate goes beyond the JPA specification and provide additional configurations. 
+Some of them are hosted on @org.hibernate.annotations.Entity:
+hibernate的一些额外扩展：
+
+dynamicInsert / dynamicUpdate (defaults to false): 
+specifies that INSERT / UPDATE SQL should be generated at runtime 
+and contain only the columns whose values are not null.
+在运行时生成插入和删除语句，只包含非null的字段。 
+The dynamic-update and dynamic-insert settings are not inherited by subclasses.
+这两个配置，不会传递到子类，因为对性能有影响。 
+Although these settings can increase performance in some cases, 
+they can actually decrease performance in others.
+
+selectBeforeUpdate (defaults to false):
+更新之前重新读取。 
+specifies that Hibernate should never perform an SQL UPDATE unless it is certain that an object is actually modified. 
+Only when a transient object has been associated with a new session using update(), 
+will Hibernate perform an extra SQL SELECT to determine if an UPDATE is actually required. 
+Use of select-before-update will usually decrease performance. 
+It is useful to prevent a database update trigger being called unnecessarily if you reattach a graph of detached instances to a Session.
+
+polymorphisms (defaults to IMPLICIT): 
+determines whether implicit or explicit query polymorphisms is used. 
+Implicit polymorphisms means that instances of the class will be returned by a query that names any superclass or implemented interface or class, 
+and that instances of any subclass of the class will be returned by a query that names the class itself. 
+Explicit polymorphisms means that class instances will be returned only by queries that explicitly name that class. 
+Queries that name the class will return only instances of subclasses mapped. 
+For most purposes, the default polymorphisms=IMPLICIT is appropriate. 
+Explicit polymorphisms is useful when two different classes are mapped to the same table. 
+This allows a "lightweight" class that contains a subset of the table columns.
+
+persister: specifies a custom ClassPersister.
+定制类持久化器。 
+The persister attribute lets you customize the persistence strategy used for the class. 
+You can, for example, specify your own subclass of org.hibernate.persister.EntityPersister, 
+or you can even provide a completely new implementation of the interface org.hibernate.persister.ClassPersister that implements, 
+for example, persistence via stored procedure calls, serialization to flat files or LDAP. 
+See org.hibernate.test.CustomPersister for a simple example of "persistence" to a Hashtable.
+
+--
+optimisticLock (defaults to VERSION):
+优化锁。 
+determines the optimistic locking strategy. 
+If you enable dynamicUpdate, you will have a choice of optimistic locking strategies:
+
 version: check the version/timestamp columns
+
 all: check all columns
+
 dirty: check the changed columns, allowing some concurrent updates
+
 none: do not use optimistic locking
-It is strongly recommended that you use version/timestamp columns for optimistic locking with Hibernate. This strategy optimizes performance and correctly handles modifications made to detached instances (i.e. when Session.merge() is used).
+
+It is strongly recommended that you use version/timestamp columns for optimistic locking with Hibernate.
+强烈建议使用版本号和时间戳。 
+This strategy optimizes performance and correctly handles modifications made to detached instances 
+(i.e. when Session.merge() is used).
+
 Tip
-Be sure to import @javax.persistence.Entity to mark a class as an entity. It's a common mistake to import @org.hibernate.annotations.Entity by accident.
-Some entities are not mutable. They cannot be updated by the application. This allows Hibernate to make some minor performance optimizations.. Use the @Immutable annotation.
+Be sure to import @javax.persistence.Entity to mark a class as an entity. 
+It's a common mistake to import @org.hibernate.annotations.Entity by accident.
+Some entities are not mutable. 
+They cannot be updated by the application. 
+This allows Hibernate to make some minor performance optimizations.. 
+Use the @Immutable annotation.
+使用 @Immutable 注解，将实体标记为不可变的，这可以提高性能。
 
-You can also alter how Hibernate deals with lazy initialization for this class. On @Proxy, use lazy=false to disable lazy fetching (not recommended). You can also specify an interface to use for lazy initializing proxies (defaults to the class itself): use proxyClass on @Proxy. Hibernate will initially return proxies ( using bytecode provider defined by hibernate.bytecode.provider) that implement the named interface. The persistent object will load when a method of the proxy is invoked. See "Initializing collections and proxies" below.
+You can also alter how Hibernate deals with lazy initialization for this class. 
+On @Proxy, use lazy=false to disable lazy fetching (not recommended). 
+You can also specify an interface to use for lazy initializing proxies (defaults to the class itself): 
+use proxyClass on @Proxy. 
+Hibernate will initially return proxies ( using bytecode provider defined by hibernate.bytecode.provider) that implement the named interface. 
+The persistent object will load when a method of the proxy is invoked. 
+See "Initializing collections and proxies" below.
 
-@BatchSize specifies a "batch size" for fetching instances of this class by identifier. Not yet loaded instances are loaded batch-size at a time (default 1).
+@BatchSize specifies a "batch size" for fetching instances of this class by identifier. 
+Not yet loaded instances are loaded batch-size at a time (default 1).
+批量加载的大小。
 
-You can specific an arbitrary SQL WHERE condition to be used when retrieving objects of this class. Use @Where for that.
+You can specific an arbitrary SQL WHERE condition to be used when retrieving objects of this class. 
+Use @Where for that.
 
-In the same vein, @Check lets you define an SQL expression used to generate a multi-row check constraint for automatic schema generation.
+In the same vein, @Check lets you define an SQL expression 
+used to generate a multi-row check constraint for automatic schema generation.
+@Check注解用来在建表语句中加入“检查约束”。
 
-There is no difference between a view and a base table for a Hibernate mapping. This is transparent at the database level, although some DBMS do not support views properly, especially with updates. Sometimes you want to use a view, but you cannot create one in the database (i.e. with a legacy schema). In this case, you can map an immutable and read-only entity to a given SQL subselect expression using @org.hibernate.annotations.Subselect:
+There is no difference between a view and a base table for a Hibernate mapping. 
+This is transparent at the database level, although some DBMS do not support views properly, especially with updates. 
+Sometimes you want to use a view, but you cannot create one in the database (i.e. with a legacy schema). 
+In this case, you can map an immutable and read-only entity to a given SQL subselect expression 
+using @org.hibernate.annotations.Subselect:
+视图。使用 @Subselect注解。
 
 @Entity
 @Subselect("select item.name, max(bid.amount), count(*) "
@@ -250,9 +349,13 @@ public class Summary {
     public String getId() { return id; }
     ...
 }
-Declare the tables to synchronize this entity with, ensuring that auto-flush happens correctly and that queries against the derived entity do not return stale data. The <subselect> is available both as an attribute and a nested mapping element.
 
-We will now explore the same options using the hbm.xml structure. You can declare a persistent class using the class element. For example:
+Declare the tables to synchronize this entity with, 
+ensuring that auto-flush happens correctly and that queries against the derived entity do not return stale data. 
+The <subselect> is available both as an attribute and a nested mapping element.
+
+We will now explore the same options using the hbm.xml structure. 
+You can declare a persistent class using the class element. For example:
 
 <class
         name="ClassName"                                   (1)
@@ -278,28 +381,87 @@ We will now explore the same options using the hbm.xml structure. You can declar
         abstract="true|false"                              (21)
         node="element-name"
 />
-1	name (optional): the fully qualified Java class name of the persistent class or interface. If this attribute is missing, it is assumed that the mapping is for a non-POJO entity.
-2	table (optional - defaults to the unqualified class name): the name of its database table.
-3	discriminator-value (optional - defaults to the class name): a value that distinguishes individual subclasses that is used for polymorphic behavior. Acceptable values include null and not null.
-4	mutable (optional - defaults to true): specifies that instances of the class are (not) mutable.
-5	schema (optional): overrides the schema name specified by the root <hibernate-mapping> element.
-6	catalog (optional): overrides the catalog name specified by the root <hibernate-mapping> element.
-7	proxy (optional): specifies an interface to use for lazy initializing proxies. You can specify the name of the class itself.
-8	dynamic-update (optional - defaults to false): specifies that UPDATE SQL should be generated at runtime and can contain only those columns whose values have changed.
-9	dynamic-insert (optional - defaults to false): specifies that INSERT SQL should be generated at runtime and contain only the columns whose values are not null.
-10	select-before-update (optional - defaults to false): specifies that Hibernate should never perform an SQL UPDATE unless it is certain that an object is actually modified. Only when a transient object has been associated with a new session using update(), will Hibernate perform an extra SQL SELECT to determine if an UPDATE is actually required.
-11	polymorphisms (optional - defaults to implicit): determines whether implicit or explicit query polymorphisms is used.
-12	where (optional): specifies an arbitrary SQL WHERE condition to be used when retrieving objects of this class.
-13	persister (optional): specifies a custom ClassPersister.
-14	batch-size (optional - defaults to 1): specifies a "batch size" for fetching instances of this class by identifier.
-15	optimistic-lock (optional - defaults to version): determines the optimistic locking strategy.
-(16)	lazy (optional): lazy fetching can be disabled by setting lazy="false".
-(17)	entity-name (optional - defaults to the class name): Hibernate allows a class to be mapped multiple times, potentially to different tables. It also allows entity mappings that are represented by Maps or XML at the Java level. In these cases, you should provide an explicit arbitrary name for the entity. See Section 4.4, “Dynamic models” and ??? for more information.
-(18)	check (optional): an SQL expression used to generate a multi-row check constraint for automatic schema generation.
-(19)	rowid (optional): Hibernate can use ROWIDs on databases. On Oracle, for example, Hibernate can use the rowid extra column for fast updates once this option has been set to rowid. A ROWID is an implementation detail and represents the physical location of a stored tuple.
-(20)	subselect (optional): maps an immutable and read-only entity to a database subselect. This is useful if you want to have a view instead of a base table. See below for more information.
-(21)	abstract (optional): is used to mark abstract superclasses in <union-subclass> hierarchies.
-It is acceptable for the named persistent class to be an interface. You can declare implementing classes of that interface using the <subclass> element. You can persist any static inner class. Specify the class name using the standard form i.e. e.g.Foo$Bar.
+
+1	name (optional): 
+the fully qualified Java class name of the persistent class or interface. 
+If this attribute is missing, it is assumed that the mapping is for a non-POJO entity.
+
+2	table (optional - defaults to the unqualified class name): 
+the name of its database table.
+
+3	discriminator-value (optional - defaults to the class name): 
+a value that distinguishes individual subclasses that is used for polymorphic behavior. 
+Acceptable values include null and not null.
+
+4	mutable (optional - defaults to true): 
+specifies that instances of the class are (not) mutable.
+
+5	schema (optional): 
+overrides the schema name specified by the root <hibernate-mapping> element.
+
+6	catalog (optional): 
+overrides the catalog name specified by the root <hibernate-mapping> element.
+
+7	proxy (optional): 
+specifies an interface to use for lazy initializing proxies. 
+You can specify the name of the class itself.
+
+8	dynamic-update (optional - defaults to false): 
+specifies that UPDATE SQL should be generated at runtime and can contain only those columns whose values have changed.
+
+9	dynamic-insert (optional - defaults to false): 
+specifies that INSERT SQL should be generated at runtime and contain only the columns whose values are not null.
+
+10	select-before-update (optional - defaults to false): 
+specifies that Hibernate should never perform an SQL UPDATE unless it is certain that an object is actually modified. 
+Only when a transient object has been associated with a new session using update(), 
+will Hibernate perform an extra SQL SELECT to determine if an UPDATE is actually required.
+
+11	polymorphisms (optional - defaults to implicit): 
+determines whether implicit or explicit query polymorphisms is used.
+
+12	where (optional): 
+specifies an arbitrary SQL WHERE condition to be used when retrieving objects of this class.
+
+13	persister (optional): 
+specifies a custom ClassPersister.
+
+14	batch-size (optional - defaults to 1): 
+specifies a "batch size" for fetching instances of this class by identifier.
+
+15	optimistic-lock (optional - defaults to version): 
+determines the optimistic locking strategy.
+
+(16)	lazy (optional): 
+lazy fetching can be disabled by setting lazy="false".
+
+(17)	entity-name (optional - defaults to the class name): 
+Hibernate allows a class to be mapped multiple times, potentially to different tables. 
+It also allows entity mappings that are represented by Maps or XML at the Java level. 
+In these cases, you should provide an explicit arbitrary name for the entity. 
+See Section 4.4, “Dynamic models” and ??? for more information.
+
+(18)	check (optional): 
+an SQL expression used to generate a multi-row check constraint for automatic schema generation.
+
+(19)	rowid (optional): 
+Hibernate can use ROWIDs on databases. 
+On Oracle, for example, Hibernate can use the rowid extra column for fast updates once this option has been set to rowid. 
+A ROWID is an implementation detail and represents the physical location of a stored tuple.
+
+(20)	subselect (optional): 
+maps an immutable and read-only entity to a database subselect. 
+This is useful if you want to have a view instead of a base table. 
+See below for more information.
+适用于视图。
+
+(21)	abstract (optional): 
+is used to mark abstract superclasses in <union-subclass> hierarchies.
+
+It is acceptable for the named persistent class to be an interface. 
+You can declare implementing classes of that interface using the <subclass> element. 
+You can persist any static inner class. 
+Specify the class name using the standard form i.e. e.g.Foo$Bar.
 
 Here is how to do a virtual view (subselect) in XML:
 
@@ -315,90 +477,6 @@ Here is how to do a virtual view (subselect) in XML:
     <id name="name"/>
     ...
 </class>
+
 The <subselect> is available both as an attribute and a nested mapping element.
-
-==========
-5.1.3. Optimistic locking properties (optional)
-
-When using long transactions or conversations that span several database transactions, it is useful to store versioning data to ensure that if the same entity is updated by two conversations, the last to commit changes will be informed and not override the other conversation's work. It guarantees some isolation while still allowing for good scalability and works particularly well in read-often write-sometimes situations.
-
-You can use two approaches: a dedicated version number or a timestamp.
-
-A version or timestamp property should never be null for a detached instance. Hibernate will detect any instance with a null version or timestamp as transient, irrespective of what other unsaved-value strategies are specified. Declaring a nullable version or timestamp property is an easy way to avoid problems with transitive reattachment in Hibernate. It is especially useful for people using assigned identifiers or composite keys.
-
-5.1.3.1. Version number
-
-You can add optimistic locking capability to an entity using the @Version annotation:
-
-@Entity
-public class Flight implements Serializable {
-...
-    @Version
-    @Column(name="OPTLOCK")
-    public Integer getVersion() { ... }
-}           
-The version property will be mapped to the OPTLOCK column, and the entity manager will use it to detect conflicting updates (preventing lost updates you might otherwise see with the last-commit-wins strategy).
-
-The version column may be a numeric. Hibernate supports any kind of type provided that you define and implement the appropriate UserVersionType.
-
-The application must not alter the version number set up by Hibernate in any way. To artificially increase the version number, check in Hibernate Entity Manager's reference documentation LockModeType.OPTIMISTIC_FORCE_INCREMENT or LockModeType.PESSIMISTIC_FORCE_INCREMENT.
-
-If the version number is generated by the database (via a trigger for example), make sure to use @org.hibernate.annotations.Generated(GenerationTime.ALWAYS).
-
-To declare a version property in hbm.xml, use:
-
-<version
-        column="version_column"                            (1)
-        name="propertyName"                                (2)
-        type="typename"                                    (3)
-        access="field|property|ClassName"                  (4)
-        unsaved-value="null|negative|undefined"            (5)
-        generated="never|always"                           (6)
-        insert="true|false"                                (7)
-        node="element-name|@attribute-name|element/@attribute|."
-/>
-1	column (optional - defaults to the property name): the name of the column holding the version number.
-2	name: the name of a property of the persistent class.
-3	type (optional - defaults to integer): the type of the version number.
-4	access (optional - defaults to property): the strategy Hibernate uses to access the property value.
-5	unsaved-value (optional - defaults to undefined): a version property value that indicates that an instance is newly instantiated (unsaved), distinguishing it from detached instances that were saved or loaded in a previous session. Undefined specifies that the identifier property value should be used.
-6	generated (optional - defaults to never): specifies that this version property value is generated by the database. See the discussion of generated properties for more information.
-7	insert (optional - defaults to true): specifies whether the version column should be included in SQL insert statements. It can be set to false if the database column is defined with a default value of 0.
-5.1.3.2. Timestamp
-
-Alternatively, you can use a timestamp. Timestamps are a less safe implementation of optimistic locking. However, sometimes an application might use the timestamps in other ways as well.
-
-Simply mark a property of type Date or Calendar as @Version.
-
-@Entity
-public class Flight implements Serializable {
-...
-    @Version
-    public Date getLastUpdate() { ... }
-}           
-When using timestamp versioning you can tell Hibernate where to retrieve the timestamp value from - database or JVM - by optionally adding the @org.hibernate.annotations.Source annotation to the property. Possible values for the value attribute of the annotation are org.hibernate.annotations.SourceType.VM and org.hibernate.annotations.SourceType.DB. The default is SourceType.DB which is also used in case there is no @Source annotation at all.
-
-Like in the case of version numbers, the timestamp can also be generated by the database instead of Hibernate. To do that, use @org.hibernate.annotations.Generated(GenerationTime.ALWAYS).
-
-In hbm.xml, use the <timestamp> element:
-
-<timestamp
-        column="timestamp_column"                          (1)
-        name="propertyName"                                (2)
-        access="field|property|ClassName"                  (3)
-        unsaved-value="null|undefined"                     (4)
-        source="vm|db"                                     (5)
-        generated="never|always"                           (6)
-        node="element-name|@attribute-name|element/@attribute|."
-/>
-1	column (optional - defaults to the property name): the name of a column holding the timestamp.
-2	name: the name of a JavaBeans style property of Java type Date or Timestamp of the persistent class.
-3	access (optional - defaults to property): the strategy Hibernate uses for accessing the property value.
-4	unsaved-value (optional - defaults to null): a version property value that indicates that an instance is newly instantiated (unsaved), distinguishing it from detached instances that were saved or loaded in a previous session. Undefined specifies that the identifier property value should be used.
-5	source (optional - defaults to vm): Where should Hibernate retrieve the timestamp value from? From the database, or from the current JVM? Database-based timestamps incur an overhead because Hibernate must hit the database in order to determine the "next value". It is safer to use in clustered environments. Not all Dialects are known to support the retrieval of the database's current timestamp. Others may also be unsafe for usage in locking due to lack of precision (Oracle 8, for example).
-6	generated (optional - defaults to never): specifies that this timestamp property value is actually generated by the database. See the discussion of generated properties for more information.
-Note
-<Timestamp> is equivalent to <version type="timestamp">. And <timestamp source="db"> is equivalent to <version type="dbtimestamp">
-
-
 
