@@ -46,9 +46,11 @@ Again, see Section 11.3, “The FROM clause”.
 11.4.3. Literals
 字面量。
 
-String literals are enclosed in single-quotes. To escape a single-quote within a string literal, use double single-quotes.
+String literals are enclosed in single-quotes. 
+To escape a single-quote within a string literal, use double single-quotes.
 
-字符串字面量使用单引号。在字符串字面量中，使用双引号转义单引号。
+字符串字面量使用单引号。
+在字符串字面量中，使用双引号转义单引号。
 
 Example 11.14. String literal examples
 示例：
@@ -156,7 +158,7 @@ hql支持所有三种形式。
 
 Named parameters are declared using a colon followed by an identifier - :aNamedParameter. 
 The same named parameter can appear multiple times in a query.
-
+命名参数使用冒号开头。
 在一个查询语句中，命名参数可出现多次。
 
 Example 11.16. Named parameter examples
@@ -180,7 +182,7 @@ List<Customer> customers = entityManager.createQuery( queryString, Customer.clas
 
 --------
 11.4.4.2. Positional (JPQL) parameters
-jpql风格的位置参数。
+jpql风格的位置参数（带有序号的位置参数）。
 
 JPQL-style positional parameters are declared using a question mark followed by an ordinal - ?1, ?2. 
 The ordinals start with 1. 
@@ -210,7 +212,7 @@ List<Customer> customers = entityManager.createQuery( queryString, Customer.clas
 
 -------
 11.4.4.3. Positional (HQL) parameters
-hql风格的位置参数。
+hql风格的位置参数（不带序号的位置参数）。
 
 HQL-style positional parameters follow JDBC positional parameter syntax. 
 They are declared using ? without a following ordinal. 
@@ -418,8 +420,10 @@ Returns the database current timestamp.
 
 --------------
 11.4.8.2. Standardized functions - HQL
+标准函数
 
-Beyond the JPQL standardized functions, HQL makes some additional functions available regardless of the underlying database in use.
+Beyond the JPQL standardized functions, 
+HQL makes some additional functions available regardless of the underlying database in use.
 
 ----
 BIT_LENGTH
@@ -427,7 +431,8 @@ Returns the length of binary data.
 
 ----
 CAST
-Performs a SQL cast. The cast target should name the Hibernate mapping type to use. 
+Performs a SQL cast. 
+The cast target should name the Hibernate mapping type to use. 
 See the chapter on data types for more information.
 
 ----
@@ -613,7 +618,7 @@ See also Section 11.3.5.1, “Special case - qualified path expressions” as th
 
 ================
 11.4.10. Entity type
-实体类型。
+实体类型（type函数）。
 
 We can also refer to the type of an entity as an expression. 
 This is mainly useful when dealing with entity inheritance hierarchies. 
@@ -635,7 +640,8 @@ from Payment p
 where type(p) = :aType
 
 
-HQL also has a legacy form of referring to an entity type, though that legacy form is considered deprecated in favor of TYPE. 
+HQL also has a legacy form of referring to an entity type, 
+though that legacy form is considered deprecated in favor of TYPE. 
 The legacy form would have used p.class in the examples rather than type(p). 
 It is mentioned only for completeness.
 

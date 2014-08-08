@@ -75,6 +75,7 @@ from DomesticCat as mother
 
 
 The results from this query will be a List<List> as opposed to a List<Object[]>
+返回列表的列表。
 
 HQL also supports wrapping the scalar results in a Map.
 
@@ -94,7 +95,7 @@ from Cat c
 
 The results from this query will be a List<Map<String,Object>> as opposed to a List<Object[]>. 
 The keys of the map are defined by the aliases given to the select expressions.
-
+返回映射的列表。
 
 ============
 11.6. Predicates
@@ -445,8 +446,10 @@ Otherwise, the result is false.
 11.7. The WHERE clause
 where子句。
 
-The WHERE clause of a query is made up of predicates which assert whether values in each potential row match the predicated checks. 
-Thus, the where clause restricts the results returned from a select query and limits the scope of update and delete queries.
+The WHERE clause of a query is made up of predicates 
+which assert whether values in each potential row match the predicated checks. 
+Thus, the where clause restricts the results returned from a select query 
+and limits the scope of update and delete queries.
 
 
 ===========

@@ -25,6 +25,7 @@ It also is responsible for defining all the “identification variables” avail
 
 ==============
 11.3.1. Identification variables
+id变量
 
 Identification variables are often referred to as aliases. 
 References to object model classes in the FROM clause 
@@ -42,11 +43,12 @@ but this does not make it good practice.
 
 ==============
 11.3.2. Root entity references
-根实体的引用
+根实体的引用（别名）
 
 A root entity reference, or what JPA calls a range variable declaration, 
 is specifically a reference to a mapped entity type from the application. 
 It cannot name component/ embeddable types. 
+不能用来命名组件（内嵌对象）。
 And associations, including collections, are handled in a different manner discussed later.
 
 The BNF for a root entity reference is:
@@ -137,6 +139,7 @@ where o.value > 5000.00
   or c.status = 'preferred'
 
 An important use case for explicit joins is to define FETCH JOINS which override the laziness of the joined association. 
+“fetch join”用来立即加载“原本定义为延迟”的字段。
 As an example, given an entity named Customer with a collection-valued association named orders
 
 
@@ -150,11 +153,13 @@ from Customer c
 
 As you can see from the example, a fetch join is specified by injecting the keyword fetch after the keyword join. 
 In the example, we used a left outer join because we want to return customers who have no orders also. 
-Inner joins can also be fetched. But inner joins still filter. 
+Inner joins can also be fetched. 
+But inner joins still filter. 
 In the example, using an inner join instead would have resulted in customers without any orders being filtered out of the result.
 
 
 Important
+重要：
 
 Fetch joins are not valid in sub-queries.
 在子查询中，fetch join是不合法的。
@@ -162,9 +167,13 @@ Care should be taken when fetch joining a collection-valued association which is
 the fetched collection will be restricted too! 
 For this reason it is usually considered best practice 
 to not assign an identification variable to fetched joins except for the purpose of specifying nested fetch joins.
+嵌套加载。
 Fetch joins should not be used in paged queries (aka, setFirstResult/ setMaxResults). 
+“fetch join”不能用于分页查询。
 Nor should they be used with the HQL scroll or iterate features.
+也不能使用 scroll 和 迭代器。
 HQL also defines a WITH clause to qualify the join conditions. 
+hql 还允许使用 with 关键字，指定联接条件。jpql没有此功能。
 Again, this is specific to HQL; JPQL does not define this feature.
 
 
@@ -184,10 +193,12 @@ are made part of the where clause in the generated SQL.
 The distinction in this specific example is probably not that significant. 
 The with clause is sometimes necessary in more complicated queries.
 
-Explicit joins may reference association or component/embedded attributes. 
+Explicit joins may reference association or component/embedded attributes.
+显示join允许引用关联对象，或组件的字段。 
 For further information about collection-valued association references, 
 see Section 11.3.5, “Collection member references”. 
-In the case of component/embedded attributes, the join is simply logical and does not correlate to a physical (SQL) join.
+In the case of component/embedded attributes, 
+the join is simply logical and does not correlate to a physical (SQL) join.
 
 
 ==============
