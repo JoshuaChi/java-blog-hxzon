@@ -1,0 +1,553 @@
+﻿hibernate官方文档（开发者）（4.2.13.Final）
+
+Hibernate Developer Guide
+http://docs.jboss.org/hibernate/orm/4.2/devguide/en-US/html/
+
+The Hibernate Team
+
+The JBoss Visual Design Team
+
+4.2.13.Final
+
+Copyright © 2011 Red Hat, Inc.
+
+2014-05-28
+
+===============
+Table of Contents
+
+Preface
+
+1. Get Involved
+
+2. Getting Started Guide
+
+1. Database access
+数据库访问
+1.1. Connecting
+1.1.1. Configuration
+1.1.2. Obtaining a JDBC connection
+
+1.2. Connection pooling
+连接池
+1.2.1. c3p0 connection pool
+1.2.2. Proxool connection pool
+1.2.3. Obtaining connections from an application server, using JNDI
+1.2.4. Other connection-specific configuration
+1.2.5. Optional configuration properties
+
+1.3. Dialects
+1.3.1. Specifying the Dialect to use
+1.3.2. Dialect resolution
+
+1.4. Automatic schema generation with SchemaExport
+1.4.1. Customizing the mapping files
+1.4.2. Running the SchemaExport tool
+
+===========
+2. Transactions and concurrency control
+事务和并发控制
+
+2.1. Defining Transaction
+
+2.2. Physical Transactions
+2.2.1. Physical Transactions - JDBC
+2.2.2. Physical Transactions - JTA
+2.2.3. Physical Transactions - CMT
+2.2.4. Physical Transactions - Custom
+2.2.5. Physical Transactions - Legacy
+
+2.3. Hibernate Transaction Usage
+
+2.4. Transactional patterns (and anti-patterns)
+事务模式和反模式
+2.4.1. Session-per-operation anti-pattern
+2.4.2. Session-per-request pattern
+2.4.3. Conversations
+2.4.4. Session-per-application
+
+2.5. Object identity
+2.6. Common issues
+
+==========
+3. Persistence Contexts
+持久化上下文
+
+3.1. Making entities persistent
+3.2. Deleting entities
+3.3. Obtain an entity reference without initializing its data
+3.4. Obtain an entity with its data initialized
+3.5. Obtain an entity by natural-id
+3.6. Refresh entity state
+3.7. Modifying managed/persistent state
+
+3.8. Working with detached data
+3.8.1. Reattaching detached data
+3.8.2. Merging detached data
+
+3.9. Checking persistent state
+3.10. Accessing Hibernate APIs from JPA
+
+=========
+4. Batch Processing
+批量处理
+
+4.1. Batch inserts
+4.2. Batch updates
+4.3. StatelessSession
+
+4.4. Hibernate Query Language for DML
+4.4.1. HQL for UPDATE and DELETE
+4.4.2. HQL syntax for INSERT
+4.4.3. More information on HQL
+
+==========
+5. Locking
+锁
+
+5.1. Optimistic
+5.1.1. Dedicated version number
+5.1.2. Timestamp
+
+5.2. Pessimistic
+5.2.1. The LockMode class
+
+=========
+6. Caching
+缓存
+
+6.1. The query cache
+6.1.1. Query cache regions
+
+6.2. Second-level cache providers
+6.2.1. Configuring your cache providers
+6.2.2. Caching strategies
+6.2.3. Second-level cache providers for Hibernate
+
+6.3. Managing the cache
+6.3.1. Moving items into and out of the cache
+
+=======
+7. Services
+服务
+
+7.1. What are services?
+7.2. Service contracts
+
+7.3. Service dependencies
+7.3.1. @org.hibernate.service.spi.InjectService
+7.3.2. org.hibernate.service.spi.ServiceRegistryAwareService
+
+7.4. ServiceRegistry
+
+7.5. Standard services
+标准服务
+7.5.1. org.hibernate.engine.jdbc.batch.spi.BatchBuilder
+7.5.2. org.hibernate.service.config.spi.ConfigurationService
+7.5.3. org.hibernate.service.jdbc.connections.spi.ConnectionProvider
+7.5.4. org.hibernate.service.jdbc.dialect.spi.DialectFactory
+7.5.5. org.hibernate.service.jdbc.dialect.spi.DialectResolver
+7.5.6. org.hibernate.engine.jdbc.spi.JdbcServices
+7.5.7. org.hibernate.service.jmx.spi.JmxService
+7.5.8. org.hibernate.service.jndi.spi.JndiService
+7.5.9. org.hibernate.service.jta.platform.spi.JtaPlatform
+7.5.10. org.hibernate.service.jdbc.connections.spi.MultiTenantConnectionProvider
+7.5.11. org.hibernate.persister.spi.PersisterClassResolver
+7.5.12. org.hibernate.persister.spi.PersisterFactory
+7.5.13. org.hibernate.cache.spi.RegionFactory
+7.5.14. org.hibernate.service.spi.SessionFactoryServiceRegistryFactory
+7.5.15. org.hibernate.stat.Statistics
+7.5.16. org.hibernate.engine.transaction.spi.TransactionFactory
+7.5.17. org.hibernate.tool.hbm2ddl.ImportSqlCommandExtractor
+
+7.6. Custom services
+自定制服务
+
+7.7. Special service registries
+7.7.1. Boot-strap registry
+7.7.2. SessionFactory registry
+
+7.8. Using services and registries
+
+7.9. Integrators
+7.9.1. Integrator use-cases
+
+==========
+8. Data categorizations
+数据类型
+
+8.1. Value types
+8.1.1. Basic types
+8.1.2. National Character Types
+8.1.3. Composite types
+8.1.4. Collection types
+
+8.2. Entity Types
+8.3. Implications of different data categorizations
+
+==========
+9. Mapping entities
+实体映射
+
+9.1. Hierarchies
+
+==========
+10. Mapping associations
+关联映射
+
+=========
+11. HQL and JPQL
+
+11.1. Case Sensitivity
+
+11.2. Statement types
+11.2.1. Select statements
+11.2.2. Update statements
+11.2.3. Delete statements
+11.2.4. Insert statements
+
+11.3. The FROM clause
+11.3.1. Identification variables
+11.3.2. Root entity references
+11.3.3. Explicit joins
+11.3.4. Implicit joins (path expressions)
+11.3.5. Collection member references
+11.3.6. Polymorphism
+
+11.4. Expressions
+11.4.1. Identification variable
+11.4.2. Path expressions
+11.4.3. Literals
+11.4.4. Parameters
+11.4.5. Arithmetic
+11.4.6. Concatenation (operation)
+11.4.7. Aggregate functions
+11.4.8. Scalar functions
+11.4.9. Collection-related expressions
+11.4.10. Entity type
+11.4.11. CASE expressions
+
+11.5. The SELECT clause
+
+11.6. Predicates
+11.6.1. Relational comparisons
+11.6.2. Nullness predicate
+11.6.3. Like predicate
+11.6.4. Between predicate
+11.6.5. In predicate
+11.6.6. Exists predicate
+11.6.7. Empty collection predicate
+11.6.8. Member-of collection predicate
+11.6.9. NOT predicate operator
+11.6.10. AND predicate operator
+11.6.11. OR predicate operator
+
+11.7. The WHERE clause
+11.8. Grouping
+11.9. Ordering
+11.10. Query API
+
+==========
+12. Criteria
+
+12.1. Typed criteria queries
+12.1.1. Selecting an entity
+12.1.2. Selecting an expression
+12.1.3. Selecting multiple values
+12.1.4. Selecting a wrapper
+
+12.2. Tuple criteria queries
+
+12.3. FROM clause
+12.3.1. Roots
+12.3.2. Joins
+12.3.3. Fetches
+12.4. Path expressions
+12.5. Using parameters
+
+==========
+13. Native SQL Queries
+原生sql查询
+
+13.1. Using a SQLQuery
+13.1.1. Scalar queries
+13.1.2. Entity queries
+13.1.3. Handling associations and collections
+13.1.4. Returning multiple entities
+13.1.5. Returning non-managed entities
+13.1.6. Handling inheritance
+13.1.7. Parameters
+
+13.2. Named SQL queries
+13.2.1. Using return-property to explicitly specify column/alias names
+13.2.2. Using stored procedures for querying
+
+13.3. Custom SQL for create, update and delete
+13.4. Custom SQL for loading
+
+=========
+14. JMX
+
+=========
+15. Envers
+？审计
+
+15.1. Basics
+15.2. Configuration
+15.3. Additional mapping annotations
+15.4. Choosing an audit strategy
+
+15.5. Revision Log
+15.5.1. Tracking entity names modified during revisions
+
+15.6. Tracking entity changes at property level
+
+15.7. Queries
+15.7.1. Querying for entities of a class at a given revision
+15.7.2. Querying for revisions, at which entities of a given class changed
+15.7.3. Querying for revisions of entity that modified given property
+15.7.4. Querying for entities modified in a given revision
+
+15.8. Conditional auditing
+15.9. Understanding the Envers Schema
+15.10. Generating schema with Ant
+
+15.11. Mapping exceptions
+15.11.1. What isn't and will not be supported
+15.11.2. What isn't and will be supported
+15.11.3. @OneToMany+@JoinColumn
+
+15.12. Advanced: Audit table partitioning
+15.12.1. Benefits of audit table partitioning
+15.12.2. Suitable columns for audit table partitioning
+15.12.3. Audit table partitioning example
+
+15.13. Envers links
+
+==========
+16. Multi-tenancy
+
+16.1. What is multi-tenancy?
+
+16.2. Multi-tenant data approaches
+16.2.1. Separate database
+16.2.2. Separate schema
+16.2.3. Partitioned (discriminator) data
+
+16.3. Multi-tenancy in Hibernate
+16.3.1. MultiTenantConnectionProvider
+16.3.2. CurrentTenantIdentifierResolver
+16.3.3. Caching
+16.3.4. Odds and ends
+
+16.4. Strategies for MultiTenantConnectionProvider implementors
+
+=========
+17. OSGi
+
+17.1. OSGi Specification and Environment
+17.2. hibernate-osgi
+
+17.3. Container-Managed JPA
+17.3.1. Client bundle imports
+17.3.2. DataSource
+17.3.3. Bundle Ordering
+17.3.4. Obtaining an EntityManger
+
+17.4. Unmanaged JPA
+17.4.1. Client bundle imports
+17.4.2. Bundle Ordering
+17.4.3. Obtaining an EntityMangerFactory
+
+17.5. Unmanaged Native
+17.5.1. Client bundle imports
+17.5.2. Bundle Ordering
+17.5.3. Obtaining an SessionFactory
+
+17.6. Optional Modules
+17.7. Extension Points
+17.8. Caveats
+
+========
+A. Configuration properties
+
+A.1. General Configuration
+A.2. Database configuration
+A.3. Connection pool properties
+
+B. Legacy Hibernate Criteria Queries
+
+B.1. Creating a Criteria instance
+B.2. Narrowing the result set
+B.3. Ordering the results
+B.4. Associations
+B.5. Dynamic association fetching
+B.6. Components
+B.7. Collections
+B.8. Example queries
+B.9. Projections, aggregation and grouping
+B.10. Detached queries and subqueries
+B.11. Queries by natural identifier
+
+==========
+List of Tables
+
+1.1. Important configuration properties for the Proxool connection pool
+1.2. Supported database dialects
+1.3. Elements and attributes provided for customizing mapping files
+1.4. SchemaExport Options
+
+6.1. Possible values for Shared Cache Mode
+
+8.1. Basic Type Mappings
+8.2. National Character Type Mappings
+
+13.1. Alias injection names
+
+15.1. Envers Configuration Properties
+15.2. Salaries table
+15.3. Salaries - audit table
+
+A.1. JDBC properties
+A.2. Cache Properties
+A.3. Transactions properties
+A.4. Miscellaneous properties
+A.5. Proxool connection pool properties
+
+========
+List of Examples
+
+1.1. hibernate.properties for a c3p0 connection pool
+1.2. hibernate.cfg.xml for a connection to the bundled HSQL database
+1.3. Specifying the mapping files directly
+1.4. Letting Hibernate find the mapping files for you
+1.5. Specifying configuration properties
+1.6. Specifying configuration properties
+1.7. SchemaExport syntax
+1.8. Embedding SchemaExport into your application
+
+2.1. Database identity
+2.2. JVM identity
+
+3.1. Example of making an entity persistent
+3.2. Example of deleting an entity
+3.3. Example of obtaining an entity reference without initializing its data
+3.4. Example of obtaining an entity reference with its data initialized
+3.5. Example of simple natural-id access
+3.6. Example of natural-id access
+3.7. Example of refreshing entity state
+3.8. Example of modifying managed state
+3.9. Example of reattaching a detached entity
+3.10. Visualizing merge
+3.11. Example of merging a detached entity
+3.12. Examples of verifying managed state
+3.13. Examples of verifying laziness
+3.14. Alternative JPA means to verify laziness
+3.15. Usage of EntityManager.unwrap
+
+4.1. Naive way to insert 100000 lines with Hibernate
+4.2. Flushing and clearing the Session
+4.3. Using scroll()
+4.4. Using a StatelessSession
+4.5. Psuedo-syntax for UPDATE and DELETE statements using HQL
+4.6. Executing an HQL UPDATE, using the Query.executeUpdate() method
+4.7. Updating the version of timestamp
+4.8. A HQL DELETE statement
+4.9. Pseudo-syntax for INSERT statements
+4.10. HQL INSERT statement
+
+5.1. The @Version annotation
+5.2. Declaring a version property in hbm.xml
+5.3. Using timestamps for optimistic locking
+5.4. The timestamp element in hbm.xml
+
+6.1. Method setCacheRegion
+6.2. Configuring cache providers using annotations
+6.3. Configuring cache providers using mapping files
+6.4. Evicting an item from the first-level cache
+6.5. Second-level cache eviction
+6.6. Browsing the second-level cache entries via the Statistics API
+
+7.1. Using BootstrapServiceRegistryBuilder
+7.2. Registering event listeners
+
+11.1. Example UPDATE query statements
+11.2. Example INSERT query statements
+11.3. Simple query example
+11.4. Simple query using entity name for root entity reference
+11.5. Simple query using multiple root entity references
+11.6. Explicit inner join examples
+11.7. Explicit left (outer) join examples
+11.8. Fetch join example
+11.9. with-clause join example
+11.10. Simple implicit join example
+11.11. Reused implicit join
+11.12. Collection references example
+11.13. Qualified collection references example
+11.14. String literal examples
+11.15. Numeric literal examples
+11.16. Named parameter examples
+11.17. Positional (JPQL) parameter examples
+11.18. Numeric arithmetic examples
+11.19. Concatenation operation example
+11.20. Aggregate function examples
+11.21. Collection-related expressions examples
+11.22. Index operator examples
+11.23. Entity type expression examples
+11.24. Simple case expression example
+11.25. Searched case expression example
+11.26. NULLIF example
+11.27. Dynamic instantiation example - constructor
+11.28. Dynamic instantiation example - list
+11.29. Dynamic instantiation example - map
+11.30. Relational comparison examples
+11.31. ALL subquery comparison qualifier example
+11.32. Nullness checking examples
+11.33. Like predicate examples
+11.34. Between predicate examples
+11.35. In predicate examples
+11.36. Empty collection expression examples
+11.37. Member-of collection expression examples
+11.38. Group-by illustration
+11.39. Having illustration
+11.40. Order-by examples
+
+12.1. Selecting the root entity
+12.2. Selecting an attribute
+12.3. Selecting an array
+12.4. Selecting an array (2)
+12.5. Selecting an wrapper
+12.6. Selecting a tuple
+12.7. Adding a root
+12.8. Adding multiple roots
+12.9. Example with Embedded and ManyToOne
+12.10. Example with Collections
+12.11. Example with Embedded and ManyToOne
+12.12. Example with Collections
+12.13. Using parameters
+
+13.1. Named sql query using the <sql-query> maping element
+13.2. Execution of a named query
+13.3. Named sql query with association
+13.4. Named query returning a scalar
+13.5. <resultset> mapping used to externalize mapping information
+13.6. Programmatically specifying the result mapping information
+13.7. Named SQL query using @NamedNativeQuery together with @SqlResultSetMapping
+13.8. Implicit result set mapping
+13.9. Using dot notation in @FieldResult for specifying associations
+13.10. Scalar values via @ColumnResult
+13.11. Custom CRUD via annotations
+13.12. Custom CRUD XML
+13.13. Overriding SQL statements for collections using annotations
+13.14. Overriding SQL statements for secondary tables
+13.15. Stored procedures and their return value
+
+15.1. Example of storing username with revision
+15.2. Custom implementation of tracking entity classes modified during revisions
+
+16.1. Specifying tenant identifier from SessionFactory
+16.2. Implementing MultiTenantConnectionProvider using different connection pools
+16.3. Implementing MultiTenantConnectionProvider using single connection pool
+
+17.1. Example extension point registrations in blueprint.xml
+
