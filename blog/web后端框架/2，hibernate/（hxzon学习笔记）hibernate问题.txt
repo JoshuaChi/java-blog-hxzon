@@ -80,34 +80,47 @@ decode(uo.caSupplier,1,netca.dateEnd,2,gdca.dateEnd,null)
 ----
 7，org.hibernate.classic.Lifecycle
 
-Provides callbacks from the Session to the persistent object. Persistent classes may implement this interface but they are not required to.
+Provides callbacks from the Session to the persistent object. 
+Persistent classes may implement this interface but they are not required to.
 
 onSave: called just before the object is saved
 onUpdate: called just before an object is updated, ie. when Session.update() is called
 onDelete: called just before an object is deleted
 onLoad: called just after an object is loaded
 
-onLoad() may be used to initialize transient properties of the object from its persistent state. It may not be used to load dependent objects since the Session interface may not be invoked from inside this method.
+onLoad() may be used to initialize transient properties of the object from its persistent state. 
+It may not be used to load dependent objects 
+since the Session interface may not be invoked from inside this method.
 
-A further intended usage of onLoad(), onSave() and onUpdate() is to store a reference to the Session for later use.
+A further intended usage of onLoad(), onSave() and onUpdate() 
+is to store a reference to the Session for later use.
+保存session对象的引用，以便稍后使用。
 
-If onSave(), onUpdate() or onDelete() return VETO, the operation is silently vetoed. If a CallbackException is thrown, the operation is vetoed and the exception is passed back to the application.
+If onSave(), onUpdate() or onDelete() return VETO, the operation is silently vetoed. 
+If a CallbackException is thrown, the operation is vetoed and the exception is passed back to the application.
 
-Note that onSave() is called after an identifier is assigned to the object, except when identity column key generation is used.
+Note that onSave() is called after an identifier is assigned to the object, 
+except when identity column key generation is used.
 
 ====
 org.hibernate.Interceptor
 
+Allows user code to inspect and/or change property values. 
+Inspection occurs before property values are written and after they are read from the database. 
+There might be a single instance of Interceptor for a SessionFactory, 
+or a new instance might be specified for each Session. 
+Whichever approach is used, the interceptor must be serializable if the Session is to be serializable. 
+This means that SessionFactory-scoped interceptors should implement readResolve(). 
+The Session may not be invoked from a callback (nor may a callback cause a collection or proxy to be lazily initialized). 
+Instead of implementing this interface directly, 
+it is usually better to extend EmptyInterceptor and override only the callback methods of interest.
 
-Allows user code to inspect and/or change property values. Inspection occurs before property values are written and after they are read from the database. There might be a single instance of Interceptor for a SessionFactory, or a new instance might be specified for each Session. Whichever approach is used, the interceptor must be serializable if the Session is to be serializable. This means that SessionFactory-scoped interceptors should implement readResolve(). The Session may not be invoked from a callback (nor may a callback cause a collection or proxy to be lazily initialized). Instead of implementing this interface directly, it is usually better to extend EmptyInterceptor and override only the callback methods of interest.
-
-Author:
-Gavin King
 See Also:
 SessionBuilder.interceptor(Interceptor)
 SharedSessionBuilder.interceptor()
 org.hibernate.cfg.Configuration.setInterceptor(Interceptor)
 EmptyInterceptor
 
-
+----
+8，
 

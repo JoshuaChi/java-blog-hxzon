@@ -19,19 +19,25 @@ Hibernate features an intuitive, extensible criteria query API.
 
 17.1. Creating a Criteria instance
 
-The interface org.hibernate.Criteria represents a query against a particular persistent class. The Session is a factory for Criteria instances.
+The interface org.hibernate.Criteria represents a query against a particular persistent class. 
+The Session is a factory for Criteria instances.
 
 Criteria crit = sess.createCriteria(Cat.class);
 crit.setMaxResults(50);
 List cats = crit.list();
+
+====
 17.2. Narrowing the result set
 
-An individual query criterion is an instance of the interface org.hibernate.criterion.Criterion. The class org.hibernate.criterion.Restrictions defines factory methods for obtaining certain built-in Criterion types.
+An individual query criterion is an instance of the interface org.hibernate.criterion.Criterion. 
+The class org.hibernate.criterion.Restrictions 
+defines factory methods for obtaining certain built-in Criterion types.
 
 List cats = sess.createCriteria(Cat.class)
     .add( Restrictions.like("name", "Fritz%") )
     .add( Restrictions.between("weight", minWeight, maxWeight) )
     .list();
+
 Restrictions can be grouped logically.
 
 List cats = sess.createCriteria(Cat.class)
@@ -41,6 +47,7 @@ List cats = sess.createCriteria(Cat.class)
         Restrictions.isNull("age")
     ) )
     .list();
+
 List cats = sess.createCriteria(Cat.class)
     .add( Restrictions.in( "name", new String[] { "Fritz", "Izi", "Pk" } ) )
     .add( Restrictions.disjunction()
@@ -50,14 +57,20 @@ List cats = sess.createCriteria(Cat.class)
         .add( Restrictions.eq("age", new Integer(2) ) )
     ) )
     .list();
-There are a range of built-in criterion types (Restrictions subclasses). One of the most useful allows you to specify SQL directly.
+
+There are a range of built-in criterion types (Restrictions subclasses). 
+One of the most useful allows you to specify SQL directly.
+直接使用sql方言。
 
 List cats = sess.createCriteria(Cat.class)
     .add( Restrictions.sqlRestriction("lower({alias}.name) like lower(?)", "Fritz%", Hibernate.STRING) )
     .list();
+
 The {alias} placeholder will be replaced by the row alias of the queried entity.
 
-You can also obtain a criterion from a Property instance. You can create a Property by calling Property.forName():
+You can also obtain a criterion from a Property instance. 
+You can create a Property by calling Property.forName():
+使用字段。
 
 Property age = Property.forName("age");
 List cats = sess.createCriteria(Cat.class)
@@ -69,7 +82,10 @@ List cats = sess.createCriteria(Cat.class)
     ) )
     .add( Property.forName("name").in( new String[] { "Fritz", "Izi", "Pk" } ) )
     .list();
+
+====
 17.3. Ordering the results
+排序
 
 You can order the results using org.hibernate.criterion.Order.
 
@@ -85,7 +101,10 @@ List cats = sess.createCriteria(Cat.class)
     .addOrder( Property.forName("age").desc() )
     .setMaxResults(50)
     .list();
+
+====
 17.4. Associations
+关联
 
 By navigating associations using createCriteria() you can specify constraints upon related entities:
 
@@ -94,18 +113,22 @@ List cats = sess.createCriteria(Cat.class)
     .createCriteria("kittens")
         .add( Restrictions.like("name", "F%") )
     .list();
+
 The second createCriteria() returns a new instance of Criteria that refers to the elements of the kittens collection.
 
 There is also an alternate form that is useful in certain circumstances:
+另一种方式，使用别名。
 
 List cats = sess.createCriteria(Cat.class)
     .createAlias("kittens", "kt")
     .createAlias("mate", "mt")
     .add( Restrictions.eqProperty("kt.name", "mt.name") )
     .list();
+
 (createAlias() does not create a new instance of Criteria.)
 
-The kittens collections held by the Cat instances returned by the previous two queries are not pre-filtered by the criteria. If you want to retrieve just the kittens that match the criteria, you must use a ResultTransformer.
+The kittens collections held by the Cat instances returned by the previous two queries are not pre-filtered by the criteria. 
+If you want to retrieve just the kittens that match the criteria, you must use a ResultTransformer.
 
 List cats = sess.createCriteria(Cat.class)
     .createCriteria("kittens", "kt")
@@ -118,15 +141,21 @@ while ( iter.hasNext() ) {
     Cat cat = (Cat) map.get(Criteria.ROOT_ALIAS);
     Cat kitten = (Cat) map.get("kt");
 }
+
 Additionally you may manipulate the result set using a left outer join:
+使用左联接。
 
 		List cats = session.createCriteria( Cat.class )
                        .createAlias("mate", "mt", Criteria.LEFT_JOIN, Restrictions.like("mt.name", "good%") )
                        .addOrder(Order.asc("mt.age"))
                        .list();
-	
-	
-This will return all of the Cats with a mate whose name starts with "good" ordered by their mate's age, and all cats who do not have a mate. This is useful when there is a need to order or limit in the database prior to returning complex/large result sets, and removes many instances where multiple queries would have to be performed and the results unioned by java in memory.
+
+
+This will return all of the Cats with a mate whose name starts with "good" ordered by their mate's age, 
+and all cats who do not have a mate. 
+This is useful when there is a need to order or limit in the database prior to returning complex/large result sets, 
+and removes many instances where multiple queries would have to be performed 
+and the results unioned by java in memory.
 
 Without this feature, first all of the cats without a mate would need to be loaded in one query.
 
@@ -134,7 +163,9 @@ A second query would need to retreive the cats with mates who's name started wit
 
 Thirdly, in memory; the lists would need to be joined manually.
 
+====
 17.5. Dynamic association fetching
+动态关联对象加载
 
 You can specify association fetching semantics at runtime using setFetchMode().
 
@@ -143,11 +174,18 @@ List cats = sess.createCriteria(Cat.class)
     .setFetchMode("mate", FetchMode.EAGER)
     .setFetchMode("kittens", FetchMode.EAGER)
     .list();
-This query will fetch both mate and kittens by outer join. See Section 20.1, “Fetching strategies” for more information.
 
+This query will fetch both mate and kittens by outer join. 
+See Section 20.1, “Fetching strategies” for more information.
+
+====
 17.6. Components
+组件
 
-To add a restriction against a property of an embedded component, the component property name should be prepended to the property name when creating the Restriction. The criteria object should be created on the owning entity, and cannot be created on the component itself. For example, suppose the Cat has a component property fullName with sub-properties firstName and lastName:
+To add a restriction against a property of an embedded component, 
+the component property name should be prepended to the property name when creating the Restriction. 
+The criteria object should be created on the owning entity, and cannot be created on the component itself. 
+For example, suppose the Cat has a component property fullName with sub-properties firstName and lastName:
 
 		List cats = session.createCriteria(Cat.class)
 			.add(Restrictions.eq("fullName.lastName", "Cattington"))
@@ -155,18 +193,32 @@ To add a restriction against a property of an embedded component, the component 
 	
 Note: this does not apply when querying collections of components, for that see below Section 17.7, “Collections”
 
+====
 17.7. Collections
+集合
 
-When using criteria against collections, there are two distinct cases. One is if the collection contains entities (eg. <one-to-many/> or <many-to-many/>) or components (<composite-element/> ), and the second is if the collection contains scalar values (<element/>). In the first case, the syntax is as given above in the section Section 17.4, “Associations” where we restrict the kittens collection. Essentially we create a Criteria object against the collection property and restrict the entity or component properties using that instance.
+When using criteria against collections, there are two distinct cases. 
+One is if the collection contains entities (eg. <one-to-many/> or <many-to-many/>) 
+or components (<composite-element/> ), 
+and the second is if the collection contains scalar values (<element/>). 
+In the first case, the syntax is as given above in the section Section 17.4, “Associations” 
+where we restrict the kittens collection. 
+Essentially we create a Criteria object against the collection property 
+and restrict the entity or component properties using that instance.
 
-For queryng a collection of basic values, we still create the Criteria object against the collection, but to reference the value, we use the special property "elements". For an indexed collection, we can also reference the index property using the special property "indices".
+For queryng a collection of basic values, we still create the Criteria object against the collection, 
+but to reference the value, we use the special property "elements". 
+For an indexed collection, we can also reference the index property using the special property "indices".
+使用特殊属性“elements”和“indices”。
 
 		List cats = session.createCriteria(Cat.class)
 			.createCriteria("nickNames")
 				.add(Restrictions.eq("elements", "BadBoy"))
 			.list();
-	
+
+====
 17.8. Example queries
+样板查询
 
 The class org.hibernate.criterion.Example allows you to construct a query criterion from a given instance.
 
@@ -176,7 +228,11 @@ cat.setColor(Color.BLACK);
 List results = session.createCriteria(Cat.class)
     .add( Example.create(cat) )
     .list();
-Version properties, identifiers and associations are ignored. By default, null valued properties are excluded.
+
+Version properties, identifiers and associations are ignored. 
+By default, null valued properties are excluded.
+版本字段，标识符，关联对象被忽略。
+默认情况，null字段也被忽略。
 
 You can adjust how the Example is applied.
 
@@ -188,6 +244,7 @@ Example example = Example.create(cat)
 List results = session.createCriteria(Cat.class)
     .add(example)
     .list();
+
 You can even use examples to place criteria upon associated objects.
 
 List results = session.createCriteria(Cat.class)
@@ -195,14 +252,20 @@ List results = session.createCriteria(Cat.class)
     .createCriteria("mate")
         .add( Example.create( cat.getMate() ) )
     .list();
-17.9. Projections, aggregation and grouping
 
-The class org.hibernate.criterion.Projections is a factory for Projection instances. You can apply a projection to a query by calling setProjection().
+====
+17.9. Projections, aggregation and grouping
+投影，聚合，分组
+
+The class org.hibernate.criterion.Projections is a factory for Projection instances. 
+You can apply a projection to a query by calling setProjection().
 
 List results = session.createCriteria(Cat.class)
     .setProjection( Projections.rowCount() )
     .add( Restrictions.eq("color", Color.BLACK) )
     .list();
+
+分组：
 List results = session.createCriteria(Cat.class)
     .setProjection( Projections.projectionList()
         .add( Projections.rowCount() )
@@ -211,19 +274,26 @@ List results = session.createCriteria(Cat.class)
         .add( Projections.groupProperty("color") )
     )
     .list();
-There is no explicit "group by" necessary in a criteria query. Certain projection types are defined to be grouping projections, which also appear in the SQL group by clause.
 
-An alias can be assigned to a projection so that the projected value can be referred to in restrictions or orderings. Here are two different ways to do this:
+There is no explicit "group by" necessary in a criteria query. 
+Certain projection types are defined to be grouping projections, which also appear in the SQL group by clause.
+
+An alias can be assigned to a projection so that the projected value can be referred to in restrictions or orderings. 
+Here are two different ways to do this:
+别名。
 
 List results = session.createCriteria(Cat.class)
     .setProjection( Projections.alias( Projections.groupProperty("color"), "colr" ) )
     .addOrder( Order.asc("colr") )
     .list();
+
 List results = session.createCriteria(Cat.class)
     .setProjection( Projections.groupProperty("color").as("colr") )
     .addOrder( Order.asc("colr") )
     .list();
-The alias() and as() methods simply wrap a projection instance in another, aliased, instance of Projection. As a shortcut, you can assign an alias when you add the projection to a projection list:
+
+The alias() and as() methods simply wrap a projection instance in another, aliased, instance of Projection. 
+As a shortcut, you can assign an alias when you add the projection to a projection list:
 
 List results = session.createCriteria(Cat.class)
     .setProjection( Projections.projectionList()
@@ -235,6 +305,7 @@ List results = session.createCriteria(Cat.class)
     .addOrder( Order.desc("catCountByColor") )
     .addOrder( Order.desc("avgWeight") )
     .list();
+
 List results = session.createCriteria(Domestic.class, "cat")
     .createAlias("kittens", "kit")
     .setProjection( Projections.projectionList()
@@ -244,6 +315,7 @@ List results = session.createCriteria(Domestic.class, "cat")
     .addOrder( Order.asc("catName") )
     .addOrder( Order.asc("kitName") )
     .list();
+
 You can also use Property.forName() to express projections:
 
 List results = session.createCriteria(Cat.class)
@@ -260,9 +332,13 @@ List results = session.createCriteria(Cat.class)
     .addOrder( Order.desc("catCountByColor") )
     .addOrder( Order.desc("avgWeight") )
     .list();
+
+====
 17.10. Detached queries and subqueries
 
-The DetachedCriteria class allows you to create a query outside the scope of a session and then execute it using an arbitrary Session.
+The DetachedCriteria class allows you to create a query outside the scope of a session 
+and then execute it using an arbitrary Session.
+“未附着查询”允许你在会话之外创建查询对象。
 
 DetachedCriteria query = DetachedCriteria.forClass(Cat.class)
     .add( Property.forName("sex").eq('F') );
@@ -272,7 +348,10 @@ Transaction txn = session.beginTransaction();
 List results = query.getExecutableCriteria(session).setMaxResults(100).list();
 txn.commit();
 session.close();
-A DetachedCriteria can also be used to express a subquery. Criterion instances involving subqueries can be obtained via Subqueries or Property.
+
+A DetachedCriteria can also be used to express a subquery. 
+Criterion instances involving subqueries can be obtained via Subqueries or Property.
+“未附着查询”还可作为子查询。
 
 DetachedCriteria avgWeight = DetachedCriteria.forClass(Cat.class)
     .setProjection( Property.forName("weight").avg() );
@@ -282,8 +361,9 @@ session.createCriteria(Cat.class)
 DetachedCriteria weights = DetachedCriteria.forClass(Cat.class)
     .setProjection( Property.forName("weight") );
 session.createCriteria(Cat.class)
-    .add( Subqueries.geAll("weight", weights) )
+    .add( Subqueries.geAll("weight", weights) )  //作为子查询
     .list();
+
 Correlated subqueries are also possible:
 
 DetachedCriteria avgWeightForSex = DetachedCriteria.forClass(Cat.class, "cat2")
@@ -292,7 +372,9 @@ DetachedCriteria avgWeightForSex = DetachedCriteria.forClass(Cat.class, "cat2")
 session.createCriteria(Cat.class, "cat")
     .add( Property.forName("weight").gt(avgWeightForSex) )
     .list();
+
 Example of multi-column restriction based on a subquery:
+基于子查询的多列限制条件：
 
 DetachedCriteria sizeQuery = DetachedCriteria.forClass( Man.class )
     .setProjection( Projections.projectionList().add( Projections.property( "weight" ) )
@@ -301,9 +383,17 @@ DetachedCriteria sizeQuery = DetachedCriteria.forClass( Man.class )
 session.createCriteria( Woman.class )
     .add( Subqueries.propertiesEq( new String[] { "weight", "height" }, sizeQuery ) )
     .list();
-17.11. Queries by natural identifier
 
-For most queries, including criteria queries, the query cache is not efficient because query cache invalidation occurs too frequently. However, there is a special kind of query where you can optimize the cache invalidation algorithm: lookups by a constant natural key. In some applications, this kind of query occurs frequently. The criteria API provides special provision for this use case.
+====
+17.11. Queries by natural identifier
+根据自然标识符来查询
+
+For most queries, including criteria queries, 
+the query cache is not efficient because query cache invalidation occurs too frequently. 
+However, there is a special kind of query where you can optimize the cache invalidation algorithm: 
+lookups by a constant natural key. 
+In some applications, this kind of query occurs frequently. 
+The criteria API provides special provision for this use case.
 
 First, map the natural key of your entity using <natural-id> and enable use of the second-level cache.
 
@@ -318,9 +408,11 @@ First, map the natural key of your entity using <natural-id> and enable use of t
     </natural-id>
     <property name="password"/>
 </class>
+
 This functionality is not intended for use with entities with mutable natural keys.
 
-Once you have enabled the Hibernate query cache, the Restrictions.naturalId() allows you to make use of the more efficient cache algorithm.
+Once you have enabled the Hibernate query cache, 
+the Restrictions.naturalId() allows you to make use of the more efficient cache algorithm.
 
 session.createCriteria(User.class)
     .add( Restrictions.naturalId()
