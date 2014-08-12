@@ -1,10 +1,11 @@
 ﻿（hxzon学习笔记）hibernate-Chapter 20. 提升性能（20.2-20.7）
 
+注释by hxzon
 ========
 Chapter 20. Improving performance
 
-20.1. Fetching strategies
-20.1.1. Working with lazy associations
+20.1. Fetching strategies 加载策略
+20.1.1. Working with lazy associations 懒加载
 20.1.2. Tuning fetch strategies
 20.1.3. Single-ended association proxies
 20.1.4. Initializing collections and proxies
@@ -13,7 +14,8 @@ Chapter 20. Improving performance
 20.1.7. Fetch profiles
 20.1.8. Using lazy property fetching
 
-20.2. The Second Level Cache
+==
+20.2. The Second Level Cache 二级缓存
 20.2.1. Cache mappings
 20.2.2. Strategy: read only
 20.2.3. Strategy: read/write
@@ -21,59 +23,117 @@ Chapter 20. Improving performance
 20.2.5. Strategy: transactional
 20.2.6. Cache-provider/concurrency-strategy compatibility
 
-20.3. Managing the caches
+20.3. Managing the caches 管理缓存
 
-20.4. The Query Cache
+20.4. The Query Cache 查询结果缓存
 20.4.1. Enabling query caching
 20.4.2. Query cache regions
 
-20.5. Bytecode Enhancement
+20.5. Bytecode Enhancement 字节码增强
 20.5.1. Implementing org.hibernate.engine.spi.ManagedEntity interface
 20.5.2. Runtime instrument
 20.5.3. Build-time instrument
 
-20.6. Understanding Collection performance
+20.6. Understanding Collection performance 集合的性能
 20.6.1. Taxonomy
 20.6.2. Lists, maps, idbags and sets are the most efficient collections to update
 20.6.3. Bags and lists are the most efficient inverse collections
-20.6.4. One shot delete
+20.6.4. One shot delete “单次删除”
 
-20.7. Monitoring performance
+20.7. Monitoring performance 监视性能
 20.7.1. Monitoring a SessionFactory
 20.7.2. Metrics
 
 ===========
 20.2. The Second Level Cache
+二级缓存
 
-A Hibernate Session is a transaction-level cache of persistent data. It is possible to configure a cluster or JVM-level (SessionFactory-level) cache on a class-by-class and collection-by-collection basis. You can even plug in a clustered cache. Be aware that caches are not aware of changes made to the persistent store by another application. They can, however, be configured to regularly expire cached data.
+A Hibernate Session is a transaction-level cache of persistent data.
+hibernate会话是一个事务级别的缓存。 
+It is possible to configure a cluster or JVM-level (SessionFactory-level) cache 
+on a class-by-class and collection-by-collection basis. 
+You can even plug in a clustered cache. 
+Be aware that caches are not aware of changes made to the persistent store by another application. 
+They can, however, be configured to regularly expire cached data.
 
-You have the option to tell Hibernate which caching implementation to use by specifying the name of a class that implements org.hibernate.cache.spi.CacheProvider using the property hibernate.cache.provider_class. Hibernate is bundled with a number of built-in integrations with the open-source cache providers that are listed in Table 20.1, “Cache Providers”. You can also implement your own and plug it in as outlined above. Note that versions prior to Hibernate 3.2 use EhCache as the default cache provider.
+You have the option to tell Hibernate which caching implementation to use 
+by specifying the name of a class that implements org.hibernate.cache.spi.CacheProvider 
+using the property hibernate.cache.provider_class.
+可以配置使用哪个缓存实现。 
+Hibernate is bundled with a number of built-in integrations with the open-source cache providers 
+that are listed in Table 20.1, “Cache Providers”. 
+You can also implement your own and plug it in as outlined above. 
+Note that versions prior to Hibernate 3.2 use EhCache as the default cache provider.
 
 Table 20.1. Cache Providers
 
-Cache	Provider class	Type	Cluster Safe	Query Cache Supported
-ConcurrentHashMap (only for testing purpose, in hibernate-testing module)	org.hibernate.testing.cache.CachingRegionFactory	memory	 	yes
-EHCache	org.hibernate.cache.ehcache.EhCacheRegionFactory	memory, disk, transactional, clustered	yes	yes
-Infinispan	org.hibernate.cache.infinispan.InfinispanRegionFactory	clustered (ip multicast), transactional	yes (replication or invalidation)	yes (clock sync req.)
+Cache	
+Provider class	
+Type	Cluster Safe	
+Query Cache Supported
 
+ConcurrentHashMap (only for testing purpose, in hibernate-testing module)	
+org.hibernate.testing.cache.CachingRegionFactory	
+memory	 	
+yes
+
+EHCache	
+org.hibernate.cache.ehcache.EhCacheRegionFactory	
+memory, disk, transactional, clustered	yes	
+yes
+
+Infinispan	
+org.hibernate.cache.infinispan.InfinispanRegionFactory	
+clustered (ip multicast), transactional	
+yes (replication or invalidation)	
+yes (clock sync req.)
+
+====
 20.2.1. Cache mappings
 
-As we have done in previous chapters we are looking at the two different possibiltites to configure caching. First configuration via annotations and then via Hibernate mapping files.
+As we have done in previous chapters we are looking at the two different possibiltites to configure caching. 
+First configuration via annotations and then via Hibernate mapping files.
 
-By default, entities are not part of the second level cache and we recommend you to stick to this setting. However, you can override this by setting the shared-cache-mode element in your persistence.xml file or by using the javax.persistence.sharedCache.mode property in your configuration. The following values are possible:
+By default, entities are not part of the second level cache and we recommend you to stick to this setting.
+默认情况下，二级缓存不包含实体。 
+However, you can override this by setting the shared-cache-mode element in your persistence.xml file 
+or by using the javax.persistence.sharedCache.mode property in your configuration. 
+“共享缓存模式”：
+The following values are possible:
 
-ENABLE_SELECTIVE (Default and recommended value): entities are not cached unless explicitly marked as cacheable.
-DISABLE_SELECTIVE: entities are cached unless explicitly marked as not cacheable.
-ALL: all entities are always cached even if marked as non cacheable.
-NONE: no entity are cached even if marked as cacheable. This option can make sense to disable second-level cache altogether.
-The cache concurrency strategy used by default can be set globaly via the hibernate.cache.default_cache_concurrency_strategy configuration property. The values for this property are:
+ENABLE_SELECTIVE (Default and recommended value): 
+entities are not cached unless explicitly marked as cacheable.
+默认值（推荐值）。不缓存，除非显示标明想要缓存。
 
-read-only
-read-write
-nonstrict-read-write
-transactional
+DISABLE_SELECTIVE: 
+entities are cached unless explicitly marked as not cacheable.
+默认缓存，除非显示标明不想缓存。
+
+ALL: 
+all entities are always cached even if marked as non cacheable.
+总是缓存。
+
+NONE: 
+no entity are cached even if marked as cacheable. 
+This option can make sense to disable second-level cache altogether.
+总是不缓存，即禁用二级缓存。
+
+The cache concurrency strategy used by default can be set globaly 
+via the hibernate.cache.default_cache_concurrency_strategy configuration property. 
+“缓存并发策略”：
+The values for this property are:
+
+read-only 只读
+read-write 读写
+nonstrict-read-write 不严格读写
+transactional 事务
+
+
 Note
-It is recommended to define the cache concurrency strategy per entity rather than using a global one. Use the @org.hibernate.annotations.Cache annotation for that.
+It is recommended to define the cache concurrency strategy per entity rather than using a global one. 
+Use the @org.hibernate.annotations.Cache annotation for that.
+注意：建议为每个实体配置缓存并发策略，而不是全局。
+
 Example 20.5. Definition of cache concurrency strategy via @Cache
 
 @Entity 
@@ -81,7 +141,9 @@ Example 20.5. Definition of cache concurrency strategy via @Cache
 @Cache(usage = CacheConcurrencyStrategy.NONSTRICT_READ_WRITE)
 public class Forest { ... }
 
-Hibernate also let's you cache the content of a collection or the identifiers if the collection contains other entities. Use the @Cache annotation on the collection property.
+Hibernate also let's you cache the content of a collection or the identifiers if the collection contains other entities. 
+Use the @Cache annotation on the collection property.
+hibernate允许你缓存集合的内容，或者标识符（当集合里的元素是实体时）。
 
 Example 20.6. Caching collections using annotations
 
@@ -92,7 +154,9 @@ public SortedSet<Ticket> getTickets() {
     return tickets;
 }
 
-Example 20.7, “@Cache annotation with attributes”shows the @org.hibernate.annotations.Cache annotations with its attributes. It allows you to define the caching strategy and region of a given second level cache.
+Example 20.7, “@Cache annotation with attributes”
+shows the @org.hibernate.annotations.Cache annotations with its attributes. 
+It allows you to define the caching strategy and region of a given second level cache.
 
 Example 20.7. @Cache annotation with attributes
 
@@ -101,11 +165,22 @@ Example 20.7. @Cache annotation with attributes
     String region() default "";                            (2)
     String include() default "all";                        (3)
 )
-1	usage: the given cache concurrency strategy (NONE, READ_ONLY, NONSTRICT_READ_WRITE, READ_WRITE, TRANSACTIONAL)
-2	region (optional): the cache region (default to the fqcn of the class or the fq role name of the collection)
-3	include (optional): all to include all properties, non-lazy to only include non lazy properties (default all).
 
-Let's now take a look at Hibernate mapping files. There the <cache> element of a class or collection mapping is used to configure the second level cache. Looking at Example 20.8, “The Hibernate <cache> mapping element” the parallels to anotations is obvious.
+1	usage: the given cache concurrency strategy 
+(NONE, READ_ONLY, NONSTRICT_READ_WRITE, READ_WRITE, TRANSACTIONAL)
+缓存并发策略。
+
+2	region (optional): 
+the cache region (default to the fqcn of the class or the fq role name of the collection)
+范围。
+
+3	include (optional): 
+all to include all properties, non-lazy to only include non lazy properties (default all).
+全部字段，还是只包含“非懒加载”字段。
+
+Let's now take a look at Hibernate mapping files. 
+There the <cache> element of a class or collection mapping is used to configure the second level cache. 
+Looking at Example 20.8, “The Hibernate <cache> mapping element” the parallels to anotations is obvious.
 
 Example 20.8. The Hibernate <cache> mapping element
 
@@ -114,50 +189,99 @@ Example 20.8. The Hibernate <cache> mapping element
     region="RegionName"                                    (2)
     include="all|non-lazy"                                 (3)
 />
+
 1	usage (required) specifies the caching strategy: transactional, read-write, nonstrict-read-write or read-only
+
 2	region (optional: defaults to the class or collection role name): specifies the name of the second level cache region
-3	include (optional: defaults to all) non-lazy: specifies that properties of the entity mapped with lazy="true" cannot be cached when attribute-level lazy fetching is enabled
+
+3	include (optional: defaults to all) non-lazy: 
+specifies that properties of the entity mapped with lazy="true" cannot be cached when attribute-level lazy fetching is enabled
 
 Alternatively to <cache>, you can use <class-cache> and <collection-cache> elements in hibernate.cfg.xml.
 
 Let's now have a closer look at the different usage strategies
 
+====
 20.2.2. Strategy: read only
+只读
 
-If your application needs to read, but not modify, instances of a persistent class, a read-only cache can be used. This is the simplest and optimal performing strategy. It is even safe for use in a cluster.
+If your application needs to read, but not modify, instances of a persistent class, a read-only cache can be used. 
+This is the simplest and optimal performing strategy. 
+It is even safe for use in a cluster.
 
 20.2.3. Strategy: read/write
+读写
 
-If the application needs to update data, a read-write cache might be appropriate. This cache strategy should never be used if serializable transaction isolation level is required. If the cache is used in a JTA environment, you must specify the property hibernate.transaction.manager_lookup_class and naming a strategy for obtaining the JTA TransactionManager. In other environments, you should ensure that the transaction is completed when Session.close() or Session.disconnect() is called. If you want to use this strategy in a cluster, you should ensure that the underlying cache implementation supports locking. The built-in cache providers do not support locking.
+If the application needs to update data, a read-write cache might be appropriate. 
+This cache strategy should never be used if serializable transaction isolation level is required. 
+If the cache is used in a JTA environment, you must specify the property hibernate.transaction.manager_lookup_class 
+and naming a strategy for obtaining the JTA TransactionManager. 
+In other environments, you should ensure that the transaction is completed when Session.close() or Session.disconnect() is called. 
+If you want to use this strategy in a cluster, 
+you should ensure that the underlying cache implementation supports locking. 
+The built-in cache providers do not support locking.
 
 20.2.4. Strategy: nonstrict read/write
+非严格读写
 
-If the application only occasionally needs to update data (i.e. if it is extremely unlikely that two transactions would try to update the same item simultaneously), and strict transaction isolation is not required, a nonstrict-read-write cache might be appropriate. If the cache is used in a JTA environment, you must specify hibernate.transaction.manager_lookup_class. In other environments, you should ensure that the transaction is completed when Session.close() or Session.disconnect() is called.
+If the application only occasionally needs to update data 
+(i.e. if it is extremely unlikely that two transactions would try to update the same item simultaneously), 
+and strict transaction isolation is not required, a nonstrict-read-write cache might be appropriate. 
+当不需要严格的事务隔离时。
+If the cache is used in a JTA environment, you must specify hibernate.transaction.manager_lookup_class. 
+In other environments, you should ensure that the transaction is completed 
+when Session.close() or Session.disconnect() is called.
 
 20.2.5. Strategy: transactional
+事务
 
-The transactional cache strategy provides support for fully transactional cache providers such as JBoss TreeCache. Such a cache can only be used in a JTA environment and you must specify hibernate.transaction.manager_lookup_class.
+The transactional cache strategy provides support for fully transactional cache providers such as JBoss TreeCache. 
+Such a cache can only be used in a JTA environment 
+and you must specify hibernate.transaction.manager_lookup_class.
 
 20.2.6. Cache-provider/concurrency-strategy compatibility
 
 Important
 None of the cache providers support all of the cache concurrency strategies.
 The following table shows which providers are compatible with which concurrency strategies.
+注意，不是所有的缓存实现都支持所有的“缓存并发策略”。
 
 Table 20.2. Cache Concurrency Strategy Support
 
-Cache	read-only	nonstrict-read-write	read-write	transactional
-ConcurrentHashMap (not intended for production use)	yes	yes	yes	 
-EHCache	yes	yes	yes	yes
-Infinispan	yes	 	 	yes
+Cache	
+read-only	
+nonstrict-read-write	
+read-write	transactional
 
+ConcurrentHashMap (not intended for production use)
+yes	yes	yes	 
+
+EHCache	
+yes	yes	yes	yes
+
+Infinispan	
+yes	 	 	yes
+
+=============
 20.3. Managing the caches
+管理缓存
 
-Whenever you pass an object to save(), update() or saveOrUpdate(), and whenever you retrieve an object using load(), get(), list(), iterate() or scroll(), that object is added to the internal cache of the Session.
+Whenever you pass an object to save(), update() or saveOrUpdate(), 
+and whenever you retrieve an object using load(), get(), list(), iterate() or scroll(), 
+that object is added to the internal cache of the Session.
+执行上述操作时，对象都会放入hibernate会话的内部缓存中。
 
-When flush() is subsequently called, the state of that object will be synchronized with the database. If you do not want this synchronization to occur, or if you are processing a huge number of objects and need to manage memory efficiently, the evict() method can be used to remove the object and its collections from the first-level cache.
+When flush() is subsequently called, the state of that object will be synchronized with the database. 
+当调用 flush() 方法时，对象会被同步到数据库。
+If you do not want this synchronization to occur, 
+如果你不需要同步，
+or if you are processing a huge number of objects and need to manage memory efficiently, 
+或者你在处理大量对象，需要更有效的管理内存，
+the evict() method can be used to remove the object and its collections from the first-level cache.
+你可以使用 evict() 方法，将对象和它的集合，从“第一级缓存”移除。
 
 Example 20.9. Explcitly evicting a cached instance from the first level cache using Session.evict()
+示例：（hxzon：注意）
 
 ScrollableResult cats = sess.createQuery("from Cat as cat").scroll(); //a huge result set
 while ( cats.next() ) {
@@ -167,10 +291,14 @@ while ( cats.next() ) {
 }
 
 The Session also provides a contains() method to determine if an instance belongs to the session cache.
+contains() 方法，可以检查一个对象是否在会话缓存中。
 
 To evict all objects from the session cache, call Session.clear()
+Session.clear() 方法，可以清除所有会话缓存。
 
-For the second-level cache, there are methods defined on SessionFactory for evicting the cached state of an instance, entire class, collection instance or entire collection role.
+For the second-level cache, there are methods defined on SessionFactory 
+for evicting the cached state of an instance, entire class, collection instance or entire collection role.
+对于二级缓存，则使用 SessionFactory 中的方法。
 
 Example 20.10. Second-level cache eviction via SessionFactoty.evict() and SessionFacyory.evictCollection()
 
@@ -179,13 +307,35 @@ sessionFactory.evict(Cat.class);  //evict all Cats
 sessionFactory.evictCollection("Cat.kittens", catId); //evict a particular collection of kittens
 sessionFactory.evictCollection("Cat.kittens"); //evict all kitten collections
 
+==
 The CacheMode controls how a particular session interacts with the second-level cache:
+“缓存模式”控制单个会话如何处理二级缓存：
 
-CacheMode.NORMAL: will read items from and write items to the second-level cache
-CacheMode.GET: will read items from the second-level cache. Do not write to the second-level cache except when updating data
-CacheMode.PUT: will write items to the second-level cache. Do not read from the second-level cache
-CacheMode.REFRESH: will write items to the second-level cache. Do not read from the second-level cache. Bypass the effect of hibernate.cache.use_minimal_puts forcing a refresh of the second-level cache for all items read from the database
+CacheMode.NORMAL: 
+will read items from and write items to the second-level cache
+从二级缓存读，且写入二级缓存。
+
+CacheMode.GET: 
+will read items from the second-level cache. 
+Do not write to the second-level cache except when updating data
+只从二级缓存读，但不写入二级缓存。
+
+CacheMode.PUT: 
+will write items to the second-level cache. 
+Do not read from the second-level cache
+会写入二级缓存，但不从二级缓存读。
+
+CacheMode.REFRESH: 
+will write items to the second-level cache. 
+Do not read from the second-level cache. 
+Bypass the effect of hibernate.cache.use_minimal_puts forcing a refresh of the second-level cache 
+for all items read from the database
+会写入二级缓存，但不从二级缓存读。
+（bypass，n.旁道，支路；迂回管道；[电]分路迂徊；[医]导管
+vt.疏通；忽视；管道运输）
+
 To browse the contents of a second-level or query cache region, use the Statistics API:
+可以使用统计api，来查看二级缓存的内容，以及查询结果缓存的范围。
 
 Example 20.11. Browsing the second-level cache entries via the Statistics API
 
@@ -193,35 +343,70 @@ Map cacheEntries = sessionFactory.getStatistics()
         .getSecondLevelCacheStatistics(regionName)
         .getEntries();
 
-You will need to enable statistics and, optionally, force Hibernate to keep the cache entries in a more readable format:
+You will need to enable statistics 
+and, optionally, force Hibernate to keep the cache entries in a more readable format:
 
 Example 20.12. Enabling Hibernate statistics
+启用hibernate统计：
 
 hibernate.generate_statistics true
 hibernate.cache.use_structured_entries true
 
+==========
 20.4. The Query Cache
+查询结果缓存
 
-Query result sets can also be cached. This is only useful for queries that are run frequently with the same parameters.
+Query result sets can also be cached. 
+This is only useful for queries that are run frequently with the same parameters.
+这只适用于同一个查询（参数也相同）被反复执行很多次的场景。
 
 20.4.1. Enabling query caching
 
-Caching of query results introduces some overhead in terms of your applications normal transactional processing. For example, if you cache results of a query against Person Hibernate will need to keep track of when those results should be invalidated because changes have been committed against Person. That, coupled with the fact that most applications simply gain no benefit from caching query results, leads Hibernate to disable caching of query results by default. To use query caching, you will first need to enable the query cache:
+Caching of query results introduces some overhead in terms of your applications normal transactional processing. 
+For example, if you cache results of a query against Person 
+Hibernate will need to keep track of when those results should be invalidated 
+because changes have been committed against Person. 
+That, coupled with the fact that most applications simply gain no benefit from caching query results, 
+leads Hibernate to disable caching of query results by default. 
+事实上，很多应用程序不能从“查询结果缓存”中受益。
+To use query caching, you will first need to enable the query cache:
+启用“查询结果缓存”：
 
 hibernate.cache.use_query_cache true
-This setting creates two new cache regions:
 
-org.hibernate.cache.internal.StandardQueryCache, holding the cached query results
-org.hibernate.cache.spi.UpdateTimestampsCache, holding timestamps of the most recent updates to queryable tables. These are used to validate the results as they are served from the query cache.
+This setting creates two new cache regions:
+这会创建两个“缓存区域”：
+
+org.hibernate.cache.internal.StandardQueryCache, 
+holding the cached query results
+
+org.hibernate.cache.spi.UpdateTimestampsCache, 
+holding timestamps of the most recent updates to queryable tables. 
+These are used to validate the results as they are served from the query cache.
+
 Important
-If you configure your underlying cache implementation to use expiry or timeouts is very important that the cache timeout of the underlying cache region for the UpdateTimestampsCache be set to a higher value than the timeouts of any of the query caches. In fact, we recommend that the the UpdateTimestampsCache region not be configured for expiry at all. Note, in particular, that an LRU cache expiry policy is never appropriate.
-As mentioned above, most queries do not benefit from caching or their results. So by default, individual queries are not cached even after enabling query caching. To enable results caching for a particular query, call org.hibernate.Query.setCacheable(true). This call allows the query to look for existing cache results or add its results to the cache when it is executed.
+If you configure your underlying cache implementation to use expiry or timeouts is very important 
+that the cache timeout of the underlying cache region for the UpdateTimestampsCache be set to a higher value 
+than the timeouts of any of the query caches. 
+In fact, we recommend that the the UpdateTimestampsCache region not be configured for expiry at all. 
+Note, in particular, that an LRU cache expiry policy is never appropriate.
+As mentioned above, most queries do not benefit from caching or their results. 
+So by default, individual queries are not cached even after enabling query caching. 
+To enable results caching for a particular query, call org.hibernate.Query.setCacheable(true). 
+This call allows the query to look for existing cache results or add its results to the cache when it is executed.
 
 Note
-The query cache does not cache the state of the actual entities in the cache; it caches only identifier values and results of value type. For this reaso, the query cache should always be used in conjunction with the second-level cache for those entities expected to be cached as part of a query result cache (just as with collection caching).
-20.4.2. Query cache regions
+The query cache does not cache the state of the actual entities in the cache; 
+it caches only identifier values and results of value type. 
+For this reaso, the query cache should always be used in conjunction with the second-level cache 
+for those entities expected to be cached as part of a query result cache (just as with collection caching).
 
-If you require fine-grained control over query cache expiration policies, you can specify a named cache region for a particular query by calling Query.setCacheRegion().
+====
+20.4.2. Query cache regions
+查询缓存区域
+
+If you require fine-grained control over query cache expiration policies, 
+you can specify a named cache region for a particular query by calling Query.setCacheRegion().
 
 List blogs = sess.createQuery("from Blog blog where blog.blogger = :blogger")
         .setEntity("blogger", blogger)
@@ -229,41 +414,80 @@ List blogs = sess.createQuery("from Blog blog where blog.blogger = :blogger")
         .setCacheable(true)
         .setCacheRegion("frontpages")
         .list();
-If you want to force the query cache to refresh one of its regions (disregard any cached results it finds there) you can use org.hibernate.Query.setCacheMode(CacheMode.REFRESH). In conjunction with the region you have defined for the given query, Hibernate will selectively force the results cached in that particular region to be refreshed. This is particularly useful in cases where underlying data may have been updated via a separate process and is a far more efficient alternative to bulk eviction of the region via org.hibernate.SessionFactory.evictQueries().
 
+If you want to force the query cache to refresh one of its regions 
+(disregard any cached results it finds there) 
+you can use org.hibernate.Query.setCacheMode(CacheMode.REFRESH). 
+In conjunction with the region you have defined for the given query, 
+Hibernate will selectively force the results cached in that particular region to be refreshed. 
+This is particularly useful in cases where underlying data may have been updated via a separate process 
+and is a far more efficient alternative to bulk eviction of the region via org.hibernate.SessionFactory.evictQueries().
+
+============
 20.5. Bytecode Enhancement
+字节码增强
 
-Hibernate internally needs an entry ( org.hibernate.engine.spi.EntityEntry ) to tell the current state of an object with respect to its persistent state, when the object is associated with a Session. However, maintaining this association was kind of heavy operation due to lots of other rules must by applied, since 4.2.0, there is a new improvement designed for this purpose, which will reduce session-related memory and CPU overloads.
+Hibernate internally needs an entry ( org.hibernate.engine.spi.EntityEntry ) 
+to tell the current state of an object with respect to its persistent state, 
+when the object is associated with a Session. 
+However, maintaining this association was kind of heavy operation due to lots of other rules must by applied, 
+since 4.2.0, there is a new improvement designed for this purpose, 
+which will reduce session-related memory and CPU overloads.
 
-Basically, the idea is, instead of having a customized ( kind of heavy and which was usually identified as hotspot ) map to do the look up, we change it to
+Basically, the idea is, instead of having a customized 
+( kind of heavy and which was usually identified as hotspot ) map to do the look up, 
+we change it to
 
 EntityEntry entry = (ManagedEntity)entity.$$_hibernate_getEntityEntry();
+
 There are three ways to get benefits from this new improvement:
 
+====
 20.5.1. Implementing org.hibernate.engine.spi.ManagedEntity interface
+实体可以选择实现“受管理的实体”接口
 
-An entity can choose to implement this interface by itself, then it is the entity's responsibility to maintain the bi-association that essentially provides access to information about an instance's association to a Session/EntityManager. More info about org.hibernate.engine.spi.ManagedEntity please find from its javadoc.
+An entity can choose to implement this interface by itself, 
+then it is the entity's responsibility to maintain the bi-association that essentially provides access to information 
+about an instance's association to a Session/EntityManager. 
+（essentially，adv.本质上，根本上；本来；“essential“的派生）
+？可以自己管理关联对象的加载？
+More info about org.hibernate.engine.spi.ManagedEntity please find from its javadoc.
 
+====
 20.5.2. Runtime instrument
+运行时设施
 
-Sometimes, you probably don't want to implement an intrusive interface, maybe due to portable concern, which is fine and Hibernate will take care of this internally with a wrapper class which implements that interface, and also an internal cache that maps this entity instance and the wrapper together.
+Sometimes, you probably don't want to implement an intrusive interface, 
+maybe due to portable concern, 
+which is fine and Hibernate will take care of this internally with a wrapper class which implements that interface, 
+and also an internal cache that maps this entity instance and the wrapper together.
 
-Obviously, this is the easiest way to choose, since it doesn't require any change of the project source code, but it also cost more memory and CUP usage, comparing to the first one.
+Obviously, this is the easiest way to choose, since it doesn't require any change of the project source code, 
+but it also cost more memory and CUP usage, comparing to the first one.
 
+====
 20.5.3. Build-time instrument
+构建时设施
 
-Besides the above two approaches, Hibernate also provides a third choice which is build time bytecode enhancement. Applications can use enhanced entity classes, annotated with either javax.persistence.Entity or composite javax.persistence.Embeddable.
+Besides the above two approaches, Hibernate also provides a third choice which is build time bytecode enhancement. 
+Applications can use enhanced entity classes, 
+annotated with either javax.persistence.Entity or composite javax.persistence.Embeddable.
 
 1. Ant Task
 
-To use the task org.hibernate.tool.enhance.EnhancementTask define a taskdef and call the task, as shown below. This code uses a pre-defined classpathref and a property referencing the compiled classes directory.
+To use the task org.hibernate.tool.enhance.EnhancementTask define a taskdef and call the task, 
+as shown below. 
+This code uses a pre-defined classpathref and a property referencing the compiled classes directory.
 
 <taskdef name="enhance" classname="org.hibernate.tool.enhance.EnhancementTask" classpathref="enhancement.classpath" />
 <enhance>
     <fileset dir="${ejb-classes}/org/hibernate/auction/model" includes="**/*.class"/>
 </enhance>
+
 Note
-The EnhancementTask is intended as a total replacement for InstrumentTask. Further, it is also incompatible with InstrumentTask, so any existing instrumented classes will need to be built from source again.
+The EnhancementTask is intended as a total replacement for InstrumentTask. 
+Further, it is also incompatible with InstrumentTask, so any existing instrumented classes will need to be built from source again.
+
 2. Maven Plugin
 
 The Maven Plugin uses a Mojo descriptor to attach the Mojo to the compile phase for your project.
@@ -309,78 +533,182 @@ dependencies {
    compile group: 'org.hibernate.javax.persistence', name: 'hibernate-jpa-[SPEC-VERSION]-api', version: '[IMPL-VERSION]'
    compile group: 'org.hibernate', name: 'hibernate-gradle-plugin', version: 'VERSION'
 }
-          
 
+=============
 20.6. Understanding Collection performance
+了解集合的性能
 
-In the previous sections we have covered collections and their applications. In this section we explore some more issues in relation to collections at runtime.
+In the previous sections we have covered collections and their applications. 
+In this section we explore some more issues in relation to collections at runtime.
 
 20.6.1. Taxonomy
+（taxonomy，n.（生物）分类学，分类系统）
 
 Hibernate defines three basic kinds of collections:
+三种基本类型的集合：
 
 collections of values
 one-to-many associations
 many-to-many associations
-This classification distinguishes the various table and foreign key relationships but does not tell us quite everything we need to know about the relational model. To fully understand the relational structure and performance characteristics, we must also consider the structure of the primary key that is used by Hibernate to update or delete collection rows. This suggests the following classification:
+
+This classification distinguishes the various table and foreign key relationships 
+but does not tell us quite everything we need to know about the relational model. 
+To fully understand the relational structure and performance characteristics, 
+we must also consider the structure of the primary key that is used by Hibernate to update or delete collection rows. 
+This suggests the following classification:
+（classification，n.分类；分级；类别；（动植物等的）分类学）
 
 indexed collections
 sets
 bags
-All indexed collections (maps, lists, and arrays) have a primary key consisting of the <key> and <index> columns. In this case, collection updates are extremely efficient. The primary key can be efficiently indexed and a particular row can be efficiently located when Hibernate tries to update or delete it.
 
-Sets have a primary key consisting of <key> and element columns. This can be less efficient for some types of collection element, particularly composite elements or large text or binary fields, as the database may not be able to index a complex primary key as efficiently. However, for one-to-many or many-to-many associations, particularly in the case of synthetic identifiers, it is likely to be just as efficient. If you want SchemaExport to actually create the primary key of a <set>, you must declare all columns as not-null="true".
+All indexed collections (maps, lists, and arrays) have a primary key consisting of the <key> and <index> columns. 
+In this case, collection updates are extremely efficient. 
+所有的“可索引”集合，都有一个主键，所以可以高效更新对象。
+The primary key can be efficiently indexed 
+and a particular row can be efficiently located when Hibernate tries to update or delete it.
 
-<idbag> mappings define a surrogate key, so they are efficient to update. In fact, they are the best case.
+Sets have a primary key consisting of <key> and element columns. 
+This can be less efficient for some types of collection element, 
+对于某些类型的集合，这可能会比较低效，
+particularly composite elements or large text or binary fields, 
+例如组合元素，大文本和大二进制字段。
+as the database may not be able to index a complex primary key as efficiently. 
+However, for one-to-many or many-to-many associations, particularly in the case of synthetic identifiers, 
+it is likely to be just as efficient. 
+If you want SchemaExport to actually create the primary key of a <set>, 
+you must declare all columns as not-null="true".
 
-Bags are the worst case since they permit duplicate element values and, as they have no index column, no primary key can be defined. Hibernate has no way of distinguishing between duplicate rows. Hibernate resolves this problem by completely removing in a single DELETE and recreating the collection whenever it changes. This can be inefficient.
+<idbag> mappings define a surrogate key, so they are efficient to update. 
+In fact, they are the best case.
+<idbag>定义了一个代理键，所以更新对象很高效。
+事实上，它们是最佳的。
 
-For a one-to-many association, the "primary key" may not be the physical primary key of the database table. Even in this case, the above classification is still useful. It reflects how Hibernate "locates" individual rows of the collection.
+Bags are the worst case since they permit duplicate element values and, 
+as they have no index column, no primary key can be defined. 
+bag则是最差的，因为允许重复元素，即没有索引列，没有主键可被定义。
+Hibernate has no way of distinguishing between duplicate rows. 
+Hibernate resolves this problem by completely removing in a single DELETE 
+and recreating the collection whenever it changes. 
+This can be inefficient.
+hibernate无法区分这些行，所以hibernate是整体删除，再整体重新创建，
+这种方式效率低下。（hxzon：注意）
 
+For a one-to-many association, the "primary key" may not be the physical primary key of the database table. 
+对于“一对多”关联，“主键”可能不是数据库表中的主键。
+Even in this case, the above classification is still useful. 
+It reflects how Hibernate "locates" individual rows of the collection.
+
+====
 20.6.2. Lists, maps, idbags and sets are the most efficient collections to update
+列表，映射，idbag，集，都能够最高效的更新对象（添加，删除，修改）
 
-From the discussion above, it should be clear that indexed collections and sets allow the most efficient operation in terms of adding, removing and updating elements.
+From the discussion above, it should be clear that indexed collections and sets 
+allow the most efficient operation in terms of adding, removing and updating elements.
 
-There is, arguably, one more advantage that indexed collections have over sets for many-to-many associations or collections of values. Because of the structure of a Set, Hibernate does not UPDATE a row when an element is "changed". Changes to a Set always work via INSERT and DELETE of individual rows. Once again, this consideration does not apply to one-to-many associations.
+There is, arguably, 
+one more advantage that indexed collections have over sets for many-to-many associations or collections of values. 
+Because of the structure of a Set, Hibernate does not UPDATE a row when an element is "changed". 
+Changes to a Set always work via INSERT and DELETE of individual rows. 
+Once again, this consideration does not apply to one-to-many associations.
 
-After observing that arrays cannot be lazy, you can conclude that lists, maps and idbags are the most performant (non-inverse) collection types, with sets not far behind. You can expect sets to be the most common kind of collection in Hibernate applications. This is because the "set" semantics are most natural in the relational model.
+After observing that arrays cannot be lazy, 
+you can conclude that lists, maps and idbags 
+are the most performant (non-inverse) collection types, with sets not far behind. 
+You can expect sets to be the most common kind of collection in Hibernate applications. 
+This is because the "set" semantics are most natural in the relational model.
 
-However, in well-designed Hibernate domain models, most collections are in fact one-to-many associations with inverse="true". For these associations, the update is handled by the many-to-one end of the association, and so considerations of collection update performance simply do not apply.
+However, in well-designed Hibernate domain models, 
+一般良好的建模设计，
+most collections are in fact one-to-many associations with inverse="true". 
+多数都是“一对多”关联，且“反转”。
+For these associations, the update is handled by the many-to-one end of the association, 
+and so considerations of collection update performance simply do not apply.
+对于这些关联，由“多对一”一端来处理更新，
+？所以不必考虑集合更新的性能？
 
+====
 20.6.3. Bags and lists are the most efficient inverse collections
+袋，列表，在反转时，最高效
 
-There is a particular case, however, in which bags, and also lists, are much more performant than sets. For a collection with inverse="true", the standard bidirectional one-to-many relationship idiom, for example, we can add elements to a bag or list without needing to initialize (fetch) the bag elements. This is because, unlike a set, Collection.add() or Collection.addAll() must always return true for a bag or List. This can make the following common code much faster:
+There is a particular case, however, in which bags, and also lists, are much more performant than sets. 
+这是一个特定场景。袋，列表，在这时比集更高效。
+For a collection with inverse="true", the standard bidirectional one-to-many relationship idiom, 
+for example, we can add elements to a bag or list without needing to initialize (fetch) the bag elements. 
+例如，我们可以给袋或列表中添加元素，而不必初始化袋中的元素。
+This is because, unlike a set, Collection.add() or Collection.addAll() must always return true for a bag or List. 
+This can make the following common code much faster:
+这是因为两个添加方法总是返回true（而set不一定），这会使得更快：
 
 Parent p = (Parent) sess.load(Parent.class, id);
 Child c = new Child();
 c.setParent(p);
-p.getChildren().add(c);  //no need to fetch the collection!
+p.getChildren().add(c);  //no need to fetch the collection! 没有必要加载集合元素（hxzon：注意！！！）
 sess.flush();
+
+====
 20.6.4. One shot delete
+“单次删除”
+（shot，n.射手，击球；开枪，发射；企图；注射
+adj.闪色的，颜色会变化的；交织的；渗透的；（俚语）坏透了的，筋疲力尽的
+vt.射中，射击；给…装弹；注射；抛出
+vi.发射，射击；突然出现
+v.拍摄(shoot的过去式和过去分词)；射杀；开（枪或其他武器）；打猎）
 
-Deleting collection elements one by one can sometimes be extremely inefficient. Hibernate knows not to do that in the case of an newly-empty collection (if you called list.clear(), for example). In this case, Hibernate will issue a single DELETE.
 
-Suppose you added a single element to a collection of size twenty and then remove two elements. Hibernate will issue one INSERT statement and two DELETE statements, unless the collection is a bag. This is certainly desirable.
+Deleting collection elements one by one can sometimes be extremely inefficient. 
+有时，逐一删除集合元素会很低效。
+Hibernate knows not to do that in the case of an newly-empty collection (if you called list.clear(), for example). 
+In this case, Hibernate will issue a single DELETE.
+当hibernate发现是一个新的空集合时（例如调用了list.clear() 方法），
+hibernate会执行单条删除语句。
 
-However, suppose that we remove eighteen elements, leaving two and then add thee new elements. There are two possible ways to proceed
+Suppose you added a single element to a collection of size twenty and then remove two elements. 
+Hibernate will issue one INSERT statement and two DELETE statements, 
+unless the collection is a bag. 
+This is certainly desirable.
+如果你添加二十个新元素，再删除两个元素。
+除非集合是一个袋，hibernate会执行一条插入语句，两条删除语句。
+这不是你所希望的。
+
+However, suppose that we remove eighteen elements, leaving two and then add thee new elements. 
+假如我们移除十八个元素，保留两个，再添加三个新元素。
+There are two possible ways to proceed
+我们有两种方式：
 
 delete eighteen rows one by one and then insert three rows
+逐个删除这十八行，再逐个地插入三行
 remove the whole collection in one SQL DELETE and insert all five current elements one by one
-Hibernate cannot know that the second option is probably quicker. It would probably be undesirable for Hibernate to be that intuitive as such behavior might confuse database triggers, etc.
+删除整个集合，再逐个地插入这五行
 
-Fortunately, you can force this behavior (i.e. the second strategy) at any time by discarding (i.e. dereferencing) the original collection and returning a newly instantiated collection with all the current elements.
+Hibernate cannot know that the second option is probably quicker. 
+hibernate不会知道第二种方式可能更快。
+It would probably be undesirable for Hibernate to be that intuitive as such behavior might confuse database triggers, etc.
+而且，不同的方式，触发器的行为不一样。
+
+Fortunately, you can force this behavior (i.e. the second strategy) at any time by discarding 
+(i.e. dereferencing) the original collection and returning a newly instantiated collection with all the current elements.
+你可以丢弃原来的集合，然后使用一个全新的集合。
 
 One-shot-delete does not apply to collections mapped inverse="true".
+“反转”集合，不能应用“单次删除”。
 
+==========
 20.7. Monitoring performance
+监视性能
 
-Optimization is not much use without monitoring and access to performance numbers. Hibernate provides a full range of figures about its internal operations. Statistics in Hibernate are available per SessionFactory.
+Optimization is not much use without monitoring and access to performance numbers. 
+Hibernate provides a full range of figures about its internal operations. 
+Statistics in Hibernate are available per SessionFactory.
 
 20.7.1. Monitoring a SessionFactory
 
-You can access SessionFactory metrics in two ways. Your first option is to call sessionFactory.getStatistics() and read or display the Statistics yourself.
+You can access SessionFactory metrics in two ways. 
+Your first option is to call sessionFactory.getStatistics() and read or display the Statistics yourself.
 
-Hibernate can also use JMX to publish metrics if you enable the StatisticsService MBean. You can enable a single MBean for all your SessionFactory or one per factory. See the following code for minimalistic configuration examples:
+Hibernate can also use JMX to publish metrics if you enable the StatisticsService MBean. 
+You can enable a single MBean for all your SessionFactory or one per factory. 
+See the following code for minimalistic configuration examples:
 
 // MBean service registration for a specific SessionFactory
 Hashtable tb = new Hashtable();
@@ -399,22 +727,40 @@ ObjectName on = new ObjectName("hibernate", tb); // MBean object name
 
 StatisticsService stats = new StatisticsService(); // MBean implementation
 server.registerMBean(stats, on); // Register the MBean on the server
+
+
 You can activate and deactivate the monitoring for a SessionFactory:
 
 at configuration time, set hibernate.generate_statistics to false
 at runtime: sf.getStatistics().setStatisticsEnabled(true) or hibernateStatsBean.setStatisticsEnabled(true)
-Statistics can be reset programmatically using the clear() method. A summary can be sent to a logger (info level) using the logSummary() method.
 
+Statistics can be reset programmatically using the clear() method. 
+A summary can be sent to a logger (info level) using the logSummary() method.
+
+====
 20.7.2. Metrics
+度量指标
 
-Hibernate provides a number of metrics, from basic information to more specialized information that is only relevant in certain scenarios. All available counters are described in the Statistics interface API, in three categories:
+Hibernate provides a number of metrics, 
+from basic information to more specialized information that is only relevant in certain scenarios. 
+All available counters are described in the Statistics interface API, in three categories:
 
 Metrics related to the general Session usage, such as number of open sessions, retrieved JDBC connections, etc.
 Metrics related to the entities, collections, queries, and caches as a whole (aka global metrics).
 Detailed metrics related to a particular entity, collection, query or cache region.
-For example, you can check the cache hit, miss, and put ratio of entities, collections and queries, and the average time a query needs. Be aware that the number of milliseconds is subject to approximation in Java. Hibernate is tied to the JVM precision and on some platforms this might only be accurate to 10 seconds.
 
-Simple getters are used to access the global metrics (i.e. not tied to a particular entity, collection, cache region, etc.). You can access the metrics of a particular entity, collection or cache region through its name, and through its HQL or SQL representation for queries. Please refer to the Statistics, EntityStatistics, CollectionStatistics, SecondLevelCacheStatistics, and QueryStatistics API Javadoc for more information. The following code is a simple example:
+For example, you can check the cache hit, miss, and put ratio of entities, collections and queries, 
+and the average time a query needs. 
+Be aware that the number of milliseconds is subject to approximation in Java. 
+Hibernate is tied to the JVM precision and on some platforms this might only be accurate to 10 seconds.
+
+Simple getters are used to access the global metrics 
+(i.e. not tied to a particular entity, collection, cache region, etc.). 
+You can access the metrics of a particular entity, collection or cache region through its name, 
+and through its HQL or SQL representation for queries. 
+Please refer to the Statistics, EntityStatistics, CollectionStatistics, SecondLevelCacheStatistics, 
+and QueryStatistics API Javadoc for more information. 
+The following code is a simple example:
 
 Statistics stats = HibernateUtil.sessionFactory.getStatistics();
 
@@ -432,4 +778,8 @@ long changes =
         + entityStats.getUpdateCount()
         + entityStats.getDeleteCount();
 log.info(Cat.class.getName() + " changed " + changes + "times"  );
-You can work on all entities, collections, queries and region caches, by retrieving the list of names of entities, collections, queries and region caches using the following methods: getQueries(), getEntityNames(), getCollectionRoleNames(), and getSecondLevelCacheRegionNames().
+
+You can work on all entities, collections, queries and region caches, 
+by retrieving the list of names of entities, collections, queries and region caches using the following methods: 
+getQueries(), getEntityNames(), getCollectionRoleNames(), and getSecondLevelCacheRegionNames().
+
