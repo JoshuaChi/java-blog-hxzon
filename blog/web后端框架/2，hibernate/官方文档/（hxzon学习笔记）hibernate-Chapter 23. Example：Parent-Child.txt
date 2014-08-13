@@ -1,0 +1,141 @@
+﻿（hxzon学习笔记）hibernate-Chapter 23. Example：Parent-Child
+
+http://docs.jboss.org/hibernate/orm/4.3/manual/en-US/html/ch23.html
+=========
+23.1. A note about collections
+23.2. Bidirectional one-to-many
+23.3. Cascading life cycle
+23.4. Cascades and unsaved-value
+23.5. Conclusion
+One of the first things that new users want to do with Hibernate is to model a parent/child type relationship. There are two different approaches to this. The most convenient approach, especially for new users, is to model both Parent and Child as entity classes with a <one-to-many> association from Parent to Child. The alternative approach is to declare the Child as a <composite-element>. The default semantics of a one-to-many association in Hibernate are much less close to the usual semantics of a parent/child relationship than those of a composite element mapping. We will explain how to use a bidirectional one-to-many association with cascades to model a parent/child relationship efficiently and elegantly.
+
+23.1. A note about collections
+
+Hibernate collections are considered to be a logical part of their owning entity and not of the contained entities. Be aware that this is a critical distinction that has the following consequences:
+
+When you remove/add an object from/to a collection, the version number of the collection owner is incremented.
+If an object that was removed from a collection is an instance of a value type (e.g. a composite element), that object will cease to be persistent and its state will be completely removed from the database. Likewise, adding a value type instance to the collection will cause its state to be immediately persistent.
+Conversely, if an entity is removed from a collection (a one-to-many or many-to-many association), it will not be deleted by default. This behavior is completely consistent; a change to the internal state of another entity should not cause the associated entity to vanish. Likewise, adding an entity to a collection does not cause that entity to become persistent, by default.
+Adding an entity to a collection, by default, merely creates a link between the two entities. Removing the entity will remove the link. This is appropriate for all sorts of cases. However, it is not appropriate in the case of a parent/child relationship. In this case, the life of the child is bound to the life cycle of the parent.
+
+23.2. Bidirectional one-to-many
+
+Suppose we start with a simple <one-to-many> association from Parent to Child.
+
+<set name="children">
+    <key column="parent_id"/>
+    <one-to-many class="Child"/>
+</set>
+If we were to execute the following code:
+
+Parent p = .....;
+Child c = new Child();
+p.getChildren().add(c);
+session.save(c);
+session.flush();
+Hibernate would issue two SQL statements:
+
+an INSERT to create the record for c
+an UPDATE to create the link from p to c
+This is not only inefficient, but also violates any NOT NULL constraint on the parent_id column. You can fix the nullability constraint violation by specifying not-null="true" in the collection mapping:
+
+<set name="children">
+    <key column="parent_id" not-null="true"/>
+    <one-to-many class="Child"/>
+</set>
+However, this is not the recommended solution.
+
+The underlying cause of this behavior is that the link (the foreign key parent_id) from p to c is not considered part of the state of the Child object and is therefore not created in the INSERT. The solution is to make the link part of the Child mapping.
+
+<many-to-one name="parent" column="parent_id" not-null="true"/>
+You also need to add the parent property to the Child class.
+
+Now that the Child entity is managing the state of the link, we tell the collection not to update the link. We use the inverse attribute to do this:
+
+<set name="children" inverse="true">
+    <key column="parent_id"/>
+    <one-to-many class="Child"/>
+</set>
+The following code would be used to add a new Child:
+
+Parent p = (Parent) session.load(Parent.class, pid);
+Child c = new Child();
+c.setParent(p);
+p.getChildren().add(c);
+session.save(c);
+session.flush();
+Only one SQL INSERT would now be issued.
+
+You could also create an addChild() method of Parent.
+
+public void addChild(Child c) {
+    c.setParent(this);
+    children.add(c);
+}
+The code to add a Child looks like this:
+
+Parent p = (Parent) session.load(Parent.class, pid);
+Child c = new Child();
+p.addChild(c);
+session.save(c);
+session.flush();
+23.3. Cascading life cycle
+
+You can address the frustrations of the explicit call to save() by using cascades.
+
+<set name="children" inverse="true" cascade="all">
+    <key column="parent_id"/>
+    <one-to-many class="Child"/>
+</set>
+This simplifies the code above to:
+
+Parent p = (Parent) session.load(Parent.class, pid);
+Child c = new Child();
+p.addChild(c);
+session.flush();
+Similarly, we do not need to iterate over the children when saving or deleting a Parent. The following removes p and all its children from the database.
+
+Parent p = (Parent) session.load(Parent.class, pid);
+session.delete(p);
+session.flush();
+However, the following code:
+
+Parent p = (Parent) session.load(Parent.class, pid);
+Child c = (Child) p.getChildren().iterator().next();
+p.getChildren().remove(c);
+c.setParent(null);
+session.flush();
+will not remove c from the database. In this case, it will only remove the link to p and cause a NOT NULL constraint violation. You need to explicitly delete() the Child.
+
+Parent p = (Parent) session.load(Parent.class, pid);
+Child c = (Child) p.getChildren().iterator().next();
+p.getChildren().remove(c);
+session.delete(c);
+session.flush();
+In our case, a Child cannot exist without its parent. So if we remove a Child from the collection, we do want it to be deleted. To do this, we must use cascade="all-delete-orphan".
+
+<set name="children" inverse="true" cascade="all-delete-orphan">
+    <key column="parent_id"/>
+    <one-to-many class="Child"/>
+</set>
+Even though the collection mapping specifies inverse="true", cascades are still processed by iterating the collection elements. If you need an object be saved, deleted or updated by cascade, you must add it to the collection. It is not enough to simply call setParent().
+
+23.4. Cascades and unsaved-value
+
+Suppose we loaded up a Parent in one Session, made some changes in a UI action and wanted to persist these changes in a new session by calling update(). The Parent will contain a collection of children and, since the cascading update is enabled, Hibernate needs to know which children are newly instantiated and which represent existing rows in the database. We will also assume that both Parent and Child have generated identifier properties of type Long. Hibernate will use the identifier and version/timestamp property value to determine which of the children are new. (See Section 11.7, “Automatic state detection”.) In Hibernate, it is no longer necessary to specify an unsaved-value explicitly.
+
+The following code will update parent and child and insert newChild:
+
+//parent and child were both loaded in a previous session
+parent.addChild(child);
+Child newChild = new Child();
+parent.addChild(newChild);
+session.update(parent);
+session.flush();
+This may be suitable for the case of a generated identifier, but what about assigned identifiers and composite identifiers? This is more difficult, since Hibernate cannot use the identifier property to distinguish between a newly instantiated object, with an identifier assigned by the user, and an object loaded in a previous session. In this case, Hibernate will either use the timestamp or version property, or will actually query the second-level cache or, worst case, the database, to see if the row exists.
+
+23.5. Conclusion
+
+The sections we have just covered can be a bit confusing. However, in practice, it all works out nicely. Most Hibernate applications use the parent/child pattern in many places.
+
+We mentioned an alternative in the first paragraph. None of the above issues exist in the case of <composite-element> mappings, which have exactly the semantics of a parent/child relationship. Unfortunately, there are two big limitations with composite element classes: composite elements cannot own collections and they should not be the child of any entity other than the unique parent.
