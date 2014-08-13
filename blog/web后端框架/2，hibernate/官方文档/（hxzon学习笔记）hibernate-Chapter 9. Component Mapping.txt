@@ -1,14 +1,11 @@
 ﻿（hxzon学习笔记）hibernate-Chapter 9. Component Mapping
 
-by hxzon
+注释by hxzon
 
 http://docs.jboss.org/hibernate/orm/4.1/manual/en-US/html/index
-
 http://docs.jboss.org/hibernate/orm/4.1/manual/en-US/html/ch09.html
 
 ==============
-Table of Contents
-
 9.1. Dependent objects
 9.2. Collections of dependent objects
 9.3. Components as Map indices
@@ -17,12 +14,14 @@ Table of Contents
 
 
 The notion of a component is re-used in several different contexts and purposes throughout Hibernate.
-
-
 =================
 9.1. Dependent objects
 
-A component is a contained object that is persisted as a value type and not an entity reference. The term "component" refers to the object-oriented notion of composition and not to architecture-level components. For example, you can model a person like this:
+A component is a contained object that is persisted as a value type and not an entity reference. 
+The term "component" refers to the object-oriented notion of composition and not to architecture-level components. 
+For example, you can model a person like this:
+
+示例：人，含有组件“姓名”。
 
 public class Person {
     private java.util.Date birthday;
@@ -72,7 +71,10 @@ public class Name {
         this.initial = initial;
     }
 }
-Now Name can be persisted as a component of Person. Name defines getter and setter methods for its persistent properties, but it does not need to declare any interfaces or identifier properties.
+
+Now Name can be persisted as a component of Person. 
+Name defines getter and setter methods for its persistent properties, 
+but it does not need to declare any interfaces or identifier properties.
 
 Our Hibernate mapping would look like this:
 
@@ -81,19 +83,40 @@ Our Hibernate mapping would look like this:
         <generator class="uuid"/>
     </id>
     <property name="birthday" type="date"/>
+
     <component name="Name" class="eg.Name"> <!-- class attribute optional -->
         <property name="initial"/>
         <property name="first"/>
         <property name="last"/>
     </component>
+
 </class>
+
 The person table would have the columns pid, birthday, initial, first and last.
+组件的字段，保存在拥有者的表中。
 
-Like value types, components do not support shared references. In other words, two persons could have the same name, but the two person objects would contain two independent name objects that were only "the same" by value. The null value semantics of a component are ad hoc. When reloading the containing object, Hibernate will assume that if all component columns are null, then the entire component is null. This is suitable for most purposes.
+Like value types, components do not support shared references. 
+组件是值类型，不能共享引用。
+In other words, two persons could have the same name, 
+but the two person objects would contain two independent name objects that were only "the same" by value. 
+The null value semantics of a component are ad hoc. 
+When reloading the containing object, Hibernate will assume that if all component columns are null, 
+then the entire component is null. 
+This is suitable for most purposes.
+如果该组件的所有列都为null，则该组件也为null。
 
-The properties of a component can be of any Hibernate type (collections, many-to-one associations, other components, etc). Nested components should not be considered an exotic usage. Hibernate is intended to support a fine-grained object model.
+The properties of a component can be of any Hibernate type 
+(collections, many-to-one associations, other components, etc). 
+组件的字段可以是任意类型，包括集合，多对一关联，及其他组件。（hxzon：重要）
+Nested components should not be considered an exotic usage. 
+（exotic，adj.异国的；外来的；异乎寻常的，奇异的；吸引人的
+n.舶来品，外来物；脱衣舞女）
+Hibernate is intended to support a fine-grained object model.
 
-The <component> element allows a <parent> subelement that maps a property of the component class as a reference back to the containing entity.
+==
+The <component> element allows a <parent> subelement 
+that maps a property of the component class as a reference back to the containing entity.
+通过<parent>，组件可以包含对拥有者的引用。
 
 <class name="eg.Person" table="person">
     <id name="Key" column="pid" type="string">
@@ -107,9 +130,14 @@ The <component> element allows a <parent> subelement that maps a property of the
         <property name="last"/>
     </component>
 </class>
-9.2. Collections of dependent objects
 
-Collections of components are supported (e.g. an array of type Name). Declare your component collection by replacing the <element> tag with a <composite-element> tag:
+====
+9.2. Collections of dependent objects
+（hxzon：重要）
+
+Collections of components are supported (e.g. an array of type Name). 
+组件集合。
+Declare your component collection by replacing the <element> tag with a <composite-element> tag:
 
 <set name="someNames" table="some_names" lazy="true">
     <key column="id"/>
@@ -119,13 +147,39 @@ Collections of components are supported (e.g. an array of type Name). Declare yo
         <property name="last"/>
     </composite-element>
 </set>
+
 Important
 If you define a Set of composite elements, it is important to implement equals() and hashCode() correctly.
-Composite elements can contain components but not collections. If your composite element contains components, use the <nested-composite-element> tag. This case is a collection of components which themselves have components. You may want to consider if a one-to-many association is more appropriate. Remodel the composite element as an entity, but be aware that even though the Java model is the same, the relational model and persistence semantics are still slightly different.
+Composite elements can contain components but not collections.
+组合元素可以含有组件，但不能是集合。 
+If your composite element contains components, use the <nested-composite-element> tag.
+如果你的组合元素含有组件，必须使用 <nested-composite-element> 。
+This case is a collection of components which themselves have components. 
+You may want to consider if a one-to-many association is more appropriate. 
+“一对多”关联。
+Remodel the composite element as an entity, 
+but be aware that even though the Java model is the same, 
+the relational model and persistence semantics are still slightly different.
 
-A composite element mapping does not support null-able properties if you are using a <set>. There is no separate primary key column in the composite element table. Hibernate uses each column's value to identify a record when deleting objects, which is not possible with null values. You have to either use only not-null properties in a composite-element or choose a <list>, <map>, <bag> or <idbag>.
+A composite element mapping does not support null-able properties if you are using a <set>.
+如果使用集，组件不能含有“可能为null”的字段。 
+There is no separate primary key column in the composite element table.
+组合元素的数据库表，没有独立开来的主键。 
+Hibernate uses each column's value to identify a record when deleting objects, 
+which is not possible with null values. 
+You have to either use only not-null properties in a composite-element 
+or choose a <list>, <map>, <bag> or <idbag>.
 
-A special case of a composite element is a composite element with a nested <many-to-one> element. This mapping allows you to map extra columns of a many-to-many association table to the composite element class. The following is a many-to-many association from Order to Item, where purchaseDate, price and quantity are properties of the association:
+==
+（hxzon：重要）
+
+A special case of a composite element is a composite element with a nested <many-to-one> element.
+一种特殊场景，是一个组合元素，含有一个“多对一”关联。 
+This mapping allows you to map extra columns of a many-to-many association table to the composite element class. 
+允许你给“多对多”关联表添加额外的字段。
+The following is a many-to-many association from Order to Item, 
+订单与物品之间的多对多关联。
+where purchaseDate, price and quantity are properties of the association:
 
 <class name="eg.Order" .... >
     ....
@@ -139,9 +193,16 @@ A special case of a composite element is a composite element with a nested <many
         </composite-element>
     </set>
 </class>
-There cannot be a reference to the purchase on the other side for bidirectional association navigation. Components are value types and do not allow shared references. A single Purchase can be in the set of an Order, but it cannot be referenced by the Item at the same time.
+
+（hxzon：订单-（一对多）订单物品-（多对一）物品。）
+
+There cannot be a reference to the purchase on the other side for bidirectional association navigation. 
+在其它地方，不能有对“订单物品”的引用。
+Components are value types and do not allow shared references. 
+A single Purchase can be in the set of an Order, but it cannot be referenced by the Item at the same time.
 
 Even ternary (or quaternary, etc) associations are possible:
+也支持三元，或四元的关联：
 
 <class name="eg.Order" .... >
     ....
@@ -153,23 +214,38 @@ Even ternary (or quaternary, etc) associations are possible:
         </composite-element>
     </set>
 </class>
+
+订单-（一对多）订单行
+订单行-（多对一）订单物品
+订单行-（多对一）物品
+
 Composite elements can appear in queries using the same syntax as associations to other entities.
 
+====
 9.3. Components as Map indices
+可以将组件作为map的key
 
-The <composite-map-key> element allows you to map a component class as the key of a Map. Ensure that you override hashCode() and equals() correctly on the component class.
+The <composite-map-key> element allows you to map a component class as the key of a Map. 
+Ensure that you override hashCode() and equals() correctly on the component class.
 
+====
 9.4. Components as composite identifiers
+组件可以作为“组合主键”
 
-You can use a component as an identifier of an entity class. Your component class must satisfy certain requirements:
+You can use a component as an identifier of an entity class. 
+Your component class must satisfy certain requirements:
 
 It must implement java.io.Serializable.
 It must re-implement equals() and hashCode() consistently with the database's notion of composite key equality.
+
 Note
 In Hibernate3, although the second requirement is not an absolutely hard requirement of Hibernate, it is recommended.
-You cannot use an IdentifierGenerator to generate composite keys. Instead the application must assign its own identifiers.
+You cannot use an IdentifierGenerator to generate composite keys. 
+Instead the application must assign its own identifiers.
+不要使用id生成器来生成组合主键。
 
-Use the <composite-id> tag, with nested <key-property> elements, in place of the usual <id> declaration. For example, the OrderLine class has a primary key that depends upon the (composite) primary key of Order.
+Use the <composite-id> tag, with nested <key-property> elements, in place of the usual <id> declaration. 
+For example, the OrderLine class has a primary key that depends upon the (composite) primary key of Order.
 
 <class name="OrderLine">
 
@@ -189,7 +265,10 @@ Use the <composite-id> tag, with nested <key-property> elements, in place of the
     ....
 
 </class>
-Any foreign keys referencing the OrderLine table are now composite. Declare this in your mappings for other classes. An association to OrderLine is mapped like this:
+
+Any foreign keys referencing the OrderLine table are now composite. 
+Declare this in your mappings for other classes. 
+An association to OrderLine is mapped like this:
 
 <many-to-one name="orderLine" class="OrderLine">
 <!-- the "class" attribute is optional, as usual -->
@@ -197,8 +276,10 @@ Any foreign keys referencing the OrderLine table are now composite. Declare this
     <column name="orderId"/>
     <column name="customerId"/>
 </many-to-one>
+
 Tip
-The column element is an alternative to the column attribute everywhere. Using the column element just gives more declaration options, which are mostly useful when utilizing hbm2ddl
+The column element is an alternative to the column attribute everywhere. 
+Using the column element just gives more declaration options, which are mostly useful when utilizing hbm2ddl
 A many-to-many association to OrderLine also uses the composite foreign key:
 
 <set name="undeliveredOrderLines">
@@ -209,6 +290,7 @@ A many-to-many association to OrderLine also uses the composite foreign key:
         <column name="customerId"/>
     </many-to-many>
 </set>
+
 The collection of OrderLines in Order would use:
 
 <set name="orderLines" inverse="true">
@@ -218,6 +300,7 @@ The collection of OrderLines in Order would use:
     </key>
     <one-to-many class="OrderLine"/>
 </set>
+
 The <one-to-many> element declares no columns.
 
 If OrderLine itself owns a collection, it also has a composite foreign key.
@@ -237,7 +320,10 @@ If OrderLine itself owns a collection, it also has a composite foreign key.
         </composite-element>
     </set>
 </class>
+
+====
 9.5. Dynamic components
+动态组件
 
 You can also map a property of type Map:
 
@@ -246,5 +332,11 @@ You can also map a property of type Map:
     <property name="bar" column="BAR" type="integer"/>
     <many-to-one name="baz" class="Baz" column="BAZ_ID"/>
 </dynamic-component>
-The semantics of a <dynamic-component> mapping are identical to <component>. The advantage of this kind of mapping is the ability to determine the actual properties of the bean at deployment time just by editing the mapping document. Runtime manipulation of the mapping document is also possible, using a DOM parser. You can also access, and change, Hibernate's configuration-time metamodel via the Configuration object.
+
+The semantics of a <dynamic-component> mapping are identical to <component>. 
+The advantage of this kind of mapping is the ability to determine the actual properties of the bean 
+at deployment time just by editing the mapping document. 
+Runtime manipulation of the mapping document is also possible, using a DOM parser. 
+You can also access, and change, Hibernate's configuration-time metamodel via the Configuration object.
+可在运行期修改。
 
