@@ -19,6 +19,89 @@ Used to override a mapping for an entity relationship.
 
 覆盖实体关联关系的映射。
 
+May be applied to an entity that extends a mapped superclass 
+to override a relationship mapping defined by the mapped superclass. 
+在子类中，覆盖父类定义的关联映射。
+If not specified, the association is mapped the same as in the original mapping. 
+When used to override a mapping defined by a mapped superclass, 
+AssociationOverride is applied to the entity class. 
+
+May be used to override a relationship mapping from an embeddable within an entity 
+to another entity when the embeddable is on the owning side of the relationship. 
+组件。
+When used to override a relationship mapping defined by an embeddable class 
+(including an embeddable class embedded within another embeddable class), 
+AssociationOverride is applied to the field or property containing the embeddable. 
+
+When AssociationOverride is used to override a relationship mapping from an embeddable class, 
+the name element specifies the referencing relationship field or property within the embeddable class. 
+To override mappings at multiple levels of embedding, 
+a dot (".") notation syntax must be used in the name element to indicate an attribute within an embedded attribute. 
+The value of each identifier used with the dot notation is the name of the respective embedded field or property. 
+
+When AssociationOverride is applied to override the mappings of an embeddable class used as a map value, 
+"value." must be used to prefix the name of the attribute within the embeddable class 
+that is being overridden in order to specify it as part of the map value. 
+
+If the relationship mapping is a foreign key mapping, the joinColumns element is used. 
+If the relationship mapping uses a join table, the joinTable element must be specified 
+to override the mapping of the join table and/or its join columns. 
+
+
+    Example 1: Overriding the mapping of a relationship defined by a mapped superclass
+
+    @MappedSuperclass
+    public class Employee {
+        ...
+        @ManyToOne
+        protected Address address;
+        ...
+    }
+
+    @Entity
+        @AssociationOverride(name="address",
+                             joinColumns=@JoinColumn(name="ADDR_ID"))
+        // address field mapping overridden to ADDR_ID foreign key
+    public class PartTimeEmployee extends Employee {
+        ...
+    }
+ 
+    Example 2: Overriding the mapping for phoneNumbers defined in the ContactInfo class
+
+    @Entity
+    public class Employee {
+        @Id int id;
+        @AssociationOverride(
+          name="phoneNumbers",
+          joinTable=@JoinTable(
+             name="EMPPHONES",
+             joinColumns=@JoinColumn(name="EMP"),
+             inverseJoinColumns=@JoinColumn(name="PHONE")
+          )
+        )
+        @Embedded ContactInfo contactInfo;
+       ...
+    }
+
+    @Embeddable
+    public class ContactInfo {
+        @ManyToOne 
+        Address address; // Unidirectional
+
+        @ManyToMany(targetEntity=PhoneNumber.class) 
+        List phoneNumbers;
+    }
+
+    @Entity
+    public class PhoneNumber {
+        @Id int number;
+
+        @ManyToMany(mappedBy="contactInfo.phoneNumbers")
+        Collection<Employee> employees;
+     }
+
+
+
 --
 AssociationOverrides
 
@@ -30,6 +113,114 @@ Used to override mappings of multiple relationship properties or fields.
 AttributeOverride
 	
 Used to override the mapping of a Basic (whether explicit or default) property or field or Id property or field.
+重新定义字段。
+
+May be applied to an entity that extends a mapped superclass 
+or to an embedded field or property to override a basic mapping 
+or id mapping defined by the mapped superclass or embeddable class 
+(or embeddable class of one of its attributes). 
+
+May be applied to an element collection containing instances of an embeddable class 
+or to a map collection whose key and/or value is an embeddable class. 
+When AttributeOverride is applied to a map, 
+"key." or "value." must be used to prefix the name of the attribute that is being overridden 
+in order to specify it as part of the map key or map value. 
+
+To override mappings at multiple levels of embedding, 
+a dot (".") notation form must be used in the name element to indicate an attribute within an embedded attribute. 
+The value of each identifier used with the dot notation is the name of the respective embedded field or property. 
+
+If AttributeOverride is not specified, the column is mapped the same as in the original mapping. 
+
+    Example 1:
+
+    @MappedSuperclass
+    public class Employee {
+        @Id protected Integer id;
+        @Version protected Integer version;
+        protected String address;
+
+        public Integer getId() { ... }
+        public void setId(Integer id) { ... }
+        public String getAddress() { ... }
+        public void setAddress(String address) { ... }
+    }
+
+    @Entity
+    @AttributeOverride(name="address", column=@Column(name="ADDR"))
+    public class PartTimeEmployee extends Employee {
+        // address field mapping overridden to ADDR
+
+        protected Float wage();
+        public Float getHourlyWage() { ... }
+        public void setHourlyWage(Float wage) { ... }
+    }
+
+
+    Example 2:
+
+    @Embeddable public class Address {
+        protected String street;
+        protected String city;
+        protected String state;
+        @Embedded protected Zipcode zipcode;
+    }
+
+    @Embeddable public class Zipcode {
+        protected String zip;
+        protected String plusFour;
+    }
+
+    @Entity public class Customer {
+        @Id protected Integer id;
+        protected String name;
+
+        @AttributeOverrides({
+            @AttributeOverride(name="state",
+                               column=@Column(name="ADDR_STATE")),
+            @AttributeOverride(name="zipcode.zip",
+                               column=@Column(name="ADDR_ZIP"))
+        })
+        @Embedded protected Address address;
+        ...
+    }
+
+
+    Example 3:
+
+    @Entity public class PropertyRecord {
+        @EmbeddedId PropertyOwner owner;
+
+        @AttributeOverrides({
+            @AttributeOverride(name="key.street",
+                               column=@Column(name="STREET_NAME")),
+            @AttributeOverride(name="value.size",
+                               column=@Column(name="SQUARE_FEET")),
+            @AttributeOverride(name="value.tax",
+                               column=@Column(name="ASSESSMENT"))
+        })
+       @ElementCollection
+       Map<Address, PropertyInfo> parcels;
+    }
+
+   @Embeddable public class PropertyInfo {
+       Integer parcelNumber;
+       Integer size;
+       BigDecimal tax;
+   }
+
+（参见hibernate官方文档，5.1.5，组件。
+
+    @Embedded
+    @AttributeOverrides( {
+            @AttributeOverride(name="city", column = @Column(name="fld_city") ),
+            @AttributeOverride(name="nationality.iso2", column = @Column(name="nat_Iso2") ),
+            @AttributeOverride(name="nationality.name", column = @Column(name="nat_CountryName") )
+            //nationality columns in homeAddress are overridden
+    } )
+    Address homeAddress;
+
+）
 
 --
 AttributeOverrides	
@@ -52,7 +243,16 @@ CollectionTable
 	
 Specifies the table that is used for the mapping of collections of basic or embeddable types.
 
-定义（基本类型或内嵌类型的）集合所映射的数据库表。
+定义（基本类型或内嵌类型的，非实体）集合所映射的数据库表。
+
+（见hibernate官方文档，7.2.3。
+
+   @ElementCollection
+   @CollectionTable(name="Nicknames", joinColumns=@JoinColumn(name="user_id"))
+   @Column(name="nickname")
+   public Set<String> getNicknames() { ... } 
+
+）
 
 --
 Column
@@ -243,6 +443,13 @@ MapKey
 	
 Specifies the map key for associations of type java.util.Map when the map key is itself the primary key 
 or a persistent field or property of the entity that is the value of the map.
+
+用来指明值的哪个字段作为map的key。
+
+   @OneToMany(mappedBy="customer")
+   @MapKey(name="number") //指明哪个属性值作为map的键
+   public Map<String,Order> getOrders() { return orders; }
+
 
 --
 MapKeyClass

@@ -114,7 +114,7 @@ The corresponding one to many association is in this case annotated by @OneToMan
 多对一的一端，是关联关系的拥有者。
 
 Example 7.21. Bidirectional one to many with many to one side as association owner
-多对一一端作为拥有者
+“多对一”一端作为拥有者
 
 @Entity
 public class Troop {
@@ -129,12 +129,13 @@ public class Soldier {
     @JoinColumn(name="troop_fk")
     public Troop getTroop() {
     ...
-}           
+}
 
 Troop has a bidirectional one to many relationship with Soldier through the troop property. 
 You don't have to (must not) define any physical mapping in the mappedBy side.
 使用mappedBy的一端不是关联关系的拥有者，不能有其它配置。
 
+====
 To map a bidirectional one to many, with the one-to-many side as the owning side, 
 you have to remove the mappedBy element 
 and set the many to one @JoinColumn as insertable and updatable to false. 
@@ -190,6 +191,9 @@ Example 7.23. Bidirectional one to many via Hibernate mapping files
 Mapping one end of an association with inverse="true" 
 does not affect the operation of cascades as these are orthogonal concepts.
 将一端标记为“反转”，和级联操作没有关系，它们是正交的两个概念。（orthogonal，正交。）
+
+====
+多对多
 
 A many-to-many association is defined logically using the @ManyToMany annotation. 
 You also have to describe the association table and the join conditions using the @JoinTable annotation. 
@@ -249,6 +253,7 @@ _, and the other side primary key column(s).
 These are the same rules used for a unidirectional one to many relationship.
 
 Example 7.25. Default values for @ManyToMany (uni-directional)
+单向的多对多。
 
 @Entity
 public class Store {
@@ -306,6 +311,7 @@ Note
 You cannot select an indexed collection.
 注意：不能使用可索引的集合类型。
 
+==
 Example 7.27, “Many to many association using Hibernate mapping files” 
 shows a bidirectional many-to-many association 
 that illustrates how each category can have many items and each item can be in many categories:
@@ -393,15 +399,16 @@ That is, there is information available at one end of the association that is no
 In this case, you cannot map the collection inverse="true". 
 这种情况下，不能将父亲端标记为“反转”。
 Instead, you could use the following mapping:
+你可以使用下面的配置替代：
 
 Example 7.30. Bidirectional association with indexed collection, but no index column
 
 <class name="Parent">
     <id name="id" column="parent_id"/>
     ....
-    <map name="children">
+    <map name="children">  （不再“反转”）
         <key column="parent_id"
-            not-null="true"/>
+            not-null="true"/> （“非空”）
         <map-key column="name" 
             type="string"/>
         <one-to-many class="Child"/>
@@ -414,7 +421,7 @@ Example 7.30. Bidirectional association with indexed collection, but no index co
     <many-to-one name="parent" 
         class="Parent" 
         column="parent_id"
-        insert="false"
+        insert="false" （更新和插入都为假）
         update="false"
         not-null="true"/>
 </class>
@@ -499,6 +506,6 @@ and update or delete them individually, similar to a list, map or set.
 
 In the current implementation, the native identifier generation strategy 
 is not supported for <idbag> collection identifiers.
-当前版本，<idbag>不能使用本地id生成策略。
+当前版本，<idbag>不能使用原生id生成策略。
 
 

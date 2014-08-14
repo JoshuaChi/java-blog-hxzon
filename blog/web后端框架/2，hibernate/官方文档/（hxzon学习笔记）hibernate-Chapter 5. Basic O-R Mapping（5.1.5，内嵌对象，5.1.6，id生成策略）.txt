@@ -33,7 +33,8 @@ http://docs.jboss.org/hibernate/orm/4.3/manual/en-US/html/ch05.html#mapping-decl
 5.1.5. Embedded objects (aka components)
 内嵌对象（称为“组件”）
 
-Embeddable objects (or components) are objects whose properties are mapped to the same table as the owning entity's table.
+Embeddable objects (or components) are objects 
+whose properties are mapped to the same table as the owning entity's table.
 内嵌对象的字段，存储在拥有它的实体的表中。 
 Components can, in turn, declare their own properties, components or collections
 
@@ -103,13 +104,18 @@ Hibernate Annotations supports something that is not explicitly supported by the
 hibernate提供了一些jpa规范未明确要求的功能。 
 You can annotate a embedded object with the @MappedSuperclass annotation 
 to make the superclass properties persistent (see @MappedSuperclass for more informations).
+内嵌对象可以使用 @MappedSuperclass ，使得父类字段也参与映射。
 
-You can also use association annotations in an embeddable object (ie @OneToOne, @ManyToOne, @OneToMany or @ManyToMany). 
+You can also use association annotations in an embeddable object 
+(ie @OneToOne, @ManyToOne, @OneToMany or @ManyToMany). 
 To override the association columns you can use @AssociationOverride.
 
 If you want to have the same embeddable object type twice in the same entity, 
+如果你想在一个实体中，两次嵌入相同的组件对象，
 the column name defaulting will not work as several embedded objects would share the same set of columns. 
+会因为列名相同而出问题。
 In plain JPA, you need to override at least one set of columns. 
+在jpa中，你必须重新定义其中一组的列名。
 Hibernate, however, allows you to enhance the default naming mechanism through the NamingStrategy interface. 
 You can write a strategy that prevent name clashing in such a situation. 
 DefaultComponentSafeNamingStrategy is an example of this.
@@ -139,25 +145,37 @@ In XML, use the <component> element.
 
 1	name: the name of the property.
 
-2	class (optional - defaults to the property type determined by reflection): the name of the component (child) class.
+2	class (optional - defaults to the property type determined by reflection): 
+the name of the component (child) class.
 
 3	insert: do the mapped columns appear in SQL INSERTs?
 
 4	update: do the mapped columns appear in SQL UPDATEs?
 
-5	access (optional - defaults to property): the strategy Hibernate uses for accessing the property value.
+5	access (optional - defaults to property): 
+the strategy Hibernate uses for accessing the property value.
 
-6	lazy (optional - defaults to false): specifies that this component should be fetched lazily when the instance variable is first accessed. It requires build-time bytecode instrumentation.
+6	lazy (optional - defaults to false): 
+specifies that this component should be fetched lazily when the instance variable is first accessed. 
+It requires build-time bytecode instrumentation.
 
-7	optimistic-lock (optional - defaults to true): specifies that updates to this component either do or do not require acquisition of the optimistic lock. It determines if a version increment should occur when this property is dirty.
+7	optimistic-lock (optional - defaults to true): 
+specifies that updates to this component either do or do not require acquisition of the optimistic lock. 
+It determines if a version increment should occur when this property is dirty.
 
-8	unique (optional - defaults to false): specifies that a unique constraint exists upon all mapped columns of the component.
+8	unique (optional - defaults to false): 
+specifies that a unique constraint exists upon all mapped columns of the component.
+？组件的所有字段，形成一个唯一约束？
 
+==
 The child <property> tags map properties of the child class to table columns.
+？子类字段到列的映射。
 
+==
 The <component> element allows a <parent> subelement 
 that maps a property of the component class as a reference back to the containing entity.
 
+====
 The <dynamic-component> element allows a Map to be mapped as a component,
 “动态组件”允许你将一个map作为组件。 
 where the property names refer to keys of the map. 
@@ -208,10 +226,12 @@ In hbm.xml, for the table-per-class-hierarchy mapping strategy, the <subclass> d
         <property .... />
         .....
 </subclass>
+
 1	name: the fully qualified class name of the subclass.
 2	discriminator-value (optional - defaults to the class name): a value that distinguishes individual subclasses.
 3	proxy (optional): specifies a class or interface used for lazy initializing proxies.
 4	lazy (optional - defaults to true): setting lazy="false" disables the use of lazy fetching.
+
 For information about inheritance mappings see Chapter 10, Inheritance mapping.
 
 5.1.6.1.1. Discriminator

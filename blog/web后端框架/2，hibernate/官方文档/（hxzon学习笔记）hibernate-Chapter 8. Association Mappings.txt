@@ -28,7 +28,7 @@ http://docs.jboss.org/hibernate/orm/4.1/manual/en-US/html/ch08.html
 8.5.2. one to one
 8.5.3. Many-to-many
 
-8.6. More complex association mappings（更复杂的管理映射）
+8.6. More complex association mappings（更复杂的关联映射）
 
 =================
 8.1. Introduction
@@ -166,6 +166,7 @@ You should instead use a join table for this kind of association.
 单向关联，使用中间表。
 
 8.3.1. One-to-many
+一对多，使用中间表
 
 A unidirectional one-to-many association on a join table is the preferred option. 
 Specifying unique="true", changes the multiplicity from many-to-many to one-to-many.
@@ -177,6 +178,7 @@ Specifying unique="true", changes the multiplicity from many-to-many to one-to-m
     </id>
     <set name="addresses" table="PersonAddress">
         <key column="personId"/>
+        （多对多，使用唯一约束，变成了一对多）
         <many-to-many column="addressId"
             unique="true"
             class="Address"/>
@@ -199,12 +201,15 @@ create table Address ( addressId bigint not null primary key )
 -----------------
 8.3.2. Many-to-one
 
-A unidirectional many-to-one association on a join table is common when the association is optional. For example:
+A unidirectional many-to-one association on a join table is common 
+when the association is optional. For example:
+当关联是可选时。
 
 <class name="Person">
     <id name="id" column="personId">
         <generator class="native"/>
     </id>
+    （使用join）
     <join table="PersonAddress" 
         optional="true">
         <key column="personId" unique="true"/>
@@ -230,6 +235,7 @@ create table Address ( addressId bigint not null primary key )
 8.3.3. One-to-one
 
 A unidirectional one-to-one association on a join table is possible, but extremely unusual.
+这种做法没什么意义。
 
 <class name="Person">
     <id name="id" column="personId">
@@ -238,7 +244,7 @@ A unidirectional one-to-one association on a join table is possible, but extreme
     <join table="PersonAddress" 
         optional="true">
         <key column="personId" 
-            unique="true"/>
+            unique="true"/>  （唯一约束）
         <many-to-one name="address"
             column="addressId" 
             not-null="true"
@@ -296,7 +302,7 @@ create table Address ( addressId bigint not null primary key )
 
 A bidirectional many-to-one association is the most common kind of association. 
 The following example illustrates the standard parent/child relationship.
-
+（这里是一个人对应多个地址。）
 
 <class name="Person">
     <id name="id" column="personId">
@@ -363,7 +369,7 @@ A bidirectional one-to-one association on a foreign key is common:
     </id>
     <many-to-one name="address" 
         column="addressId" 
-        unique="true"
+        unique="true" （唯一约束）
         not-null="true"/>
 </class>
 
@@ -381,6 +387,7 @@ create table Address ( addressId bigint not null primary key )
 
 
 A bidirectional one-to-one association on a primary key uses the special id generator:
+共享主键。
 
 <class name="Person">
     <id name="id" column="personId">
@@ -450,6 +457,7 @@ create table Address ( addressId bigint not null primary key )
 8.5.2. one to one
 
 A bidirectional one-to-one association on a join table is possible, but extremely unusual.
+这种做法没什么意义。
 
 <class name="Person">
     <id name="id" column="personId">
@@ -532,10 +540,11 @@ Hibernate handles more complex situations by using SQL fragments embedded in the
 For example, if a table with historical account information data 
 defines accountNumber, effectiveEndDate and effectiveStartDatecolumns, it would be mapped as follows:
 
+（hxzon：重要。properties的使用。）
 
 <properties name="currentAccountKey">
     <property name="accountNumber" type="string" not-null="true"/>
-    <property name="currentAccount" type="boolean">
+    <property name="currentAccount" type="boolean"> （是否是当前账号，根据失效日期计算。）
         <formula>case when effectiveEndDate is null then 1 else 0 end</formula>
     </property>
 </properties>
@@ -547,10 +556,10 @@ You can then map an association to the current instance,
 the one with null effectiveEndDate, by using:
 
 <many-to-one name="currentAccountInfo"
-        property-ref="currentAccountKey"
+        property-ref="currentAccountKey" （字段引用）
         class="AccountInfo">
     <column name="accountNumber"/>
-    <formula>'1'</formula>
+    <formula>'1'</formula> （currentAccount 为 1，表示当前账号）
 </many-to-one>
 
 
@@ -568,7 +577,7 @@ the one with the most recent startDate, could be mapped in the following way:
         group by orgId 
         having startDate = max(startDate)
     </subselect>
-    <many-to-one name="mostRecentEmployer" 
+    <many-to-one name="mostRecentEmployer" （最新的雇员，通过“子查询”）
             class="Organization" 
             column="orgId"/>
 </join>

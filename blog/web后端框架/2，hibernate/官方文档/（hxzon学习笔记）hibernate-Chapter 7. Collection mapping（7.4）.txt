@@ -186,7 +186,7 @@ alter table child add constraint childfk0 (parent_id) references parent
 
 ==
 Alternatively, if this association must be unidirectional you can enforce the NOT NULL constraint.
-如果是单向关联，且需要“非空”约束。
+如果必须是单向关联，你可以强制添加“非空”约束。
 
 Example 7.39. Enforcing NOT NULL constraint in unidirectional relation using annotations
 在注解中说明“非空”约束。

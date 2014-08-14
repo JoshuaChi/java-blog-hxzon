@@ -171,6 +171,7 @@ To supply parameters to your custom type, you can use the <type> element in your
         <param name="default">0</param>
     </type>
 </property>
+
 The UserType can now retrieve the value for the parameter named default from the Properties object passed to it.
 
 If you regularly use a certain UserType, it is useful to define a shorter name for it. 

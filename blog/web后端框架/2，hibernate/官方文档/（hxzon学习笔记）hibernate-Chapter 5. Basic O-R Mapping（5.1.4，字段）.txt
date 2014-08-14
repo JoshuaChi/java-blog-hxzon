@@ -385,11 +385,7 @@ This annotation can be applied to regular properties as well as @Id or @Version 
 
 10	scale (optional): column decimal scale if useful (default 0)
 
-（hxzon补充：
-
-使用 @ColumnDefault 可以指定列的默认值。
-
-）
+（hxzon补充：使用 @ColumnDefault 可以指定列的默认值。）
 
 ====
 5.1.4.1.5. Formula
