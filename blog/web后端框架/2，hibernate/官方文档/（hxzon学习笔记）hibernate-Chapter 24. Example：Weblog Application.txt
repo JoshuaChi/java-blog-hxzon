@@ -1,13 +1,19 @@
 ﻿（hxzon学习笔记）hibernate-Chapter 24. Example：Weblog Application
 
+注释by hxzon
 http://docs.jboss.org/hibernate/orm/4.3/manual/en-US/html/ch24.html
 =========
 24.1. Persistent Classes
 24.2. Hibernate Mappings
 24.3. Hibernate Code
+
+=========
 24.1. Persistent Classes
 
-The persistent classes here represent a weblog and an item posted in a weblog. They are to be modelled as a standard parent/child relationship, but we will use an ordered bag, instead of a set:
+The persistent classes here represent a weblog and an item posted in a weblog. 
+They are to be modelled as a standard parent/child relationship, 
+but we will use an ordered bag, instead of a set:
+这里使用有序袋。
 
 package eg;
 
@@ -37,6 +43,7 @@ public class Blog {
         _name = string;
     }
 }
+
 package eg;
 
 import java.text.DateFormat;
@@ -80,6 +87,8 @@ public class BlogItem {
         _title = string;
     }
 }
+
+====
 24.2. Hibernate Mappings
 
 The XML mappings are now straightforward. For example:
@@ -123,6 +132,8 @@ The XML mappings are now straightforward. For example:
     </class>
 
 </hibernate-mapping>
+
+==
 <?xml version="1.0"?>
 <!DOCTYPE hibernate-mapping PUBLIC
     "-//Hibernate/Hibernate Mapping DTD 3.0//EN"
@@ -166,6 +177,8 @@ The XML mappings are now straightforward. For example:
     </class>
 
 </hibernate-mapping>
+
+====
 24.3. Hibernate Code
 
 The following class demonstrates some of the kinds of things we can do with these classes using Hibernate:

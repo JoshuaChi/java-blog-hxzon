@@ -451,12 +451,14 @@ web应用程序示例
 
 =======
 24. Example: Weblog Application
+
 24.1. Persistent Classes
 24.2. Hibernate Mappings
 24.3. Hibernate Code
 
 ========
 25. Example: Various Mappings
+
 25.1. Employer/Employee
 25.2. Author/Work
 25.3. Customer/Order/Product

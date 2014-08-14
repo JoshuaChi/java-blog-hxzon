@@ -20,6 +20,7 @@
 5.2.3. Custom value types
 
 5.3. Mapping a class more than once
+一个类，映射成多个实体
 5.4. SQL quoted identifiers
 5.5. Generated properties
 5.6. Column transformers: read and write expressions

@@ -96,6 +96,15 @@ Specifies the discriminator column for the SINGLE_TABLE and JOINED Inheritance m
 
 标记一个字段为“类型指示”字段。
 
+（见hibernate官方文档，5.1。
+
+@Entity 
+@Table(name="cats") @Inheritance(strategy=SINGLE_TABLE)
+@DiscriminatorValue("C") @DiscriminatorColumn(name="subclass", discriminatorType=CHAR)
+public class Cat {
+
+）
+
 --
 DiscriminatorValue
 	

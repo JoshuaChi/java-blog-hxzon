@@ -23,7 +23,10 @@ http://docs.jboss.org/hibernate/orm/4.3/manual/en-US/html/ch05.html#mapping-decl
 5.2.1. Entities and values
 5.2.2. Basic value types
 5.2.3. Custom value types
+
 5.3. Mapping a class more than once
+一个类，映射成多个实体（注解不支持此功能）
+
 5.4. SQL quoted identifiers
 5.5. Generated properties
 5.6. Column transformers: read and write expressions
@@ -99,6 +102,7 @@ public class Cat {
    private Set<Cat> kittens = new HashSet<Cat>();
 }
 
+//被驯养的猫，所以有名字
 @Entity @DiscriminatorValue("D")
 public class DomesticCat extends Cat {
 
@@ -170,6 +174,7 @@ Here is an example mapping:
                         <one-to-many class="Cat"/>
                 </set>
 
+（子类，被驯养的猫，所以有名字。）
                 <subclass name="DomesticCat"
                     discriminator-value="D">
 
@@ -211,6 +216,7 @@ public class Flight implements Serializable {
 }
 
 That's pretty much it, the rest is optional. 
+其它配置都是可选的。
 There are however any options to tweak your entity mapping, let's explore them.
 
 @Table lets you define the table the entity will be persisted into. 
@@ -233,11 +239,14 @@ public class Flight implements Serializable {
     public String getNumber() { return number; }
 }
 
+（“公司名前缀”+“航班号”组成唯一约束。）
+
 The constraint name is optional (generated if left undefined). 
 The column names composing the constraint correspond to the column names as defined before the Hibernate NamingStrategy is applied.
 
 Tip
 Be sure to use the database-level column names for the columnNames property of a @UniqueConstraint. 
+注意唯一约束中的列名，是数据库表中的列名，不是java类的字段名。
 For example, whilst for simple types the database-level column name may be the same as the entity-level property name, 
 this is often not the case for relational properties.
 
@@ -245,11 +254,13 @@ this is often not the case for relational properties.
 It defaults to the unqualified class name of the class.
 @Entity.name 用来定义实体的缩写名，不要和表名混淆。
 
+====
 Hibernate goes beyond the JPA specification and provide additional configurations. 
 Some of them are hosted on @org.hibernate.annotations.Entity:
 hibernate的一些额外扩展：
 
 dynamicInsert / dynamicUpdate (defaults to false): 
+“动态插入”和“动态更新”：
 specifies that INSERT / UPDATE SQL should be generated at runtime 
 and contain only the columns whose values are not null.
 在运行时生成插入和删除语句，只包含非null的字段。 
@@ -267,10 +278,14 @@ Use of select-before-update will usually decrease performance.
 It is useful to prevent a database update trigger being called unnecessarily if you reattach a graph of detached instances to a Session.
 
 polymorphisms (defaults to IMPLICIT): 
+“多态方式”（隐式或显示）：
 determines whether implicit or explicit query polymorphisms is used. 
-Implicit polymorphisms means that instances of the class will be returned by a query that names any superclass or implemented interface or class, 
+Implicit polymorphisms means that instances of the class will be returned by a query 
+that names any superclass or implemented interface or class, 
+隐式多态，指所有子类实例都会返回。
 and that instances of any subclass of the class will be returned by a query that names the class itself. 
 Explicit polymorphisms means that class instances will be returned only by queries that explicitly name that class. 
+显示多态，指只返回该类的实例。
 Queries that name the class will return only instances of subclasses mapped. 
 For most purposes, the default polymorphisms=IMPLICIT is appropriate. 
 Explicit polymorphisms is useful when two different classes are mapped to the same table. 
@@ -282,11 +297,12 @@ The persister attribute lets you customize the persistence strategy used for the
 You can, for example, specify your own subclass of org.hibernate.persister.EntityPersister, 
 or you can even provide a completely new implementation of the interface org.hibernate.persister.ClassPersister that implements, 
 for example, persistence via stored procedure calls, serialization to flat files or LDAP. 
+例如，通过存储过程持久化，或持久化到文件中。
 See org.hibernate.test.CustomPersister for a simple example of "persistence" to a Hashtable.
 
---
+====
 optimisticLock (defaults to VERSION):
-优化锁。 
+优化锁策略。
 determines the optimistic locking strategy. 
 If you enable dynamicUpdate, you will have a choice of optimistic locking strategies:
 
@@ -306,20 +322,24 @@ This strategy optimizes performance and correctly handles modifications made to 
 Tip
 Be sure to import @javax.persistence.Entity to mark a class as an entity. 
 It's a common mistake to import @org.hibernate.annotations.Entity by accident.
+注意引入 jpa 的 @Entity 注解，而不是 hibernate的 @Entity 注解。
 Some entities are not mutable. 
 They cannot be updated by the application. 
 This allows Hibernate to make some minor performance optimizations.. 
 Use the @Immutable annotation.
 使用 @Immutable 注解，将实体标记为不可变的，这可以提高性能。
 
+====
 You can also alter how Hibernate deals with lazy initialization for this class. 
 On @Proxy, use lazy=false to disable lazy fetching (not recommended). 
+将 @Proxy 的 lazy 设为假，可以禁用延迟加载。但这是不推荐的。
 You can also specify an interface to use for lazy initializing proxies (defaults to the class itself): 
 use proxyClass on @Proxy. 
 Hibernate will initially return proxies ( using bytecode provider defined by hibernate.bytecode.provider) that implement the named interface. 
 The persistent object will load when a method of the proxy is invoked. 
 See "Initializing collections and proxies" below.
 
+==
 @BatchSize specifies a "batch size" for fetching instances of this class by identifier. 
 Not yet loaded instances are loaded batch-size at a time (default 1).
 批量加载的大小。
@@ -331,12 +351,15 @@ In the same vein, @Check lets you define an SQL expression
 used to generate a multi-row check constraint for automatic schema generation.
 @Check注解用来在建表语句中加入“检查约束”。
 
+====
 There is no difference between a view and a base table for a Hibernate mapping. 
 This is transparent at the database level, although some DBMS do not support views properly, especially with updates. 
 Sometimes you want to use a view, but you cannot create one in the database (i.e. with a legacy schema). 
 In this case, you can map an immutable and read-only entity to a given SQL subselect expression 
 using @org.hibernate.annotations.Subselect:
-视图。使用 @Subselect注解。
+hibernate的映射，不区分是视图，还是表。
+如果你希望使用视图，但是在数据库中，你不能创建视图，
+这时可以使用 @Subselect 注解。
 
 @Entity
 @Subselect("select item.name, max(bid.amount), count(*) "
@@ -354,6 +377,7 @@ Declare the tables to synchronize this entity with,
 ensuring that auto-flush happens correctly and that queries against the derived entity do not return stale data. 
 The <subselect> is available both as an attribute and a nested mapping element.
 
+====
 We will now explore the same options using the hbm.xml structure. 
 You can declare a persistent class using the class element. For example:
 
@@ -434,6 +458,7 @@ determines the optimistic locking strategy.
 
 (16)	lazy (optional): 
 lazy fetching can be disabled by setting lazy="false".
+是否延迟加载。
 
 (17)	entity-name (optional - defaults to the class name): 
 Hibernate allows a class to be mapped multiple times, potentially to different tables. 
@@ -457,12 +482,15 @@ See below for more information.
 
 (21)	abstract (optional): 
 is used to mark abstract superclasses in <union-subclass> hierarchies.
+是否是抽象类。
 
+====
 It is acceptable for the named persistent class to be an interface. 
 You can declare implementing classes of that interface using the <subclass> element. 
 You can persist any static inner class. 
 Specify the class name using the standard form i.e. e.g.Foo$Bar.
 
+====
 Here is how to do a virtual view (subselect) in XML:
 
 <class name="Summary">

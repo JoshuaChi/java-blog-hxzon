@@ -100,6 +100,7 @@ in JNDI.
   </xs:complexType>
 
   <xs:simpleType name="type-attribute">
+  <!-- 监听器的类型值 -->
     <xs:restriction base="xs:token">
       <xs:enumeration value="auto-flush"/>
       <xs:enumeration value="create"/>

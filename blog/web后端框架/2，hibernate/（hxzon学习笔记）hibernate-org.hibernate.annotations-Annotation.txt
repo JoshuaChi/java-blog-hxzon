@@ -182,6 +182,17 @@ Prefer the JPA 2.1 introduced ForeignKey instead.
 Formula	
 
 Defines a formula (derived value) which is a SQL fragment that acts as a @Column alternative in most cases.
+通过公示计算出来的字段。
+
+@Formula("obj_length * obj_height * obj_width")
+public long getObjectVolume()
+
+<property name="totalPrice"
+    formula="( SELECT SUM (li.quantity*p.price) FROM LineItem li, Product p
+                WHERE li.productId = p.productId
+                AND li.customerId = customerId
+                AND li.orderNumber = orderNumber )"/>
+
 
 --
 Generated	
@@ -357,6 +368,7 @@ Specify a custom persister.
 Polymorphism
 	
 Used to define the type of polymorphism Hibernate will apply to entity hierarchies.
+多态的方式，“隐式”还是“显示”。
 
 --
 Proxy
@@ -429,10 +441,27 @@ Subselect
 
 Map an immutable and read-only entity to a given SQL select expression.
 
+（见官方文档，5.1.1，实体：
+
+@Entity
+@Subselect("select item.name, max(bid.amount), count(*) "
+        + "from item "
+        + "join bid on bid.item_id = item.id "
+        + "group by item.name")
+@Synchronize( {"item", "bid"} ) //tables impacted
+public class Summary {
+    @Id
+    public String getId() { return id; }
+    ...
+}
+
+）
+
 --
 Synchronize
 
 Ensures that auto-flush happens correctly and that queries against the derived entity do not return stale data.
+“自动冲刷”。
 
 --
 Table

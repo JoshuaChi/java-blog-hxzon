@@ -26,6 +26,7 @@ arbitrary number of queries, and import declarations of arbitrary classes.
         <xs:element name="meta" minOccurs="0" maxOccurs="unbounded" type="meta-element"/>
         <!--
             <identifier-generator.../> allows customized short-naming of IdentifierGenerator implementations.
+            用于给“id生成器”取个简短的名字。
         -->
         <xs:element name="identifier-generator" minOccurs="0" maxOccurs="unbounded">
           <xs:complexType>
@@ -36,6 +37,7 @@ arbitrary number of queries, and import declarations of arbitrary classes.
         <!--
         	<typedef.../> allows defining a customized type mapping for a Hibernate type. May
         	contain parameters for parameterizable types.
+        	自定义类型。可以包含参数化类型。
         -->
         <xs:element name="typedef" minOccurs="0" maxOccurs="unbounded">
           <xs:complexType>
@@ -48,6 +50,7 @@ arbitrary number of queries, and import declarations of arbitrary classes.
         </xs:element>
         <!--
         	FILTER-DEF element; top-level filter definition.
+        	定义“过滤器”。
         -->
         <xs:element name="filter-def" minOccurs="0" maxOccurs="unbounded">
           <xs:complexType mixed="true">
@@ -55,6 +58,7 @@ arbitrary number of queries, and import declarations of arbitrary classes.
               <!--
               	FILTER-PARAM element; qualifies parameters found within a FILTER-DEF
               	condition.
+              	过滤器参数。
               -->
               <xs:element name="filter-param">
                 <xs:complexType>
@@ -69,6 +73,7 @@ arbitrary number of queries, and import declarations of arbitrary classes.
         </xs:element>
         <!--
         	IMPORT element definition; an explicit query language "import"
+        	给实体类定义简短的名字。
         -->
         <xs:element name="import" minOccurs="0" maxOccurs="unbounded">
           <xs:complexType>
@@ -376,8 +381,10 @@ arbitrary number of queries, and import declarations of arbitrary classes.
   </xs:element>
 
   <!-- An "any" association is a polymorphic association to any table with
+  可以映射到任意表。
   the given identifier type. The first listed column is a VARCHAR column 
-  holding the name of the class (for that row). -->
+  holding the name of the class (for that row). 
+  第一列是类的名字。-->
   <xs:complexType name="any-element">
     <xs:sequence>
       <xs:element name="meta" minOccurs="0" maxOccurs="unbounded" type="meta-element"/>
@@ -514,7 +521,8 @@ arbitrary number of queries, and import declarations of arbitrary classes.
     </xs:attribute>
   </xs:complexType>
 
-  <!-- The column element is an alternative to column attributes and required for 
+  <!-- The column element is an alternative to column attributes and required for
+  用来代替“column”属性。 
   mapping associations to classes with composite ids. -->
   <xs:complexType name="column-element">
     <xs:sequence>
@@ -537,6 +545,7 @@ arbitrary number of queries, and import declarations of arbitrary classes.
   </xs:complexType>
 
   <!-- A component is a user-defined class, persisted along with its containing entity
+  组件。组件的字段存储在拥有者的表中。
   to the table of the entity class. JavaBeans style properties of the component are
   mapped to columns of the table of the containing entity. A null component reference
   is mapped to null values in all columns and vice versa. Components do not support
@@ -573,9 +582,13 @@ arbitrary number of queries, and import declarations of arbitrary classes.
   </xs:complexType>
 
   <!-- A composite element allows a collection to hold instances of an arbitrary 
+  组合元素。组合元素是含有任意类的实例的集合，不需要联结任何实体表。
   class, without the requirement of joining to an entity table. Composite elements
   have component semantics - no shared references and ad hoc null value semantics. 
-  Composite elements may not hold nested collections. -->
+  组合元素拥有“组件”的语义。
+  Composite elements may not hold nested collections. 
+  组合元素不能内嵌集合。
+  -->
   <xs:complexType name="composite-element-element">
     <xs:sequence>
       <xs:sequence>
@@ -595,6 +608,7 @@ arbitrary number of queries, and import declarations of arbitrary classes.
   </xs:complexType>
 
   <!-- A dynamic-component maps columns of the database entity to a java.util.Map 
+  动态组件。映射成map。
   at the Java level -->
   <xs:complexType name="dynamic-component-element">
     <xs:sequence>
@@ -622,7 +636,9 @@ arbitrary number of queries, and import declarations of arbitrary classes.
     <xs:attribute name="update" default="true" type="xs:boolean"/>
   </xs:complexType>
 
-  <!-- Declares the element type of a collection of basic type -->
+  <!-- Declares the element type of a collection of basic type 
+  元素为“基本类型”的集合的元素。
+  -->
   <xs:complexType name="element-element">
     <xs:sequence>
       <xs:choice minOccurs="0" maxOccurs="unbounded">
@@ -695,6 +711,7 @@ arbitrary number of queries, and import declarations of arbitrary classes.
   </xs:complexType>
 
   <!-- Generators generate unique identifiers. The class attribute specifies a Java 
+  id生成器。
   class implementing an id generation algorithm. -->
   <xs:complexType name="generator-element">
     <xs:sequence>
@@ -1325,6 +1342,7 @@ arbitrary number of queries, and import declarations of arbitrary classes.
   </xs:complexType>
 
   <!-- properties declares that the contained properties form an alternate key. The name
+  字段集。可被 property-ref 引用。
   attribute allows an alternate key to be used as the target of a property-ref. -->
   <xs:complexType name="properties-element">
     <xs:sequence>
@@ -1344,6 +1362,7 @@ arbitrary number of queries, and import declarations of arbitrary classes.
   </xs:complexType>
 
   <!-- Property of an entity class or component, component-element, composite-id, etc. 
+  字段。
   JavaBeans style properties are mapped to table columns. -->
   <xs:complexType name="property-element">
     <xs:sequence>
