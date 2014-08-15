@@ -7,15 +7,16 @@ http://docs.jboss.org/hibernate/orm/4.1/manual/en-US/html/ch09.html
 
 ==============
 9.1. Dependent objects
-9.2. Collections of dependent objects
+9.2. Collections of dependent objects（重要）
 9.3. Components as Map indices
-9.4. Components as composite identifiers
+9.4. Components as composite identifiers（重要）
 9.5. Dynamic components
 
 
 The notion of a component is re-used in several different contexts and purposes throughout Hibernate.
 =================
 9.1. Dependent objects
+不能独立的对象
 
 A component is a contained object that is persisted as a value type and not an entity reference. 
 The term "component" refers to the object-oriented notion of composition and not to architecture-level components. 
@@ -133,11 +134,13 @@ that maps a property of the component class as a reference back to the containin
 
 ====
 9.2. Collections of dependent objects
-（hxzon：重要）
+（hxzon：重要）“不能独立的对象”的集合
 
 Collections of components are supported (e.g. an array of type Name). 
 组件集合。
 Declare your component collection by replacing the <element> tag with a <composite-element> tag:
+
+（集合存储在一张独立的表）
 
 <set name="someNames" table="some_names" lazy="true">
     <key column="id"/>
@@ -156,7 +159,7 @@ If your composite element contains components, use the <nested-composite-element
 如果你的组合元素含有组件，必须使用 <nested-composite-element> 。
 This case is a collection of components which themselves have components. 
 You may want to consider if a one-to-many association is more appropriate. 
-“一对多”关联。
+如果你觉得使用“一对多”关联更好，可以将组合元素重构成实体。
 Remodel the composite element as an entity, 
 but be aware that even though the Java model is the same, 
 the relational model and persistence semantics are still slightly different.
@@ -167,6 +170,8 @@ There is no separate primary key column in the composite element table.
 组合元素的数据库表，没有独立开来的主键。 
 Hibernate uses each column's value to identify a record when deleting objects, 
 which is not possible with null values. 
+当删除对象时，hibernate使用所有的列值来定位一个元素，
+所以不能含有null值。
 You have to either use only not-null properties in a composite-element 
 or choose a <list>, <map>, <bag> or <idbag>.
 
@@ -178,7 +183,7 @@ A special case of a composite element is a composite element with a nested <many
 This mapping allows you to map extra columns of a many-to-many association table to the composite element class. 
 允许你给“多对多”关联表添加额外的字段。
 The following is a many-to-many association from Order to Item, 
-订单与物品之间的多对多关联。
+订单与物品之间的多对多关联，关联本身含有一些额外的信息。
 where purchaseDate, price and quantity are properties of the association:
 
 <class name="eg.Order" .... >
@@ -194,7 +199,7 @@ where purchaseDate, price and quantity are properties of the association:
     </set>
 </class>
 
-（hxzon：订单-（一对多）订单物品-（多对一）物品。）
+（hxzon：订单--》（一对多）订单物品（组合元素）--》（多对一）物品。）
 
 There cannot be a reference to the purchase on the other side for bidirectional association navigation. 
 在其它地方，不能有对“订单物品”的引用。
@@ -215,11 +220,12 @@ Even ternary (or quaternary, etc) associations are possible:
     </set>
 </class>
 
-订单-（一对多）订单行
-订单行-（多对一）订单物品
-订单行-（多对一）物品
+订单--》（一对多）订单行
+订单行--》（多对一）订单物品
+订单行--》（多对一）物品
 
 Composite elements can appear in queries using the same syntax as associations to other entities.
+组合元素可以出现在查询语句中，和关联对象的语法相同。
 
 ====
 9.3. Components as Map indices
@@ -240,12 +246,14 @@ It must re-implement equals() and hashCode() consistently with the database's no
 
 Note
 In Hibernate3, although the second requirement is not an absolutely hard requirement of Hibernate, it is recommended.
+在hibernate3中，第二个条件不是必要的，当时建议这么做。
 You cannot use an IdentifierGenerator to generate composite keys. 
 Instead the application must assign its own identifiers.
 不要使用id生成器来生成组合主键。
 
 Use the <composite-id> tag, with nested <key-property> elements, in place of the usual <id> declaration. 
 For example, the OrderLine class has a primary key that depends upon the (composite) primary key of Order.
+让订单行使用组合主键：
 
 <class name="OrderLine">
 
@@ -267,6 +275,7 @@ For example, the OrderLine class has a primary key that depends upon the (compos
 </class>
 
 Any foreign keys referencing the OrderLine table are now composite. 
+现在，对订单行的引用，都必须使用组合外键，如下：
 Declare this in your mappings for other classes. 
 An association to OrderLine is mapped like this:
 
@@ -281,6 +290,7 @@ Tip
 The column element is an alternative to the column attribute everywhere. 
 Using the column element just gives more declaration options, which are mostly useful when utilizing hbm2ddl
 A many-to-many association to OrderLine also uses the composite foreign key:
+多对多中，对订单行的引用，也必须使用组合外键：
 
 <set name="undeliveredOrderLines">
     <key column name="warehouseId"/>
@@ -292,6 +302,7 @@ A many-to-many association to OrderLine also uses the composite foreign key:
 </set>
 
 The collection of OrderLines in Order would use:
+订单中的订单行集合：
 
 <set name="orderLines" inverse="true">
     <key>
@@ -304,6 +315,7 @@ The collection of OrderLines in Order would use:
 The <one-to-many> element declares no columns.
 
 If OrderLine itself owns a collection, it also has a composite foreign key.
+如果订单行对象含有集合字段，那这个集合的元素，同样会拥有一个组合外键：
 
 <class name="OrderLine">
     ....
@@ -338,5 +350,6 @@ The advantage of this kind of mapping is the ability to determine the actual pro
 at deployment time just by editing the mapping document. 
 Runtime manipulation of the mapping document is also possible, using a DOM parser. 
 You can also access, and change, Hibernate's configuration-time metamodel via the Configuration object.
-可在运行期修改。
+可在运行期修改映射文档，从而添加或删除字段。
+也可以通过 Configuration 对象，修改映射元数据。
 
