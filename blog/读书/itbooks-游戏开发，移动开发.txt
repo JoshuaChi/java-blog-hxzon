@@ -78,13 +78,6 @@ Casey Reas（凯西·瑞斯） (作者), Ben Fry（本·弗莱） (作者), 张�
 css,html5
 
 ----
-89，Pro CSS for High Traffic Websites
-高流量网站CSS开发技术
-http://www.ituring.com.cn/book/979
-本书重点并非CCS使用的各般秘技，
-而是大型团队及多团队里怎样有效使用CSS，作者强调“一致比有效更重要”。
-
-----
 149，CDN技术详解
 51.80(7.5折)
 
