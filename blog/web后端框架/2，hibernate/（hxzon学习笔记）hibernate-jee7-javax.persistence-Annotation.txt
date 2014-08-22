@@ -114,9 +114,12 @@ AttributeOverride
 	
 Used to override the mapping of a Basic (whether explicit or default) property or field or Id property or field.
 重新定义字段。
+（hxzon：只能重定义@Column中的属性值。）
 
 May be applied to an entity that extends a mapped superclass 
-or to an embedded field or property to override a basic mapping 
+覆盖父类，
+or to an embedded field or property to override a basic mapping
+或者内嵌对象， 
 or id mapping defined by the mapped superclass or embeddable class 
 (or embeddable class of one of its attributes). 
 
@@ -147,7 +150,7 @@ If AttributeOverride is not specified, the column is mapped the same as in the o
     }
 
     @Entity
-    @AttributeOverride(name="address", column=@Column(name="ADDR"))
+    @AttributeOverride(name="address", column=@Column(name="ADDR"))  //覆盖父类的字段
     public class PartTimeEmployee extends Employee {
         // address field mapping overridden to ADDR
 
@@ -180,7 +183,7 @@ If AttributeOverride is not specified, the column is mapped the same as in the o
                                column=@Column(name="ADDR_STATE")),
             @AttributeOverride(name="zipcode.zip",
                                column=@Column(name="ADDR_ZIP"))
-        })
+        })  //覆盖内嵌对象的字段
         @Embedded protected Address address;
         ...
     }
@@ -198,7 +201,7 @@ If AttributeOverride is not specified, the column is mapped the same as in the o
                                column=@Column(name="SQUARE_FEET")),
             @AttributeOverride(name="value.tax",
                                column=@Column(name="ASSESSMENT"))
-        })
+        })  //覆盖组件集合
        @ElementCollection
        Map<Address, PropertyInfo> parcels;
     }
