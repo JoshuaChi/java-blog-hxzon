@@ -1,0 +1,573 @@
+﻿Get ZK Up and Running with MVVM （节选）
+http://books.zkoss.org/wiki/ZK_Getting_Started/Get_ZK_Up_and_Running_with_MVVM
+
+Contents
+1 Introduction
+2 Tutorial Objective
+3 Warm Up
+3.1 Setup Eclipse
+3.2 Install ZK in a Web Project
+3.3 Run an Application
+3.4 Import and Run Example Application
+4 Declaring Domain Class
+5 Building the User Interface
+6 Automatic UI Controlling
+6.1 Abstracting the View
+6.2 Binding UI to ViewModel
+6.3 Displaying Data Collection
+6.4 Implementing View Details Functionality
+7 Approach Comparison
+8 References
+
+======
+Declaring Domain Class
+
+The following is the domain object that represents a car.
+
+public class Car {
+    private Integer id;
+    private String model;
+    private String make;
+    private String preview;
+    private String description;
+    private Integer price;
+    //omit getter and setter for brevity
+}
+
+Please refer to References section to see the complete code. [3]
+We then define a service class to perform the business logic (search cars) shown below:
+
+public interface CarService {
+ 
+    /**
+     * Retrieve all cars in the catalog.
+     * @return all cars
+     */
+    public List<Car> findAll();
+     
+    /**
+     * search cars according to keyword in  model and make.
+     * @param keyword for search
+     * @return list of car that match the keyword
+     */
+    public List<Car> search(String keyword);
+}
+
+In this example, we have defined a class - CarServeImpl that implements the above interface. 
+For simplicity, it uses a static list object as the data model. 
+You can rewrite it so that it connects to a database in a real application. 
+Implementation details are not in the scope of this article, please refer to References section.[4]
+
+Building the User Interface
+
+UI Design is a good start to building an application as it helps you define the scope of your application. 
+ZK provides hundreds of readily-made UI components so developers can rapidly build their desired user interface 
+by combining and mix matching these components without having to create them from scratch.
+
+In ZK, you can use ZK User Interface Markup Language (ZUML) [5], an XML-formatted language, to describe UI. 
+By ZK's convention, the files to describe user interface with ZUML uses .zul as the name suffix. 
+In zul files, one component can be represented as an XML element (tag) 
+and you can configure each component's style, behavior, and function by setting XML element's attributes.[6]
+
+In the case of this example application, first of all, 
+we want to design a window with specified title and normal border as our application's frame.
+
+Extracted from search.zul
+
+<window title="Search" width="600px" border="normal">
+    <!-- put child components inside a tag's body -->
+</window>
+
+As window is the outermost component, it is called the root component. 
+Window is a commonly used container because it is a basic display element of a desktop-like application 
+while it can also enclose other components. 
+All other components inside window are called child components and should be put in window tag's body. 
+We set window's title bar text with "title" attribute and make window display a normal border with "border" attribute. 
+For "width" attribute, use CSS like syntax such as "800px" or "60%".
+
+Basically, our example application's user interface is divided into 3 areas within the window, 
+they are (from top to bottom) search function, car list, and car details.
+
+Tutorial-ui-3areas.png
+
+Search Area: 
+ZK components are like building blocks, you can combine and mix match existing components to construct your desired UI. 
+To allow users to search, we need a text to prompt users for input, a place to enter keywords, 
+and a button for triggering the search. 
+We can use the following ZK components to fulfill this requirement:
+
+Extracted from search.zul
+
+<hbox align="center">
+    Keyword:
+    <textbox id="keywordBox" />
+    <button id="searchButton" label="Search" image="/img/search.png" />
+</hbox>
+
+hbox is a layout component that arranges its child components horizontally 
+and you can probably guess by now that the h represents horizontal. 
+As these child components have different heights, 
+we set the "align" attribute to "center" so they are aligned neatly along their center line. 
+Here we also specify an "id" attribute for some components which allows you to control them by referencing their id. 
+You can also easily create an image button by specifying the path for the "image" attribute.
+
+Car List Area. 
+ZK provides several components to display a collection of data such as listbox, grid, and tree. 
+In this example, we have chosen to use a listbox to display a list of cars with 3 columns: Model, Make and Price. 
+We set the "height" attribute so the number of rows visible is limited with respect to the height specified; 
+you can drag scroll-bar to see the rest of rows. 
+The "emptyMessage" attribute is used to show a message when listbox contains no items. 
+The listbox is a container component, and you can add listhead to define a column. 
+The listitem is used to display data, and the number of listcell in one listitem should equal to the number of listheader. 
+Here we use listcell with static label to demonstrate structure of a listitem, 
+and we'll talk about how to create listitem dynamically with respect to each data object in the next chapter.
+
+Extracted from search.zul
+
+<listbox id="carListbox" height="160px" emptyMessage="No car found in the result">
+    <listhead>
+        <listheader label="Model" />
+        <listheader label="Make" />
+        <listheader label="Price" width="20%"/>
+    </listhead>
+    <listitem>
+        <listcell label="car model"></listcell>
+        <listcell label="make"></listcell>
+        <listcell>$<label value="price" /></listcell>
+    </listitem>
+</listbox>
+
+Car Details Area. Like the hbox, vbox is also a layout component which arranges its child component in vertical order. 
+By combing these 2 layout components, we can present more information on a screen. 
+The "style" attribute allows you to customize component's style with CSS syntax.
+
+Extracted from search.zul
+
+<hbox style="margin-top:20px">
+    <image id="previewImage" width="250px" />
+    <vbox>
+        <label id="modelLabel" />
+        <label id="makeLabel" />
+        <label id="priceLabel" />
+        <label id="descriptionLabel"/>
+    </vbox>
+</hbox>
+
+You can see the complete zul file through the link in the References section. [7]
+
+====
+Automatic UI Controlling
+
+The approach we introduce here to control user interaction is to let ZK control UI components for you. 
+This approach is classified to Model-View-ViewModel (MVVM) design pattern. [8] 
+This pattern divides an application into three parts.
+
+The Model consists of application data and business rules. 
+CarService and other classes used by it represent this part in our example application.
+
+The View means user interface. 
+The zul page which contains ZK components represents this part. 
+A user's interaction with components triggers events to be sent to controllers.
+
+The ViewModel is responsible for exposing data from the Model to the View and providing required action requested from the View. 
+The ViewModel is type of View abstraction which contains a View's state and behavior. 
+But ViewModel should contain no reference to UI components. 
+ZK framework handles communication and state synchronization between View and ViewModel.
+
+Under this approach, we just prepare a ViewModel class with proper setter, getter and behavior methods, 
+then assign data binding expression to a component's attributes in a ZUL. 
+There is a binder in ZK which will synchronize data between ViewModel and components 
+and handle events automatically according to binding expressions. We don't need to control components by ourselves.
+
+Here we use search function to explain how MVVM works in ZK. 
+Assume that a user click "Search" button then listbox updates its content. 
+The flow is as follows:
+
+Tutorial-mvvm.png
+
+A user clicks "Search" button and a corresponding event is sent.
+ZK's binder invokes the corresponding command method in the ViewModel.
+The method accesses data from Model and updates some ViewModel's properties.
+ZK's binder reloads changed properties from the ViewModel to update component's states.
+
+====
+Abstracting the View
+
+ViewModel is an abstraction of View. 
+Therefore when we design a ViewModel, 
+we should analysis UI's functions for what state it contains and what behavior it has.
+
+The state:
+keyword from user input
+car list of search result
+selected car
+
+The behavior:
+search
+
+According to above analysis, the ViewModel should have 3 variables for above states and one method for the behavior. 
+In ZK, creating a ViewModel is like creating a POJO, 
+视图模型是一个简单bean。
+and it exposes its states like JavaBean's properties through setter and getter methods. 
+The search method implements search logic with service class and updates the property "carList".
+
+SearchViewModel.java
+
+package tutorial;
+ 
+import java.util.List;
+import org.zkoss.bind.annotation.*;
+ 
+public class SearchViewModel {
+ 
+    private String keyword;
+    private List<Car> carList;
+    private Car selectedCar;
+     
+    //omit getter and setter
+ 
+    public void search(){
+        carList = carService.search(keyword);
+    }
+}
+
+Annotation
+
+In ZK MVVM, any behavior which can be requested by a View is a command in a ViewModel. 
+We can bind a component's event to the command and ZK will invoke the method when bound event is triggered. 
+In order to let ZK know which behavior (method) can be requested, 
+you should apply an annotation @Command on a method. 
+We mark search() as a "command" with default command name, search, which is the same as method name. 
+The command name is used in data binding expression we'll talk about in next section.
+使用 @Command 注解。
+
+In search(), we change a ViewModel's property: carList. 
+Thus, we should tell ZK this change with @NotifyChange 
+so that ZK can reload the changed property for us after it invokes this method.
+使用 @NotifyChange 通知视图“数据有变更”。
+
+For "search" command, it looks like:
+SearchViewModel.java
+
+package tutorial;
+ 
+import java.util.List;
+import org.zkoss.bind.annotation.*;
+ 
+public class SearchViewModel {
+ 
+    //omit other codes
+ 
+    @Command
+    @NotifyChange("carList")
+    public void search(){
+        carList = carService.search(keyword);
+    }
+}
+
+For complete source code, please refer to References section. [9]
+
+====
+Binding UI to ViewModel
+
+Under MVVM, we build our UI as same as we would with the MVC approach, 
+then we specify relationship between a ZUL and a ViewModel by writing data binding expression in component's attribute, 
+and let ZK handle components for us.
+
+To bind a component to a ViewModel, we should apply a composer called org.zkoss.bind.BindComposer. 
+将组件应用到 org.zkoss.bind.BindComposer 类。
+This composer processes data binding expressions and initializes the ViewModel class. 
+We then bind this component to a ViewModel by setting its viewModel attribute with following syntax:
+
+@id('ID') @init('FULL.QUALIFIED.CLASSNAME')
+
+@id() is used to set ViewModel's id to whatever we want like a variable name. 
+We will use this id to reference ViewModel's properties (e.g. vm.carList) in a data binding expression.
+We should provide full-qualified class name for @init() to initialize the ViewModel object.
+
+Extracted from searchMvvm.zul
+
+<window title="Search" width="600px" border="normal"
+    apply="org.zkoss.bind.BindComposer" viewModel="@id('vm') @init('tutorial.SearchViewModel')">
+<!-- omit other tags-->
+</window>
+
+After binding the ViewModel to the component, all its child components can access the same ViewModel and its properties.
+
+We can bind View to both ViewModel's properties and behavior with data binding expression. 
+Let's see how to use data binding to achieve search function.
+
+Since we have declared variables in ViewModel class for component's states in previous section, 
+we can bind component's attributes to them. 
+After binding a component's attribute to ViewModel, 
+ZK will synchronize data between attribute's value and a ViewModel's property for us automatically. 
+自动同步数据。
+We can specify which attribute is bound to which property by writing data binding expression as a component attribute's value with syntax:
+
+@bind(vm.aProperty)
+
+Remember that vm is the id we have given it in @id() previously and now we use it to reference ViewModel object.
+
+There are 2 states which relate to search function to be stored in the ViewModel upon previous analysis. 
+First, we want to store value of textbox in ViewModel's keyword. 
+We can then bind "value" of textbox to vm.keyword with @bind(vm.keyword). 
+Second, we want to store the data model of a listbox in ViewModel's carList, so we should bind listbox's "model" to vm.carList.
+绑定视图模型的字段。
+
+Extracted from searchMvvm.zul
+
+<hbox>
+    Keyword:
+    <textbox value="@bind(vm.keyword)" />
+    <button label="Search" image="/img/search.png"/>
+</hbox>
+<listbox height="160px" model="@bind(vm.carList)" emptyMessage="No car found in the result">
+<!-- omit other tags -->
+
+We can only bind a component's event attribute (e.g. onClick) to ViewModel's behavior. 
+After we bind an event to a ViewModel, each time a user triggers the event, 
+ZK finds the bound command method and invokes it. 
+In order to handle clicking on "Search" button, we have to bind button's onClick attribute to a command method with following syntax:
+绑定视图模型的动作，onClick="@command('search') 。
+
+@command('COMMAND_NAME')
+
+We should look for command name specified in our ViewModel's command method.
+
+Extracted from searchMvvm.zul
+
+<hbox>
+    Keyword:
+    <textbox value="@bind(vm.keyword)" />
+    <button label="Search" image="/img/search.png" onClick="@command('search')" />
+</hbox>
+<listbox height="160px" model="@bind(vm.carList)" emptyMessage="No car found in the result">
+<!-- omit other tags -->
+
+After binding this "onClick" event, when a user clicks "Search" button, 
+ZK will invoke search() and reload the property "carList" which is specified in @NotifyChange.
+
+====
+Displaying Data Collection
+
+The way to display a collection of data with data binding is very similar to the way in MVC approach. 
+we will use a special tag, <template> [10], to control the rendering of each item. 
+The only difference is we should use data binding expression instead of EL.
+
+Steps to use <template> :
+Use <template> to enclose components that we want to create iteratively.
+Set template's "name" attribute to "model". [11]
+使用“模板”。
+
+Use implicit variable, each, to assign domain object's properties to component's attributes.
+
+Extracted from searchMvvm.zul
+
+<listbox height="160px" model="@bind(vm.carList)" emptyMessage="No car found in the result">
+    <listhead>
+        <listheader label="Model" />
+        <listheader label="Make" />
+        <listheader label="Price" width="20%"/>
+    </listhead>
+    <template name="model">
+        <listitem>
+            <listcell label="@bind(each.model)"></listcell>
+            <listcell label="@bind(each.make)"></listcell>
+            <listcell>$<label value="@bind(each.price)" />
+            </listcell>
+        </listitem>
+    </template>
+</listbox>
+
+Implementing View Details Functionality
+
+The steps to implement the view details functionality are similar to previous sections.
+We bind attribute selectedItem of listbox to the property vm.selectedCar to save selected domain object.
+Because we want to show selected car's details, 
+we bind value of label and src of image to selected car's properties 
+which can be access by chaining dot notation like vm.selectedCar.price.
+
+Each time a user selects a listitem, ZK saves selected car to the ViewModel. 
+Then ZK reloads selectedCar's properties to those bound attributes.
+
+
+<listbox height="160px" model="@bind(vm.carList)" emptyMessage="No car found in the result"
+selectedItem="@bind(vm.selectedCar)">
+<!-- omit child components -->
+</listbox>
+<hbox style="margin-top:20px">
+    <image width="250px" src="@bind(vm.selectedCar.preview)" />
+    <vbox>
+        <label value="@bind(vm.selectedCar.model)" />
+        <label value="@bind(vm.selectedCar.make)" />
+        <label value="@bind(vm.selectedCar.price)" />
+        <label value="@bind(vm.selectedCar.description)" />
+    </vbox>
+</hbox>
+
+You can view complete zul in References. [12]
+
+====
+Approach Comparison
+
+The interaction picture at left side is MVC, and the one at right side is MVVM. 
+The main differences are that Controller changes to ViewModel 
+and there is a binder to synchronize data instead of a Controller in MVVM .
+
+Tutorial-mvc.png
+Tutorial-separator.jpg
+Tutorial-mvvm.png
+
+MVC
+
+MVVM
+
+
+Both approaches can achieve many things in common, but there are still some differences between them. 
+Each of two approaches has its strength. 
+Building an application with MVC approach is more intuitive, because you directly control what you see. 
+Its strength is that you have total control of components, 
+so that you can create child components dynamically, control custom components, or do anything a component can do.
+
+In MVVM, because ViewModel is loosely-coupled with View (it has no reference to components), 
+one ViewModel may associate with multiple Views without modification. 
+UI designers and programmers may work in parallel. 
+If data and behavior do not change, a View's change doesn't cause ViewModel to be modified. 
+In addition, as ViewModel is a POJO, it is easy to perform unit test on it without any special environment. 
+That means ViewModel has better reusability, testabiliby, and better resistance against View change.
+
+To summarize, a comparison table is illustrated below:
+
+MVC
+MVVM
+
+Coupling with View
+Loose with layout
+Loose
+
+Coupling with Component
+Tight
+Loose
+
+Coding in View
+Component ID
+Data binding expression
+
+Controller Implementation
+Extends ZK's composer
+a POJO
+
+UI Data Access
+Direct access
+Automatic
+
+Backend Data Access
+Direct access
+Direct access
+
+UI Updating
+Manipulate components
+Automatic(@NotifyChange)   
+
+Component Controlling Granularity
+Fine-grained
+Normal
+
+Performance
+High
+Normal
+
+====
+参考资料
+
+MVVM in Developer's Reference
+http://books.zkoss.org/wiki/ZK_Developer%27s_Reference/MVVM
+
+References
+
+WPF Apps With The Model-View-ViewModel Design Pattern http://msdn.microsoft.com/en-us/magazine/dd419663.aspx
+
+Introduction to Model/View/ViewModel pattern for building WPF apps http://blogs.msdn.com/b/johngossman/archive/2005/10/08/478683.aspx
+
+Presentation Model http://martinfowler.com/eaaDev/PresentationModel.html
+
+Design by contract http://en.wikipedia.org/wiki/Design_by_contract
+
+binder ZK Developer's Reference/MVVM/DataBinding/Binder
+
+Subsections:
+
+ViewModel
+Initialization
+Data and Collections
+Commands
+Notification
+
+Data Binding
+EL Expression
+BindComposer
+Binder
+Initialization
+Command Binding
+Property Binding
+Children Binding
+Form Binding
+Reference Binding
+Converter
+Validator
+Global Command Binding
+Collection and Selection
+
+Advanced
+Parameters
+Binding in Special Attribute
+Wire Variables
+Wire Components
+Wire Event Listeners
+Avoid Tracking
+Communication between ViewModel and Composer
+Displaying Huge Amount of Data
+Binding Annotation for a Custom Component
+Pass Arguments to Include Component
+
+Syntax
+
+ViewModel
+@Init
+@AfterCompose
+@NotifyChange
+@NotifyChangeDisabled
+@DependsOn
+@Command
+@DefaultCommand
+@GlobalCommand
+@DefaultGlobalCommand
+@Immutable
+
+Parameters
+@BindingParam
+@QueryParam
+@HeaderParam
+@CookieParam
+@ExecutionParam
+@ExecutionArgParam
+@ScopeParam
+@SelectorParam
+@ContextParam
+@Default
+
+Data Binding
+@id
+@init
+@load
+@save
+@bind
+@ref
+@command
+@global-command
+@converter
+@validator
+@template
+
+Configuration
+
