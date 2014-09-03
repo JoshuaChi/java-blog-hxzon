@@ -1,0 +1,176 @@
+﻿（官方文档）组件开发04-Handling Events
+
+
+
+
+The next logical step is to add an event to our ZK component. For this we are going to add some more functionality to the SimpleLabel. A new div will be added which when clicked should clear the displayed text and fire a custom event named onClear.
+This means that firstly we need to change the mold of the label to include a div which can be used as a target. The code below satisfies this requirement:
+1
+2
+3
+function (out) {
+ out.push('<span', this.domAttrs_(), '><div id="value" style="float:left;">', this.getValue(), '</div><div id="target" style="float:left;cursor: pointer; cursor: hand;height:20px;width:20px;background-color:red;"></div></span>');
+}
+As you can see we have now split the contents of label into two by introducing two div tags, one will be used to display the value and the other will be a click target.
+
+Subsections:
+How we Implement the Event
+Overriding bind and unbind
+Registering Appropriate Listeners
+Client-Server Communication
+Server-side Listeners
+Declaring an Important Event
+
+====
+How we Implement the Event
+
+
+
+
+To implement the required event we need to follow these steps:
+Override bind_(Desktop, Skipper, Array) and unbind_(Skipper, Array)
+Register the appropriate listener
+
+====
+Overriding bind and unbind
+
+
+
+
+The following diagrams outline when the bind_(Desktop, Skipper, Array) and unbind_(Skipper, Array) methods are called. Firstly let’s take a look at how binding works.
+ZKComDevEss bind .png
+The unbind_(Skipper, Array) function is very similar. Upon detaching the widget from the DOM the unbind_(Skipper, Array) method is called to enable us to perform tasks such as adding and removing listeners to avoid memory leaks. The diagram below demonstrates this.
+ZKComDevEss unbind .png
+Now that we have had a brief introduction of bind_(Desktop, Skipper, Array) and unbind_(Skipper, Array) let’s see the methods put into action when we bind appropriate listeners for events.
+
+====
+Registering Appropriate Listeners
+
+
+
+
+Registering listeners is a fundamental of many programming languages and event driven applications. Being an event driven framework ZK is no different. To accomplish our goal of a clear button we need to do two things:
+Capture clicks on our "target"
+Fire a custom onClear event when the target is clicked
+Capturing Clicks on our Target
+Firstly, let’s concentrate on capturing clicks on our target div. To do so we need to register appropriate listeners in the bind_ method and remove the listeners in the unbind_ method to avoid any memory leak. Here is the code to do so.
+1
+2
+3
+4
+5
+6
+7
+8
+9
+bind_ : function(evt) {
+        this.$supers('bind_', arguments);
+        this.domListen_(this.$n().lastChild, "onClick", '_doClear');
+    },
+ 
+unbind_ : function(evt) {
+        this.domUnlisten_(this.$n().lastChild, "onClick", '_doClear');
+        this.$supers('unbind_', arguments);
+    },
+The key to this is the domListen method which takes the target as the first parameter, in this case we pass it the lastChild which is our target, the name of the event you want to listen for as the second parameter and finally the name of the callback.
+Please note that you also are required to call $supers so that parent classes can register and remove their events successfully. Now we need to move on to firing our custom "onClear" event. Let’s take a look at how to do this.
+Firing a Custom Event (onClear)
+The key lies in the registering the callback of the event. In our case we registered a callback named "_doClear". In this _doClear method we need to clear/restore the text depending on the widget state and fire the onClear method. The code is as follows:
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+_doClear: function(evt) {
+ 
+        this._cleared = !(this._cleared);
+         
+        if(this._cleared) {
+            this.$n().firstChild.innerHTML = this._value;
+        } else {
+            this.$n().firstChild.innerHTML = "";
+        }
+         
+        this.fire("onClear", {cleared: this._cleared});
+    }
+We have a data member named _cleared which contains the state of the application. Depending on the state the method either shows or clears the displayed value. The method onClear is then fired and the cleared state is sent along with the instruction to fire the event.
+The client side widget will now communicate with the component at the server side. This is handled by ZK. The following section explores how this communication works.
+
+====
+Client-Server Communication
+
+
+
+
+The following diagram outlines how communication works between a ZK Widget and Component.
+ZKComDevEss fire event.png
+Widget.fire(String, Object, Map, int) fires a client event (an instance of Event), and the client event is converted to an AU request if all the following conditions are satisfied.
+The widget is a peer of a component, that is, it was created automatically to represent a component. Notice that the Server states whether a widget is a peer of a component.
+The event propagation is not stopped (i.e., Widget.fire(String, Object, Map, int) and not set.
+The event is listened by a server-side Listener, or it must be an important event.
+The above image demonstrates that the onClear event is sent to the server and processed. The code to do is located in the component’s Java file SimpleLabel.java and is as follows.
+public void service(org.zkoss.zk.au.AuRequest request, boolean everError) {
+		final String cmd = request.getCommand();
+
+		if (cmd.equals(ClearEvent.NAME)) {
+			ClearEvent evt = ClearEvent.getClearEvent(request);
+			_cleared = evt.getCleared();
+			Events.postEvent(evt);
+		} else
+			super.service(request, everError);
+	}
+Here the ClearEvent is in fact a completely customized event created for the purposes of this component. The event created using its static method getClearEvent is shown below.
+public static final ClearEvent getClearEvent(AuRequest request) {
+            final Component comp = request.getComponent();
+            final Map data=request.getData();
+            
+            boolean cleared = AuRequests.getBoolean(data, "cleared");
+            return new ClearEvent(request.getCommand(), comp, cleared);
+    }
+The retrieval of the event is easy as the ClearEvent extends Event. Its constructor has the following signature public ClearEvent(String name, Component target, boolean cleared). The only custom information is the Boolean cleared which is the state we sent back when the event was fired. As demonstrated in the above code this is easily acquired using the AuRequests.getBoolean(Map, String).
+We have now followed the process of how data is transferred between the client and the server. Of course when building component we also need to specify server side listeners to invoke Java code on calling of specific events. Let’s investigate this.
+
+====
+Server-side Listeners
+
+
+
+
+Then we move on and fire the "onClear" event. To fully understand what happens next we now need to investigate server side listeners which handle these events. A client event will not be sent to the server if it has not been registered. To give the developer the ability to register an event listener at the serverside we need to declare the events. We can do this using a function called addClientEvent.
+The following example demonstrates declaring a clear event at the server.
+static {
+		addClientEvent(SimpleLabel.class, ClearEvent.NAME, 0);
+	}
+We have noted that if an event is not registered at the server side then it will not be sent from the client. However, in our example there is a problem if the event is not sent back. Let’s cast our mind back to the service method we implemented.
+public void service(org.zkoss.zk.au.AuRequest request, boolean everError) {
+		final String cmd = request.getCommand();
+
+		if (cmd.equals(ClearEvent.NAME)) {
+			ClearEvent evt = ClearEvent.getClearEvent(request);
+			_cleared = evt.getCleared();
+			Events.postEvent(evt);
+		} else
+			super.service(request, everError);
+	}
+Notice that on the receipt of the ClearEvent we update the _cleared property at the server side. Imagine if this event is not sent then we have a problem as the client and the server side will be out of sync. To get around this we can register the event as important.
+
+====
+Declaring an Important Event
+
+
+
+
+The third argument of addClientEvent is used to declare an event as import. The argument is a combination of integer flags that indicate how to handle the event. The CE_IMPORTANT flag is used to indicate that this event is very important and should be sent to the server even if there is no server side listener registered for the event. For other flags, please refer to the Java API.
+For example, we require the onClear event to be sent to the server at all times so we are required to declare the following:
+static {
+		addClientEvent(SimpleLabel.class, ClearEvent.NAME, CE_IMPORTANT);
+	}
+Now the ClearEvent is guaranteed to be sent to the server which solves our syncing problem. We have a simple label with some additional features which works as advertised. This label has served as a good introduction to component development with ZK.
+

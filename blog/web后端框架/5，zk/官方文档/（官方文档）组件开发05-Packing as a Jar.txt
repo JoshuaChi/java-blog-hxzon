@@ -1,0 +1,126 @@
+﻿（官方文档）组件开发05-Packing as a Jar
+
+
+1 Jar Files
+2 Configurations
+2.1 File Structure
+2.2 File descriptions
+3 Component classes
+3.1 File Structure
+3.2 File descriptions
+4 Widget Resources
+4.1 File Structure
+4.2 File descriptions
+5 Static Resources
+5.1 File Structure
+5.2 File descriptions
+Jar Files
+Packing a component as a Jar file will make it easy to deployment. This article demonstrates the steps and requirements of it.
+
+Requirements of a component Jar
+Configurations
+Component classes
+Widget Resources
+Static Resources
+what do they look like , example from zul.jar Jar File summary.jpg
+Configurations
+File Structure
+/META-INF/
+MANIFEST.MF
+/metainfo/
+mesg/
+msg<jar name>.properties(optional)
+msg<jar name>_<locale>.properties (optional ...)
+xml/
+<component-name>.xsd (optional)
+zk/
+lang.xml (optional)
+lang-addon.xml (optional)
+File descriptions
+/META-INF/
+MANIFEST.MF
+The file for jar defino
+/metainfo/
+mesg/
+msg<jar name>.properties
+These files are i18n resource files,you can define with the locale you want , the default file is msg<jar name>.properties. 
+ZK Internationalization
+xml/
+<jar-name>.xsd
+The xml schema for component tags in zul
+tld
+config.xml
+For taglibs definition. (ex. zweb.jar use this for dsp.)
+zk/
+lang-addon.xml
+The language add-on define components , and it defined the component classes, javascript widget/mold/css. 
+it should contains At least one lang.xml or lang-addon.xml usually you will need a lang-addon.xml .
+lang.xml
+The language definition file with namespace (ex. http://www.w3.org/1999/xhtml for zhtml)
+The example from zul.jar Jar File configuration1.jpg
+Component classes
+File Structure
+/package-folder
+classes
+
+File descriptions
+The java classes of component. just like normal jar file.
+The example from zul.jar Jar File component1.jpg
+Widget Resources
+File Structure
+/web/
+js/
+component-package/
+mold/
+<widget-mold-js-file>
+css/
+<widget-css-dsp-file> (optional)
+<widget-css-file> (optional)
+<widget-class-js-file>
+/zk.wpd
+File descriptions
+/web/
+js/
+<component-package>/
+mold/
+<widget-mold-js-file> (ex. simple-label.js )
+Widget mold file , you can write widget's html with javascript function here.
+css/
+<widget-css-dsp-file> (ex. simple-label.css.dsp )
+The css dsp files ,in the dsp you can use some variable with zk enviroment to write it.
+<widget-css-file> (ex. simple-label.css )
+the pure css files.
+<widget-class-file> (ex. Simple-label.js)
+The widget class you write .
+zk.wpd
+Define your component's package and widgets here, and the dependency with other package.
+
+Example for box from zul.jar Jar File widget1.jpg
+Static Resources
+File Structure
+/web/
+<component-package> / (optional)
+css /(optional)
+<css files>(optional)
+zk.wcs(optional)
+img /(optional)
+<img files>(optional)
+File descriptions
+/web/
+<component-package>/
+css/
+<css files>
+For some static css file you might need.
+zk.wcs
+Let you can config the CSS file for particular language
+img/
+<img files>
+This is a folder for some image files , and you can access them in xxx.css.dsp files through ${c:encodeURL('~./img/<component-package>/xxx.png')}
+Example from zul.jar
+Jar File static resources1.jpg
+
+======
+Conclusion
+
+At this point we have enough knowledge to go ahead and produce components for ZK. The next port of call for advancing our skills is ZK’s source code itself which exposes hundreds of components.
+
