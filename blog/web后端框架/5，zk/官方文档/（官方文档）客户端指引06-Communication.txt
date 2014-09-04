@@ -1,9 +1,15 @@
 ﻿（官方文档）客户端指引06-Communication
 http://books.zkoss.org/wiki/ZK%20Client-side%20Reference/Communication
 
-This section describes the communication between the server and the clients. The request sent from the client to the server is called the AU requests, while the response from the server to the client is called the AU responses. For browsers, they are actually based on Ajax. Communication.png
+注释by hxzon
+====
+This section describes the communication between the server and the clients. 
+The request sent from the client to the server is called the AU requests, 
+while the response from the server to the client is called the AU responses. 
+For browsers, they are actually based on Ajax. Communication.png
 
 Subsections:
+
 AU Requests
 Client-side Firing
 Server-side Processing
@@ -13,93 +19,138 @@ AU Responses
 =======
 AU Requests
 
-An AU request is a request sent from the client to the server to notify an event happening at the client, such as a click, a state change and so on[1].
+An AU request is a request sent from the client to the server to notify an event happening at the client, 
+such as a click, a state change and so on[1].
+↑ For browsers, an AU request is an Ajax request.
+客户端事件发生时，发起au请求。
+
 Subsections:
+
 Client-side Firing
 Server-side Processing
 JSON
 
-↑ For browsers, an AU request is an Ajax request.
+
 Version History
 Last Update : 2011/6/29
 
-====
+========
 Client-side Firing
+客户端触发事件
 
-
-
-
-Contents [hide]
 1 Fire Event to Widget
 2 Fire Event to Desktop
 3 Fire Event Directly to Server
 4 What States to Send Back the Server
 5 Version History
 
-In general, an AU request is caused by a widget event (Event) that is going to be sent to the server. This happens when the widget event targets a widget that is created at the server, or with the toServer option (specified in Event.opts). In addition, you could invoke Au.fire() explicitly to fire an AU request to the server.
+In general, an AU request is caused by a widget event (Event) that is going to be sent to the server. 
+This happens when the widget event targets a widget that is created at the server, 
+or with the toServer option (specified in Event.opts). 
+In addition, you could invoke Au.fire() explicitly to fire an AU request to the server.
+
+====
 Fire Event to Widget
-An event can be fired to a widget by the use of Widget.fire(String, Object, Map, int) and Widget.fireX(Event, int). For example,
-1
-2
-3
+触发事件
+An event can be fired to a widget by the use of Widget.fire(String, Object, Map, int) and Widget.fireX(Event, int). 
+For example,
+
 onCloseClick: function () {
  this.fire('onClose');
 }
-The event will be propagated to the widget's parent, parent's parent and so on, until all ancestors are notified, or the propagation has been stopped by Event.stop(Map).
+
+The event will be propagated to the widget's parent, parent's parent and so on, until all ancestors are notified, 
+or the propagation has been stopped by Event.stop(Map).
+事件会不断向上传播。
+
 After the widget and all of its ancestors are notified, this event is converted to an AU request and sent to the server, if
-The widget has a peer component, i.e., the widget was created by ZK Client Engine because of the instantiation of a component at the server[1]. Notice that, to minimize the traffic, ZK Client Engine sends the AU request only if one of the following conditions is satisfied:
+当部件，及部件所有的祖先被通知后，事件转为au请求，如果部件有对应的组件。
+The widget has a peer component, i.e., the widget was created by ZK Client Engine because of the instantiation of a component at the server[1]. 
+↑ If a widget is created automatically because of a peer component, Widget.inServer will be true.
+
+
+Notice that, to minimize the traffic, ZK Client Engine sends the AU request only if one of the following conditions is satisfied:
+注意，只有以下情况事件会发起au请求：
 The event is declared as an important event (at server).
 The server has registered an event listener (EventListener) for it.
-Or, the toServer option has been specified in Event.opts of the event. For example,
-1
+Or, the toServer option has been specified in Event.opts of the event. 
+For example,
+
 zAu.send(new zk.Event(wgt, "onFoo", {foo: 'my data'}, {toServer:true}));
+
 For more information, please refer to the next section.
-↑ If a widget is created automatically because of a peer component, Widget.inServer will be true.
+
+====
 Fire Event to Desktop
-At the client, a desktop (Desktop) is also a widget (Widget). So, firing an event to a desktop is the same as firing to a widget.
+
+At the client, a desktop (Desktop) is also a widget (Widget). 
+So, firing an event to a desktop is the same as firing to a widget.
+
 If you would like to fire an event to all desktops, please refer to the next section.
+
+====
 Fire Event Directly to Server
-If you would like to fire an event to the server directly, you could invoke zAu.send(Event, int). In other words, the event won't go through the target widget's listeners, and will be sent to the server, no matter if it has a peer component or anything else.
-The second argument specifies the time to wait before sending the request (unit: milliseconds). If negative, the event won't be sent until anther event with non-negative delay is about to be sent. In other words, if negative, it means the event is deferrable.
-If you would like to send an event to all desktops (in the current browser window), you could specify null as the target widget of the event.
+直达服务端的事件
+
+If you would like to fire an event to the server directly, you could invoke zAu.send(Event, int). 
+In other words, the event won't go through the target widget's listeners, and will be sent to the server, 
+no matter if it has a peer component or anything else.
+不会通过部件的监听器，而是直接发到服务端。
+
+The second argument specifies the time to wait before sending the request (unit: milliseconds). 
+If negative, the event won't be sent until anther event with non-negative delay is about to be sent. 
+In other words, if negative, it means the event is deferrable.
+
+If you would like to send an event to all desktops (in the current browser window), 
+you could specify null as the target widget of the event.
+
+====
 What States to Send Back the Server
-A component has to synchronize every state affecting the widget's behavior to the client, but the widget is required to send to the server only the state that is changed by the user. For better performance and offline capability, it is not necessary to send back the states changed by the client application.
-For example, the change of the value of a textbox widget is better to send back to the peer widget since the user might change it. On the other hand, it is not necessary to send the change of the value of a label widget, since the user won't be able to change it.
+哪些数据需要回传给服务端
+
+A component has to synchronize every state affecting the widget's behavior to the client, 
+but the widget is required to send to the server only the state that is changed by the user. 
+For better performance and offline capability, it is not necessary to send back the states changed by the client application.
+For example, the change of the value of a textbox widget is better to send back to the peer widget since the user might change it. 
+On the other hand, it is not necessary to send the change of the value of a label widget, since the user won't be able to change it.
+
 Version History
 Last Update : 2012/11/9
 
-====
+=========
 Server-side Processing
+服务端处理
 
-
-
-
-Contents [hide]
 1 Process AU Requests at Server
 1.1 Component State Synchronization
+
 1.2 Application-level Notification
 1.2.1 Intercept at Desktop-level
 1.2.2 Intercept at Component-level
+
 2 Client Event Declaration
 2.1 Important Events
 2.2 Force Event to Send Back
+
 3 Version History
+
+====
 Process AU Requests at Server
+
 ClientEventAuRequest.png
-A widget event (Event) is converted to an AU request and then sent to the server. When the event arrives at the server, it is converted to be an instance of AuRequest), and then pass to the desktop for serving by invoking DesktopCtrl.service(AuRequest, boolean). If the request is targeting a component, the component's ComponentCtrl.service(AuRequest, boolean) will then be called to serve it.
+
+A widget event (Event) is converted to an AU request and then sent to the server. 
+When the event arrives at the server, it is converted to be an instance of AuRequest), 
+and then pass to the desktop for serving by invoking DesktopCtrl.service(AuRequest, boolean). 
+If the request is targeting a component, the component's ComponentCtrl.service(AuRequest, boolean) will then be called to serve it.
+传给以上两个方法处理。
+
+==
 Component State Synchronization
+
 Thus, if you implement a component, you could override ComponentCtrl.service(AuRequest, boolean) to handle it.
 Here is an example (from Radio):
-1
-2
-3
-4
-5
-6
-7
-8
-9
-10
+
 public void service(org.zkoss.zk.au.AuRequest request, boolean everError) {
     final String cmd = request.getCommand();
     if (cmd.equals(Events.ON_CHECK)) {
@@ -110,19 +161,22 @@ public void service(org.zkoss.zk.au.AuRequest request, boolean everError) {
     } else
         super.service(request, everError);
 }
+
+====
 Application-level Notification
-If the AU request is sent by an application for custom service, you could implement AuService to serve it and then plug it to the targeted component or desktop, depending on your requirement. If the request is targeting a desktop, you can only intercept it at the desktop-level. If targeting a component, you could intercept it at either component-level or desktop-level.
-Since all requests will be passed through AuService that you plug, the performance of the implementation should be good. In addition, this method should return true if it has been processed to avoid any further processing.
-1
-2
-3
-4
-5
-6
-7
-8
-9
-10
+应用程序级的通知
+
+If the AU request is sent by an application for custom service, you could implement AuService to serve it 
+and then plug it to the targeted component or desktop, depending on your requirement. 
+定制请求的处理。
+If the request is targeting a desktop, you can only intercept it at the desktop-level. 
+If targeting a component, you could intercept it at either component-level or desktop-level.
+
+Since all requests will be passed through AuService that you plug, 
+the performance of the implementation should be good. 
+In addition, this method should return true if it has been processed to avoid any further processing.
+所有的请求都会被处理。
+
 public class FooAuService implements AuService {
     public boolean service(AuRequest request, boolean everError) {
         final String cmd = request.getCommand();
@@ -133,39 +187,40 @@ public class FooAuService implements AuService {
         return false; //not processed at all
     }
 }
+
+==
 Intercept at Desktop-level
-To plug it to the desktop, you could implement a listener of DesktopInit to add it to a desktop by Desktop.addListener(Object). Then, specify the listener to WEB-INF/zk.xml. For example,
-1
-2
-3
-4
-5
-6
+
+To plug it to the desktop, you could implement a listener of DesktopInit to add it to a desktop by Desktop.addListener(Object). 
+Then, specify the listener to WEB-INF/zk.xml. 
+For example,
+
 package foo;
 public class FooDesktopInit implements DesktopInit {
     public void init(Desktop desktop,  Object request) throws Exception {
         desktop.addListener(new FooAuService()); //assume you have a custom service called FooAuService
     }
 }
+
 and, in WEB-INF/zk.xml
-1
-2
-3
+
 <listener>
     <listener-class>foo.FooDesktopInit</listener-class>
 </listener>
+
+==
 Intercept at Component-level
+
 To plug it to the component, you could invoke Component.setAuService(AuService).
+
+====
 Client Event Declaration
+声明服务端监听哪些客户端事件
+
 As described in the previous section, a widget event (Event) will be sent to the server, only if the server needs it.
-To declare an event that a server might need it, you have to invoke AbstractComponent.addClientEvent(Class, String, int). It is a static method and usually called in a static clause as shown below.
-1
-2
-3
-4
-5
-6
-7
+To declare an event that a server might need it, you have to invoke AbstractComponent.addClientEvent(Class, String, int). 
+It is a static method and usually called in a static clause as shown below.
+
 public class A extends LabelImageElement {
     static {
         addClientEvent(A.class, Events.ON_FOCUS, 0);
@@ -173,56 +228,63 @@ public class A extends LabelImageElement {
     }
 //...
 }
+
 Once declared, an event will be sent to the server if one of the following conditions is satisfied:
+以下两种情况，事件会回传给服务端：
 An event listener (EventListener) has been registered at the server.
+注册了事件监听器。
 The event has been declared as important (see below).
+标记为“重要事件”。
+
+==
 Important Events
-Some events that must be sent to the server no matter if an event listener has been registered for it. Typical examples are events that are used to synchronize the states back to the server, such as onChange.
-These events are called important events. You could declare an event as important by specifying ComponentCtrl.CE_IMPORTANT as follows.
-1
-2
-3
+“重要事件”
+
+Some events that must be sent to the server no matter if an event listener has been registered for it. 
+有些事件，即使没有注册事件监听器，也必须回传给服务端。
+Typical examples are events that are used to synchronize the states back to the server, such as onChange.
+These events are called important events. 
+You could declare an event as important by specifying ComponentCtrl.CE_IMPORTANT as follows.
+
 static {
     addClientEvent(InputElement.class, Events.ON_CHANGE, CE_IMPORTANT|CE_REPEAT_IGNORE);
 }
-Notice that the important event won't be sent to the server immediately if it does not have any non-deferrable event listener at the server[1].
-↑ A deferrable event listener is an event listener that also implements Deferrable. Please refer to ZK Developer's Reference: Event Listening for details.
+
+Notice that the important event won't be sent to the server immediately 
+if it does not have any non-deferrable event listener at the server[1].
+
+↑ A deferrable event listener is an event listener that also implements Deferrable. 
+Please refer to ZK Developer's Reference: Event Listening for details.
+
+==
 Force Event to Send Back
-AbstractComponent.addClientEvent(Class, String, int) is usually used by a component developer since the first argument must be the component's class. For application developers, it is more straightforward by specifying the toServer option in Event.opts when instantiating an event. For example,
-1
+强制回传事件
+
+AbstractComponent.addClientEvent(Class, String, int) is usually used by a component developer 
+since the first argument must be the component's class. 
+For application developers, it is more straightforward by specifying the toServer option in Event.opts when instantiating an event. 
+For example,
+
 zAu.send(new zk.Event(wgt, "onFoo", {foo: 'my data'}, {toServer:true}));
+
 Version History
 Last Update : 2011/8/23
 
-====
+========
 JSON
 
+The data of a widget event (Event.data) is serialized to a string (so-called marshal) by JSON, 
+when the event is sent back to the server. 
+ZK Update Engine will unmarshal it back to a map. 
+If an entry of the data is an array, it will be converted to a list[1].
 
-
-
-The data of a widget event (Event.data) is serialized to a string (so-called marshal) by JSON, when the event is sent back to the server. ZK Update Engine will unmarshal it back to a map. If an entry of the data is an array, it will be converted to a list[1].
 The map of data can be retrieve by the use of AuRequest.getData().
 For example, assume we fire an event at the client as follows.
-1
+
 wgt.fire('onFly', {x: 10, y: 20});
+
 Then, we can retrieve and process it at the server as follows:
-1
-2
-3
-4
-5
-6
-7
-8
-9
-10
-11
-12
-13
-14
-15
-16
-17
+
 public class Fly extends AbstractComponet {
   static {
     addClientEvent(Fly.class, "onFly", CE_IMPORTANT); //assume it is an important event
@@ -240,56 +302,96 @@ public class Fly extends AbstractComponet {
     }
   }
 }
+
 Notice that
 AuRequests provides a collection of utilities to convert it to int, long and boolean.
-An integer number is converted to an instance of Integer if it is not overflow (i.e., less than Integer.MAX_VALUE). Otherwise, Long is assumed.
+An integer number is converted to an instance of Integer if it is not overflow (i.e., less than Integer.MAX_VALUE). 
+Otherwise, Long is assumed.
 A decimal number (with . or e) is converted to an instance of Double.
-If the data is not a map, it can be retrieved with the empty key:
-Types in JavaScript	 Codes in Java
-wgt.fire("onFly", "sky");	 String sky = (String)request.getData().get("");
-wgt.fire("onFly", 123);	 Integer val = (Integer)request.getData().get("");
-wgt.fire("onFly", ["sky", 123]);	 List data = (List)request.getData().get("");
-String sky = (String)data.get(0); Integer val = (Integer)data.get(1);
-wgt.fire("onFly", {left:'10px', top:20px', more:[1, 2]});	 Map data = request.getData();
-String left = (String)data.get("left"); String top = (String)data.get("top"); List more = (List)data.get("more"); Integer v1 = (Integer)more.get(0);
 
-1
-2
-3
+If the data is not a map, it can be retrieved with the empty key:
+
+Types in JavaScript	 
+Codes in Java
+
+wgt.fire("onFly", "sky");	 
+String sky = (String)request.getData().get("");
+
+wgt.fire("onFly", 123);	 
+Integer val = (Integer)request.getData().get("");
+
+wgt.fire("onFly", ["sky", 123]);	 
+List data = (List)request.getData().get("");
+String sky = (String)data.get(0); 
+Integer val = (Integer)data.get(1);
+
+wgt.fire("onFly", {left:'10px', top:20px', more:[1, 2]});	 
+Map data = request.getData();
+String left = (String)data.get("left"); 
+String top = (String)data.get("top"); 
+List more = (List)data.get("more"); 
+Integer v1 = (Integer)more.get(0);
+
+
 Map data = request.getData();
 String left = (String)data.get("left");
 String top = (String)data.get("left");
+
 For custom data types, you can implement toJSON (at the client) to convert a JavaScript object to a string in custom way.
-1
-2
-3
+
 MyClass.prototype.toJSON = function (key) { //key usually meaningless
    return this.uuid;
 };
-In addition to the default handling, You can add a custom AU request service to a component by calling Component.setAuService(AuService).
+
+In addition to the default handling, 
+You can add a custom AU request service to a component by calling Component.setAuService(AuService).
+
 ↑ More precisely, they are converted to JSONObject (a map) and JSONObject (a list)
+
 Version History
 Last Update : 2011/8/23
 
-====
+========
 AU Responses
 
+An AU response is the command sent from the server to the client 
+for synchronizing back the server's states and performing some functionality. 
+In response to the AU request sent by the client, the server could send one or multiple AU responses to the client. 
+可发送多个au响应。
+Each AU response consists of a command and a sequence of data. 
+The command is a string, and the data could be any objects (as long as JSON can handle it).
+每个au响应含有一个指令，和一系列数据。
 
-An AU response is the command sent from the server to the client for synchronizing back the server's states and performing some functionality. In response to the AU request sent by the client, the server could send one or multiple AU responses to the client. Each AU response consists of a command and a sequence of data. The command is a string, and the data could be any objects (as long as JSON can handle it).
-There are two groups of commands depending on whether the command is applied to a particular widget (Widget), or to the whole browser. For the sake of description, we call the first kind of commands as the widget commands, while the second kind the global commands.
-Class	 Object	 Description
-AuCmd0	zAu.cmd0	AuCmd0 is the class to handle all global commands (i.e., applied to the whole browser).
+There are two groups of commands depending on whether the command is applied to a particular widget (Widget), 
+or to the whole browser. 
+For the sake of description, we call the first kind of commands as the widget commands, 
+while the second kind the global commands.
+有两种指令，部件级指令，全局指令（整个浏览器）。
+
+
+Class	 
+Object	 
+Description
+
+AuCmd0	
+zAu.cmd0	
+AuCmd0 is the class to handle all global commands (i.e., applied to the whole browser).
 Furthermore, all global commands are handled by an instance of AuCmd0 called zAu.cmd0.
-AuCmd1	zAu.cmd1	AuCmd1 is the class to handle all widget commands (i.e., applied to a particular widget).
+
+AuCmd1	
+zAu.cmd1	
+AuCmd1 is the class to handle all widget commands (i.e., applied to a particular widget).
 Furthermore, all global commands are handled by an instance of AuCmd1 called zAu.cmd1.
+
 Add a New Command
-If you'd like to add a new command, you could simply add a new property to to zAu.cmd0 or zAu.cmd1, depending on your requirement. For example,
-1
-2
-3
+添加新指令
+If you'd like to add a new command, you could simply add a new property to to zAu.cmd0 or zAu.cmd1, 
+depending on your requirement. For example,
+
 zk.zAu.cmd0.bookmark = function (bk, replace) {
     //...
 };
+
 Version History
 Last Update : 2011/8/23
 
