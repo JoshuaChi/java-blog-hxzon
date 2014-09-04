@@ -1,9 +1,10 @@
 ﻿（官方文档）组件开发03-Creating the Configuration Files
 
-
-
-
-In order for our component to be used in ZK applications we need to provide two component files named language-addon and zk.wpd.
+注释by hxzon
+====
+In order for our component to be used in ZK applications 
+we need to provide two component files named language-addon and zk.wpd.
+使用自定义组件，必须创建两个配置文件。
 
 Subsections:
 The language-addon
@@ -12,10 +13,9 @@ The Widget Package Descriptor
 =========
 The language-addon
 
+The language-addon contains a description of the relation between the component and widget referred to as the component definition. 
+The path of the file must be /metainfo/zk/lang-addon.xml and be located in the Java class path.
 
-
-
-The language-addon contains a description of the relation between the component and widget referred to as the component definition. The path of the file must be /metainfo/zk/lang-addon.xml and be located in the Java class path.
 <language-addon>
 	<addon-name>simplelabel</addon-name>
 	<language-name>xul/html</language-name>
@@ -31,54 +31,87 @@ The language-addon contains a description of the relation between the component 
 		</mold>
 	</component>
 </language-addon>
+
 The table below describes the elements used within the above XML and their descriptions.
+
 Name	 Description
-addon-name	 A unique name for this addon
-annotation	Annotation setting for Data Binding
-language-name	 The language name that this addon belongs to (for instance, xul/html or zhtml)
-component-name	 A unique name of the component in the language of this addon
-component-class	 The name of the component class (Java class)
-widget-class	 The name of the widget class (JavaScript class)
-mold	 A mold definition (optional)
-mold-name	 The name of the mold. The default mold is named default.
-mold-uri	 The URI of the mold
-css-uri	 The URI of the CSS file for the mold
-A component may have multiple molds which may or may not have different widget classes. To handle this you may specify the <widget-class> inside <mold>. You can specify more than one mold.
-After creating the component descriptor language-addon we need to create the widget package descriptor.
+
+addon-name	 
+A unique name for this addon
+
+annotation	
+Annotation setting for Data Binding
+
+language-name	 
+The language name that this addon belongs to (for instance, xul/html or zhtml)
+
+component-name	 
+A unique name of the component in the language of this addon
+
+component-class	 
+The name of the component class (Java class)
+
+widget-class	 
+The name of the widget class (JavaScript class)
+
+mold	 
+A mold definition (optional)
+
+mold-name	 
+The name of the mold. The default mold is named default.
+
+mold-uri	 
+The URI of the mold
+
+css-uri	 
+The URI of the CSS file for the mold
+
+A component may have multiple molds which may or may not have different widget classes. 
+To handle this you may specify the <widget-class> inside <mold>. 
+You can specify more than one mold.
+如果一个组件的每个“模子”对应不同的部件类，则把部件类写在“模子”中。
+
+After creating the component descriptor language-addon 
+we need to create the widget package descriptor.
 For more information, please refer to ZK Client-side Reference: Language Definition.
 
 ====
 The Widget Package Descriptor
 
+The Widget Package Descriptor (WPD) is a file describing the information of a package, 
+such as its widget classes and external JavaScript files. 
+WPD must be named zk.wpd and placed in the same directory as the widget classes. 
+For example we would place it under web/js/com/foo.
+部件包描述文件，和部件类一起。
 
-
-
-The Widget Package Descriptor (WPD) is a file describing the information of a package, such as its widget classes and external JavaScript files. WPD must be named zk.wpd and placed in the same directory as the widget classes. For example we would place it under web/js/com/foo.
 Below is an example zk.wpd of our SimpleLabel.
-1
-2
-3
+
 <package name="com.foo" language="xul/html">
     <widget name="SimpleLabel"/>
 </package>
 
 The table below describes the elements used within the above XML and their description.
-Name	 Description
-package	 The root element denotes the package name and the language it belongs to
-widget	 The widget class name (without the package name). If the package contains multiple widgets list them one by one
 
-Having created the configuration the basic implementation of our component is complete. However it will not have any interactive events. Therefore the next logical step is to start adding events to the component.
+Name	 Description
+
+package	 
+The root element denotes the package name and the language it belongs to
+
+widget	 
+The widget class name (without the package name). 
+If the package contains multiple widgets list them one by one
+
+Having created the configuration the basic implementation of our component is complete. 
+However it will not have any interactive events. 
+Therefore the next logical step is to start adding events to the component.
+为组件添加事件交互。
+
 Package Dependence
-It is common for JavaScript packages to depend on another package. For example, zul.grid depends on zul.mesh and zul.menu. This can easily be specified by placing them within the depends attribute as follows.
-1
-2
-3
-4
-5
-6
-7
-8
-9
+It is common for JavaScript packages to depend on another package. 
+For example, zul.grid depends on zul.mesh and zul.menu. 
+This can easily be specified by placing them within the depends attribute as follows.
+部件之间的依赖。
+
 <package name="zul.grid" language="xul/html" depends="zul.mesh,zul.menu">
     <widget name="Column"/>
     <widget name="Columns"/>
@@ -88,18 +121,18 @@ It is common for JavaScript packages to depend on another package. For example, 
     <widget name="Foot"/>
     <widget name="Footer"/>
 </package>
+
 Including additonal JavaScript files
-If a JavaScript package has to include other JavaScript files, this can be done easily by specifying the file with the script element. For example, the following is the content of zul.db's WPD:
-1
-2
-3
-4
-5
+If a JavaScript package has to include other JavaScript files, 
+this can be done easily by specifying the file with the script element. 
+For example, the following is the content of zul.db's WPD:
+包含额外的js文件：
+
 <package name="zul.db" language="xul/html" depends="zk.fmt,zul.inp">
     <script src="datefmt.js"/>
     <widget name="Calendar"/>
     <widget name="Datebox"/>
 </package>
-For more information, please refer to ZK Client-side Reference: Widget Package Descriptor.
 
+For more information, please refer to ZK Client-side Reference: Widget Package Descriptor.
 

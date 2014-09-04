@@ -1,0 +1,731 @@
+﻿（官方文档）客户端指引07-Language Definition
+http://books.zkoss.org/wiki/ZK%20Client-side%20Reference/Language%20Definition
+
+This section describes what a language definition and addon are. It is required for the component component. However, you could skip it if you won't develop components. For more information about component development, please refer to ZK Component Development Essentials.
+If you would like to change the default configuration of an ZK application, please refer to ZK Developer's Reference: Packing Code.
+A language definition defines a component set (aka., a language). For example, ZUL and XHTML are two component sets.
+To define a language definition, you have to prepare a file called /metainfo/zk/lang.xml and makes it available to the classpath (such as in a JAR file, or in WEB-INF/classes of a Web application). In addition, you could specify them in /metainfo/zk/config.xml in the classpath.
+A language addon is used to extend a language definition. It should be called /metainfo/zk/lang-addon.xml available to the classpath, specified in WEB-INF/zk.xml (in a Web application), or specified in /metainfo/zk/config.xml (in a JAR file; classpath).
+When ZK starts, it will parse all language definitions and then all language addons based on their dependency. A language addon is a variant of a language definition. They are almost the same, except the naming and it must specify the addon name.
+
+Subsections:
+Samples
+addon-name
+component
+depends
+device-type
+extension
+javascript
+javascript-module
+label-template
+language
+language-addon
+language-name
+library-property
+macro-template
+namespace
+native-template
+renderer-class
+stylesheet
+system-property
+version
+zscript
+
+==========
+Samples
+
+
+
+
+Sample of a Language Definition
+Here is a sample (from ZUL's lang.xml):
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+<language>
+    <language-name>xul/html</language-name>
+    <device-type>ajax</device-type>
+    <namespace>http://www.zkoss.org/2005/zul</namespace>
+    <extension>zul</extension><!-- the first extension is the major one -->
+    <extension>xul</extension>
+ 
+    <version>
+        <version-class>org.zkoss.zul.Version</version-class>
+        <version-uid>5.0.6</version-uid>
+    </version>
+ 
+    <javascript package="zk"/>
+    <javascript package="zul.lang"/>
+    <stylesheet href="~./zul/css/zk.wcs" type="text/css"/>
+ 
+    <renderer-class>org.zkoss.zul.impl.PageRenderer</renderer-class>
+ 
+    <label-template>
+        <component-name>label</component-name>
+        <component-attribute>value</component-attribute>
+    </label-template>
+    <macro-template>
+        <macro-class>org.zkoss.zk.ui.HtmlMacroComponent</macro-class>
+    </macro-template>
+    <native-template>
+        <native-class>org.zkoss.zk.ui.HtmlNativeComponent</native-class>
+    </native-template>
+ 
+    <component>
+        <component-name>a</component-name>
+        <component-class>org.zkoss.zul.A</component-class>
+        <widget-class>zul.wgt.A</widget-class>
+        <text-as>label</text-as><!-- treat text within the element as the label property -->
+        <mold>
+            <mold-name>default</mold-name>
+            <mold-uri>mold/a.js</mold-uri>
+            <css-uri>css/a.css.dsp</css-uri>
+        </mold>
+    </component>
+</language>
+Sample of a Language Addon
+Here is a sample (from zkmax's lang-addon.xml):
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+<language-addon>
+    <addon-name>zkmax</addon-name>
+    <depends>zkex</depends>
+    <language-name>xul/html</language-name>
+ 
+    <version>
+        <version-class>org.zkoss.zkmax.Version</version-class>
+        <version-uid>5.0.5</version-uid>
+        <zk-version>5.0.5</zk-version><!-- or later -->
+    </version>
+ 
+    <javascript package="zkmax" merge="true"/>
+ 
+    <component>
+        <component-name>portallayout</component-name>
+        <component-class>org.zkoss.zkmax.zul.Portallayout</component-class>
+        <widget-class>zkmax.layout.Portallayout</widget-class>
+        <mold>
+            <mold-name>default</mold-name>
+            <mold-uri>mold/portallayout.js</mold-uri>
+            <css-uri>css/portallayout.css.dsp</css-uri>
+        </mold>
+    </component>
+</language-addon>
+Version History
+Last Update : 2010/12/3
+
+====
+addon-name
+
+
+
+
+Syntax:
+<addon-name>a_name</addon-name>
+[Required for a language addon]
+It specifies the name of a language addon. It is required for a language addon. The name must be unique if it is referenced by other addons (with the depends element).
+Version History
+Last Update : 2010/12/3
+
+====
+component
+
+
+
+
+Contents [hide]
+1 component-name
+2 extends
+3 component-class
+4 widget-class
+5 property
+6 text-as
+7 Version History
+
+Syntax:
+<component>
+  <component-name>a_name</component-name>
+  <extends>a_name</extends>
+  <component-class>a_class_name</component-class>
+  <widget-class>a_class_name</widget-class>
+
+  <mold>
+    <mold-name>a_mold</mold-name>
+    <mold-uri>a_uri</mold-uri>
+  </mold>
+
+  <text-as>a_property_name</text-as>
+
+  <property>
+    <property-name>a_name</property-name>
+    <property-value>a_value</property-value>
+  </property>
+
+  <annotation>
+    <annotation-name>an_annotation_name</annotation-name>
+    <property-name>a_property_name</property-name>
+    <attribute>
+      <attribute-name>an_annotation_attr_name</attribute-name>
+      <attribute-value>an_annotation_attr_value</attribute-value>
+    </attribute>
+  </annotation>
+
+   <custom-attribute>
+    <attribute-name>a_custom_attr_name</attribute-name>
+    <attribute-value>a_custom_attr_value</attribute-value>
+  </custom-attribute>
+</component>
+It specifies a component definition.
+Example,
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+<component>
+    <component-name>area</component-name>
+    <component-class>org.zkoss.zul.Area</component-class>
+    <widget-class>zul.wgt.Area</widget-class>
+    <mold>
+        <mold-name>default</mold-name>
+        <mold-uri>mold/area.js</mold-uri>
+    </mold>
+</component>
+<component>
+    <component-name>bandbox</component-name>
+    <extends>bandbox</extends>
+    <annotation>
+        <annotation-name>default-bind</annotation-name>
+        <property-name>value</property-name>
+        <attribute>
+            <attribute-name>access</attribute-name>
+            <attribute-value>both</attribute-value>
+        </attribute>
+    </annotation>
+</component>
+component-name
+[Required]
+The name of the component. It must be unique in the whole language.
+extends
+[Optional]
+It specifies whether this definition is extending from another definition. If omitted, it is considered a definition of a new component. If specified, it extends from the given component definition (which must be defined first).
+Notice that the component's name could be the same as the definition it extends from. If the same, the existent definition is simply overriden (no new component definition is created). It is a useful technique to change a component definition, such as adding annotation, providing the initial properties and so on.
+component-class
+[Required if no extends]
+It specifies the component's Java class at the server side. It is required if you define a new component.
+widget-class
+[Required if no extends][EL expressions allowed]
+It specifies the widget's class at the client side. For Ajax clients, it must be a JavaScript class. It is required if you define a new component.
+Since EL expressions are allowed, the widget class being associated with a component could be decided at runtime. Please refer to Blog: Totally Different Look per User Without Modifying Application for an example.
+property
+[Optional][EL expressions allowed in the property value]
+It specifies an initial property. Once the property is specified, the corresponding setter will be called when ZK Loader instantiates from a ZUML document. Of course, if you instantiate it directly in Java, this setting has no effect.
+Suppose we want to make all window's border default to normal, we could do as follows.
+Customization Reference
+
+1
+2
+3
+4
+<property>
+    <property-name>border</property-name>
+    <property-value>normal</property-value>
+</property>
+Another example , to turn off combobox's autocomplete.
+1
+2
+3
+4
+5
+6
+7
+8
+9
+<component>
+    <component-name>combobox</component-name>                      <!-- required -->
+    <component-class>org.zkoss.zul.Combobox</component-class>      <!-- required -->
+    <widget-class>zul.inp.Combobox</widget-class>                  <!-- required -->
+    <property> 
+        <property-name>autocomplete</property-name>
+        <property-value>false</property-value>
+    </property>
+</component>
+text-as
+[Optional]
+It specifies the name of the property to assign the text enclosed by the XML element. If omitted (default), the text will be interpreted as a label and a label component defined in label-template will be used.
+For example, if you specify
+1
+2
+3
+<component>
+  <component-name>foo</component-name>
+  <text-as>content</text-as>
+then, the following ZUML document
+1
+<foo>the content of foo</foo>
+will cause foo.setContent("the content of foo") to be called (assume foo is an instance of the component).
+Version History
+Last Update : 2011/8/23
+
+====
+depends
+
+
+
+
+Syntax:
+<depends>a_list_of_addon_names</depends>
+It specifies what language addons this addon depends on. If specified, this addon will be parsed after all the specified addons are parsed.
+Example,
+1
+<depends>zkex, zkmax</depends>
+which means this addon won't be parsed until both zkex and zkmax are parsed.
+Version History
+Last Update : 2011/8/23
+
+====
+device-type
+
+
+
+
+Syntax:
+<device-type>a_type</device-type>
+ [Required for a language definition]
+It specifies the device type.
+Example,
+1
+<device-type>ajax</device-type>
+Version History
+Last Update : 2010/12/3
+
+====
+extension
+
+
+
+
+Syntax:
+<extension>a_ext</extension>
+[Required for a language definition]
+It specifies the extension of a file or URI that should be associated with this language. You could have multiple extensions for a language, and the first one is the default one.
+Example,
+1
+2
+<extension>zul</extension>
+<extension>xul</extension>
+Version History
+Last Update : 2011/8/23
+
+====
+javascript
+
+
+
+
+Syntax:
+<javascript package="pkg_name" [merge="false|true"]/>
+<javascript package="pkg_name" merge="a_package_to_merge_to"/>
+<javascript package="pkg_name" [ondemand="false|true"/>
+<javascript src="a_uri"/>
+<javascript>
+js_code
+</javascript>
+It specifies the JavaScript package or file that has to be loaded to the client. It could also specify the content (the JavaScript code snippet) directly. Notice that, if specified, it is always loaded, no matter if it is required or not.
+Example,
+1
+<javascript package="zul.box"/>
+Contents [hide]
+1 package
+2 src
+3 merge
+4 ondemand
+5 Version History
+package
+[Optional]
+It specifies the package to load.
+src
+[Optional]
+It specifies the URI of the JavaScript file to load. The URI could contain ~./ (such as "~./foo/whatever.js") to indicate a JavaScript file should be loaded from the classpath.
+merge
+[Optional][Default: false]
+It is used with the package attribute to specify whether the package should be loaded as part of the zk package. If not specified, each package will be loaded separatedly. This speeds up the loading if we merge several packages into one.
+Since ZK 6, it is allowed to specify the target package in the merge attribute. For example,
+1
+<javascript package="foo.lang" merge="zul.lang"/>
+In fact, merge="true" is the same as merge="zk", i.e., merged to the zk package. Notice that the target package must be a preloaded package. In other words, it must be specified in another javascript element (without the ondemand attribute). In most cases, you shall use zk for packages that can be cached at the client, and use zul.lang for packages that shall not be cached, such as your own locale-dependent messages.
+For more information, please refer to the Performance Tips section.
+ondemand
+[Optional][Default: false]
+It is used to 'cancel' the package specified in another javascript element. By default, JavaScript packages are loaded on-demand (i.e., when it is required). By specify <javascript;> in a language definition/addon, we could force some packages to load at the beginning. But if you change your mind, you could either remove the javascript element, or specify another javascript element with ondemand="true".
+Version History
+Last Update : 2011/9/29
+
+====
+javascript-module
+
+
+
+
+Syntax:
+<javascript-module name="name" version="version"/>
+It specifies the version of a JavaScript module. The specified version will be associated with the URL used to load Javascript packages (such as zul.db.wpd), such that the browser will reload them if the version is changed.
+The name is either a package or the prefix of it. It matches any package that starts with the given name. For example,
+1
+<javascript-module name="foo" version="1.5.0"/>
+Then, it matches the packages named foo, foo.one, foo.another or foo.any.subpkg.
+If you have multiple packages that don't share the same prefix, you could specify multiple <javascript-module>.
+name
+The name of the module. It should be the package name or the prefix of all packages it contains.
+version
+The version of the module. Notice it cannot contain slash, and it must be legal to be part of URL. It is suggested to limit the use of number, alphabet, dash and dot.
+Version History
+Last Update : 2011/8/23
+
+====
+label-template
+
+
+
+
+Syntax:
+<label-template>
+  <component-name>a_component_name</component-name>
+  <component-attribute>a_property</component-attribute>
+</label-template>
+It specifies how to instantiate a label. When the text is found in a ZUML document, ZK Loader will first check if the so-called text-as property is defined. If so, the setter is called to pass the text to the component. If not, this label template is used to instantiate a label for holding the text.
+Example,
+1
+2
+3
+4
+<label-template>
+    <component-name>label</component-name>
+    <component-attribute>value</component-attribute>
+</label-template>
+component-name
+[Required]
+The name of the component definition that represents a label.
+component-attribute
+[Required]
+The property of the component definition for holding the text.
+Version History
+Last Update : 2011/8/23
+
+====
+language
+
+
+
+
+Syntax:
+<language>
+The root element of a language definition.
+Version History
+Last Update : 2010/12/3
+
+====
+language-addon
+
+
+
+
+Syntax:
+<language-addon>
+The root element of a language addon.
+Version History
+Last Update : 2010/12/3
+
+====
+language-name
+
+
+
+
+Syntax:
+<language-name>a_name</language-name>
+[Required]
+It specifies the name of a language definition. It is required for both a language definition and a language addon. The name must be unique in the whole system.
+Example,
+1
+<language-name>xul/html</language-name>
+Version History
+Last Update : 2012/9/25
+
+====
+library-property
+
+
+
+
+Syntax:
+<library-property>
+  <name>a_name</name>
+  <value>a_value</value>
+</library-property>
+ [Optional]
+It specifies the library property (Library.setProperty(String, String)).
+Version History
+Last Update : 2010/12/3
+
+====
+macro-template
+
+
+
+
+Syntax:
+<macro-template>
+  <macro-class>a_class_represents_macro</macro-class>
+</macro-template>
+It specifies the class used to instantiate a macro component.
+Example,
+1
+2
+3
+<macro-template>
+    <macro-class>org.zkoss.zk.ui.HtmlMacroComponent</macro-class>
+</macro-template>
+macro-class
+[Required]
+The class used to instantiate a macro component.
+Version History
+Last Update : 2010/12/3
+
+====
+namespace
+
+
+
+
+Syntax:
+<namespace>a_namespace</namespace>
+ [Required for a language definition]
+It specifies the namespace of this language. It is suggested to be an URL. The last part will be considered as a shortcut. Thus, the last part is better to be identifiable
+Example, here is the ZUL namespace and it also defines a shortcut.
+1
+<namespace>http://www.zkoss.org/2005/zul</namespace>
+Version History
+Last Update : 2010/12/3
+
+====
+native-template
+
+
+Syntax:
+<native-template>
+  <native-class>a_class_represents_native</native-class>
+</native-template>
+It specifies the class used to instantiate a native component. The native component is used only when ZK Loader is rendering a ZUML document. After rendering, multiple native components might be merged into one, and it might be replaced by other component to save the memory at the server.
+Example,
+1
+2
+3
+<native-template>
+    <native-class>org.zkoss.zk.ui.HtmlNativeComponent</native-class>
+</native-template>
+native-class
+[Required]
+The class used to instantiate a natve component.
+Version History
+Last Update : 2011/8/23
+
+====
+renderer-class
+
+
+
+
+Syntax:
+<renderer-class>a_class'</renderer-class>
+[Required for a language definition]
+It specifies the Java class used to render a page for the given language. It must implement PageRenderer.
+Example,
+1
+<renderer-class>org.zkoss.zul.impl.PageRenderer</renderer-class>
+Version History
+Last Update : 2010/12/3
+
+====
+stylesheet
+
+
+
+
+Syntax:
+<stylesheet href="a_uri" type="text/css"/>
+<stylesheet>
+ css_definitions
+</stylesheet>
+It specifies a CSS file that should be loaded to the client, or the CSS content. Notice that, if specified, the CSS file is always loaded.
+Example,
+1
+<stylesheet href="~./zul/css/zk.wcs" type="text/css"/>
+href
+[Optional]
+It specifies the URI of the CSS file to load. The URI could contain ~./ (such as "~./foo/whatever.js") to indicate that a JavaScript file should be loaded from the classpath.
+type
+[Optional]
+The type of CSS. It is usually text/css.
+Version History
+Last Update : 2011/8/23
+
+====
+system-property
+
+
+
+
+Syntax:
+<system-property>
+  <name>a_name</name>
+  <value>a_value</value>
+</system-property>
+ [Optional]
+It specifies the system property (java.lang.System).
+Version History
+Last Update : 2010/12/3
+
+====
+version
+
+
+
+
+Syntax:
+<version>
+   <version-class>a_class</version-class>
+   <version-uid>a_version</version-uid>
+   <zk-version>a_version</zk-version>
+</version>
+[Optional]
+It specifies the version of this language definition or addon. It also controls whether to ignore this document.
+First, ZK checks if the specified class (<version-calss>) matches the version (<version-uid>). Second, it checks if ZK's version is the same or larger than the version specified in <zk-version>.
+The specified class, if any, must have a static field called UID. ZK will compare its value with the version specified in <version-uid>. For example,
+1
+2
+3
+4
+package foo;
+public class MyAddon {
+    public static final String UID = "1.0.3";
+}
+Then, you could specify it as follows.
+1
+2
+3
+4
+5
+<version>
+    <version-class>foo.MyAddon</version-class>
+    <version-uid>1.0.3</version-uid>
+    <zk-version>5.0.0</zk-version>
+</version>
+which means foo.MyAddon.UID must be 1.0.3, and WebApp.getVersion() must be 5.0.0 or later.
+Version History
+Last Update : 2012/5/2
+
+====
+zscript
+
+Syntax:
+<zscript language="Java|Groovy|Python|Ruby|JavaScript">
+ the code snippet
+</zscript>
+It specifies the zscript code to be evaluated when the corresponding interpreter being loaded by a page. In other words, it specified the initial zscript that should be evaluated by any other script defined in a ZUML document.
+Example,
+
+
+<zscript language="Java">
+import java.util.*;
+import java.lang.*;
+import org.zkoss.zk.ui.util.Clients;
+import org.zkoss.zk.ui.event.*;
+import org.zkoss.zk.ui.*;
+import org.zkoss.zul.*;
+ 
+void alert(Object m) {
+    Messagebox.show("" + m);
+}
+</zscript>
+Version History
+Last Update : 2011/8/23
+
+
+

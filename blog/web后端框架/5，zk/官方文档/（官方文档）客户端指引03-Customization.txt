@@ -1,0 +1,237 @@
+﻿（官方文档）客户端指引03-Customization
+http://books.zkoss.org/wiki/ZK%20Client-side%20Reference/Customization
+
+This section describes the customizable features of ZK Client Engine, and how to customize them. For infomration about packing JavaScript code, please refer to the JavaScript Packaging section.
+
+Subsections:
+Actions and Effects
+Alphafix for IE6
+Drag-and-Drop Effects
+Stackup and Shadow
+
+=========
+Actions and Effects
+
+
+
+
+[since 5.0.6]
+Here we describe how to provide more effects for client-side actions.
+The allowed effects are actually the names of methods defined in Actions. Thus, to add a new effect, you have to add a new method to it. For example,
+1
+2
+3
+4
+zk.eff.Actions.fooIn = function (n, opts) {
+    //your own effect to make the node visible, such as
+    //zk(n).slideIn(this, opts);
+};
+Then, you could use it in the client-side action:
+1
+2
+3
+<div action="show: fooIn">
+....
+</div>
+The signature of an effect method is as follows.
+function (DOMElement n, Map opts);
+where n is the DOM element to apply the action, and opts is the options specified in the client-side action.
+Notice that, before invoking jQuery's effects, you should invoke jqzk.defaultAnimaOpts(Widget, Map, Array, boolean) to prepare the initial options for animation. For example,
+1
+2
+3
+4
+5
+this.defaultAnimaOpts(wgt, opts, prop, true).jq
+    .css(css).show().animate(anima, { //the rest depending the jQuery effect you use
+        queue: false, easing: opts.easing, duration: opts.duration || 400,
+        complete: opts.afterAnima
+    });
+Version History
+Last Update : 2011/8/12
+
+====
+Alphafix for IE6
+
+
+
+
+IE6 failed to render a PNG with alpha transparency correctly. Please refer to here for more information.
+ZK provides the fix, but you have to turn it on by specifying a JavaScript variable called jq.IE6_ALPHAFIX For example,
+1
+2
+3
+4
+<?script content="jq.IE6_ALPHAFIX='.png';"?>
+<zk>
+  <button image="foo.png"/>
+</zk>
+where .png causes all PNG images to be fixed. If you want to fix certain images, you can do as follows
+1
+<?script content="jq.IE6_ALPHAFIX='more.png|-trans.png'?>
+If <?script?> doesn't work, you can try using a regular script-component:
+1
+2
+3
+4
+<zk>
+  <script type="text/javascript">jq.IE6_ALPHAFIX='.png';</script>
+  <button image="foo.png" />
+</zk>
+If you prefer to use plain Java instead of ZUL files, you can instantiate a Script component and append it to another component:
+1
+2
+3
+Script alphafix = new Script();
+alphafix.setContent("jq.IE6_ALPHAFIX='.png';");
+parent.appendChild(alphafix);
+Version History
+Last Update : 2011/8/12
+
+=========
+Drag-and-Drop Effects
+
+
+
+
+There are two levels to customize the drag-and-drop effects: per-widget and browser-level.
+Per-Widget Customization
+Widget has a set of methods for handling drag-and-drop. You could customize them based on your requirement.
+If you want to customize a particular widget, you could do as follows[1].
+
+
+var superwgt = {};
+zk.override(wgt, superwgt, {
+    initDrag_: function () {
+        //your implementation
+        superwgt.initDrag_.apply(this, arguments); //if you want to call back the default implementation
+    }
+});
+If you want to override all widgets of particular class, say, Combobox, you could do as follows.
+
+
+var supercomobox = {};
+zk.override(zul.inp.Combobox.prototype, supercomobox, {
+    initDrag_: function () {
+        //your implementation
+        supercomobox.initDrag_.apply(this, arguments); //if you want to call back the default implementation
+    }
+});
+If you override Widget, then all widgets are affected[2].
+Here is a list of methods you could override. For a complete list, please refer to Widget.
+Method	 Description
+Widget.dropEffect_(boolean)	 Called to have some visual effect when the user is dragging a widget over this widget and this widget is droppable.
+Notice it is the effect to indicate that a widget is droppable.
+Widget.onDrop_(Draggable, Event)	 Called to fire the onDrop event.
+You could override it to implement some effects to indicate dropping.
+Widget.getDragOptions_(Map)	 Returns the options used to instantiate Draggable.
+There is a lot what you could customize with this method, since the options control many effects, such starteffect, endeffect, change and so on. Please refer to Draggable and the source code for more information.
+Widget.cloneDrag_(Draggable, Offset)	 Called to create the visual effect representing what is being dragged.
+In other words, it creates the DOM element that will be moved with the mouse pointer when the user is dragging.
+Widget.uncloneDrag_(Draggable)	 Undo the visual effect created by Widget.cloneDrag_(Draggable, Offset).
+In other words, it removes the DOM element that was created.
+↑ zk.override(Object, Map, Map) is a utility to simplify the overriding of a method.
+↑ It is also a browser-level customization
+Browser-level Customization
+DnD provides a collection of drag-and-drop utilities. By customizing it, all widgets in the same browser will be affected.
+For example, if you would like customize ghosting" of the DOM element being dragged, you could override DnD.ghost(Draggable, Offset, String) as follows.
+
+
+var superghost = zk.DnD.ghost;
+zk.DnD.ghost = function (drag, ofs, msg) {
+    if (msg != null)
+        return superghost(drag, ofs, msg);
+   //do whatever you want
+}
+Version History
+Last Update : 2011/8/12
+
+========
+Stackup and Shadow
+
+1 Overview
+2 Usage
+2.1 The stackup and autohide techniques
+3 All Possible Values
+3.1 auto
+3.2 auto/gecko
+3.2.1 shadow and stackup
+3.3 true
+3.4 false
+4 Version History
+
+=======
+Overview
+zk.useStackup is a JavaScript variable to indicate how to handle the so-called stackup and autohide techniques. It is used to resolve the z-index issue when a page contains, say, a PDF iframe.
+For example, the following codes will cause the menupopup obscured by the iframe.
+
+
+<zk>
+<menubar width="100%">
+    <menu label="test">
+    <menupopup>
+    <menuitem label="test"/>
+    <menuitem label="test"/>
+    </menupopup>
+    </menu>
+</menubar>
+<window title="iframe/pdf" border="normal" width="500px" sizable="true">
+    <iframe style="background-color:transparent" src="/test2/B1896797.pdf" width="100%"/>
+</window>
+</zk>
+For better performance, neither stackup nor autohide is applied by default, so the menupopup is obscured by the iframe as shown below.
+UseStack-obscue-1.jpg
+Usage
+To resolve this, you could specify 'auto'[1] to zk.useStackup as follows.
+
+
+<?script content="zk.useStackup='auto'"?>
+<zk>
+<menubar width="100%">
+...
+</zk>
+In addition, you have to specify true to the autohide property of the iframe component as following.
+1
+2
+<iframe style="background-color:transparent" src="/test2/B1896797.pdf" width="100%"
+autohide="true"/>
+Notice that no all iframe will cause the obscure issue. For example, it is OK if iframe contains another HTML page. Thus, specify it only if necessary (for better performance). Here is the correct result.
+UseStack-ok-1.jpg
+↑ Available since ZK 5.0. For prior version, specify true instead.
+The stackup and autohide techniques
+The stackup technique resolves the obscure issue by placing a transparent iframe under the widget (menupopup in this example) that should appear on top. Unfortunately, this technique can not be applied to all browsers. Thus, there is another technique called autohide.
+The autohide technique resolves the obscure issue by hiding the iframe that obscures the widget on top. In other words, the iframe is not visible when the menupopup is shown up (on top of the iframe).
+UseStack-autohide-1.jpg
+All Possible Values
+auto
+[Since 5.0]
+This is the most common value that can be assigned to zk.useStackup. If it is assigned, the stackup technique is applied to Internet Explorer and Firefox, while the autohide technique is applied to Safari, Chrome and Opera.
+auto/gecko
+[Since 5.0]
+Firefox has a problem to show a PDF iframe if two or more iframes are overlapped. In other words, we have to apply the autohide technique instead of the stackup technique. For example,
+
+
+<?script content="zk.useStackup = 'auto/gecko';"?>
+<zk>
+<window title="iframe/pdf" border="normal" width="500px" mode="overlapped">
+    <iframe style="background-color:transparent" src="/test2/B1896797.pdf"
+    width="100%" autohide="true"/>
+</window>
+<window title="iframe/pdf" border="normal" width="500px" mode="overlapped">
+    <iframe style="background-color:transparent" src="/test2/B1896797.pdf"
+    width="100%" autohide="true"/>
+</window>
+</zk>
+shadow and stackup
+When the stackup technique is enabled, a stackup is created for each shadow (of an overlapped window) such that the window appears on top of the others. You can turn off the stackup for an individual window by disabling the shadow property (shadow="false").
+For example, if a page has only one overlapped iframe that might contain PDF, you can still use the stackup (instead of autohide, which is slower) by specifying shadow as fasle, and zk.useStackup as 'auto' (instead of 'auto/gecko').
+true
+[Since 3.6.2]
+Always use the stackup technique.
+false
+[Since 3.6.2]
+Never use the stackup technique.
+Version History
+Last Update : 2011/8/12
+
+

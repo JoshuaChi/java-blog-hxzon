@@ -1,0 +1,558 @@
+﻿（官方文档）客户端指引02-General Control
+
+
+
+
+If you're an application developer
+Though optional, you could have the total control of the client's functionality without the assistance of server-side code. Generally, you don't need to do it. You don't need to know how ZK Client Engine and client-side widgets communicate with the server. Their states are synchronized automatically by ZK and components. However, you could control it if necessary. It is the so-called Server-client fusion.
+The rule of thumb that is you should handle most of, if not all, events and manipulate UI at the server, since it is much more productive. Then, you could improve the responsiveness and visual effects, and/or reduce the server loading by handling them at the client, when it is appropriate. Notice that JavaScript is readable by any user, so be careful not to expose sensitive data or business logic when migrating some code from server to client.
+If you're a component developer
+This section provides more detailed information about client-side programming, though it is written more for application developers. If you're not familiar with ZK's component development, please refer to ZK Component Development Essentials first.
+In this section, we will discuss the details of the client-side control and programming.
+
+Subsections:
+UI Composing
+Event Listening
+Widget Customization
+JavaScript Packaging
+iZUML
+
+========
+UI Composing
+
+
+
+Contents [hide]
+1 Overview
+2 Modify Widget's State at Client
+2.1 Fusion with Server-side ZUML and Java
+2.2 Identify Widget at Client
+3 Instantiate Widget at Client
+3.1 Attach Widget to DOM
+3.2 When to Run Your JavaScript Code
+4 Version History
+Overview
+ZKComDevEss widget component application.png
+A UI object visible to a user at the client is hosted by a JavaScript object[1] called a widget (Widget). On the other hand, a component is a Java object (Component) representing the UI object at the server that an application manipulates directly. Once a component is attached to a page, a widget is created at the client automatically. Furthermore, any state change of the component at the server will be updated to the widget at the client.
+Generally, you need not to know the existence of widgets. Ajax requests and the state synchronization are handled automatically by ZK and the components automatically. However, you could instantiate or alert any client-side widgets directly at the client (in JavaScript). It is the so-called Server+client fusion.
+The rule of thumb is that you should handle events and manipulate UI mostly, if not all, at the server, since it is more productive. Then, you could improve the responsiveness and visual effects, and/or reduce the load of the server by handling them at the client, when it is appropriate.
+Here we describe how to compose UI in JavaScript at the client.
+For client-side event handling, please refer to the Client-side Event Handling section.
+For XML-based UI composing at the client, please refer to the iZUML section.
+For more information about the relationship among components, widgets and DOM, please refer to the Components and Widgets section]].
+For developing a component, please refer to the Component Development section.
+↑ It actually depends on the device. For Ajax, it is a JavaScript object. For Android devices, it is a Java object.
+Modify Widget's State at Client
+While the states of a widget are maintained automatically if you update the corresponding component at the server, you could modify the widget state directly at the server. The modification is straightforward: call the correct method with the arguments you want. Notice that it is JavaScript for Ajax browsers.
+var foo = zk.Widget.$('$foo');
+foo.setValue("What's Up?");
+For a complete API available to the client-side fusion, please refer to JavaScript API.
+Fusion with Server-side ZUML and Java
+It is suggested that the client-side UI composing is better designed to minimize the network round-trip, provide effects and other enhancement, while the most, if not all, of the application is better to be done at the server. Thus, here we only discuss this kind of addon, aka., fusion. For pure-client approach, please refer to Small Talk: ZK 5.0 and Client-centric Approach.
+Depending on your requirement, there are typically two situations we could fuse the client-side code:
+Register a client-side event listener.
+Override widget's default behavior
+For example, suppose we want to open the drop down when a commbox gains the focus, then we register a client-side event listener for the onFocus event as follows.
+<div>
+  <combobox xmlns:w="client" w:onFocus="this.open()"/>
+</div>
+As shown, we have to use the client namespace to indicate the onFocus attribute which is for the client-side event listener. It is done by applying XML namespace:
+Add the xmlns:w="client" attribute
+Prefix w: before onFocus
+For more information about the client-side event listener, please refer to the Event Listening section.
+The other typical situation to fuse the client-side code is to override the default behavior of a widget. We will discuss it later.
+Identify Widget at Client
+When the client event is invoked, you can reference the widget using this and the event using event. In the following example, this refers to the label.
+<window xmlns:w="client">
+  <label value="change me by click" w:onClick="this.setValue('clicked');"/> 
+</window>
+To retrieve a fellow[1], you could use Widget.$f(String). It works in a similar manner as Component.getFellow(String). For example,
+this.$f('foo').setValue('found');
+this.$().foo.setValue('found'); //equivalent to the above statement
+If you don't have a widget as a reference, you could use Widget.$(Object, Map). Notice it assumes there is only one widget with the given ID in all ID spaces of the desktop. For example,
+zk.Widget.$('foo').setValue('found');
+In addition, you can use jQuery to select a DOM element of a widget[2]. For example jq("@window") will select DOM elements of all window widgets. And, jq("$win1") will select the DOM elements of all widgets whose ID is win1. (see jq).
+<window xmlns:w="http://www.zkoss.org/2005/zk/client">
+	<vbox>
+		<label id="labelone" value="click to change"
+			w:onClick="this.setValue('changed by click label');" />
+
+		<button label="button"
+			w:onClick="this.$f('labelone').setValue('changed by button');" />
+
+		<html><![CDATA[
+  <a href="javascript:;" onclick="zk.Widget.$(jq('$labelone')[0]).setValue('changed with jq');">not widget</a>
+		]]></html>		
+	
+	</vbox>
+</window>
+↑ A widget in the same ID space.
+↑ Since ZK 5.0.2
+Instantiate Widget at Client
+A widget has to be created to make a component visible at the client (once it has been attached to a page). However, you could instantiate a widget at client without the corresponding component at the server. To extreme extent, you could create all widgets at the client (of course, this can be costly and less secure).
+To instantiate a widget similar to a widget, we can pass all initial values into the constructor. For example,
+new zul.wnd.Window({
+    title: 'Hello, World',
+    border: 'normal',
+    children: [
+        new zul.wgt.Label({value: 'Hi, '}),
+        new zul.wgt.Button({
+            label: 'Click Me!',
+            listeners:  {
+                onClick: function (evt) {
+                    alert('Hi, you clicked me');
+                }
+            }
+        })
+    ]
+});
+As shown, the initial values can be passed as a map. In addition, the children property could be used to specify an array of child widgets, and the listeners property to specify a map of listeners.
+In addition to instantiate widgets in JavaScript, you could use a markup language called iZUML. Please refer to the iZUML section for more information.
+Attach Widget to DOM
+Once a widget is instantiated, you could attach it to the browser's DOM tree to make it visible to users[1]. It can be done in one of two ways:
+Make it as a child of another widget that already being attached
+Replace or insert it to a DOM element
+You could use Widget.appendChild(Widget) or Widget.insertBefore(Widget, Widget). For example,
+<vlayout>
+  <button label="Click Me" xmlns:w="client"
+    w:onClick="this.parent.appendChild(new zul.wgt.Label({value: 'Clicked'}))"/>
+</vlayout>
+In addition, we could replace an existent DOM element with a widget (not attached yet). For example,
+<zk>
+  <n:div id="anchor" xmlns:n="native"/>
+  <button label="Click Me" xmlns:w="client"
+    w:onClick="new zul.wgt.Label({value: 'Clicked'}).replaceHTML('#anchor')"/>
+</zk>
+where we use the native namespace to create a DOM element and then replace it with the label widgt.
+↑ Notice that a widget is not visible to users unless it is attached to the browser's DOM tree.
+When to Run Your JavaScript Code
+ZK Client Engine loads a JavaScript package only when it is required. It minimizes the memory footprint at the client. However, this also means that you cannot run your JavaScript code until the required packages have been loaded. It can be done by the use of zk.load(String, Function). For example, suppose you're not sure if the zul.wnd and zul.grid package has been loaded, when you are going to instantiate Window and Grid, you could do as follows.
+zk.load("zul.wnd,zul.grid", function () { //load zul.wnd and zul.grid if they aren't loaded yet
+     //In this function, you could access zul.wnd.Window and zul.grid.Grid whatever you want
+    new zul.wnd.Window({children: [new zul.grid.Grid()]});
+});
+where zk.load(String, Function) loads the zul.wnd and zul.grid packages and then invokes the function when they have been loaded.
+Notice that there is another method for similar purpose called zk.aferLoad(String, Function). Unlike zk.load(String, Function), zk.afterLoad(String, Function) won't load the packages. Rather, it queues the given function and invokes it when the packages have been loaded. It is useful when you want to override the default behavior of a widget. We will discuss it later.
+Version History
+Last Update : 2012/11/26
+
+====
+Event Listening
+
+
+
+Contents [hide]
+1 Overview
+2 Declare a Client-side Listener in ZUML
+2.1 The Relationship between the Client and Server-side Event Listener
+3 Declare a Client-side Listener in Java
+4 Register a Client-side Listener in Client-Side JavaScript
+4.1 Register DOM-level Event Listener
+5 Version History
+Overview
+ZK allows applications to handle events at both the server and client side. Handling events at the server side, as described in the previous sections, is more common, since the listeners can access the backend services directly. However, handling event at the client side improves the responsiveness. For example, it is better to be done with a client-side listener if you want to open the drop-down list when a comobox gains the focus.
+The rule of thumb is to use server-side listeners first since it is easier, and then improve the responsiveness of the critical part, if any, with the client-side listener.
+Here we describe how to handle events at the client. For client-side UI manipulation, please refer to the UI Composing and Widget Customization sections.
+Declare a Client-side Listener in ZUML
+Declaring a client-side listener in a ZUML document is similar to declaring a server-side listener, except
+Use the client namespace, http://www.zkoss.org/2005/zk/client (aka., client)
+It is JavaScript
+Use this to reference to the target widget (while the event is referenced with event)
+Use this.$f() to reference fellow widgets (Widget.$f())
+For example,
+<combobox xmlns:w="client" w:onFocus="this.open()"/>
+Notice that EL expressions are allowed in the JavaScript code (for the client-side listener). Thus, it is straightforward to embed the server-side data to the client-side listener. For example,
+<window id="wnd" title="main">
+<combobox xmlns:w="client" w:onFocus="zk.log('${wnd.title}')"/>
+</window>
+If you want to escape it, place a backslash between $ and {, such as w:onFocus="zk.log('$\{wnd.title}')".
+For more information about manipulating widgets at the client, please refer to the UI Composing section.
+The Relationship between the Client and Server-side Event Listener
+It is allowed to register both the client and server-side event listeners. They will be both invoked. Of course, the client-side listener is called first, and then the server-side listener. For example,
+<div>
+  <combobox xmlns:w="client" w:onFocus="this.open()"
+   onFocus='self.parent.appendChild(new Label("focus"))'/>
+</div>
+If you want to stop the event propagation such that the server won't receive the event, you could invoke Event.stop(Map). For example, the server-side listener won't be invoked in the following example:
+<div>
+  <combobox xmlns:w="client" w:onFocus="this.open(); event.stop();"
+   onFocus='self.parent.appendChild(new Label("focus"))'/>
+</div>
+Declare a Client-side Listener in Java
+The other way to declare a client-side listener at the server is Component.setWidgetListener(String, String). For example,
+combobox.setWidgetListener("onFocus", "this.open()");
+Notice that it is Java and running at the server.
+Also notice that EL expressions are not allowed (i.e., not interpreted) if you assign it directly. It is because EL expressions are interpreted by ZK Loader when loading a ZUL page. However, it is easy to construct a string to any content you want with Java.
+Register a Client-side Listener in Client-Side JavaScript
+Listening an event at the client could be done by calling Widget.listen(Map, int). For example,
+<window>
+	<bandbox id="bb"/>
+	<script defer="true">
+	this.$f().bb.listen({onFocus: function () {this.open();}});
+	</script>
+</window>
+where
+defer="true" is required such that the JavaScript code will be evaluated after all widgets are created successfully. Otherwise, it is not able to retreive the bandbox (bb).
+script is a widget (unlike zscript), so this references to the script widget, rather than the parent.
+Widget.$f(String) is equivalent to Component.getFellow(String), except it is a JavaScript method (accessible at the client).
+Register DOM-level Event Listener
+Notice that the event listener handling discussed in the previous sections is for handling so-called ZK widget event (Event). Though rare, you could register a DOM-level event too by the use of jQuery (API: jq).
+
+========
+Widget Customization
+
+
+
+
+Contents [hide]
+1 Override Widget's Default Behavior
+1.1 Override a Widget Method
+1.2 Override a Default Widget Method
+1.3 Override a Widget Field
+1.3.1 Override a Widget Method in Java
+2 Specify Your Own Widget Class
+2.1 Load Additional JavaScript Files
+3 The Client-Attribute Namespace
+4 Version History
+Override Widget's Default Behavior
+There are many ways to override the default behavior of widgets or even ZK Client Engine. JavaScript is a dynamic language and you could override almost any methods you want.
+Override a Widget Method
+For example, suppose we want to change the CSS style of a label when its value is changed, then we might have the code as follows.
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+<window xmlns:w="http://www.zkoss.org/2005/zk/client">
+      <label>
+            <attribute w:name="setValue">
+            function (value) {
+                  this.$setValue(value); //call the original method
+                  if (this.desktop) {
+                        this._flag = !this._flag;
+                        this.setStyle('background:'+(this._flag ? 'red':'green'));
+                  }
+            }
+            </attribute>
+      </label>
+</window>
+where
+We specify client namespace to the setValue attribute to indicate it is the method to override
+The content of the attribute is a complete function definition of the method, including function ()
+You can access the widget by this in the function
+You can access the original method by this.$xxx, where xxx is the method name being overridden. If the method doesn't exist, it is null.
+To retrieve another widget, use this.$f('anotherWidgetId') or other methods as described in the previous section
+You can specify EL expressions[1] in the content of the attribute, such as
+1
+w:setValue='function (value) { this.$setValue(value + "${whatever}")}';
+Notice that EL expressions are evaluated at the server before sending back to the client. Thus, you could use any Java class or variables in EL expressions.
+↑ EL expressions are allowed since ZK 5.0.2
+Override a Default Widget Method
+In previous section, we showed how to override the method of a particular widget we declared. This, however, only affects the behavior of a particular instance. If you want to modify the behavior of all instances of a widget class, you have to override the method in prototype[1].
+For example,
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+<window xmlns:w="http://www.zkoss.org/2005/zk/client">
+    <label id="labelone" value="label one"/>
+    <label id="labeltwo" value="label two"/>
+    <script defer="true">
+        var oldSV = zul.wgt.Label.prototype.setValue;
+        zul.wgt.Label.prototype.setValue = function (){
+            arguments[0]="modified prototype"+arguments[0];
+            oldSV.apply(this, arguments);
+        }                   
+    </script>
+    <button label="change" onClick="labelone.setValue((new Date()).toString());
+    labeltwo.setValue((new Date()).toString());"/>
+</window>
+where we assign a new method to zul.wgt.Label.prototype.setValue. Since it is prototype, the setValue method of all instances are modified.
+↑ For more information about JavaScript's prototype, please refer to Using Prototype Property in JavaScript and JavaScript prototype Property
+Override a Widget Field
+You can override a method or a field no matter it exists or not. For example, it is easy to pass the application-specific data to the client, such as
+1
+<label value="hello" w:myval="'${param.foo}'"/>
+Notice that the content of the attribute must be a valid JavaScript snippet. To specify a string (as shown above), you have to enclose it with ' or " if you want to pass a string. It also means you can pass anything, such as new Date().
+Override a Widget Method in Java
+In addition to ZUML, you could override a Widget method or field by the use of Component.setWidgetMethod(String, String) at the server. For example,
+1
+2
+label.setWidgetOverride("setValue",
+    "function (value) {this.$setValue('overloaded setValue');}");
+Specify Your Own Widget Class
+You could specify your own implementation instead of the default widget class (at the client) as follows.
+1
+2
+3
+4
+<zk xmlns:w="http://www.zkoss.org/2005/zk/client">
+  ...
+  <button w:use="foo.MyButton"/>
+</zk>
+where foo.MyButton is a widget you implement. For example,
+1
+2
+3
+4
+5
+6
+7
+8
+zk.afterLoad("zul.wgt", function () {
+  zk.$package("foo").MyButton = zk.$extends(zul.wgt.Button, {
+    setLabel: function (label) {
+      this.$supers("setLabel", arguments);
+     //do whatever you want
+    }
+  });
+});
+Notice that zk.afterLoad(String, Function) is used to defer the declaration of foo.MyButton until zul.wgt has been loaded.
+Load Additional JavaScript Files
+You could use Script, HTML SCRIPT tag or script to load additional JavaScript files. Please refer to script for more information.
+The Client-Attribute Namespace
+[since 5.0.3]
+The client-attribute namespace (http://www.zkoss.org/2005/zk/client/attribute; shortcut, client/attribute) is used to specify additional DOM attributes that are not generated by widgets. In other words, whatever attributes you specify with the client-attribute namespace will be generated directly to the browser's DOM tree. Whether it is meaningful, it is really up to the browser -- ZK does not handle or filter it at all.
+For example, you want to listen to the onload event, and then you can do as follows[1].
+1
+2
+<iframe src="http://www.google.com" width="100%" height="300px"
+  xmlns:ca="client/attribute" ca:onload="do_whater_you_want()"/>
+If the attribute contains colon or other special characters, you can use the attribute element as follows:
+1
+2
+3
+4
+5
+<div xmlns:ca="client/attribute">
+  <attribute ca:name="ns:whatever">
+  whatever_value_you_want
+  </attribute>
+</div>
+The other use of the client-attribute namespace is to specify attributes that are available only to certain browsers, such as accessibility and Section 508.
+↑ Fore more information, please refer to ZK Component Reference: iframe
+Version History
+Last Update : 2011/8/12
+
+=======
+JavaScript Packaging
+
+
+
+
+Contents [hide]
+1 Embed the JavaScript Code Directly
+2 Put in a Separate File and Reference it in the ZUML page
+3 Put in a Separate File and Reference it in Language Addon
+4 Make It a WPD File for More Control
+5 Version History
+
+If you'd like to customize the client-side behavior, it will end up with some JavaScript code. The code can be packaged in several ways depending on the size and re-usability.
+It is recommended to take a look at the Object-Oriented Programming in JavaScript section, if you are not familiar how ZK extends JavaScript to support the concept of packages and classes.
+Embed the JavaScript Code Directly
+Use the script directive to embed the code directly. For example,
+1
+2
+<!-- foo.zul -->
+<?script type="text/javascript" content="jq.IE6_ALPHAFIX='.png';"?>
+Alternatively, you could use the script component to embed the code.
+Put in a Separate File and Reference it in the ZUML page
+If there are a lot of JavaScript code, it is better to package them in a separate file, and then use the script directive to reference the file in every ZUML page that requires it.
+1
+2
+<!-- foo.zul -->
+<?script type="text/javascript" src="/myjs/foo.js"?>
+Put in a Separate File and Reference it in Language Addon
+If the JavaScript code will be used in every ZUML page, it is better to package them in a separate file, and then make it part of the the language definition. To make it part of the language definition, you could specify the following content in the language addon, say, WEB-INF/lang-addon.xml:
+1
+2
+3
+4
+<language-addon>
+    <addon-name>my.extension</addon-name><!-- any name you like -->
+    <javascript src="/myjs/foo.js"/> <!-- assume you package it as /myjs/foo.js -->
+</language-addon>
+Then, you could specify the language addon in WEB-INF/zk.xml:
+1
+2
+3
+<language-config>
+    <addon-uri>/WEB-INF/lang-addon.xml</addon-uri>
+</language-config>
+Make It a WPD File for More Control
+Technically, you could do whatever you want with a JavaScript file. However, if you prefer to make it a JavaScript package, such that they will be loaded automatically when required, you could package them as a WPD file.
+For example, you could have a WPD file and make it loaded with the zk package (so it speeds up the loading).
+1
+2
+3
+4
+<language-addon>
+    <addon-name>my.extension</addon-name><!-- any name you like -->
+    <javascript package="my.foo" merge="true"/> <!-- assume you call it my.foo -->
+</language-addon>
+Version History
+Last Update : 2011/8/12
+
+========
+iZUML
+
+
+
+Contents [hide]
+1 Overview
+2 How to Embed iZUML into HTML
+2.1 Specify ZK JavaScript Files
+3 How to Create Widgets from iZUML
+4 EL Expression
+5 Built-in Attributes
+5.1 forEach
+5.2 if
+5.3 unless
+6 Built-in Element
+6.1 attribute
+6.2 zk
+7 Notes
+7.1 script
+7.2 style
+8 Example
+9 Version History
+Overview
+ZK 6: Available in all editions
+ZK 5: Available in ZK PE and EE only
+iZUML is a client-side version of ZUML. iZUML is interpreted at the client. You could embed and use iZUML in any Web page, including a ZUML document and pure HTML pages. But, for the sake of description, here we only illustrate the use in pure HTML pages. With some modification, readers could apply it to ZUML document, JSP and other technologies too.
+For composing UI in JavaScript at the client, please refer to the Client-side UI Composing section.
+How to Embed iZUML into HTML
+It is typically placed inside an HTML DIV tag, though you can choose other kind of tags. Furthermore, it is suggested to enclose the iZUML document with an HTML comment (&lt!-- and -->) such that the page can be interpreted correctly by the browser. For example,
+1
+2
+3
+4
+5
+6
+7
+8
+<div id="main" display="none">
+    <!--
+    <window>
+        What's your name? <textbox onOK="sayHello(this)"/>
+    </window>
+    <separator bar="true"/>
+    -->
+</div>
+Of course, you construct an iZUML document dynamically such as the follows.
+1
+var zuml = '<window title="' + title +'">What\'s your name? <textbox/></window>';
+Specify ZK JavaScript Files
+Before using iZUML or other client-side feature, ZK's JavaScript files must be specified (and loaded). If you are using with ZUML, they are loaded automatically. However, if you are using so-called pure-client approach (such as a static HTML file), you have to specify them explicitly as follows.
+1
+2
+3
+4
+<script type="text/javascript" src="/zkdemo/zkau/web/js/zk.wpd" charset="UTF-8">
+</script>
+<script type="text/javascript" src="/zkdemo/zkau/web/js/zk.zuml.wpd" charset="UTF-8">
+</script>
+Notice that it is not required if you are using with a ZUML document.
+How to Create Widgets from iZUML
+If the iZUML document is embedded in a HTML tag, you can use Parser.createAt(String, Map, Map, Function) to create widgets. If you construct the iZUML document as a string, you could use Parser.create(Widget, String, Map, Function).
+
+EL Expression
+The EL expression supported by iZUML is actually a JavaScript snippet. It could be any valid JavaScript expression. Unlike ZUML, iZUML's EL expressions start with #{ and end with }[1]. Because the starting character of EL expressions is different, it is easier to embed iZUML's EL expression in a ZUML page.
+Here is a list of built-in variables (aka., implicit objects) that you can access in the EL expressions.
+table name
+Name	 Description
+this	 It references that a widget has been created.
+If the EL expression is part of the if and unless attribute, this is the parent widget. If the EL expression is part of other attribute, this is the widget being created.
+1
+2
+3
+4
+<window title="some">
+  #{this.getTitle()}...
+  <texbox if="#{this.border}"/>
+</window>
+where this refers to the window widget in both EL expressions.
+1
+2
+3
+<window title="some">
+  <textbox value="#{this.parent.getTitle()}">
+</window>
+where this refers to the textbox widget.
+_	 The context passed to the argument named var of Parser.createAt(String, Map, Map, Function) and Parser.create(Widget, String, Map, Function).
+1
+#{_.info.name}
+↑ For 5.0.7 and older version, iZUML's expressions start with ${. Since 5.0.8, #{ is recommended, thought ${ is still valid (for backward compatibility) but deprecated.
+Built-in Attributes
+forEach
+1
+2
+3
+<window title="Test" border="normal">
+    <label forEach="#{[this.getTitle(), this.getBorder()}"/>
+</window>
+Notice
+Unlike widget attributes, this references to the parent widget, which is window in the above case.
+if
+1
+<button label="Edit" if="#{_.login}/>
+unless
+1
+<button label="View" unless="#{_.inEditMode}"/>
+Built-in Element
+attribute
+1
+2
+3
+4
+5
+<button label="Click">
+    <attribute name="onClick">
+    this.parent.setTitle("Click");
+    </attribute>
+</button>
+is equivalent to
+1
+<button label="Click onClick="this.parent.setTitle('click')"/>
+zk
+The zk element doesn't represent a widget.
+1
+2
+3
+<zk forEach="#{[1, 2, 3]}">
+    #{each} <textbox value="#{each}"/>
+</zk>
+Notes
+script
+When <script> is specified in iZUML, it actually refers to the script widget (Script) (rather than HTML SCRIPT tag).
+style
+When <style> is specified in iZUML, it actually refers to the style widget (Style) (rather than HTML STYLE tag).
+Example
+For a more complete example, please refer to Small Talk: ZK 5.0 and Client-centric Approach.
+Version History
+Last Update : 2011/10/11
+
+Version	 Date	 Content
+5.0.8	 August 2011	 The starting character of iZUML's EL expressions is changed to #{, so it is easier to embed iZUML in a ZUML page. For backward compatibility, ${ is still valid but deprecated.
+6.0.0	 October 2011	 iZUML is available to all editions, including CE, PE and EE.
+
+
+
+

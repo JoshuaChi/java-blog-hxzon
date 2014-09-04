@@ -1,0 +1,343 @@
+﻿（官方文档）客户端指引04-Component Development
+http://books.zkoss.org/wiki/ZK%20Client-side%20Reference/Component%20Development
+
+This section describes how to develop a component. It has two parts: server-side and client-side.
+See Also
+For introduction, please refer to ZK Component Development Essentials.
+For information about the communication between the client and server, please refer to the Communication section.
+
+Subsections:
+Components and Widgets
+Server-side
+Property Rendering
+Client-side
+Text Styles and Inner Tags
+Rerender Part of Widget
+
+=======
+Components and Widgets
+
+
+1 Component and Page
+2 Widget and DOM
+2.1 Attach a widget to the DOM tree
+3 Version History
+
+Widget and component works hand in hand to deliver UI to user and notify the application about a user's activity
+There are two kind of UI objects: components and widget. A component is a Java object running at the server, representing an UI object that an application can manipulate. A component has all the behavior that an UI object should have, except it doesn't have the visual part. For example, the following code snippet creates a window and a textbox.
+1
+2
+3
+4
+Window w = new Window();
+w.setTitle();
+w.appendChild(new Textbox());
+w.setPage(page); //assuming page is the current page
+On the other hand, a widget is a JavaScript object running at the client, representing an UI object to interact with the user. To interact with the user, a widget has a visual appearance and handle events happening at the client.
+Flow of changing a label
+A component and a widget work hand-in-hand to deliver UI to an user and to notify the application about a user's activity, such as clicking and dragging. For example, when an application invokes Button.setLabel(String) to change the label of a button component, the Button.setLabel(String) of corresponding button widget (aka., peer widget) will be invoked at the client to change the visual appearance, as shown right. When the user clicks the button widget, the onClick event will be sent back to the server and notify the application.
+Though not required, application can run at the client to control widgets directly
+Thought not required, a widget is usually implemented with most functions of a component. That means developers can control them directly at the client, as shown left. It improves the responsiveness and reduces the network traffics. Of course, it also increases the development cost. For example, an application might hide or change the order of columns of a grid at the client, while the application running at the server handle the reloading of the whole content of the grid.
+Widget running without component
+Furthermore, a developer can create a widget at the client, and the widget will not have any peer component at the server as shown right. For example,
+1
+2
+3
+4
+//JavaScript
+var w = new zk.wgt.Button();
+w.setLabel('OK');
+wnd.appendChild(w); //assume wnd is another widget
+Component and Page
+The peer widget of a component is created automatically, when it is attached to a page. On the other hand, if a component is not attached, the client won't know its existence.
+Server	 Client	 Description
+1	
+1
+2
+Window w = new Window();
+w.setTitle("Hello Window");
+nothing	
+A Window component is instantiated but it doesn't have the peer widget. Furthermore, it will be garbage-collected if there is no reference to it
+2	
+1
+w.setPage(page);
+Auto invoked by ZK Client Engine
+1
+2
+3
+var pw = new zul.wnd.Window(uuid);
+pw.setTitle('Hello World');
+pw.replaceHTML(uuid);
+Attach the component to the specified page, and a peer widget will be created automatically at the client later (after processing the AU Requests).
+3	
+1
+w.setTitle("Hi ZK");
+Auto invoked by ZK Client Engine
+1
+pw.setTitle('Hi ZK');
+Once a component is attached to a page, any following modification will be sent to the client and invoke the corresponding method of the peer widget.
+Notes:
+There are two ways to attach a component to page. First, call the setPage method to make it as a root component of the page. Second, make a component as a child of another component that is attached to a page. For example, with w.appendChild(new Label("Hi"));, the label will be attached to a page if w is attached.
+The AU request is a HTTP request, so it is a request-process-response protocol. That is, all client invocation (auto create a widget and so on) will take place after the processing is done and the response is sent back to client.
+Widget and DOM
+DOM, Widget and Component
+A widget is an UI object at the client. Like Swing's component, creating a widget doesn't make it visible to the user. Rather, you have to attach it to the DOM tree (of the browser).
+Client Widget	 Client DOM	 Description
+1	
+1
+2
+var wp = new zul.wnd.Window();
+wp.setTitle('Hello World');
+Invoked by ZK Client Engine or client application
+nothing
+A window widget is instantiated. If it is called by ZK Client Engine (due to the invocation at the server), it has a peer component. If it is called by client application, there is no peer component.
+2	
+1
+wp.replaceHTML(uuid);
+Create one or a tree of DOM elements (depending on the implementation of a widget) and replace the specified node.
+Attach a widget to the DOM tree, and the visual appearance is shown up (unless it is invisible).
+3	
+1
+wp.setTitle('Hi ZK');
+Update the DOM element(s) created in the previous step	 A modification of the widget will modify the corresponding DOM elements
+Attach a widget to the DOM tree
+There are several ways to attach a widget to the DOM tree
+Invoke Widget.replaceHTML(Object, Desktop, Skipper) to replace an existent DOM element with the DOM element(s) of the widget (aka., the DOM content).
+Invoke Widget.appendChild(Widget) or Widget.insertBefore(Widget, Widget) to make a widget a child of another widget that are already attached to the DOM tree.
+Version History
+Last Update : 2011/8/12
+
+========
+Server-side
+
+
+
+This section describes how to develop the component at the server-side (Component).
+See Also
+For introduction, please refer to ZK Component Development Essentials.
+For the client-side widget development, please refer to the Client-side section.
+For information about the communication between the client and server, please refer to the Communication section.
+
+Subsections:
+Property Rendering
+
+====
+Property Rendering
+
+
+
+
+Contents [hide]
+1 Render All Properties When Attached
+1.1 renderProperties
+1.2 redrawChildren
+1.3 Render Special Properties
+1.3.1 z_al
+1.3.2 z_ea
+1.3.3 z_pk
+1.4 Enforce ZK Update Engine to Redraw a Component
+2 Dynamic Update a Property
+2.1 Deferred Property Value
+3 Version History
+
+If a state (aka., a property) of a component will cause the peer widget to have a different behavior or visual appearance, the state has to be sent to the widget to ensure the consistency.
+There are two situations a component has to send the states to the client.
+Render All Properties When Attached
+A component has to render all properties when it is attached to a page at the first time
+Dynamic Update a Property
+A component has to send the new value of a property when it is changed dynamically.
+Notice that this section describes how to synchronize states of a component to the widget. To synchronize states back to a component, refer to the AU Requests section.
+Render All Properties When Attached
+When ZK is about to render a new-attached component to the client (by new-attached we mean just attached to a desktop), ComponentCtrl.redraw(Writer) is called to render the component, including the widget's class name, all properties, event listeners and so on.
+However, you don't have to implement ComponentCtrl.redraw(Writer) from ground up. AbstractComponent provides a default implementation, so you could override AbstractComponent.renderProperties(ContentRenderer) instead.
+renderProperties
+Overriding AbstractComponent.renderProperties(ContentRenderer) is straightforward: call back super.renderProperties to render inherited properties, and then call one of the render methods to render the properties of the component.
+1
+2
+3
+4
+5
+6
+protected void renderProperties(ContentRenderer renderer)
+throws IOException {
+ super.renderProperties(renderer);
+ render(renderer, "myProp", _myProp);
+ //...
+}
+Notice that the render methods of AbstractComponent will ignore null, empty string, and false automatically. Thus, the if statement in the following example is redundant.
+1
+2
+if (value != null && value .length() != 0) //redundant since render will check
+    render(renderer, "name", value); //does nothing if null or empty
+On the other hand, if you want to render null and an empty string, you should invoke the render methods of ContentRenderer, such as
+1
+render.render("name", value);
+redrawChildren
+After calling renderProperties, redraw calls AbstractComponent.redrawChildren(Writer) to render the properties of children recursively.
+Here is the calling sequence of the default implementation of AbstractComponent.redraw(Writer):
+renderProperties(new JsContentRenderer());
+redrawChildren(out);
+Render Special Properties
+ZK Client Engine supports several special properties to provide extra functionality, such as late evaluation and so on.
+z_al
+Specifies a map of properties that should be evaluated after all script files are loaded.
+For example,
+1
+2
+3
+4
+5
+protected void renderProperties(org.zkoss.zk.ui.sys.ContentRenderer renderer)
+throws java.io.IOException {
+  //assume js is the JavaScript code snippet
+  renderer.renderDirectly("z_al", "{constraint:function(){\nreturn "+js+";}}");
+}
+Notice that the value of z_al is a JavaScript map of properties that will be evaluated, after all the required JavaScript packages are loaded. Moreover, the value of each entry in the map is a function that should return the object being assigned with.
+In the above example, the function will be invoked after all packages are loaded, and then the returned value. js will be assigned to the constraint property.
+z_ea
+Specifies the property name whose value must be retrieved from the DOM element with the same UUID.
+It is typically used to render a property that will be able to be indexed search engines.
+For example,
+1
+renderer.render("z_ea", "content");
+Then, the value of the content property will be retrieved from the inner HTML of the DOM element with the same UUID. Of course, the component has to render the value in the correct DOM element by the use of Utils.renderCrawlableA(String, String) or Utils.renderCrawlableText(String).
+If the content has to decode first (from &lt; to <), prefix the property name with '$'.
+1
+renderer.render("z_ea", "$content");
+z_pk
+Specifies a list of packages separated by comma that should be loaded before creating the widgets.
+For example,
+1
+renderer.render("z_pk", "com.foo,com.foo.more");
+Enforce ZK Update Engine to Redraw a Component
+A component can enforce ZK Update Engine to redraw a component by calling Component.invalidate(). Once called, the peer widget will be removed, and a new peer widget will be created to represent the new content. Thus, all modifications to the widget at client will be lost if not preserved (or synchronized back) to the server.
+Also notice that Component.redraw(Writer) won't be called immediately. Rather, ZK Update Engine will accumulate all updates, and then optimize the number of commands (AU responses) that need to be sent.
+Dynamic Update a Property
+When the application modifies a state that affects the peer widget, a component has to send the updated value to the peer widget. It is done by calling one of the smartUpdate methods of AbstractComponent. For example,
+1
+2
+3
+4
+5
+6
+public void setValue(String value) {
+ if (!_value.equals(value)) {
+  _value = value;
+  smartUpdate("value", _value);
+ }
+}
+If the peer widget was created in the previous request (i.e., the component has been attached to desktop), the invocation of smartUpdate will actually cause the peer widget's setter of the specified properties being called. In the above example, setValue will be called at the client.
+On the other hand, if a component is not yet attached to a desktop, smartUpdate will do nothing (since the peer widget doesn't exist). If Component.invalidate() was called, smartUpdate does nothing and previous invocation of smartUpdate of the same request are ignored (since the peer widget will be removed and re-created).
+Deferred Property Value
+Sometimes the value is not ready when smartUpdate is called, and it is better to retrieve when rendering the components. To defer the evaluation of a value, you can implement DeferredValue.
+For example, Execution.encodeURL(String) is better to be called when rendering components[1]:
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+public void setSrc(String src) {
+ if (!Objects.equals(_src, src)) {
+  _src = src;
+  smartUpdate("src", new EncodedURL());
+ }
+}
+private class EncodedURL implements DeferedValue {
+ public Object getValue() {
+  return getDesktop().getExecution().encodeURL(_src);
+ }
+}
+↑ It is because smartUpdate is usually called in an event listener, which might run at the event thread (if it is turned on). Meanwhile, WebSphere 5 doesn't allow calling encodeURL other than the servlet thread.
+Version History
+Last Update : 2011/8/12
+
+==========
+Client-side
+
+This section describes how to develop the component at the client side (Widget).
+See Also
+For introduction, please refer to ZK Component Development Essentials.
+For the server-side component development, please refer to the Server-side section.
+For information about the communication between the client and server, please refer to the Communication section.
+
+Subsections:
+Text Styles and Inner Tags
+Rerender Part of Widget
+
+====
+Text Styles and Inner Tags
+
+
+
+
+This section is about how to pass the text styles to the inner HTML tags.
+Issue
+In general, the styles (Widget.setStyle(String)) are generated directly to the outer DOM element by the use of Widget.domAttrs_(Map).
+However, for some DOM structure, the text-related styles must be specified in some of the inner tags that contain the text. Otherwise, it won't have any effect to the text's styles.
+For example, assume that the widget's HTML representation is as follows.
+1
+<span><input type="checkbox"/><label>Text</label></span>
+Solution
+It can be resolved as follows.
+First, generates the style for the inner tag (i.e., <label> in the above case) by calling zk.Widget#domTextStyleAttr_
+1
+out.push('<label', this.domTextStyleAttr_(), '>',...);
+Second, override Widget.getTextNode_() to return the DOM element that embeds the text.
+1
+2
+3
+getTextNode_: function () {
+    return zDom.firstChild(this.getNode(), "LABEL");
+}
+Version History
+Last Update : 2011/8/12
+
+====
+Rerender Part of Widget
+
+
+
+
+If a widget has a lot of child widgets, the performance will be better if you rerender only the portion(s) that don't have a lot of child widgets (and are not changed).
+For example, Groupbox rerenders only itself and the caption child, if any, when setClosable is called, as follows.
+1
+2
+3
+4
+5
+6
+7
+setClosable: function (closable) {
+    if (this._closable != closable) {
+        this._closable = closable;
+        if (this.desktop)
+            this.rerender(zk.Skipper.nonCaptionSkipper);
+   }
+}
+It invokes Widget.rerender(Skipper) with a skipper (an instance of Skipper). The skipper decides what to skip (i.e., not to rerender), detach the skipped portion(s), and attach them back after rerendering. Thus, the skipped part won't be rerendered, nor unbound/bound, so the performance is better.
+In the above example, we use the Skipper.nonCaptionSkipper instance to do the job. It skips all child widgets except the one called caption (i.e., child != this.caption).
+In addition to passing a skipper to Widget.rerender(Skipper), the widget has to implement the mold method (redraw) to handle the skipper:
+
+
+function (out, skipper) {
+    out.push('<fieldset', this.domAttrs_(), '>');
+    var cap = this.caption;
+    if (cap) cap.redraw(out);
+ 
+    out.push('<div id="',  this.uuid, '$cave"', this._contentAttrs(), '>');
+    if (!skipper)
+        for (var w = this.firstChild; w; w = w.nextSibling)
+            if (w != cap) w.redraw(out);
+    out.push('</div></fieldset>');
+}
+As shown above, the mold method is also called with the skipper, and the implementation should not redraw the skipped part. In this case, all child widgets except caption are not redrawn.
+You can implement your own skipper. Refer to Skipper for details.
+Version History
+Last Update : 2011/8/18
+
