@@ -1,0 +1,526 @@
+﻿Join the Web Components revolution with Polymer
+Assemble modern web and mobile applications with reusable, composable visual and functional components
+http://www.ibm.com/developerworks/web/library/wa-polymer
+
+注释by hxzon
+
+web组件
+
+====
+The Polymer library uses Web Components technology supported by all modern browsers, 
+including mobile browsers on iOS and Android. 
+Add custom web elements that encapsulate a complete user interface 
+— including UI interaction handling, transition animation, and flexible CSS styling 
+— to your web applications or hybrid mobile apps.
+PDF (1221 KB)
+Sing Li, Consultant, Makawave
+02 September 2014
+
+====
+章节
+
+Polymer: A cross-platform web component library
+A drop-in responsive layout component
+Composition: The cornerstone of web components
+Drawing business graphics with web components
+A map app
+Design made simple with the Polymer drag-and-drop component designer
+
+=========
+HTML browsers, like any widely deployed technology, 
+run the risk of becoming obsolete and irrelevant over time. 
+As networked information-access patterns change and mainstream users demand new UI features 
+— and competitive alternative technologies arrive on the scene 
+— browser vendors must adapt to stay viable. 
+Awareness of this need led to W3C Web Components, 
+a community standards initiative started a few years ago and supported by all modern browsers vendors. 
+
+Web Components comprises several draft specifications that together enable developers 
+to create and share reusable custom HTML elements (web components) in an extensible and maintainable manner.
+
+Web Components specifications
+web组件规范
+The key enabling draft specifications for the W3C Web Components standard are:
+Custom Elements
+Shadow DOM
+HTML Imports
+HTML Templates
+Check out the HTML components series on developerWorks for more information.
+
+==
+Polymer, an open source, cross-platform, well-supported library with rich tools, 
+takes advantage of the emerging Web Components standard. 
+
+Polymer's arrival is timely for developers that are eager to build modern web applications. 
+Web app design now trends toward single-page, highly interactive applications. 
+And hybrid mobile apps built with web technologies are becoming the norm rather than the exception. 
+With Polymer, creating both types of applications is much easier than with conventional JavaScript DOM-manipulation libraries.
+
+You can work with Polymer (and Web Components libraries in general) in two ways:
+As a consumer: Use web components to build your own apps.
+As a creator: Create reusable web components, either to share or for your own apps.
+
+Through a series of examples, this tutorial introduces you to Polymer and shows how to use and customize Polymer web components. 
+(See Download to get the sample code.) 
+A companion tutorial, "Create reusable custom web components with Polymer," 
+provides step-by-step instructions for creating your own web components using the Mobile Cloud boilerplate in IBM Bluemix™.
+
+====
+Polymer: A cross-platform web component library
+
+Three ways to start quickly with Polymer
+
+You can get started with Polymer in three ways:
+The best way is to use the Bower package manager to install Polymer. 
+This method enables you to install the platform plus only the components that you need. 
+It also helps you to keep Polymer updated easily. 
+But Bower installation itself requires npm, which in turn requires Node.js.
+
+Decompress the code distribution (including the Polymer library), place it behind a web server, and use it.
+
+Check the Polymer code out of the GitHub repository directly. 
+Typically, only open source developers contributing to the Polymer project use this method.
+
+For more details, see Getting the code on the Polymer project site.
+
+Polymer is a library of prebuilt, composable web components that you can use to build your apps or to create new web components. 
+Polymer also includes industry-standard polyfills that ensure that the library behaves similarly in all modern browsers. 
+The polyfills are necessary because browser vendors are still actively implementing the various aspects of the Web Components standard, each at its own pace.
+
+Polymer is the fruit of one browser vendor's investment in adapting its product to a Web Components-based future. 
+The Polymer development team gets unprecedented access to the core browser (Chrome) development team, 
+so development of the browser is tightly coupled to the library 
+— ensuring that the library maintains high performance levels and functions correctly through all core Chrome changes. 
+As of this writing, Polymer is in the "developer preview" stage.
+
+Figure 1 shows the high-level structure of Polymer.
+Figure 1. Polymer's high-level structure
+
+Currently, your application can make use of Web Components for multiple browsers through Polymer's platform implementation, 
+which you use by including platform.js. 
+Polymer ensures that the library and components work identically for browsers 
+that include varying levels of native implementation of the Web Components specs.
+
+“Polymer ensures that the library and components work identically for browsers 
+that include varying levels of native implementation of the Web Components specs.”
+
+When you work with Polymer, everything you know and love about the DOM, CSS, and JavaScript continues to work as before. 
+In addition, by using only HTML, CSS, and JavaScript, you can now create reusable custom HTML components 
+that completely encapsulate a piece of UI or application functionality.
+
+Polymer assists in component registration, lifecycle management, attribute handling, CSS styling, method invocation, and event handling, 
+in addition to other tasks associated with web component deployment. 
+The web development community is now sharing an ever-increasing open source library of publicly available components. 
+As a developer using web components created by others, the only additional thing that you need to learn is a new set of HTML tags to work with.
+
+=========
+A drop-in responsive layout component
+自动收起的布局组件
+
+Suppose that you want your app's layout to change in response to the size of the device it's open in. 
+One layout should be suitable for a small-sized mobile screen and the other for a desktop browser. 
+In this first example, you'll see how to create a responsive layout with Polymer.
+
+Figure 2 shows how the layout looks in a desktop or tablet browser.
+Figure 2. Responsive layout with desktop screen size
+
+The desktop layout has a sidebar panel on the left, possibly used for navigation, 
+with its own header and clickable menu selections. 
+In a typical app, you make a selection in the navigation panel, and the right panel shows the selected content. 
+The right panel also has its own title toolbar at the top.
+
+When the device screen width is narrow, the left sidebar panel retracts, leaving only the content panel visible. 
+A "hamburger" menu button automatically appears on the remaining panel's toolbar. 
+当设备屏幕很小时，左边栏会自动收起。
+
+Figure 3 shows the small-device version of the layout.
+Figure 3. Responsive layout with mobile-phone narrow screen
+
+Click the View the layout button that follows this paragraph to open the example page in your desktop browser 
+and in your phone's browser to compare the two layouts. 
+Or, as with all of the examples in this tutorial, 
+you can simulate the phone browser behavior by manually resizing the width of the browser window in the desktop version.
+
+View the layout
+Observe that when you tap or click the hamburger menu button, the drawer slides in from the left side, 
+covering the right side of the main panel (typically to reveal a list of available selections), as shown in Figure 4.
+
+Figure 4. Navigation sidebar menu sliding in from the left over the content panel
+
+If you use standard HTML/JavaScript libraries, you know that a significant amount of code is required to implement the same behavior with those libraries. 
+Listing 1 shows the code for creating the responsive layout with Polymer.
+
+Listing 1. Drop-in responsive layout with the <core-scaffold> Polymer component
+
+<!doctype html>
+<html>
+
+<head>
+  <title>unquote</title>
+  <meta name="viewport" 
+  content=
+  "width=device-width, minimum-scale=1.0, initial-scale=1.0, user-scalable=yes">
+  <script src="../bower_components/platform/platform.js"></script>
+  <link rel="import" 
+     href="../bower_components/core-scaffold/core-scaffold.html">
+</head>
+
+<body>
+  <core-scaffold>
+  </core-scaffold>
+</body>
+
+</html>
+
+==
+HTML Imports
+html导入
+
+The HTML Imports specification enables a page to import complete HTML documents (including HTML, CSS, and associated JavaScript) via a <link> tag. 
+Web components in the form of imported HTML documents can be reused in multiple applications. 
+Modern browsers are working to implement HTML Imports natively. 
+Meanwhile, Polymer includes de-facto polyfill scripts that ensure uniform HTML import behavior in all modern browsers.
+
+In Listing 1, the Polymer platform library is included via platform.js in the <script> tag. 
+Additional components are included through HTML Imports: in this case, the <core-scaffold> web component via core-scaffold.html.
+
+To generate the rich responsive resizing behavior, all you need to do is drop in the <core-scaffold> web component. 
+<core-scaffold> appears to be a newly available HTML tag, 
+but it's actually a custom web component that's part of Polymer's core elements library. 
+Polymer includes an entire brigade of useful web components in its core, 
+promising to make your web development experience significantly simpler than before. 
+You can browse the documentation to see the components in action.
+
+Note that the <body> contains only a <core-scaffold> tag. 
+That's all you need there. 
+The <core-scaffold> custom element completely encapsulates the complex responsive UI handling.
+
+You can compose Polymer components — including <core-scaffold>— with one another, or with other custom web components, 
+to create your page or single-page web app (or your own custom web component).
+
+==
+Customizing web components through attributes
+通过属性来定制组件
+
+Like standard HTML elements, custom web components have attributes that are available for further customization. 
+Two attributes are available for the Polymer <core-scaffold> component:
+
+responsiveWidth controls the minimum device width at which the sidebar retracts to the left side. 
+This attribute's value defaults to 600px.
+
+mode controls the header behavior as the content scrolls. 
+The value of mode defaults to seamed. (This tutorial's next example explores other possible modes.)
+
+Try changing the responsiveWidth in Listing 1 to a smaller value to experiment with the point at which the responsive layout switches to the narrow version:
+
+<core-scaffold responsiveWidth='300px'></core-scaffold>
+
+Note: You must run the app from a web server for the HTML Imports polyfill to work.
+
+==
+Shadow DOM and Custom Elements
+
+The Shadow DOM enables DOM trees to be created in custom elements that are separate yet composable into a web page's main hierarchy 
+— or another custom component's DOM tree. 
+The Custom Elements specification enables new custom HTML elements to be added and managed by a browser.
+
+The internals of a custom element are also implemented in HTML, CSS, and JavaScript. 
+But the implementation details are hidden from users of the element. 
+Thanks to encapsulation offered by a custom element's Shadow DOM, 
+you needn't worry about JavaScript namespace collisions or CSS style pollution between your code and the component's internal implementation.
+
+Internally, the <core-scaffold> is a composition of several other Polymer core components. 
+You learn to customize them next.
+
+=========
+Composition: The cornerstone of web components
+
+You can fabricate the core UI structure of your web app (or single-page mobile app) 
+by composing additional visual web components into a <core-scaffold> instance. 
+The next example shows how to add a selection menu to the sidebar, 
+along with an extra-tall header for the content panel that condenses as the content scrolls.
+
+View the example
+When you start the app with a narrow screen width, the header area is extra-tall, 
+with enough space to add other UI components such as tab bars, as shown in Figure 5.
+
+Figure 5. Content panel with extra-tall header
+
+As you scroll down through the content of the panel, 
+the tall header becomes shorter until it reaches standard toolbar height, as illustrated in Figure 6.
+
+Figure 6. Tall header condensed to standard toolbar height
+
+If you scroll down through the content again, the header expands. 
+If you click the hamburger menu button at any time, 
+the sidebar appears with a full menu and a toolbar with a title and the dW logo, as shown in Figure 7.
+
+Figure 7. Sidebar drawer extended with selectable menu and title toolbar
+
+The code for this example is in dwpcompose/index.html (see Download). 
+Figure 8 shows the web components that are composed together to form the skeletal UI.
+
+Figure 8. Composing Polymer core components to construct the UI
+
+The code now contains more HTML imports, 
+one for each of the web components in the composition, 
+including one for the Roboto fonts (a cleaner font for mobile, and the mainstay for current Android devices) used:
+
+<link rel="import" href="../bower_components/font-roboto/roboto.html">
+  <link rel="import" href="../bower_components/core-scaffold/core-scaffold.html">
+  <link rel="import" href="../bower_components/core-icon-button/core-icon-button.html">
+  <link rel="import" href="../bower_components/core-menu/core-menu.html">
+  <link rel="import" href="../bower_components/core-header-panel/core-header-panel.html">
+  <link rel="import" href="../bower_components/core-item/core-item.html">
+
+FOUC
+Flash of Unstyled Content refers to the momentary visibility of unstyled HTML elements in some browser versions 
+— immediately after the visual elements are created and before the CSS styles are fully applied.
+
+The mode attribute of the <core-scaffold> is now set to waterfall-tall, 
+signaling to the web component to handle the collapsing of the tall header. 
+The unresolved attribute on the <body> tag activates code that prevents the Flash of Unstyled Content (FOUC) artifact on some browsers. 
+The touch="auto" attribute ensures that touch behavior is consistently handled across all supported browsers:
+
+<body unresolved touch="auto">
+  <core-scaffold mode="waterfall-tall">
+
+The retracting sidebar is composed inside the <core-scaffold> element. 
+The header consists of two components: 
+a <core-toolbar> and a <core-menu> inside a <core-header-panel> container.
+
+The navigation attribute on <core-header-panel> signals to the <core-scaffold> container 
+that this is the element to be used for the navigational retractable drawer. 
+The <core-header-panel> also has its mode set to seamed, 
+meaning that any content will scroll together with the header. 
+The <core-toolbar> contains the dW logo icon and the title:
+
+<core-header-panel navigation flex mode="seamed">
+  <core-toolbar><img src='/images/dwlogo.svg' width='50px' height='30px'>
+  <span flex>Compose</span>
+  </core-toolbar>
+
+The <core-menu> contains two items named s1 and s2. 
+Because the selected attribute's value is s1, item s1 is initially selected. 
+The icon named explore used for the two menu items is from the <core-icon> collection (imported earlier):
+
+  <core-menu  id='menu'  selected="s1" >
+    <core-item name="s1" icon="explore"  label="Selection 1"></core-item>
+    <core-item name="s2" icon="explore"  label="Selection 2"></core-item>
+  </core-menu>
+</core-header-panel>
+
+You can see all the available icons and their corresponding names on the Polymer Icons page.
+The toolbar of the panel on the right contains the hamburger button, 
+which is managed internally by the component. 
+But you can add elements to this toolbar by adding a tool attribute to an element. 
+
+In the example, a "Components" title is added at the bottom of the toolbar. 
+Also, a settings button — actually a <core-icon-button> element with an icon named more-vert— 
+is added to the right side of the toolbar. 
+
+The empty <span> with flex attribute occupies the center free space. 
+Polymer has support for layout attributes (such as flex, used here) with an intuitive declarative syntax 
+that greatly simplifies the deployment of the underlying CSS Flexbox.
+
+Last but not least, the <div> with the content class is distributed (the Web Components term for inserted) 
+into the content area of the <core-scaffold>'s right panel:
+
+ <div tool class="bottom indent">Components</div>
+
+  <span tool flex></span>
+  <core-icon-button tool icon="more-vert" on-tap="{{settingsAction}}"></core-icon-button>
+
+  <div class="content">First line<br/>Second line</div>
+  </core-scaffold>
+
+</body>
+
+=========
+Drawing business graphics with web components
+
+Now I'll extend the scaffold, add some data, and create an app.
+This next example draws business graphs by using a web component. The app displays one of two sales charts, either regional sales or monthly global sales, depending on the menu selection.
+Run the app
+Using the retracting-drawer sidebar, you can select either graph, as shown in Figure 9.
+Figure 9. Sidebar selection for the two sales charts
+
+When you select regional sales, a pie chart is displayed, as in Figure 10.
+Figure 10. Display of the regional sales pie chart
+
+When you select monthly global sales, a bar graph is shown, as in Figure 11.
+Figure 11. Bar graph of monthly global sales
+
+Hundreds of prefabricated, ready-to-use web components are available in the open source community today. Soon there will be thousands, along with commercially available alternatives. Google Web Components (the source of the <google-chart> component used in this example) and customelements.io are two of the more popular web components repositories. Read each web component's documentation to learn about the available attributes, methods, events, and integration notes.
+You can use Bower to install the web component:
+bower install GoogleWebComponents/google-chart --save
+Find the code to this app in dwpgraph/index.html (see Download). The <google-chart> component is included into the code via HTML Imports:
+<link rel="import" href="../bower_components/google-chart/google-chart.html">
+Android paper and Polymer
+Android developers creating apps for the "L release" (scheduled for fall 2014) know that Polymer is the library that provides official support for that release's paper UI, which follows material design principles. Polymer includes a large suite of ready-to-use, paper-compatible visual components. You can learn about and experiment with the latest Polymer paper elements.
+This app example also demonstrates that you can style web components with CSS, handle events, modify attributes, and call methods.
+Styling a web component with CSS
+As with built-in HTML elements, you can apply any CSS style to web components.
+In the code for the sales-chart app, you can see the styling of the <google-chart> element (its width is set) in the <style> section:
+google-chart {
+      width: 380px;
+   }
+Handling an event from a web component
+Like standard HTML elements, a web component can fire events in response to user interaction or other inputs. For example, a core-select event is fired when the user touches or clicks a <core-menu> item.
+You can write a handler for the event by adding an event listener to the menu. The code to add the handler is:
+ var menu = document.querySelector('core-menu');
+
+ menu.addEventListener( 'core-select', function (evt) {
+    ... event handler logic ...
+});
+The event handler logic in this app manipulates the attributes of the <google-chart> web component to display the selected sales graph. The data for these graphs comes from a hardcoded JSON-compatible JavaScript object. In a production app, the data can be fetched from a database over the network (perhaps by using the Polymer <core-ajax> component).
+Modifying attributes of a custom web component
+Web components contain attributes that can be declaratively or programmatically modified. Earlier, you experimented with the responsiveWidth attribute of the <core-scaffold> component. In the sales-chart app's event handler, four attributes of the <google-chart> component are set programmatically — via the DOM node setAttribute() method — with values from the JSON data source.
+Because a core-select event also fires when an item is deselected, the check on the isSelected flag ensures that the logic executes only during item selection:
+menu.addEventListener( 'core-select', function (evt) {
+   if (evt.detail.isSelected)  {
+    var chart = document.querySelector('google-chart');
+    var scaffold = document.querySelector('core-scaffold');
+    var graph = document.getElementById('graph');
+    var selectedGraph = analytics[menu.selected];
+    chart.setAttribute("type", selectedGraph.type);
+    chart.setAttribute("options", selectedGraph.options);
+    chart.setAttribute("cols", selectedGraph.cols);
+    chart.setAttribute("rows", selectedGraph.rows);
+    
+    graph.innerHTML = selectedGraph.name;
+    console.log(menu.selected);
+    scaffold.togglePanel();
+  }
+});
+Calling methods of a web component
+Custom web components can implement methods that you as a web component user can call directly. For the <core-header-panel>, you can call a method named togglePanel() to slide the drawer panel in and out when the scaffold is in the narrow display mode.
+In the event handler code, after the chart element's attributes are updated, the drawer panel is closed via a call to scaffold.togglePanel():
+chart.setAttribute("type", selectedGraph.type);
+chart.setAttribute("options", selectedGraph.options);
+chart.setAttribute("cols", selectedGraph.cols);
+chart.setAttribute("rows", selectedGraph.rows);		
+...
+scaffold.togglePanel();
+
+=========
+A map app
+
+Not just visual components
+The Polymer library includes many nonvisual components, including the ones in this partial list:
+<core-ajax>
+<core-xhr>
+<core-localstorage>
+<core-media-query>
+<core-meta>
+You can use these components in your apps to perform tasks such as making Ajax calls and accessing data that's in local storage.
+See the Polymer Element collections documentation for details.
+Web components not only encapsulate the visual appearance and handling of user interaction, but they can also encapsulate a complete app feature — including data access, application logic, and network communications.
+The next example adds a complete, ready-to-work, interactive map component right into your app.
+
+Run the app
+This application presents a menu of three locations (Raleigh, San Francisco, and San Diego), as shown in Figure 12.
+Figure 12. App with menu for selecting locations
+
+When you select one of the locations, a map of the area you selected is shown in the content panel. The maps are fully interactive, and you can add a satellite map, zoom in, and so on, all courtesy of the drop-in web component
+In Figure 13, the San Francisco map is showing.
+Figure 13. App showing an interactive map of San Francisco area
+
+In Figure 14, the Raleigh map is showing with the layout in narrow mode.
+Figure 14. App showing an interactive map of Raleigh in narrow screen mode
+
+The complex map UI handling is baked into the component, and you get it for free. The network access to retrieve the map data, and the processing and display of that data, are also internal to the web component. All you need to do is specify the longitude and latitude of the location to display in the center of the map.
+Creating the map app
+The source code of the map app is in the dwpmap/index.html file (see Download). The app's architecture is similar to the sales-chart app example. The following is a summary of the steps to create this app:
+Install the web component into your project:
+bower install PolymerLabs/google-map --save
+Import the web component into your app using HTML Imports:
+<link rel="import" href="../bower_components/google-map/google-map.html">
+Add the <google-map> web component into the content area:
+  <div class="content">
+    <google-map> 
+    </google-map>
+  </div>
+Customize the menu items to show the names of the cities. The core-select event is fired when selection changes:
+<core-menu id='menu' selected="sf" >
+<core-item name="rh" icon="explore" label="Raleigh"></core-item>
+<core-item name="sf" icon="explore" label="San Francisco"></core-item>
+<core-item name="sd" icon="explore" label="San Diego"></core-item>
+</core-menu>
+Create a JSON-compatible data object with the longitude and latitude data of the locations. Note that the keys match the names of the <core-item>s in the menu:
+var waypoints = { 
+  "rh" : {"latitude":"35.843768", "longitude":"-78.645056", 
+       "fullname":"Raleigh"},
+"sd" : {"latitude":"32.8245525", "longitude":"-117.0951632", 
+"fullname":"San Diego"},
+"sf": {"latitude": "37.77493", "longitude": "-122.414942", 
+"fullname":"San Francisco"}};
+Code the core-select event handler to update the <google-map> component's attributes whenever the selection is changed:
+var menu = document.querySelector('core-menu');
+
+ menu.addEventListener( 'core-select', function (evt) {
+   if (evt.detail.isSelected)  {
+    var map = document.querySelector('google-map');
+    var scaffold = document.querySelector('core-scaffold');
+    var location = document.getElementById('location');
+    var selectedLocation = waypoints[menu.selected];
+    map.setAttribute("latitude", selectedLocation.latitude);
+    map.setAttribute("longitude", selectedLocation.longitude);
+    location.innerHTML = selectedLocation.fullname;
+    console.log(menu.selected);
+    scaffold.togglePanel();
+  }
+ });
+You can readily see how, using just these few web components, you might create a sophisticated real-world app. For example, your app might work on an online analytical processing (OLAP) data set, display sales-engagement summary information on a world map, and then enable users to deep-dive into the sales of each region — or even specific stores or locations within a region — by touching the map selection on a mobile device. This hypothetical example demonstrates the power of web component composition.
+
+=========
+Design made simple with the Polymer drag-and-drop component designer
+
+Create custom web components with Polymer
+Now that you've seen how straightforward it is to use web components in your own apps, you might want to create your own custom elements, or refactor portions of your existing apps into reusable components. "Create reusable custom web components with Polymer" walks you through creating reusable custom web components by using HTML, CSS, and JavaScript with Polymer; and by composing existing web components.
+Hand-coding web components is straightforward. To make working with web components even easier and accessible to more developers, Polymer has a working online beta drag-and-drop designer.
+Thanks to the composable nature of web components, you can use the drag-and-drop designer to combine existing components together to create higher-level components, or even an entire app.
+Figure 15 shows the drag-and-drop designer in action.
+Figure 15. Polymer's drag-and-drop custom element designer
+
+The beta designer certainly has some limitations. Most sophisticated component assemblies still require hand-crafted code that drag-and-drop design cannot generate. However, you can use the designer to hand-edit the underlying HTML file. And rest assured that more-complete solutions for app and component building are on the way from various sources.
+
+=========
+Conclusion
+
+Polymer builds on the Web Components standards 
+and extends the pervasive dominance of the (now developer-extensible) DOM as the basis 
+for web and mobile application development into the next decade. 
+Polymer reconfirms the serious commitment of browser vendors to evolving and adapting their flagship products 
+to better serve the demands of the newest generation of users and application developers.
+
+=========
+Download
+
+Sample code	wa-polymercode.zip	577KB
+
+==
+Resources
+
+"Create reusable custom web components with Polymer" 
+(Sing Li, developerWorks, September 2014): 
+Read this companion tutorial for step-by-step guidance on building your own custom web components.
+
+Polymer: Find the latest available Polymer components, sample code, and documentation.
+
+Google Web Components: 
+Try some ready-to-go web components from this open source repository.
+
+Browser Compatibility: 
+Monitor this site to track the latest cross-platform, cross-browser support and compatibility for Polymer.
+
+customelements.io: 
+Check out the large variety of community-built web components available from this repository.
+
+Material Design: 
+Learn more about material design for Android, fully supported by the Polymer paper components collection.
+
+HTML components: 
+Read this developerWorks series by David Geary for detailed coverage of the technologies underlying Web Components.
+
+

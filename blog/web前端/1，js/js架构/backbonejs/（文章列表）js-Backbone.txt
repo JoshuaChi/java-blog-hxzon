@@ -1,4 +1,4 @@
-﻿js-Backbone
+﻿（文章列表）js-Backbone
 
 ==============================
 Backbone JS框架指南

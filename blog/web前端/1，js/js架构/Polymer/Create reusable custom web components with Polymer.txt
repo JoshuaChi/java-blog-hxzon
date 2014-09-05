@@ -1,0 +1,252 @@
+﻿Create reusable custom web components with Polymer
+http://www.ibm.com/developerworks/web/library/wa-polymer-app/
+02 September 2014
+PDF (454 KB) 
+Sing Li
+Sing Li
+Author
+Sing Li on Google+
+
+==========
+In "Join the Web Components revolution with Polymer," I introduce the W3C Web Components standards and their supporting technologies and show how to readily compose Polymer core components (with other community web components) to create responsive and functional application UIs. The developer role of component consumer is well covered by the examples in that tutorial.
+This tutorial focuses on the role of the Polymer component creator: a developer who creates reusable prebuilt, composable web components for sharing in community repositories or inclusion in one's own apps. I'll lead you through the steps for creating the <national-sales-explorer> custom web component. This component encapsulates:
+UI handling
+Retrieval of information from a networked data source
+Presentation of sales data through business graphics
+Display of store-location information in an interactive map
+Along the way, you'll learn several Polymer component fabrication techniques that you'll find useful in your own work.
+With the help of the Mobile Cloud boilerplate on Bluemix, you'll use Bluemix to host a REST API endpoint and to deploy the app. The source code is available in IBM DevOps Services, enabling you to work completely in the cloud if you prefer.
+READ:Join the Web Components revolution with Polymer
+READ:Building Mobile Cloud applications
+READ:Extending Node.js to use Mobile Cloud applications
+READ:Getting Started with IBM Bluemix and IBM DevOps Services using Node.js
+What you'll need
+
+ 
+An IBM ID and password
+Bluemix and DevOps Services accounts
+A modern web browser (Chrome preferred)
+If you want to work and test locally, a Node.js development environment with command-line git support
+Run the app
+Get the code
+“The idea of composing prebuilt components to create functional web or mobile apps is no longer a pipe dream.”
+Step 1: Try interacting with the app
+
+ 
+The example app fetches store locations and sales data via Ajax from the Bluemix-hosted REST API endpoint at startup and creates the initial UI on the fly:
+Screenshot of the sale app's initial UI on a desktop browser
+Click this tutorial's Run the app button.
+Adjust the width of your browser to narrow (less than 600px) to see how the app layout changes in response to device width. When the width is narrow, click the "hamburger" menu button in the top left to see the drawer panel in action.
+Select a different store location and watch the interactive map update.
+Click the top-right button on the toolbar and select Sales. The sales chart for that store location is now shown.
+Use the hamburger button to select the different store locations and see the sales for each store: Screenshot of the sale chart for San Francisco
+Step 2: Fork the code or create your own Mobile Cloud starter
+
+ 
+You can either fork my code or use the Bluemix Mobile Cloud boilerplate to create your own app (and then modify it):
+To fork the code:
+Click this tutorial's Get the code button. In DevOps Services, click my project's EDIT CODE button (enter your DevOps Services credentials if you're not already logged in) and click the FORK button on the menu to create a new project under your DevOps Services ID.
+Edit the manifest.yml file and change all instances of dwpolymer to your project's name.
+Edit app.js and specify your own Bluemix applicationRoute and applicationId (lines 6 to 10).
+To add the new Bluemix app from scratch and then modify it:
+In the Bluemix catalog, select the Mobile Cloud boilerplate: Screenshot of Mobile Cloud boilerplate entry in the Bluemix catalog
+Create an app with a unique name: Screenshot of the dialog box for creating a Mobile Cloud app in Bluemix
+Add a DevOps Services git repository to the new app when prompted. Clone the git respository to your local PC by using a git command-line tool. Then make the following modifications:
+Replace app.js with the app.js file from my repository.
+Add a copy of my project's data directory and its contents to your repository.
+Replace the public directory with the one from my repository.
+Edit app.js and specify your own Bluemix applicationRoute and applicationId (lines 6 to 10).
+Step 3: Examine source directories and contents
+
+ 
+Examine the project directory structure and key files:
+data/waypoints.json: JSON document that contains the following store locations and sales information:
+shortname	longitude	latitude	fullname	hardware	software	services
+rh	-78.647929	35.7866509	Raleigh	300	180	800
+sd	-117.2070978	32.8746129	San Diego	1200	890	2200
+sf	-122.39834	37.791296	San Francisco	2000	3180	200
+public/dwsalescomp/index.html: The main app HTML, which contains only one key custom HTML tag, for the <national-sales-explorer> web component.
+public/dwsalescomp/national-sales-explorer.html: Implementation of the Polymer custom web component; all of the component's code is here.
+public/dwsalescomp/sales-datasource/sales-datasource.html: A nonvisual Polymer web component that uses Ajax to access a back-end REST API endpoint to retrieve the JSON-formatted sales and location data.
+app.js: Part of the Bluemix Node.js Mobile Cloud boilerplate, modified to serve the REST API endpoint and also the static HTML pages that contain the app and custom web components. 
+
+The boilerplate's app.js file configures and runs an instance of the Express web server. To serve the REST API endpoint (data source), this code is added to app.js:
+
+ 
+app.get(ibmconfig.getContextRoot()+'/getsalesdata', function(req,res) {​
+     res.sendfile('data/waypoints.json');​
+});​
+
+To redirect root URL access to the public/dwsalescomp directory, this code is added to app.js:
+
+ 
+app.get('/', function(req, res){​
+   res.redirect(ibmconfig.getContextRoot() + '/public/dwsalescomp/index.html');​
+});​
+
+public/bower_components/*: Polymer library, Polymer core components, a Polymer "paper" menu-button component, and the sales chart and map web components.
+public/images/dwlogo.svg: Image used in creating the drawer panel UI.
+manifest.yml: Manifest used for deploying the application to Bluemix. (You customized this file in Step 2 if you forked the DevOps Services project.)
+How data is served
+ 
+The <national-sales-explorer> component uses a nonvisual custom Polymer element named <sales-datasource> to fetch data from the Bluemix-hosted REST API endpoint:
+
+Step 4: Walk through the code
+
+ 
+This walkthrough highlights key techniques for creating custom elements with Polymer.
+Code structure of a custom Polymer web component
+ 
+Take a look at the structure of the national-sales-explorer.html file. This is the general code structure of a custom Polymer component:
+ 
+<link rel='import' href=../...>​
+​
+... HTML import of components that are used to compose this component ...​
+​
+<polymer-element name=national-sales-explorer>​
+<template>​
+<style>​
+... CSS styles used encapsulated within the component ...​
+</style>​
+​
+... actual component composition, HTML elements and other web components ...​
+​
+</template>​
+<script>​
+​
+.. JavaScript web component registration, Polymer component prototype ...​
+</script>​
+</polymer-element>​
+Encapsulation of CSS styling
+ 
+The CSS styles defined in the custom element are scoped within the element's shadow DOM only and cannot leak outside. In this case, the special :host selector is used to select the <national-sales-explorer> element instance, and google-map selects the <google-map> web component instance within <national-sales-explorer>:
+
+ 
+<style>​
+    :host {​
+      display:block;​
+    font-family: 'RobotoDraft', sans-serif;​
+    }​
+    google-map {​
+      display: block;​
+      height: 600px;​
+    }​
+    ...​
+</style>​
+
+Template binding
+ 
+On the left-side sliding drawer panel, the list of store locations is generated from the waypoints data by using Polymer's template binding extension. You can use the <template> element with its repeat attribute to loop through the waypoints array:
+ 
+<template repeat="{{waypoint in waypoints}}">​
+<core-item icon="explore" label="{{waypoint.fullname}}">​
+</core-item>​
+</template>​
+Events binding
+ 
+When you select a location, the core-menu component's core-select event is fired. The event handler in this case is the element's itemSelected function. The handler is specified using Polymer's declarative events binding:
+
+ 
+<core-menu id='menu' selected="0" ​
+on-core-select="{{itemSelected}}">​
+...​
+</core-menu>​
+Two-way data binding
+ 
+When you make a sales or location selection from the drop-down menu on the toolbar, the content displayed changes. In this case, no Polymer declarative events binding is used. Instead, the code takes advantage of Polymer's two-way declarative data binding.
+The selected attribute of <my-menu-button> changes when you make a selection (to 0 for location, and 1 for sales). The same bound object, modeSelected, is used in the <core-animated-pages> element's selected element. Whenever the selected attribute of <my-menu-button> changes, the selected attribute of <core-animated-pages> also changes — causing the transition of the content:
+
+ 
+<my-menu-button id='mode' tool icon="more-vert" selected="{{modeSelected}}" ​
+valign="bottom" halign="right">​
+</my-menu-button>​
+... then ...
+
+ 
+<core-animated-pages id=cont selected={{modeSelected}} transition=slide-from-right>​
+...​
+</core-animated-pages>​
+Published properties
+ 
+Another use of two-way data binding is in the waypoints published property of the <sales-datasource> nonvisual component. waypoints becomes a published property when it is declared as an attribute of the <sales-datasource> component:
+
+ 
+<polymer-element name="sales-datasource" attributes="waypoints">​
+...​
+</polymer>​
+This published property is data bound to the waypoints object within <national-sales-explorer>. And when the <sales-datasource> element successfully fetches the data via Ajax, the published property is updated, causing the bound object's value to update; this is how waypoints become populated with data:
+
+ 
+<sales-datasource id="datasource" waypoints="{{waypoints}}">​
+...​
+</sales-datasource>​
+Functions and properties definition
+ 
+In the <script> portion of both the <national-sales-explorer> and <sales-datasource> custom elements, you can see a Polymer() call that registers the components. The second argument to this call is a JavaScript prototype for the custom element and contains the functions (methods) and properties definitions. For example:
+
+ 
+Polymer('global-sales-explorer', ​
+  {​
+   created: function() {​
+               .. initialize properties ​
+              }, ​
+   itemSelected: function(event, detail, sender) {​
+               .. event handler ..​
+              }​
+ ​
+  });​
+Shadow DOM piercing
+ 
+Normally, CSS styles on a web page cannot affect the shadow DOM of a custom element. However, Polymer offers a special ::shadow selector to allow selective piercing into the shadow DOM. For example, see how the <core-toolbar> of <global-sales-explorer> is styled in index.html:
+
+ 
+global-sales-explorer::shadow  core-toolbar {​
+      color: white;​
+      background: red;​
+      background-color: darkgray;​
+    }​
+Automatic node finding
+ 
+Instead of using document.getElementById() to find a node within a Polymer component's DOM, you can locate every element with an ID within the same shadow DOM more efficiently via the built-in this.$ hash. For example, see the itemSelected event handler in <national-sales-explorer>:
+
+ 
+var map = this.$.map;​
+var scaffold = this.$.scaffold;​
+var location = this.$.location;​
+var menu = this.$.menu;​
+Subclassing (extending) an existing web component
+ 
+The location/sales selection menu is implemented using a custom element named <my-menu-button>. This custom element is implemented by subclassing, or extending, the Polymer <paper-menu-button> component. When you extend an existing component, you inherit all its attributes, methods, and properties.
+An earlier version of the app used Polymer <core-menu-button> for this menu, but that component had an update bug. To bypass the bug, a Polymer <paper-menu-button> is used instead.
+Unlike <core-menu-button>, <paper-menu-button> doesn't publish a selected property, so it's necessary to extend <paper-menu-button> and publish a selected property:
+
+ 
+<polymer-element name="my-menu-button" extends="paper-menu-button" attributes="selected">​
+<template>​
+  <shadow></shadow>​
+</template>​
+<script>​
+Polymer('my-menu-button', {​
+ selected: 0,​
+ observe: {​
+  '$.menu.selected' : 'menuSelectedChanged'​
+ },​
+ menuSelectedChanged: function (oldValue, newValue) {​
+  this.selected = newValue;​
+ }​
+});​
+</script>​
+</polymer-element>​
+Step 5: Deploy the app to Bluemix
+
+ 
+If you forked my repository, click your project's DEPLOY button in the DevOps Services IDE:
+
+If you created the repository from scratch using the Mobile Cloud boilerplate and are working with the code locally, you can git push the modified code to the DevOps Services git repository to trigger an automatic redeployment to Bluemix.
+
+Conclusion
+
+ 
+Creating reusable custom elements with Polymer is a straightforward process: You compose existing components (from the Polymer library or community repositories) and apply some HTML, CSS, and JavaScript glue. The resulting custom element can be a complete self-contained mini-app managing its own UI, data access, and business logic.
+The idea of composing prebuilt components to create functional web or mobile apps is no longer a pipe dream. The W3C Web Components standards embraced and implemented by all modern browser vendors — together with a global community effort to create a sizable body of open source prebuilt web components — have started to realize this dream. The Polymer JavaScript API and components library is accelerating this realization.
+
