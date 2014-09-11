@@ -441,11 +441,18 @@ therefore, users can also put Borderlayout in a container with a fixed height.
 ====
 Columnlayout
 
-Columnlayout places its child components into multiple columns while each column allows any numbers of child components placed vertically with different heights (but with the same widths). Unlike portallayout, Columnlayout does not allow end users the ability to move child components to different locations at will (although of course, developers are allowed to use the ZK application to re-arrange the order of children components).
+Columnlayout places its child components into multiple columns 
+while each column allows any numbers of child components placed vertically with different heights 
+(but with the same widths). 
+Unlike portallayout, Columnlayout does not allow end users the ability 
+to move child components to different locations at will 
+(although of course, developers are allowed to use the ZK application to re-arrange the order of children components).
 
 Available for ZK:
 Version pe-ee.png
+
 DrColumnlayout.png	
+
 <columnlayout>
   <columnchildren width="30%" style="padding: 5px 1px">
     <panel height="60px" title="1" border="normal" maximizable="true">
@@ -465,7 +472,11 @@ DrColumnlayout.png
 ====
 Portallayout
 
-Portallayout places its child components into multiple columns while each column can allow any numbers of child components to be placed vertically with different heights (but with the same widths). Users are also allowed to move any of them to any area desired like that of a portal.
+Portallayout places its child components into multiple columns 
+while each column can allow any numbers of child components to be placed vertically with different heights 
+(but with the same widths). 
+Users are also allowed to move any of them to any area desired like that of a portal.
+允许用户将组件拖拽到其它位置。
 
 Available for ZK:
 Version ee.png
@@ -632,6 +643,7 @@ DrWindow scrolling.png
 Panel
 
 Like Window, panel is another powerful container supporting captioning, bordering, overlapping and many other features. 
+支持“标题”，边框，重叠等。
 However, IdSpace is not implemented by this component, 
 therefore, all of its children belongs to the same ID space of its parent.
 
@@ -707,9 +719,13 @@ DrGroupbox3d scrolling.png
 ====
 Tabbox
 
-Tabbox is a container used to display a set of tabbed groups of components. A row of tabs can be displayed at the top (or left) of the tabbox; users can switch in between each tab group by a simple click. IdSpace is not implemented by this component either.
+Tabbox is a container used to display a set of tabbed groups of components. 
+A row of tabs can be displayed at the top (or left) of the tabbox; 
+users can switch in between each tab group by a simple click. 
+IdSpace is not implemented by this component either.
 
 DrTabbox.png	
+
 <tabbox height="80px">
   <tabs>
     <tab label="Tab 1"/>
