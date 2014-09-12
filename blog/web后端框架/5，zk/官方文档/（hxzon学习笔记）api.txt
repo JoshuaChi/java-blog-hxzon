@@ -178,5 +178,38 @@ byContent
 Since:
 5.0.4
 
+======
+6，锚点布局
+
+void org.zkoss.zul.Anchorchildren.setAnchor(String anchor)
+
+Sets the width, height relative to parent, anchorlayout. 
+It can use % or number. 
+可以使用具体数值，或百分比。
+Accept one argument, or two argument separated by space. 
+支持一个参数，或两个参数，两个参数之间通过空格分隔。
+The first argument is for width, and second for height. 
+第一个参数是宽，第二个参数是高。
+For example, 
+"50% 50%" means the anchorchildren width and height is 50% of Anchorlayout. 
+"-30 20%" means the width is 20px less than parent, and height is 20% of parent. 
+"50%" means the width is 50% of parent, and the height is no assumed. 
+
+Parameters:
+anchor 
+
+==
+org.zkoss.zul.Anchorlayout
+
+An anchorlayout lays out a container which can resize it's children base on its width and height
+当本组件尺寸改变时，子组件会调整尺寸。
+
+Default getZclass: z-anchorlayout.
+
+Since:
+6.0.0
+Author:
+peterkuo
+
 
 

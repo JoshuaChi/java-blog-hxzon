@@ -1,0 +1,100 @@
+﻿（官方文档）组件手册03-LabelImageElement
+http://books.zkoss.org/wiki/ZK%20Component%20Reference/Base%20Components/LabelImageElement
+
+注释by hxzon
+====
+1 Label Image Element
+2 Employment/Purpose
+3 Preload Image
+4 IconSclass
+5 Example
+6 Supported Events
+7 Supported Children
+8 Version History
+
+======
+Label Image Element
+
+Demonstration: N/A
+Java API: LabelImageElement
+JavaScript API: LabelImageWidget
+
+====
+Employment/Purpose
+
+An HTML element with a label and an image.
+
+====
+Preload Image
+预加载图片
+
+since 6.0.0
+
+The feature is applied to all of the LabelImageElement and Image components.
+By default the preload function is disabled, so users have to specify the custom-attributes and set it to true. For example,
+
+<button image="xxx.png">
+  <custom-attributes org.zkoss.zul.image.preload="true"/>
+</button>
+
+Or specify it just below the root component.
+For example,
+
+<window>
+  <custom-attributes org.zkoss.zul.image.preload="true"/>
+  <button image="xxx.png"/>
+  <image src="xxx.png"/>
+</window>
+
+As you can see, the custom-attributes will be checked recursively (see also Scope.getAttribute(String, boolean)).
+[since 6.5.2]
+
+The feature can also applied from zk.xml as a library properity.
+For example,
+全局设定。
+
+<!-- zk.xml -->
+<zk>
+    <library-property>
+        <name>org.zkoss.zul.image.preload</name>
+        <value>true</value>
+    </library-property>
+</zk>
+
+====
+IconSclass
+图标
+
+[since 7.0.0]
+
+ZK 7.0.0 integrate FontAwesome 4.0.1 with prefix z-icon. 
+To use it, just add iconSclass attribute.
+For example, add home icon on Button,
+
+<window>
+  <button iconSclass="z-icon-home" />
+</window>
+
+====
+Example
+N/A
+
+Supported Events
+Name
+Event Type
+None	 None
+Inherited Supported Events: LabelElement
+
+Supported Children
+*All
+
+Version History
+Version	 Date	 Content
+7.0.0	 
+October 2012	 
+Add iconSclass attribute with FontAwesome supported.
+
+6.0.0	 
+September 2011	
+A way to pre-load images since many UIs depend on the size of an image
+

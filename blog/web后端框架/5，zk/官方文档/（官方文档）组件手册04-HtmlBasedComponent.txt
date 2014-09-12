@@ -1,0 +1,88 @@
+﻿（官方文档）组件手册04-HtmlBasedComponent
+http://books.zkoss.org/wiki/ZK%20Component%20Reference/Base%20Components/HtmlBasedComponent
+
+注释by hxzon
+====
+1 Html Based Component
+2 Employment/Purpose
+3 Example
+4 Supported Events
+5 Supported Children
+6 Use cases
+7 Version History
+
+=====
+Html Based Component
+
+Demonstration: N/A
+Java API: HtmlBasedComponent
+JavaScript API: Widget
+
+====
+Employment/Purpose
+
+A skeletal implementation for HTML based components. 
+It simplifies to implement methods common to HTML based components.
+
+====
+Example
+N/A
+
+Supported Events
+Name
+Event Type
+
+onDrop
+Event: DropEvent
+Denotes user has dropped the dragged target to the component.
+
+onClick
+Event: MouseEvent
+Denotes user has clicked the component.
+
+onDoubleClick
+Event: MouseEvent
+Denotes user has double-clicked the component.
+
+onRightClick
+Event: MouseEvent
+Denotes user has right-clicked the component.
+
+onMouseOver
+Event: MoveEvent
+Denotes user has hovered over the component.
+
+onMouseOut
+Event: MoveEvent
+Denotes user has moved out the component.
+
+onOK
+Event: KeyEvent
+Denotes user has pressed the ENTER key.
+回车键。
+
+onCancel
+Event: KeyEvent
+Denotes user has pressed the ESC key.
+取消键。
+
+onCtrlKey
+Event: KeyEvent
+Denotes user has pressed a special key, such as PgUp, Home and a key combined with the Ctrl or Alt key. Refer to the ctrlKeys Property section below for details.
+
+====
+Supported Children
+*ALL
+
+====
+Use cases
+Version	 Description	 Example Location
+ 	  	  
+Version History
+Version	 Date	 Content
+
+5.0.3	 
+June 2010	 
+The onMouseOver and onMouseOut events are supported.
+
+

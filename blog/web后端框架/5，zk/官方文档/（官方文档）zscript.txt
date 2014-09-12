@@ -1,0 +1,191 @@
+﻿（官方文档）zscript
+http://books.zkoss.org/wiki/ZUML_Reference/Extensions/zscript
+
+====
+1 Choose Interpreter for Whole Page
+2 Choose Interpreter for zscript
+3 Choose Interpreter for Event Handler
+4 Support More Scripting Languages
+4.1 Multi-Scope versus Single-Scope
+5 Version History
+
+The default interpreter for the zscript elements is Java (based on BeanShell). 
+Depending on your preference, you could choose one of built-in interpreters, or implement your own interpreter.
+The built-in interpreters includes: Java, Groovy, Ruby, Python, and JavaScript.
+
+==
+Choose Interpreter for Whole Page
+在页面级设置脚本语言
+
+To change the default interpreter for the whole page, you could use the page directive by specifying the zscriptLanguage attribute, such as
+
+<?page zscriptLanguage="Groovy"?>
+<window border="normal">
+    <vbox id="vb">
+        <label id="l" value="Hi"/>
+        <button label="change label" onClick="l.value='Hi, Groovy';"/>
+        <button label="add label" onClick="new Label('New').setParent(vb);"/>
+    </vbox>
+    <button label="alert" onClick="alert('Hi, Groovy')"/>
+</window>
+
+==
+Choose Interpreter for zscript
+
+You could choose an interpreter for a particular zscript element by specifying the language attribute as follows.
+
+<zscript language="Ruby">
+(Java::Label.new 'New').parent = $vb
+</zscript>
+
+==
+Choose Interpreter for Event Handler
+
+You could choose an interpreter for a particular event handler by prefixing it with the language name as follows.
+
+<button label="alert" onClick="python:alert('Hi, Python')"/>
+
+==
+Support More Scripting Languages
+
+Currently ZK supports Java, JavaScript, Ruby, Groovy, and Python. However, it is easy to extend:
+Provide a class that implements Interpreter. However, it is suggested to derive from GenericInterpreter for simplicity.
+Declare the scripting language in either WEB-INF/zk.xml, or zk/config.xml.
+
+<zscript-config>
+    <language-name>SuperJava</language-name><!-- case insensitive -->
+    <interpreter-class>my.MySuperJavaInterpreter</interpreter-class>    
+</zscript-config>
+
+==
+Multi-Scope versus Single-Scope
+
+Depending on the implementation, 
+an interpreter might have exactly one logical scope, or one logic scope per ID space 
+to store these variables and methods declared in zscript. 
+For the sake of description, we will call them the single-scope and multi-scope interpreters respectively.
+
+For example, ZK's Java interpreter(BeanShell) is a multi-Scope Interpreter. 
+On the other hand, Ruby, Groovy and JavaScript interpreters don't support multi-scope. 
+It means all variables defined in, say, Ruby are stored in one logical scope (per interpreter). 
+To avoid confusion, you could prefix the variable names with special prefix denoting the window.
+
+Notice that each page has its own interpreter to evaluate the zscript code.
+注意，每个页面都有自己的脚本解释器。
+
+Version History
+Last Update : 2011/8/3
+
+===========
+zscript
+http://books.zkoss.org/wiki/ZUML_Reference/ZUML/Elements/zscript
+
+====
+1 src
+2 language
+3 deferred
+4 if
+5 unless
+6 Version History
+
+Syntax:
+
+<zscript [language="Java|JavaScript|Ruby|Groovy"] [if="if-condition"] [unless="unless-condition"]>Scripting codes</zscript>
+
+<zscript src="a_uri" [language="Java|JavaScript|Ruby|Groovy"] [if="if-condition"] [unless="unless-condition"]/>
+
+It defines a piece of scripting codes that will be interpreted when the page is evaluated. 
+The language of the scripting codes is, by default, Java. 
+You can select a different language with the use of language attribute[1].
+The zscript element has two formats as shown above. 
+The first format is used to embed the scripting codes directly in the page. 
+The second format is used to reference an external file that contains the scripting codes.
+
+<zscript>
+alert("Hi");
+</zscript>
+
+<zscript src="/codes/my.bs"/>
+
+Like other ZK elements, it is not a component but a special XML element.
+For introductory of zscript, please refer to ZK Developer's Reference.
+↑ Furthermore, you can use the page directive to change the default scripting language other than Java.
+
+==
+src
+[Optional][Default: none]
+
+Specifies the URI of the file containing the scripting codes. 
+If specified, the scripting codes will be loaded as if they are embedded directly.
+
+Note: the file should contain the source codes in the selected scripting language. 
+The encoding must be UTF-8. Don't specify a class file (aka. byte codes).
+Like other URL and URI, it has several characteristics as follows:
+
+It is relative to the servlet context path (aka., the getContextPath method from the javax.servlet.http.HttpServletRequest interface). 
+In other words, ZK will prefix it with the servlet context automatically.
+
+It resolves "~" to other Web application (aka., different ServletContext). 
+Notice that Web server administrator might disable the Web applications from peeking other's content[1].
+
+It accepts "*" for loading browser and Locale dependent style sheet.
+The algorithm to resolve "*" is as follows.
+If there is one "*" specified in an URL or URI such as /my*.css, 
+then "*" will be replaced with a proper Locale depending on the preferences of user's browser.
+For example, user's preferences is de_DE, then ZK searches /my_de_DE.css, /my_de.css, and /my.css 
+one-by-one from your Web site, until any of them is found. 
+If none of them is found, /my.css is still used.
+If two or more "*" are specified in an URL or URI such as "/my*/lang*.css", then the first "*" 
+will be replaced with "ie" for Internet Explorer and "moz" for other browsers[2]. 
+If the last "*" will be replaced with a proper Locale as described above.
+
+All other "*" are ignored.
+
+Notes
+↑ Refer to the getContext meth from the javax.servlet.ServletContext interface.
+↑ In the future editions, we will use different codes for browsers other than IE and FF.
+
+==
+language
+[Optional]
+[Default: the page's default scripting language]
+[Allowed Values: Java | JavaScript | Ruby | Groovy]
+
+It specifies the scripting language which the scripting codes are written in.
+
+==
+deferred
+[Optional][Default: false]
+
+Specifies whether to defer the evaluation of this element 
+until the first non-deferred zscript codes of the same language has to be evaluated. 
+It is used to defer the loading of the interpreter and then speed up the loading of a ZUML page. 
+For example, if all zscript elements are deferred, 
+they are evaluated only when the first event listened by a handler implemented in zscript is received.
+For instance, in the following example, the interpreter is loaded and the zscript element is evaluated, only when the button is clicked:
+
+<window id="w">
+    <zscript deferred="true">
+     void addMore() {
+         new Label("More").setParent(w);
+     }
+    </zscript>
+    <button label="Add" onClick="addMore()"/>
+</window>
+
+==
+if
+[Optional][Default: true]
+
+Specifies the condition to evaluate this element. 
+This element is ignored if the value specified to this attribute is evaluated to false.
+
+==
+unless
+[Optional]
+[Default: false]
+
+Specifies the condition not to evaluate this element. 
+This element is ignored if the value specified to this attribute is evaluated to true.
+
+
