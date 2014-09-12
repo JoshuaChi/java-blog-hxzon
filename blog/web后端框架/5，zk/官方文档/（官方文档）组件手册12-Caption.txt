@@ -1,0 +1,90 @@
+﻿（官方文档）组件手册12-Caption
+http://books.zkoss.org/wiki/ZK%20Component%20Reference/Containers/Caption
+
+注释by hxzon
+====
+1 Caption
+2 Employement/Purpose
+3 Preload Image
+4 Example
+5 Supported Events
+6 Supported Children
+7 Use Cases
+8 Version History
+
+=======
+Caption
+
+Demonstration: Groupbox
+Java API: Caption
+JavaScript API: Caption
+Style Guide: Caption
+
+====
+Employement/Purpose
+
+A header for a Groupbox. 
+It may contain either a text label, using LabelElement.setLabel(String), 
+or child elements for a more complex caption.
+
+====
+Preload Image
+since 6.0.0
+
+The feature is applied to all of the LabelImageElement and Image components.
+By default the preload function is disabled, 
+so users have to specify the custom-attributes and set it to true. For example,
+
+<caption image="xxx.png" label="caption">
+  <custom-attributes org.zkoss.zul.image.preload=”true”/>
+</caption>
+
+Or specify it just below the root component.
+For example,
+
+<window>
+  <custom-attributes org.zkoss.zul.image.preload=”true”/>
+  <caption image="xxx.png" label="caption">
+  <image src="xxx.png"/>
+</window>
+
+As you can see, the custom-attributes will be checked recursively.
+
+====
+Example
+
+ZKComRef Caption Example.png
+
+<zk>
+    <window border="normal" width="350px">
+         <caption label="This is a caption"/>
+            <groupbox width="300px">
+                 <caption label="fruits"/>
+                 <radiogroup onCheck="fruit.value = self.selectedItem.label">
+                    <radio label="Apple"/>
+                 <radio label="Orange"/>
+                 <radio label="Banana"/>  
+                 </radiogroup>
+            </groupbox>
+    </window>
+</zk>
+
+====
+Supported Events
+Name
+Event Type
+None	 None
+Inherited Supported Events: LabelImageElement
+
+Supported Children
+*ALL
+
+Use Cases
+Version	 Description	 Example Location
+5.0	 
+How to use the title and caption inside a Window	
+Title and Caption
+
+Version History
+Last Update : 2011/11/2
+
