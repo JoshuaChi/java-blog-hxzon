@@ -1,0 +1,134 @@
+﻿（官方文档）组件手册06-Selectbox
+http://books.zkoss.org/wiki/ZK%20Component%20Reference/Essential%20Components/Selectbox
+
+注释by hxzon
+====
+1 Selectbox
+2 Employment/Purpose
+3 Example
+3.1 Databinding
+4 Supported Events
+5 Supported Children
+6 Use Cases
+7 Version History
+
+=======
+Selectbox
+下拉列表
+
+Demonstration: N/A
+Java API: Selectbox
+JavaScript API: Selectbox
+Style Guide: N/A
+
+====
+Employment/Purpose
+
+Selectbox is a lightweight dropdown list and it can support ListModel, Renderer, and Databinding as well. 
+The benefit of it is not to create child widgets for each data, so the memory usage is much lower at the server.
+轻量级，不会为每个选项创建子部件。
+
+Example
+
+Selectbox-Example1.png
+
+<zk>
+    <zscript>
+        <![CDATA[
+        String[] userName = { "Tony", "Ryan", "Jumper", "Wing", "Sam" };
+        ListModelList model = new ListModelList(userName);
+    ]]></zscript>
+    <selectbox model="${model}" onSelect='alert(model.get(event.getData()));'>
+        <template name="model">
+            Name is ${each}
+        </template>
+    </selectbox>
+</zk>
+
+To give the selectbox an initial value, for example, Tony, add the following code after the model is created:
+
+model.addToSelection ("Tony");
+
+==
+Databinding
+数据绑定
+
+Here is the example for Databinding.
+
+<?init class="org.zkoss.zkplus.databind.AnnotateDataBinderInit"?>
+<zk>
+    <zscript><![CDATA[
+    public class MyUserBean {
+        private String[] userList = { "Tony", "Ryan", "Jumper", "Wing", "Sam" };
+        private int index = 0;
+ 
+        public ListModelList getUserList() {
+            return new ListModelList(Arrays.asList(userList));
+        }
+ 
+        public void setUserList() {
+        }
+ 
+        public void setIndex(int ind) {
+            index = ind;
+        }
+ 
+        public int getIndex() {
+            return index;
+        }
+ 
+        public String getCurrentName() {
+            return userList[index];
+        }
+    }
+    MyUserBean mybean = new MyUserBean();
+/**   Implements ItemRenderer without using template
+       org.zkoss.zul.ItemRenderer render = new org.zkoss.zul.ItemRenderer() {
+        public String render(Component owner, Object data, int index) throws Exception {
+            return data.toString();
+        }
+    };
+*/
+    ]]></zscript>
+    <div>
+        Select User:
+        <selectbox id="box" model="@{mybean.userList}"
+            selectedIndex="@{mybean.index}">
+            <template name="model">${each}</template>
+        </selectbox>
+ 
+    </div>
+    Selected:
+    <label id="val" value="@{mybean.currentName}" />
+</zk>
+
+====
+Supported Events
+Name
+Event Type
+
+onSelect
+Event: SelectEvent
+Notifies one that the user has selected a new item in the selectbox.
+
+Inherited Supported Events: HtmlBasedComponent
+
+====
+Supported Children
+*NONE
+
+Use Cases
+Version	 Description	 Example Location
+ 	  	  
+Version History
+Last Update : 2012/3/3
+
+Version	 Date	 Content
+6.0.0	 
+October 4, 2011	 
+Add the new Selectbox component
+
+6.0.0-RC2	 
+December 6, 2011	 
+Rename OptionRenderer to ItemRenderer
+

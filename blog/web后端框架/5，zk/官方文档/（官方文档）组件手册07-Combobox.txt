@@ -1,0 +1,356 @@
+﻿（官方文档）组件手册07-Combobox
+http://books.zkoss.org/wiki/ZK%20Component%20Reference/Input/Combobox
+
+注释by hxzon
+====
+1 Combobox
+2 Employment/Purpose
+3 Example
+4 Mouseless Entry Combobox
+5 Live Data
+5.1 Selectable
+6 Properties
+6.1 Autocomplete
+6.1.1 Autocomplete in a Brute-force Way
+6.1.2 Autocomplete by ListSubModel
+6.2 Readonly
+6.3 Autodrop
+6.4 Description
+6.5 The onOpen Event
+6.6 The onChanging Event
+6.7 Constraint
+7 Inherited Functions
+8 Supported Events
+9 Supported Molds
+10 Supported Children
+11 Use Cases
+12 Version History
+
+====
+Combobox
+组合框
+
+Demonstration: Combobox
+Java API: Combobox
+JavaScript API: Combobox
+Style Guide: Combobox
+
+====
+Employment/Purpose
+
+Components: combobox and comboitem.
+A combobox is a special text box that embeds a drop-down list. 
+With comboboxes, users are allowed to select from a drop-down list, in addition to entering the text manually.
+通过下拉列表选择，或者直接输入。
+
+Example
+ZKComRef Combobox Example.PNG
+
+<combobox>
+    <comboitem label="Simple and Rich"/>
+    <comboitem label="Cool!"/>
+    <comboitem label="Ajax and RIA"/>
+</combobox>
+
+Combobox onAfterRender.png
+
+<zk>
+    <zscript><![CDATA[
+        ListModelList lm = new ListModelList(Arrays.asList(new String[] { "David",
+                "Thomas", "Steven" }));
+    ]]></zscript>
+     
+    <combobox model="${lm}" onAfterRender="self.setSelectedIndex(2)"/>
+</zk>
+
+==
+Mouseless Entry Combobox
+
+Alt+DOWN to pop up the list.
+Alt+UP or ESC to close the list.
+UP and DOWN to change the selection of the items from the list.
+
+Live Data
+Selectable
+By specifying the selection, you can invoke the addSelection() to select a default value, For example,
+
+<combobox id="combobox" width="100px">
+    <attribute name="onCreate"><![CDATA[
+        List list2 = new ArrayList();
+        list2.add("David");
+        list2.add("Thomas");
+        list2.add("Steven");
+        ListModelList lm2 = new ListModelList(list2);
+        lm2.addSelection(lm2.get(0));
+        combobox.setModel(lm2);
+    ]]></attribute>
+</combobox>
+[Since 5.0.4]
+
+====
+Properties
+
+==
+Autocomplete
+将自动完成
+Autocomplete in a Brute-force Way
+The straightforward way to implement the autocomplete feature is to listen the onChanging event. For example,
+
+<combobox>
+  <attribute name="onChanging"><![CDATA[
+  self.getChildren().clear(); //remove all children
+  for (String value: getMatched(event.getValue())
+    self.appendChild(new Comboitem(value));
+  ]]></attribute>
+</combobox>
+
+where we assume getMatched() is an application-specific method that returns a collection of matched values.
+
+Autocomplete by ListSubModel
+
+To separate the data from the view (combobox) better, we could implement a list model with ListSubModel. 
+ZK provides a set of utilities in ListModels to convert an instance of ListModel to another instance 
+that proxies the original list model and implements ListSubModel. For example,
+
+<combobox id="combo" apply="MyAutoComplete">
+
+then in MyAutoComplete.java, you could have
+
+public class MyAutoComplete extends SelectorComposer {
+    @Wire
+    private Combobox combo;
+    public void afterCompose() {
+        super.afterCompose();
+        combo.setModel(ListModels.toListSubModel(new ListModelList(getAllItems())));
+    }
+    List getAllItems() {
+        //return all items
+    }
+}
+
+By default, it shows the first 15 items that matches the value entered by the user. 
+If you want to have a different value or a different comparator to find out matched items, 
+you could invoke ListModels.toListSubModel(ListModel, Comparator, int) instead.
+
+Note: Passing an instance of ListModelList directly to a combobox will show up all items in the list model, since it doesn't implement ListSubModel.
+
+Note: Unlike ListModelList and others, SimpleListModel implements ListSubModel by default. 
+You can use SimpleListModel directly but it handles only an array of data.
+
+==
+Readonly
+只读（不允许直接输入）
+
+Once set, the user is not allowed to enter type, but he still can select the items in the combobox. (Default:false )
+
+
+<combobox readonly="true"/>
+
+==
+Autodrop
+
+By default, the drop-down list won't be opened until the user clicks the button, or presses Alt+DOWN. 
+However, you could set the autodrop property to true, 
+meaning as soon as the user types a character the drop-down list will be opened. 
+This is helpful for novice users, but it might be annoying for experienced users.
+If you prefer the combobox to drop down the list when the user types a character, you could specify the autodrop attribute as follows.
+
+<combobox autodrop="true"/>
+
+If you prefer to drop down the list when gaining the focus, you could provide a client-side listener as follows.
+
+<combobox w:onfocus="this.open()" xmlns:w="client"/>
+
+==
+Description
+
+You are able to add a description to each combo item to make it more descriptive or assign an image to every item.
+
+<zk>
+    <combobox>
+        <comboitem label="Simple and Rich"
+            image="/img/Centigrade-Widget-Icons/GoldBar-32x32.gif"
+            description="The simplest way to make Web applications rich" />
+        <comboitem label="Cool!"
+            image="/img/Centigrade-Widget-Icons/CogwheelEye-32x32.gif"
+            description="The coolest technology" />
+        <comboitem label="Ajax and RIA"
+            image="/img/Centigrade-Widget-Icons/WindowGlobe-32x32.gif"
+            description="Rich Internet Application by Ajax" />
+    </combobox>
+</zk>
+
+ZKComRef Combobox Description.PNG
+
+Akin to other components that support images, you are able to use the setImageContent method to assign a dynamically generated image to the comboitem component. 
+Please refer to the Image section for details.
+
+==
+The onOpen Event
+
+The onOpen event is sent to the application when a user opens the drop-down list. 
+To defer the creation of combo items, you can use the fulfill attribute as shown below.
+
+ZKComRef Combobox Example.PNG
+
+<zk>
+    <combobox fulfill="onOpen">
+        <comboitem label="Simple and Rich"/>
+        <comboitem label="Cool!"/>
+        <comboitem label="Ajax and RIA"/>
+    </combobox>   
+</zk>
+
+Alternatively, you can listen to the onOpen event and prepare the drop-down list or change it dynamically as demonstrated below.
+
+<zk>
+    <zscript>
+        void prepare() 
+        {
+            if (combo.getItemCount() == 0) 
+            {
+                combo.appendItem("Simple and Rich");
+                combo.appendItem("Cool!");
+                combo.appendItem("Ajax and RIA");
+            }
+        }
+    </zscript>
+    <combobox id="combo" onOpen="prepare()" />        
+</zk>
+
+The appendItem method is equivalent to creating a combo item and then setting the combobox as its parent.
+
+==
+The onChanging Event
+
+Since a combobox is also a text box, you are also able to listen to an onChanging event. 
+By listening to this event, you can manipulate the drop-down list as demonstrated by Google Suggests 
+(http://www.google.com/webhp?complete=1&hl=en). 
+This feature is sometimes called auto-complete.
+
+As illustrated below, you can populate the drop-down list based on what user is entering.
+
+<zk>
+    <zscript>
+         void suggest() 
+         {
+             combo.getItems().clear();
+             if (event.value.startsWith("A")) {
+                 combo.appendItem("Ace");
+                 combo.appendItem("Ajax");
+                 combo.appendItem("Apple");
+             } else if (event.value.startsWith("B")) {
+                 combo.appendItem("Best");
+                 combo.appendItem("Blog");
+             }
+         }
+    </zscript>
+     
+    <combobox id="combo" autodrop="true" onChanging="suggest()"/>
+</zk>
+
+Notice that, when the onChanging event is received, the content of the combobox has not changed. 
+Therefore, you cannot use the value property of the combobox. 
+Instead, you should use the value property of the InputEvent.
+
+==
+Constraint
+输入约束
+
+You could specify what value to accept for input controls by use of the constraint property. 
+It could be a combination of no empty, and/or a regular expression.
+To specify two or more constraints, use comma to separate them as follows.
+
+<combobox constraint="no empty,/^A/">
+    <comboitem label="Simple and Rich" />
+    <comboitem label="Cool!" />
+    <comboitem label="Ajax and RIA" />
+</combobox>
+
+To specify a regular expression, you may have to use the character / to enclose the regular expression as follows.
+
+<combobox constraint="/^A/"/>
+
+Notes:
+The above statement is XML, so do not use \\ to specify a backslash. 
+However typing \\ is necessary, if writing in Java.
+
+new Combobox().setConstraint("/.+@.+\\.[a-z]+/");
+
+You are allowed to mix regular expressions with other constraints by separating them with a comma.
+If you prefer to display different message to the default one, you can append the error message to the constraint with a colon.
+
+<combobox constraint="/^A/: only allowed the item start with A"/>
+
+Notes:
+The error message, if specified, must be the last element and start with colon.
+To support multiple languages, you could use the 「l」 function as depicted in the Internationalization chapter.
+
+<combobox constraint="/^A/: ${c:l('err.startwith.required')}"/>
+
+====
+Inherited Functions
+Please refer to Textbox for inherited functions.
+
+====
+Supported Events
+Name
+Event Type
+
+onSelect
+Event: SelectEvent
+Represents an event caused by user's the list selection is changed at the client.
+
+onOpen
+Event: OpenEvent
+Denotes that the user has opened or closed a component. 
+Note: unlike onClose, this event is only a notification. 
+The client sends this event after opening or closing the component.
+It is useful to implement load-on-demand by listening to the onOpen event, 
+and creating components when the first time the component is opened.
+
+onAfterRender
+Event: Event
+Notifies one that the model's data has been rendered.
+输入选项渲染后。
+
+Inherited Supported Events: Textbox
+
+====
+Supported Molds
+
+Available molds of a component are defined in lang.xml embedded in zul.jar.
+Name
+Snapshot
+
+default
+Combobox mold default.png
+
+rounded
+Combobox mold rounded.png
+[Since 5.0.0]
+
+====
+Supported Children
+*  Comboitem
+
+
+Use Cases
+Version	 Description	 Example Location
+ 	  	  
+Version History
+Last Update : 2012/9/28
+
+Version	 Date	 Content
+5.0.4	 
+August 2010	
+ListModels was introduced to simply the implementation of autocomplete.
+
+5.0.4	 
+July 2010	 
+Combobox supported Selectable if it is also implemented with the specified ListModel.
+
+5.0.4	 
+July 2010	 
+Supported onAfterRender event
+
