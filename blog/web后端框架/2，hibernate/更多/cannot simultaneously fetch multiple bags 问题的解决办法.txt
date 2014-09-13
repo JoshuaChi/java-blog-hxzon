@@ -1,0 +1,57 @@
+﻿cannot simultaneously fetch multiple bags 问题的解决办法
+
+完整的异常信息如下：
+
+org.hibernate.loader.MultipleBagFetchException: cannot simultaneously fetch multiple bags
+  at org.hibernate.loader.BasicLoader.postInstantiate(BasicLoader.java:94)
+  at org.hibernate.loader.entity.EntityLoader.<init>(EntityLoader.java:119)
+  at org.hibernate.loader.entity.EntityLoader.<init>(EntityLoader.java:71)
+  at org.hibernate.loader.entity.EntityLoader.<init>(EntityLoader.java:54)
+  at org.hibernate.loader.entity.BatchingEntityLoader.createBatchingEntityLoader(BatchingEntityLoader.java:133)
+  at org.hibernate.persister.entity.AbstractEntityPersister.createEntityLoader(AbstractEntityPersister.java:1914)
+  at org.hibernate.persister.entity.AbstractEntityPersister.createEntityLoader(AbstractEntityPersister.java:1937)
+  at org.hibernate.persister.entity.AbstractEntityPersister.createLoaders(AbstractEntityPersister.java:3205)
+  at org.hibernate.persister.entity.AbstractEntityPersister.postInstantiate(AbstractEntityPersister.java:3191)
+  at org.hibernate.impl.SessionFactoryImpl.<init>(SessionFactoryImpl.java:348)
+  at org.hibernate.cfg.Configuration.buildSessionFactory(Configuration.java:1872)
+  at org.hibernate.ejb.Ejb3Configuration.buildEntityManagerFactory(Ejb3Configuration.java:906)
+  at org.hibernate.ejb.HibernatePersistence.createEntityManagerFactory(HibernatePersistence.java:57)
+  at javax.persistence.Persistence.createEntityManagerFactory(Persistence.java:63)
+
+问题是什么时候出现的呢？
+
+当一个实体对象中包含多于一个non-lazy获取策略时，
+比如@OneToMany，@ManyToMany或者@ElementCollection时，获取策略为(fetch = FetchType.EAGER)
+
+出现问题的原因：
+
+当(fetch = FetchType.EAGER)多余一个时，持久框架抓取一方的对象时，
+同时又将多方的对象加载进容器中，多方又可能关联其它对象，
+Hibernate实现的JPA，默认最高抓取深度含本身级为四级(它有个属性配置是0-3),
+若多方(第二级)存在重复值，则第三级中抓取的值就无法映射，就会出现 multiple bags。
+
+解决方法：
+
+1、将(fetch = FetchType.EAGER)改为(fetch = FetchType.LAZY)
+
+2、将List修改成Set集合，即推荐@ManyToMany或@OneToMany的Many方此时用Set容器来存放，而不用List集合。
+
+3、改变FetchMode为@Fetch(FetchMode.SUBSELECT)，即发送另外一条select语句抓取前面查询到的所有实体对象的关联实体。
+
+4、在对应的属性上添加@IndexColumn，该注解允许你指明存放索引值的字段，目的跟Set容器不允许重复元素的道理一样。
+
+推荐的处理办法：
+
+方法2;
+
+方法3和方法4是Hibernate特有的，非JPA标准;
+
+如果可以用方法1，那就不会出现这个问题。
+
+参考：
+
+1、http://blog.eyallupu.com/2010/06/hibernate-exception-simultaneously.html
+2、http://dyldragon.iteye.com/blog/788385
+3、http://howsun.blog.sohu.com/119020926.html
+
+转自 : http://www.quanlei.com/2011/10/2817.html

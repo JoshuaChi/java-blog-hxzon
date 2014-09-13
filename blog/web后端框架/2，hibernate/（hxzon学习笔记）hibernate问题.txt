@@ -1,0 +1,134 @@
+﻿（hxzon学习笔记）hibernate
+
+by hxzon
+
+1，
+
+from User u
+where u.username like :username
+and exists
+(select 1 from u.roles ur where :roleId in ur)
+
+查找属于特定角色的账户。
+
+
+----
+2，
+
+多对多关联时，会创建中间表，这个中间表只有两个实体的id字段，如何定制这个中间表，例如创建一个“创建时间”字段？
+
+反思：因为这个中间表并没有对应一个类，“创建时间”字段在应用程序中如何使用？
+
+解决方案1：自己创建表，同时使用 @Table 注解 自定制插删改语句。
+行不通。自定制插删改语句，无法使用额外的参数值，且参数值的顺序依赖底层hibernate实现。
+
+Example 18.14. Overriding SQL statements for secondary tables
+
+@Entity
+@SecondaryTables({
+    @SecondaryTable(name = "`Cat nbr1`"),
+    @SecondaryTable(name = "Cat2"})
+
+@org.hibernate.annotations.Tables( {
+    @Table(appliesTo = "Cat", comment = "My cat table" ),
+    @Table(appliesTo = "Cat2", foreignKey = @ForeignKey(name="FK_CAT2_CAT"), fetch = FetchMode.SELECT,
+        sqlInsert=@SQLInsert(sql="insert into Cat2(storyPart2, id) values(upper(?), ?)") )
+} )
+public class Cat implements Serializable {
+
+注意，参数顺序是很重要的，它依赖于hibernate处理器的属性。
+你可以将 org.hibernate.persister.entity 设为调试级别来看这些参数的顺序。
+
+解决方案2：将关联建模为一个新实体。转化成两个一对多。
+最通用，可完全独立的控制这个实体。
+
+解决方案3：使用组合元素。
+组合元素会有一个拥有者的id字段，所以无法在两个实体间同时使用。
+使用xml配置，才可以共同使用这个组合元素，但仍然会生成两张表（？）。
+
+
+----
+3，
+
+select u.userId,u.username,
+(select 1 from u.roles ur where (:roleId in ur)) haveRole
+from User u
+where u.username like :username
+
+列出所有账户，显示账户ID，账户名，及是否拥有指定的角色（如果有则为1，没有则为null）。
+
+----
+4，
+
+如何让一个类能够被映射，却阻止去对应一个数据库表（不会自动创建数据库表）？
+
+sqlQuery有setResultTransformer(Transformers.aliasToBean(clazz));
+的方法，来让一个结果映射到一个非实体类，
+但这是基于bean属性，不像实体类有映射的元数据，
+所以常常会出现字段数据类型不匹配的错误。
+
+即便使用实体类，实体类的“非持久字段”也无法参与映射。
+
+另注意，setResultTransformer 返回的对象，是不受管理的。
+
+----
+5，
+
+select子句中使用构造函数可能会出错，
+例如在oracle中使用分页，会产生一个额外的rownum列，导致构造函数调用失败。
+hxzon不推荐使用。
+
+----
+6，
+
+缺一个像oracle的decode()那样方便的函数。
+
+decode(uo.caSupplier,1,netca.dateEnd,2,gdca.dateEnd,null)
+
+----
+7，org.hibernate.classic.Lifecycle
+
+Provides callbacks from the Session to the persistent object. 
+Persistent classes may implement this interface but they are not required to.
+
+onSave: called just before the object is saved
+onUpdate: called just before an object is updated, ie. when Session.update() is called
+onDelete: called just before an object is deleted
+onLoad: called just after an object is loaded
+
+onLoad() may be used to initialize transient properties of the object from its persistent state. 
+It may not be used to load dependent objects 
+since the Session interface may not be invoked from inside this method.
+
+A further intended usage of onLoad(), onSave() and onUpdate() 
+is to store a reference to the Session for later use.
+保存session对象的引用，以便稍后使用。
+
+If onSave(), onUpdate() or onDelete() return VETO, the operation is silently vetoed. 
+If a CallbackException is thrown, the operation is vetoed and the exception is passed back to the application.
+
+Note that onSave() is called after an identifier is assigned to the object, 
+except when identity column key generation is used.
+
+====
+org.hibernate.Interceptor
+
+Allows user code to inspect and/or change property values. 
+Inspection occurs before property values are written and after they are read from the database. 
+There might be a single instance of Interceptor for a SessionFactory, 
+or a new instance might be specified for each Session. 
+Whichever approach is used, the interceptor must be serializable if the Session is to be serializable. 
+This means that SessionFactory-scoped interceptors should implement readResolve(). 
+The Session may not be invoked from a callback (nor may a callback cause a collection or proxy to be lazily initialized). 
+Instead of implementing this interface directly, 
+it is usually better to extend EmptyInterceptor and override only the callback methods of interest.
+
+See Also:
+SessionBuilder.interceptor(Interceptor)
+SharedSessionBuilder.interceptor()
+org.hibernate.cfg.Configuration.setInterceptor(Interceptor)
+EmptyInterceptor
+
+----
+8，
+

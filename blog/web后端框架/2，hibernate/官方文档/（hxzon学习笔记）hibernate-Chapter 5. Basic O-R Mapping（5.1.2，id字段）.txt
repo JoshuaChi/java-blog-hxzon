@@ -1,0 +1,1029 @@
+﻿（hxzon学习笔记）hibernate-Chapter 5. Basic O-R Mapping（5.1.2，id字段）
+
+注释by hxzon
+http://docs.jboss.org/hibernate/orm/4.3/manual/en-US/html/ch05.html#mapping-declaration
+=======
+5.1. Mapping declaration
+
+5.1.1. Entity
+5.1.2. Identifiers
+5.1.3. Optimistic locking properties (optional)
+5.1.4. Property
+5.1.5. Embedded objects (aka components)
+5.1.6. Inheritance strategy
+5.1.7. Mapping one to one and one to many associations
+5.1.8. Natural-id
+5.1.9. Any
+5.1.10. Properties
+5.1.11. Some hbm.xml specificities
+
+==
+5.2. Hibernate types
+5.2.1. Entities and values
+5.2.2. Basic value types
+5.2.3. Custom value types
+
+5.3. Mapping a class more than once
+5.4. SQL quoted identifiers
+5.5. Generated properties
+5.6. Column transformers: read and write expressions
+5.7. Auxiliary database objects
+
+===============
+5.1.2. Identifiers
+
+Mapped classes must declare the primary key column of the database table. 
+实体类在数据库表中必须有主键。
+Most classes will also have a JavaBeans-style property holding the unique identifier of an instance.
+
+Mark the identifier property with @Id.
+
+@Entity
+public class Person {
+   @Id Integer getId() { ... }
+   ...
+}
+
+In hbm.xml, use the <id> element which defines the mapping from that property to the primary key column.
+
+<id
+        name="propertyName"                                (1)
+        type="typename"                                    (2)
+        column="column_name"                               (3)
+        unsaved-value="null|any|none|undefined|id_value"   (4)
+        access="field|property|ClassName">                 (5)
+        node="element-name|@attribute-name|element/@attribute|."
+
+        <generator class="generatorClass"/>
+</id>
+
+1	name (optional): the name of the identifier property.
+
+2	type (optional): a name that indicates the Hibernate type.
+
+3	column (optional - defaults to the property name): the name of the primary key column.
+
+4	unsaved-value (optional - defaults to a "sensible" value): 
+an identifier property value that indicates an instance is newly instantiated (unsaved), 
+distinguishing it from detached instances that were saved or loaded in a previous session.
+实体还未被保存时的id值。
+
+5	access (optional - defaults to property): 
+the strategy Hibernate should use for accessing the property value.
+
+If the name attribute is missing, it is assumed that the class has no identifier property.
+
+The unsaved-value attribute is almost never needed in Hibernate and indeed has no corresponding element in annotations.
+
+You can also declare the identifier as a composite identifier. 
+还可以使用组合id。
+This allows access to legacy data with composite keys. 
+Its use is strongly discouraged for anything else.
+
+==============
+5.1.2.1. Composite identifier
+组合id
+
+You can define a composite primary key through several syntaxes:
+
+use a component type to represent the identifier 
+and map it as a property in the entity: you then annotated the property as @EmbeddedId. 
+The component type has to be Serializable.
+使用组件作为一个id。
+
+map multiple properties as @Id properties: 
+the identifier type is then the entity class itself and needs to be Serializable. 
+This approach is unfortunately not standard and only supported by Hibernate.
+将多个字段作为id字段。
+
+map multiple properties as @Id properties and declare an external class to be the identifier type. 
+在多个字段上使用 @Id 注解，并且创建一个“id类”。
+This class, which needs to be Serializable, is declared on the entity via the @IdClass annotation. 
+The identifier type must contain the same properties as the identifier properties of the entity: 
+each property name must be the same, its type must be the same as well if the entity property is of a basic type, 
+its type must be the type of the primary key of the associated entity if the entity property is an association (either a @OneToOne or a @ManyToOne).
+As you can see the last case is far from obvious. 
+It has been inherited from the dark ages of EJB 2 for backward compatibilities 
+and we recommend you not to use it (for simplicity sake).
+
+Let's explore all three cases using examples.
+
+====
+5.1.2.1.1. id as a property using a component type
+使用组合类型
+
+Here is a simple example of @EmbeddedId.
+
+@Entity
+class User {
+   @EmbeddedId
+   @AttributeOverride(name="firstName", column=@Column(name="fld_firstname")
+   UserId id;
+
+   Integer age;
+}
+
+@Embeddable
+class UserId implements Serializable {
+   String firstName;
+   String lastName;
+}
+
+You can notice that the UserId class is serializable. 
+To override the column mapping, use @AttributeOverride.
+
+An embedded id can itself contains the primary key of an associated entity.
+
+@Entity
+class Customer {
+   @EmbeddedId CustomerId id;
+   boolean preferredCustomer;
+
+   @MapsId("userId")
+   @JoinColumns({
+      @JoinColumn(name="userfirstname_fk", referencedColumnName="firstName"),
+      @JoinColumn(name="userlastname_fk", referencedColumnName="lastName")
+   })
+   @OneToOne User user;
+}
+
+@Embeddable
+class CustomerId implements Serializable {
+   UserId userId;
+   String customerNumber;
+
+   //implements equals and hashCode
+}
+
+@Entity 
+class User {
+   @EmbeddedId UserId id;
+   Integer age;
+}
+
+@Embeddable
+class UserId implements Serializable {
+   String firstName;
+   String lastName;
+
+   //implements equals and hashCode
+}
+
+In the embedded id object, the association is represented as the identifier of the associated entity. 
+But you can link its value to a regular association in the entity via the @MapsId annotation. 
+The @MapsId value correspond to the property name of the embedded id object containing the associated entity's identifier. 
+In the database, it means that the Customer.user and the CustomerId.userId properties 
+share the same underlying column (user_fk in this case).
+
+Tip
+The component type used as identifier must implement equals() and hashCode().
+In practice, your code only sets the Customer.user property 
+and the user id value is copied by Hibernate into the CustomerId.userId property.
+
+Warning
+The id value can be copied as late as flush time, don't rely on it until after flush time.
+While not supported in JPA, 
+Hibernate lets you place your association directly in the embedded id component 
+(instead of having to use the @MapsId annotation).
+
+@Entity
+class Customer {
+   @EmbeddedId CustomerId id;
+   boolean preferredCustomer;
+}
+
+@Embeddable
+class CustomerId implements Serializable {
+   @OneToOne
+   @JoinColumns({
+      @JoinColumn(name="userfirstname_fk", referencedColumnName="firstName"),
+      @JoinColumn(name="userlastname_fk", referencedColumnName="lastName")
+   }) 
+   User user;
+   String customerNumber;
+
+   //implements equals and hashCode
+}
+
+@Entity 
+class User {
+   @EmbeddedId UserId id;
+   Integer age;
+}
+
+@Embeddable
+class UserId implements Serializable {
+   String firstName;
+   String lastName;
+
+
+   //implements equals and hashCode
+}
+
+Let's now rewrite these examples using the hbm.xml syntax.
+
+<composite-id
+        name="propertyName"
+        class="ClassName"
+        mapped="true|false"
+        access="field|property|ClassName"
+        node="element-name|.">
+
+        <key-property name="propertyName" type="typename" column="column_name"/>
+        <key-many-to-one name="propertyName" class="ClassName" column="column_name"/>
+        ......
+</composite-id>
+
+First a simple example:
+
+<class name="User">
+   <composite-id name="id" class="UserId">
+      <key-property name="firstName" column="fld_firstname"/>
+      <key-property name="lastName"/>
+   </composite-id>
+</class>
+
+Then an example showing how an association can be mapped.
+
+<class name="Customer">
+   <composite-id name="id" class="CustomerId">
+      <key-property name="firstName" column="userfirstname_fk"/>
+      <key-property name="lastName" column="userfirstname_fk"/>
+      <key-property name="customerNumber"/>
+   </composite-id>
+
+   <property name="preferredCustomer"/>
+
+   <many-to-one name="user">
+      <column name="userfirstname_fk" updatable="false" insertable="false"/>
+      <column name="userlastname_fk" updatable="false" insertable="false"/>
+   </many-to-one>
+</class>
+
+<class name="User">
+   <composite-id name="id" class="UserId">
+      <key-property name="firstName"/>
+      <key-property name="lastName"/>
+   </composite-id>
+
+   <property name="age"/>
+</class>
+
+Notice a few things in the previous example:
+
+the order of the properties (and column) matters. 
+It must be the same between the association and the primary key of the associated entity
+the many to one uses the same columns as the primary key and thus must be marked as read only (insertable and updatable to false).
+unlike with @MapsId, the id value of the associated entity is not transparently copied, 
+check the foreign id generator for more information.
+The last example shows how to map association directly in the embedded id component.
+
+<class name="Customer">
+   <composite-id name="id" class="CustomerId">
+      <key-many-to-one name="user">
+         <column name="userfirstname_fk"/>
+         <column name="userlastname_fk"/>
+      </key-many-to-one>
+      <key-property name="customerNumber"/>
+   </composite-id>
+
+   <property name="preferredCustomer"/>
+</class>
+
+<class name="User">
+   <composite-id name="id" class="UserId">
+      <key-property name="firstName"/>
+      <key-property name="lastName"/>
+   </composite-id>
+
+   <property name="age"/>
+</class>
+
+This is the recommended approach to map composite identifier. 
+The following options should not be considered unless some constraint are present.
+
+====
+5.1.2.1.2. Multiple id properties without identifier type
+
+Another, arguably more natural, approach is to place @Id on multiple properties of your entity.
+直接在多个字段上，使用 @Id 注解。
+这会使得它们共同组成一个主键。 
+This approach is only supported by Hibernate (not JPA compliant) 
+but does not require an extra embeddable component.
+这是hibernate的增强功能，JPA规范本身没有。
+
+（hxzon补充示例：
+
+@Entity
+@Table(name = "role_permission")
+public class RolePermission implements Serializable {
+
+    private static final long serialVersionUID = 1L;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @Id
+    private Role role;
+
+    @ManyToOne(fetch = FetchType.EAGER)
+    @Id
+    private Permission permission;
+
+）
+
+@Entity
+class Customer implements Serializable {
+   @Id @OneToOne
+   @JoinColumns({
+      @JoinColumn(name="userfirstname_fk", referencedColumnName="firstName"),
+      @JoinColumn(name="userlastname_fk", referencedColumnName="lastName")
+   })
+   User user;
+  
+   @Id String customerNumber;
+
+   boolean preferredCustomer;
+
+   //implements equals and hashCode
+}
+
+@Entity 
+class User {
+   @EmbeddedId UserId id;
+   Integer age;
+}
+
+@Embeddable
+class UserId implements Serializable {
+   String firstName;
+   String lastName;
+
+   //implements equals and hashCode
+}
+
+In this case Customer is its own identifier representation: 
+it must implement Serializable and must implement equals() and hashCode().
+
+In hbm.xml, the same mapping is:
+
+<class name="Customer">
+   <composite-id>
+      <key-many-to-one name="user">
+         <column name="userfirstname_fk"/>
+         <column name="userlastname_fk"/>
+      </key-many-to-one>
+      <key-property name="customerNumber"/>
+   </composite-id>
+
+   <property name="preferredCustomer"/>
+</class>
+
+<class name="User">
+   <composite-id name="id" class="UserId">
+      <key-property name="firstName"/>
+      <key-property name="lastName"/>
+   </composite-id>
+
+   <property name="age"/>
+</class>
+
+====
+5.1.2.1.3. Multiple id properties with with a dedicated identifier type
+
+@IdClass on an entity points to the class (component) representing the identifier of the class. 
+The properties marked @Id on the entity must have their corresponding property on the @IdClass. 
+The return type of search twin property must be either identical for basic properties 
+or must correspond to the identifier class of the associated entity for an association.
+
+Warning
+This approach is inherited from the EJB 2 days and we recommend against its use. 
+But, after all it's your application and Hibernate supports it.
+@Entity
+@IdClass(CustomerId.class)
+class Customer implements Serializable {
+   @Id @OneToOne
+   @JoinColumns({
+      @JoinColumn(name="userfirstname_fk", referencedColumnName="firstName"),
+      @JoinColumn(name="userlastname_fk", referencedColumnName="lastName")
+   }) 
+   User user;
+  
+   @Id String customerNumber;
+
+   boolean preferredCustomer;
+}
+
+class CustomerId implements Serializable {
+   UserId user;
+   String customerNumber;
+
+   //implements equals and hashCode
+}
+
+@Entity 
+class User {
+   @EmbeddedId UserId id;
+   Integer age;
+
+   //implements equals and hashCode
+}
+
+@Embeddable
+class UserId implements Serializable {
+   String firstName;
+   String lastName;
+
+   //implements equals and hashCode
+}
+
+Customer and CustomerId do have the same properties customerNumber as well as user. 
+CustomerId must be Serializable and implement equals() and hashCode().
+
+While not JPA standard, Hibernate let's you declare the vanilla associated property in the @IdClass.
+
+@Entity
+@IdClass(CustomerId.class)
+class Customer implements Serializable {
+   @Id @OneToOne
+   @JoinColumns({
+      @JoinColumn(name="userfirstname_fk", referencedColumnName="firstName"),
+      @JoinColumn(name="userlastname_fk", referencedColumnName="lastName")
+   }) 
+   User user;
+  
+   @Id String customerNumber;
+
+   boolean preferredCustomer;
+}
+
+class CustomerId implements Serializable {
+   @OneToOne User user;
+   String customerNumber;
+
+   //implements equals and hashCode
+}
+
+@Entity 
+class User {
+   @EmbeddedId UserId id;
+   Integer age;
+
+   //implements equals and hashCode
+}
+
+@Embeddable
+class UserId implements Serializable {
+  String firstName;
+  String lastName;
+}
+
+This feature is of limited interest though as you are likely to have chosen the @IdClass approach 
+to stay JPA compliant or you have a quite twisted mind.
+
+Here are the equivalent on hbm.xml files:
+
+<class name="Customer">
+   <composite-id class="CustomerId" mapped="true">
+      <key-many-to-one name="user">
+         <column name="userfirstname_fk"/>
+         <column name="userlastname_fk"/>
+      </key-many-to-one>
+      <key-property name="customerNumber"/>
+   </composite-id>
+
+   <property name="preferredCustomer"/>
+</class>
+
+<class name="User">
+   <composite-id name="id" class="UserId">
+      <key-property name="firstName"/>
+      <key-property name="lastName"/>
+   </composite-id>
+
+   <property name="age"/>
+</class>
+
+===================
+5.1.2.2. Identifier generator
+id生成器
+
+Hibernate can generate and populate identifier values for you automatically. 
+This is the recommended approach over "business" or "natural" id (especially composite ids).
+
+Hibernate offers various generation strategies, 
+let's explore the most common ones first that happens to be standardized by JPA:
+
+IDENTITY: supports identity columns in DB2, MySQL, MS SQL Server, Sybase and HypersonicSQL. 
+The returned identifier is of type long, short or int.
+
+SEQUENCE (called seqhilo in Hibernate): 
+uses a hi/lo algorithm to efficiently generate identifiers of type long, short or int, given a named database sequence.
+数据库序列。
+
+TABLE (called MultipleHiLoPerTableGenerator in Hibernate) : 
+uses a hi/lo algorithm to efficiently generate identifiers of type long, short or int, 
+given a table and column as a source of hi values. 
+The hi/lo algorithm generates identifiers that are unique only for a particular database.
+
+AUTO: selects IDENTITY, SEQUENCE or TABLE depending upon the capabilities of the underlying database.
+根据底层数据库自动选择“id生成器”。
+
+Important
+We recommend all new projects to use the new enhanced identifier generators. 
+They are deactivated by default for entities using annotations 
+but can be activated using hibernate.id.new_generator_mappings=true. 
+These new generators are more efficient and closer to the JPA 2 specification semantic.
+建议使用新的id生成器，它们更高效，且接近 jpa2 标准。
+
+However they are not backward compatible with existing Hibernate based application 
+(if a sequence or a table is used for id generation). 
+See XXXXXXX ??? for more information on how to activate them.
+To mark an id property as generated, use the @GeneratedValue annotation. 
+You can specify the strategy used (default to AUTO) by setting strategy.
+使用 @GeneratedValue 注解。
+
+@Entity
+public class Customer {
+   @Id @GeneratedValue
+   Integer getId() { ... };
+}
+
+@Entity 
+public class Invoice {
+   @Id @GeneratedValue(strategy=GenerationType.IDENTITY)
+   Integer getId() { ... };
+}
+
+====
+使用序列和“表”
+
+SEQUENCE and TABLE require additional configurations that you can set using @SequenceGenerator and @TableGenerator:
+
+name: name of the generator
+table / sequenceName: name of the table or the sequence (defaulting respectively to hibernate_sequences and hibernate_sequence)
+catalog / schema:
+initialValue: the value from which the id is to start generating
+allocationSize: the amount to increment by when allocating id numbers from the generator
+
+In addition, the TABLE strategy also let you customize:
+
+pkColumnName: the column name containing the entity identifier
+valueColumnName: the column name containing the identifier value
+pkColumnValue: the entity identifier
+uniqueConstraints: any potential column constraint on the table containing the ids
+
+To link a table or sequence generator definition with an actual generated property, 
+use the same name in both the definition name and the generator value generator as shown below.
+
+@Id 
+@GeneratedValue(
+    strategy=GenerationType.SEQUENCE, 
+    generator="SEQ_GEN")
+@javax.persistence.SequenceGenerator(
+    name="SEQ_GEN",
+    sequenceName="my_sequence",
+    allocationSize=20
+)
+public Integer getId() { ... }        
+
+The scope of a generator definition can be the application or the class. 
+Class-defined generators are not visible outside the class and can override application level generators. 
+Application level generators are defined in JPA's XML deployment descriptors (see XXXXXX ???):
+
+<table-generator name="EMP_GEN"
+            table="GENERATOR_TABLE"
+            pk-column-name="key"
+            value-column-name="hi"
+            pk-column-value="EMP"
+            allocation-size="20"/>
+
+//and the annotation equivalent
+
+@javax.persistence.TableGenerator(
+    name="EMP_GEN",
+    table="GENERATOR_TABLE",
+    pkColumnName = "key",
+    valueColumnName = "hi"
+    pkColumnValue="EMP",
+    allocationSize=20
+)
+
+<sequence-generator name="SEQ_GEN" 
+    sequence-name="my_sequence"
+    allocation-size="20"/>
+
+//and the annotation equivalent
+
+@javax.persistence.SequenceGenerator(
+    name="SEQ_GEN",
+    sequenceName="my_sequence",
+    allocationSize=20
+)
+
+If a JPA XML descriptor (like META-INF/orm.xml) is used to define the generators, 
+EMP_GEN and SEQ_GEN are application level generators.
+
+Note
+Package level definition is not supported by the JPA specification. 
+However, you can use the @GenericGenerator at the package level (see ???).
+These are the four standard JPA generators. 
+Hibernate goes beyond that and provide additional generators or additional options as we will see below. 
+hibernate提供了一些额外选项。
+You can also write your own custom identifier generator by implementing org.hibernate.id.IdentifierGenerator.
+
+==
+自定制id生成器
+
+To define a custom generator, use the @GenericGenerator annotation 
+(and its plural counter part @GenericGenerators) that describes the class of the identifier generator 
+or its short cut name (as described below) and a list of key/value parameters. 
+When using @GenericGenerator and assigning it via @GeneratedValue.generator, 
+the @GeneratedValue.strategy is ignored: leave it blank.
+
+@Id @GeneratedValue(generator="system-uuid")
+@GenericGenerator(name="system-uuid", strategy = "uuid")
+public String getId() {
+
+@Id @GeneratedValue(generator="trigger-generated")
+@GenericGenerator(
+    name="trigger-generated", 
+    strategy = "select",
+    parameters = @Parameter(name="key", value = "socialSecurityNumber")
+)
+public String getId() {
+
+The hbm.xml approach uses the optional <generator> child element inside <id>. 
+If any parameters are required to configure or initialize the generator instance, 
+they are passed using the <param> element.
+
+<id name="id" type="long" column="cat_id">
+        <generator class="org.hibernate.id.TableHiLoGenerator">
+                <param name="table">uid_table</param>
+                <param name="column">next_hi_value_column</param>
+        </generator>
+</id>
+
+====
+5.1.2.2.1. Various additional generators
+额外的id生成器
+
+All generators implement the interface org.hibernate.id.IdentifierGenerator. 
+This is a very simple interface. 
+Some applications can choose to provide their own specialized implementations, 
+however, Hibernate provides a range of built-in implementations. 
+The shortcut names for the built-in generators are as follows:
+
+increment
+generates identifiers of type long, short or int that are unique 
+only when no other process is inserting data into the same table. 
+Do not use in a cluster.
+不要用于集群。
+
+identity
+supports identity columns in DB2, MySQL, MS SQL Server, Sybase and HypersonicSQL. 
+The returned identifier is of type long, short or int.
+
+sequence
+uses a sequence in DB2, PostgreSQL, Oracle, SAP DB, McKoi or a generator in Interbase. 
+The returned identifier is of type long, short or int
+
+hilo
+uses a hi/lo algorithm to efficiently generate identifiers of type long, short or int, 
+given a table and column (by default hibernate_unique_key and next_hi respectively) as a source of hi values. 
+The hi/lo algorithm generates identifiers that are unique only for a particular database.
+
+seqhilo
+uses a hi/lo algorithm to efficiently generate identifiers of type long, short or int, 
+given a named database sequence.
+
+uuid
+Generates a 128-bit UUID based on a custom algorithm. 
+The value generated is represented as a string of 32 hexidecimal digits. 
+Users can also configure it to use a separator (config parameter "separator") 
+which separates the hexidecimal digits into 8{sep}8{sep}4{sep}8{sep}4. 
+Note specifically that this is different than the IETF RFC 4122 representation of 8-4-4-4-12. 
+If you need RFC 4122 compliant UUIDs, consider using "uuid2" generator discussed below.
+
+uuid2
+Generates a IETF RFC 4122 compliant (variant 2) 128-bit UUID. 
+The exact "version" (the RFC term) generated depends on the pluggable "generation strategy" used (see below). 
+Capable of generating values as java.util.UUID, java.lang.String or as a byte array of length 16 (byte[16]). 
+The "generation strategy" is defined by the interface org.hibernate.id.UUIDGenerationStrategy. 
+The generator defines 2 configuration parameters for defining which generation strategy to use:
+
+uuid_gen_strategy_class
+Names the UUIDGenerationStrategy class to use
+
+uuid_gen_strategy
+Names the UUIDGenerationStrategy instance to use
+
+Out of the box, comes with the following strategies:
+
+org.hibernate.id.uuid.StandardRandomStrategy (the default) 
+- generates "version 3" (aka, "random") UUID values via the randomUUID method of java.util.UUID
+
+org.hibernate.id.uuid.CustomVersionOneStrategy 
+- generates "version 1" UUID values, using IP address since mac address not available. 
+If you need mac address to be used, consider leveraging one of the existing third party UUID generators 
+which sniff out mac address and integrating it via the org.hibernate.id.UUIDGenerationStrategy contract. 
+Two such libraries known at time of this writing include 
+http://johannburkard.de/software/uuid/ 
+and http://commons.apache.org/sandbox/id/uuid.html
+
+guid
+uses a database-generated GUID string on MS SQL Server and MySQL.
+
+native
+selects identity, sequence or hilo depending upon the capabilities of the underlying database.
+根据底层数据库能力自动选择。
+
+assigned
+lets the application assign an identifier to the object before save() is called. 
+This is the default strategy if no <generator> element is specified.
+由应用程序自己设置。
+
+select
+retrieves a primary key, assigned by a database trigger, 
+by selecting the row by some unique key and retrieving the primary key value.
+
+foreign
+uses the identifier of another associated object. 
+It is usually used in conjunction with a <one-to-one> primary key association.
+
+sequence-identity
+a specialized sequence generation strategy that utilizes a database sequence for the actual value generation, 
+but combines this with JDBC3 getGeneratedKeys to return the generated identifier value as part of the insert statement execution. 
+This strategy is only supported on Oracle 10g drivers targeted for JDK 1.4. 
+Comments on these insert statements are disabled due to a bug in the Oracle drivers.
+
+====
+5.1.2.2.2. Hi/lo algorithm
+
+The hilo and seqhilo generators provide two alternate implementations of the hi/lo algorithm. 
+The first implementation requires a "special" database table to hold the next available "hi" value. 
+Where supported, the second uses an Oracle-style sequence.
+
+<id name="id" type="long" column="cat_id">
+        <generator class="hilo">
+                <param name="table">hi_value</param>
+                <param name="column">next_value</param>
+                <param name="max_lo">100</param>
+        </generator>
+</id>
+
+<id name="id" type="long" column="cat_id">
+        <generator class="seqhilo">
+                <param name="sequence">hi_value</param>
+                <param name="max_lo">100</param>
+        </generator>
+</id>
+
+Unfortunately, you cannot use hilo when supplying your own Connection to Hibernate. 
+When Hibernate uses an application server datasource to obtain connections enlisted with JTA, 
+you must configure the hibernate.transaction.manager_lookup_class.
+
+====
+5.1.2.2.3. UUID algorithm
+
+The UUID contains: IP address, startup time of the JVM that is accurate to a quarter second, 
+system time and a counter value that is unique within the JVM. 
+It is not possible to obtain a MAC address or memory address from Java code, 
+so this is the best option without using JNI.
+
+====
+5.1.2.2.4. Identity columns and sequences
+标识符列，或序列
+
+For databases that support identity columns (DB2, MySQL, Sybase, MS SQL), you can use identity key generation.
+ 
+For databases that support sequences (DB2, Oracle, PostgreSQL, Interbase, McKoi, SAP DB) you can use sequence style key generation. 
+
+Both of these strategies require two SQL queries to insert a new object. For example:
+
+<id name="id" type="long" column="person_id">
+        <generator class="sequence">
+                <param name="sequence">person_id_sequence</param>
+        </generator>
+</id>
+
+<id name="id" type="long" column="person_id" unsaved-value="0">
+        <generator class="identity"/>
+</id>
+
+For cross-platform development, the native strategy will, 
+depending on the capabilities of the underlying database, 
+choose from the identity, sequence and hilo strategies.
+
+====
+5.1.2.2.5. Assigned identifiers
+
+If you want the application to assign identifiers, as opposed to having Hibernate generate them, 
+you can use the assigned generator. 
+This special generator uses the identifier value already assigned to the object's identifier property. 
+The generator is used when the primary key is a natural key instead of a surrogate key. 
+This is the default behavior if you do not specify @GeneratedValue nor <generator> elements.
+
+The assigned generator makes Hibernate use unsaved-value="undefined". 
+hibernate需要知道，如何通过id，知道是新对象还是已保存对象。
+This forces Hibernate to go to the database to determine if an instance is transient or detached, 
+unless there is a version or timestamp property, or you define Interceptor.isUnsaved().
+
+====
+5.1.2.2.6. Primary keys assigned by triggers
+触发器产生的主键
+
+Hibernate does not generate DDL with triggers. 
+It is for legacy schemas only.
+
+<id name="id" type="long" column="person_id">
+        <generator class="select">
+                <param name="key">socialSecurityNumber</param>
+        </generator>
+</id>
+
+In the above example, there is a unique valued property named socialSecurityNumber. 
+It is defined by the class, as a natural key and a surrogate key named person_id, whose value is generated by a trigger.
+
+====
+5.1.2.2.7. Identity copy (foreign generator)
+共享主键
+
+Finally, you can ask Hibernate to copy the identifier from another associated entity. 
+In the Hibernate jargon, it is known as a foreign generator but the JPA mapping reads better and is encouraged.
+
+@Entity
+class MedicalHistory implements Serializable {
+  @Id @OneToOne
+  @JoinColumn(name = "person_id")
+  Person patient;
+}
+
+@Entity
+public class Person implements Serializable {
+  @Id @GeneratedValue Integer id;
+}
+
+Or alternatively
+
+@Entity
+class MedicalHistory implements Serializable {
+  @Id Integer id;
+
+  @MapsId @OneToOne
+  @JoinColumn(name = "patient_id")
+  Person patient;
+}
+
+@Entity
+class Person {
+  @Id @GeneratedValue Integer id;
+}
+
+In hbm.xml use the following approach:
+
+<class name="MedicalHistory">
+   <id name="id">
+      <generator class="foreign">
+         <param name="property">patient</param>
+      </generator>
+   </id>
+   <one-to-one name="patient" class="Person" constrained="true"/>
+</class>
+
+================
+5.1.2.3. Enhanced identifier generators
+
+Starting with release 3.2.3, there are 2 new generators which represent a re-thinking of 2 different aspects of identifier generation. 
+The first aspect is database portability; 
+the second is optimization 
+Optimization means that you do not have to query the database for every request for a new identifier value. 
+These two new generators are intended to take the place of some of the named generators described above, starting in 3.3.x. 
+However, they are included in the current releases and can be referenced by FQN.
+
+The first of these new generators is org.hibernate.id.enhanced.SequenceStyleGenerator which is intended, firstly, 
+as a replacement for the sequence generator and, secondly, as a better portability generator than native. 
+作为序列生成器的一个替代。
+This is because native generally chooses between identity and sequence which have largely different semantics 
+that can cause subtle issues in applications eyeing portability. 
+org.hibernate.id.enhanced.SequenceStyleGenerator, however, achieves portability in a different manner. 
+It chooses between a table or a sequence in the database to store its incrementing values, 
+depending on the capabilities of the dialect being used. 
+The difference between this and native is that table-based and sequence-based storage have the same exact semantic. 
+In fact, sequences are exactly what Hibernate tries to emulate with its table-based generators. 
+This generator has a number of configuration parameters:
+
+sequence_name (optional, defaults to hibernate_sequence): the name of the sequence or table to be used.
+
+initial_value (optional, defaults to 1): 
+the initial value to be retrieved from the sequence/table. 
+In sequence creation terms, this is analogous to the clause typically named "STARTS WITH".
+
+increment_size (optional - defaults to 1): 
+the value by which subsequent calls to the sequence/table should differ. 
+In sequence creation terms, this is analogous to the clause typically named "INCREMENT BY".
+
+force_table_use (optional - defaults to false): 
+should we force the use of a table as the backing structure even though the dialect might support sequence?
+
+value_column (optional - defaults to next_val): 
+only relevant for table structures, it is the name of the column on the table which is used to hold the value.
+
+prefer_sequence_per_entity (optional - defaults to false): 
+should we create separate sequence for each entity that share current generator based on its name?
+
+sequence_per_entity_suffix (optional - defaults to _SEQ): 
+suffix added to the name of a dedicated sequence.
+
+optimizer (optional - defaults to none): See Section 5.1.2.3.1, “Identifier generator optimization”
+
+==
+The second of these new generators is org.hibernate.id.enhanced.TableGenerator, 
+which is intended, firstly, as a replacement for the table generator, 
+even though it actually functions much more like org.hibernate.id.MultipleHiLoPerTableGenerator, 
+and secondly, as a re-implementation of org.hibernate.id.MultipleHiLoPerTableGenerator 
+that utilizes the notion of pluggable optimizers. 
+Essentially this generator defines a table capable of holding a number of different increment values 
+simultaneously by using multiple distinctly keyed rows. 
+This generator has a number of configuration parameters:
+
+table_name (optional - defaults to hibernate_sequences): the name of the table to be used.
+
+value_column_name (optional - defaults to next_val): the name of the column on the table that is used to hold the value.
+
+segment_column_name (optional - defaults to sequence_name): 
+the name of the column on the table that is used to hold the "segment key". 
+This is the value which identifies which increment value to use.
+
+segment_value (optional - defaults to default): 
+The "segment key" value for the segment from which we want to pull increment values for this generator.
+
+segment_value_length (optional - defaults to 255): 
+Used for schema generation; the column size to create this segment key column.
+
+initial_value (optional - defaults to 1): The initial value to be retrieved from the table.
+
+increment_size (optional - defaults to 1): The value by which subsequent calls to the table should differ.
+
+optimizer (optional - defaults to ??): See Section 5.1.2.3.1, “Identifier generator optimization”.
+
+====
+5.1.2.3.1. Identifier generator optimization
+
+For identifier generators that store values in the database, 
+it is inefficient for them to hit the database on each and every call to generate a new identifier value. 
+Instead, you can group a bunch of them in memory and only hit the database when you have exhausted your in-memory value group. 
+This is the role of the pluggable optimizers. 
+Currently only the two enhanced generators (Section 5.1.2.3, “Enhanced identifier generators” support this operation.
+
+none (generally this is the default if no optimizer was specified): 
+this will not perform any optimizations and hit the database for each and every request.
+
+hilo: 
+applies a hi/lo algorithm around the database retrieved values. 
+The values from the database for this optimizer are expected to be sequential. 
+The values retrieved from the database structure for this optimizer indicates the "group number". 
+The increment_size is multiplied by that value in memory to define a group "hi value".
+
+pooled: 
+as with the case of hilo, this optimizer attempts to minimize the number of hits to the database. 
+Here, however, we simply store the starting value for the "next group" into the database structure 
+rather than a sequential value in combination with an in-memory grouping algorithm. 
+Here, increment_size refers to the values coming from the database.
+
+=============
+5.1.2.4. Partial identifier generation
+
+Hibernate supports the automatic generation of some of the identifier properties. 
+Simply use the @GeneratedValue annotation on one or several id properties.
+
+Warning
+The Hibernate team has always felt such a construct as fundamentally wrong. 
+Try hard to fix your data model before using this feature.
+
+@Entity
+public class CustomerInventory implements Serializable {
+  @Id
+
+  @TableGenerator(name = "inventory",
+    table = "U_SEQUENCES",
+    pkColumnName = "S_ID",
+    valueColumnName = "S_NEXTNUM",
+    pkColumnValue = "inventory",
+    allocationSize = 1000)
+
+  @GeneratedValue(strategy = GenerationType.TABLE, generator = "inventory")
+  Integer id;
+
+
+  @Id @ManyToOne(cascade = CascadeType.MERGE)
+  Customer customer;
+}
+
+@Entity
+public class Customer implements Serializable {
+   @Id
+   private int id;
+}
+
+You can also generate properties inside an @EmbeddedId class.
+
+

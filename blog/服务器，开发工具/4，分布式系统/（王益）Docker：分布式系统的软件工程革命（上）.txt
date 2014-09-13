@@ -1,0 +1,396 @@
+﻿（王益）Docker：分布式系统的软件工程革命（上）
+
+作者：王益
+
+最后更新：2014年7月25日
+
+欢迎转载。请注明出处：http://cxwangyi.github.io
+http://cxwangyi.github.io/story/docker_revolution_1.md.html
+
+===========
+Docker最近很火。
+Docker实现了“集装箱”——一种介于“软件包”和“虚拟机”之间的概念——并被寄予厚望，
+以期革新Internet服务以及其他大数据处理系统的开发、测试、和部署流程。
+
+为了使用Docker，需要了解不少工具及其设计思路；而这些工具的文档分布在不同的网站。
+为了方便大家学习，本文以开发一个极简的搜索引擎为例，展示Docker带来的革新。
+
+说是革新，其实是Google已经用了十年的方式，只是最近才因为Docker开源项目而广为人知。
+Eric Brewer（Google VP of Infrastructure）在Dockercon14活动上的演讲回顾了这段历程。
+目前，Google每周会执行20亿个集装箱。
+可以说，最近十年是各互联网公司和高校都在奋力模仿Google的计算技术的十年。
+了解这一模仿的过程，可以帮助我们深入理解分布式系统（包括现在常说的“大数据系统”）中若干重要问题。
+为此，本文以技术教程为主线，穿插了一些关于Hadoop和Mesos等“模仿”项目的介绍，
+简要追溯它们勇敢而艰难的“邯郸学步”的历程。
+最后，本文会介绍Google最近公布的“正确答案”——Hubernetes——Google核心技术Borg的开源版本。
+
+====
+Docker
+
+Docker是一个软件系统，实现了一种称为“集装箱”的概念。
+集装箱类似Google机群管理系统Borg中的包（package）。
+
+通常我们说的“包”是软件包——比如Ubuntu/Debian Linux里常见的.deb文件——安装的时候，安装程序会把被依赖的包也装上。
+可是执行的时候呢？
+得根据具体情况配置，然后依次启动互相依赖的多个程序。
+比如，启动一个Web服务之前，要启动Apache和MySQL；而且他们仨都得有合理的配置，确保它们能一起工作，来实现这个Web服务。
+
+（hxzon：重要）
+
+但是Docker集装箱以及Borg中的包更像虚拟机。
+虚拟机里包括程序和配置，所以可以被执行——也就是执行其中的程序。
+因为程序是配置好的，所以虚拟机可以被扔到各种环境上去执行
+——包括开发机、做演示用的笔记本电脑、用VirtualBox虚拟的机群、测试机群、预发布环境和产品环境。
+近几年随着“云计算”概念的普及，虚拟机被广泛使用，作为分布式计算的基础调度单元。
+
+Docker作为一个软件系统，可以用来创建“集装箱镜像”（container image）和执行这些镜像。
+就像VirtualBox是一个软件系统，可以用来创建和执行虚拟机。
+但是集装箱比虚拟机“轻”——一个虚拟机包括一组虚拟硬件、操作系统，用来执行用户程序；
+而集装箱里没有虚拟的硬件，也没有操作系统，它用主机（host）的硬件和操作系统来执行程序。
+
+那么在集装箱里跑程序和直接在主机上跑有什么区别呢？
+
+一个区别是，集装箱有一套网络端口空间（port space）。
+一个集装箱里的进程可以各自开端口，也可以连接对方的端口进行通信。
+但是这些端口是集装箱之外的进程看不到的。
+我们也可以让集装箱把某些内部端口号展示给外部，比如把集装箱内的端口5000映射到外部的8080。
+这样，当我们用主机上的程序（比如浏览器）访问本机（主机）的8080端口时，实际上访问的是集装箱里的5000端口。
+这项对外公开集装箱内部端口的技术，称为端口转发（port forwarding），和虚拟机的端口转发概念一样。
+
+另一个区别在于，集装箱里有虚拟的文件系统。
+这样我们可以把要执行的程序拷贝进集装箱。
+也可以把主机上的某些目录映射成集装箱虚拟文件系统的某些目录。
+
+集装箱这个想法已经在深刻地改变传统分布式系统的开发、测试和部署的流程了。
+传统的做法是，开发者写一个Makefile（或者其他描述，比如CMakeList、POM等）来说明如何把源码编译成二进制文件。
+随后，开发人员会在开发机上配置并且执行二进制文件，来作测试。
+测试人员会在测试机群上配置和执行，来作验证。
+而运维人员会在数据中心里的预发布环境和产品环境上配置和执行，这就是部署。
+因为开发机、测试机群、和产品环境里机器的数量和质量都不同，所以配置往往很不同。
+加上每个新版本的软件系统，配置方式难免有所差异，所以经常造成意外错误。
+以至于绝大部分团队都选择趁夜深人静、用户不活跃的时候，上线新版本，苦不堪言。
+
+而利用集装箱概念的开发流程里，开发者除了写Makefile，还要写一个Dockerfile，
+来描述如何把二进制文件安装进一个集装箱镜像（container image），并且做好配置。
+而一个镜像就像一台配置好的虚拟机，可以在机群上启动多个实例（instance），而每个实例通常称为一个集装箱（container）。
+在自测的时候，开发者在开发机上执行一个或者多个集装箱；
+在验证时，测试人员在测试机群上执行集装箱；
+在部署时，运维人员在产品环境执行集装箱。
+因为执行的都是同样地集装箱，所以不容易出错。
+
+这种流程更合理的划分了开发者和其他角色的工作边界，也大大简化了测试和部署工作。
+
+====
+boot2docker
+
+上节提到，Docker虚拟了网络地址空间和文件系统。
+实际上，它还虚拟了进程ID空间（pid space）等系统数据结构。
+这些功能是一个叫dockerd的daemon程序借助Linux内核中的control groups（又叫cgroups）功能实现的。
+
+dockerd负责执行集装箱；就像VirtualBox负责执行虚拟机一样。
+而cgroup是Google的两个工程师Paul Menage和Rohit Seth贡献给Linux社区的。
+cgroups的使用始于2006年。
+但是从他们的工作记录看，主要工作持续到2008和2009年。
+据说，Google开发它就是为了方便在自己的机群上部署各种Internet应用和离线处理系统。
+具体一点儿的故事，请看这篇Information Week上的帖子。。
+
+因为cgroups功能只有Linux内核有，所以Docker目前只能运行在Linux上。
+可是，现在很多开发者都在用Mac。
+为了能让这些开发者方便的测试自己创作的集装箱镜像，
+Docker的开发者写了boot2docker——利用VirtualBox虚拟一个Linux主机，并且在上面安装dockerd。
+而命令行控制程序docker执行在Mac主机上，被配置成和虚拟Linux主机上的dockerd协作。
+
+boot2docker的安装方式很简单：
+照着这个流程，下载并执行一个安装包即可。
+因为boot2docker利用了VirtualBox，所以安装它之前需要先装VirtualBox。
+Homebrew也提供了安装boot2docker的选项，但是可能因为bug导致dockerd和docker版本不同，没法协同工作。
+
+在利用boot2docker在Mac上开始工作之前，还有几个注意事项。
+当我们在Linux主机上启动一个集装箱的时候，我们可以让Docker把主机的某些目录映射成集装箱内的目录。
+这样集装箱里的程序和主机上的程序共享数据，是一种方便的调试方式。
+但是在用boot2docker的时候，“主机”不是Mac，而是虚拟Linux主机。
+此时如果想把Mac上的目录映射到集装箱，先得将其通过VirtualBox映射到Linux主机。
+
+另一个注意事项和端口转发有关。
+当我们把集装箱内的某个端口映射为主机的某个端口时，只是映射到了虚拟Linux主机；
+如果想让Mac上的程序能访问，还得把虚拟机端口通过VirtualBox映射成Mac上的端口。
+这些注意事项，在下文中会有详细解释。
+
+====
+CoreOS
+
+实际开发中的测试机群和产品环境通常都是用的Linux服务器。
+要在上面执行集装箱，也需要安装Docker。
+因为Docker的开发者提供各种Linux软件包，所以通常输入一个命令，即可安装Docker。
+比如在Ubuntu/Debian Linux里，这个命令是：
+
+sudo apt-get install docker.io
+
+但是目前最常用的用来执行Docker集装箱的Linux发行版本既不是Ubuntu、Debian也不是RedHat、Fedora，而是CoreOS。
+这个发行版本根本没有软件包管理程序，所以也不能通过输入某个命令来安装软件。
+但是CoreOS预装了Docker，所以可以制作集装箱镜像，或者下载别人发布的集装箱镜像来执行。
+目前，Amazon AWS和Google Compute Engine这两大云计算平台都提供预装了CoreOS的虚拟机。
+
+实际上，Google数据中心里运行的Linux系统和CoreOS有很多相似之处。
+我记得2010年我刚离开Google加入腾讯的时候，一位腾讯的同事好奇地问：
+“Google的机群里用的Linux用什么软件包管理程序？是apt-get吗？还是yum？”
+我回答：“其实服务器上运行的Linux是不需要包管理的，只有桌面Linux系统才需要”。
+这位同事很难相信。其实，要不是因为“见了一回猪跑”，我也想不到会是这样。
+
+CoreOS和其他Linux发行版本相比，执行效率高、内存耗费省；
+此外，利用双磁盘分区技术，即便是更新Linux内核也不需要重启。
+CoreOS还有很多独特之处，使得它在问世后很短的时间里就被Amazon和Google采用。
+如果想进一步了解这些特性，请看这个对Docker作者的访谈。
+
+====
+Go语言
+
+接下来，我们看看如何在Mac上用Go语言写一个极简化的搜索引擎，并且封装成集装箱镜像。
+
+我们选择Go语言为例，而不是更常见的Java、Python、Perl、Ruby、Scala等，有很现实的原因
+——后面这些语言写的程序，在执行时都需要某些运行环境的支持。
+比如，Java程序依赖Java虚拟机，Python程序需要Python解释器，这些加上预装的程序库需要占用几百MB的集装箱空间。
+而用Go写的程序默认是全静态编译的，执行时不需要任何环境支持，不需要预装库，甚至连Linux系统动态库都不依赖。
+鉴于一家公司的系统往往由成千上万的集装箱构成；
+每个集装箱少几百MB，能为公司省出很大一笔开销。
+那些每月要向Amazon或者Goolgle付账的公司，对此必然印象深刻。
+这是Go语言在很多创业公司拓展迅猛的一个原因。
+
+如果我们用C或者C++开发，也可以生成全静态链接的二进制程序文件。
+但是在Web时代，C/C++的开发效率不如Go。
+Google里倒是普遍使用C++，但是Google里有一套精心设计、积攒多年的C++库，这是外界没有的。
+外界普遍得使用第三方库，并往往因此挠头。
+比如，不同的第三方库（Thrift和boost）各有各的线程池机制，很难统一管理多线程。
+C++11倒是有了标准线程管理，但是把很多库统一到C++11是一项开销极大的工作。
+Go语言是专门为分布式系统开发设计的，根本就没有线程的概念，在语法上用goroutine代替了，线程池实现在Go runtime里，被编译进每个二进制程序。
+
+====
+交叉编译
+
+因为集装箱用主机的操作系统和硬件来执行程序，而Docker只支持Linux，所以Go程序必须被编译成Linux二进制文件，才能通过Docker运行。
+而我们在Mac上开发，需要利用交叉编译技术来生成Linux二进制文件。
+
+为了得到一个支持交叉编译的Go语言编译器，我们需要从源码安装Go，并且需要做一些额外的安装工作。具体过程如下：
+
+安装Xcode，从而获得C编译器。
+下载Go编译器的源码包。比如Go 1.3在这里。
+解压和编译
+
+ tar xzvf go1.3.src.tar.gz
+ cd go/src
+ ./all.bash
+
+编译各种平台下的Go标准库
+
+ git clone git://github.com/davecheney/golang-crosscompile.git
+ source golang-crosscompile/crosscompile.bash
+ go-crosscompile-build-all
+
+这里，我们用到了Dave Cheney写的一个Bash脚本程序。
+这个程序支持生成以下平台上的Go语言标准库：
+
+darwin/386
+darwin/amd64
+freebsd/386
+freebsd/amd64
+freebsd/arm
+linux/386
+linux/amd64
+linux/arm
+windows/386
+windows/amd64
+nacl/amd64
+nacl/386
+
+并行计算最常用的目标平台是linux/amd64——64bit的Linux系统，也是CoreOS的平台格式。
+下文中我们会演示如何在Mac下用这个编译器生成Linux平台的二进制代码文件。
+
+====
+极简版搜索引擎
+
+在这篇帖子里，作者Adriaan de Jonge用一个最简单的http server作为例子，说明如何在Mac下用Docker运行一个程序。
+
+这篇帖子对我很有帮助。
+只是这个例子程序太过简单了——通常一个互联网产品包含不只一个程序
+——现代互联网产品几乎都采用micro service架构，一个http server和多个RPC server协同工作。
+之外，还会有一些daemon程序，不时向RPC server提供不断更新的数据。
+比如在搜索引擎里，一个indexer程序会不断将cralwer程序爬下来的网页内容加以整理，并且发送给搜索引擎服务。
+
+本节里我们介绍的极简版的搜索引擎就包括两个程序——search engine server和向它提供索引内容的indexer daemon。
+search engine server首先是一个http server，可以通过浏览器访问——对每个输入的query，返回相应的结果。
+同时，它还是一个RPC server，接受从indexer daemon发来的更新后的索引内容。
+这两个程序的源码在这里。
+
+为了下载和构建这个例子程序，请输入如下命令：
+
+mkdir -p /tmp/learn-docker
+cd /tmp/learn-docker
+export GOPATH=`pwd`
+go get github.com/wangkuiyi/helloworld/indexer
+go get github.com/wangkuiyi/helloworld/searchengine
+
+此时，在 /tmp/learn-docker/bin 目录里应该有两个二进制程序文件 indexer和searchengine。
+这两个文件都是Darwin/AMD64格式的。
+我们可以在Mac主机上运行它俩：
+
+./bin/searchengine -addr=":10000" &
+./bin/indexer -searchengine="localhost:10000"
+
+这样首先启动了searchengine，并且让它的http和rpc服务都监听本机（Mac主机）的10000端口；
+随后启动了indexer，它每秒钟通过RPC调用告诉searchengine更新索引内容。
+
+启动成功之后，我们可以在浏览器里访问如下网址：http://localhost:10000/?q=news，从而看到searchengine返回的搜索结果（如下图）：
+
+当然，我们也可以用命令行程序，比如wget和curl，来访问searchengine服务。
+这样我们可以很方便的写一个集成测试（regression test）程序。比如这个。
+
+====
+创建集装箱
+
+接下来，我们看看如何把这两个程序打包进Docker集装箱镜像，
+然后在Mac主机（实际上是boot2docker创建的Linux虚拟机）上运行集装箱。
+接下来我们会看到：这些集装箱不用修改，也就能在Amazon AWS和Google Compute Engine上运行，从而完成发布。
+
+首先，我们需要从源码生成Linux/AMD64二进制程序文件。
+用上文介绍的方法，得到一个支持交叉编译的Go编译器之后，编译示范程序很简单：
+
+GOOS=linux GOARCH=amd64 go install \
+github.com/wangkuiyi/helloworld/indexer \
+github.com/wangkuiyi/helloworld/searchengine
+
+可以看到，我们只是通过环境变量设置了一下目标操作系统和架构。
+
+随后，我们要创建一个Docker集装箱镜像，把编译好的两个程序放进去。
+因为如上文介绍的，Go程序执行时不需要特殊的运行环境，所以这个集装箱镜像里，除了一些metadata和我们的程序之外，什么都不需要。
+以至于我们可以从Docker Hub网站上下载一个空的镜像，在里面安装我们的程序即可。
+为此，我们需要写一个Dockerfile：
+
+FROM scratch
+ADD bin/linux_amd64/searchengine /searchengine
+ADD bin/linux_amd64/indexer /indexer
+
+这里的第一行是让Docker自动从Docker Hub上下载名为scratch的镜像；
+第二行说把本地文件bin/linux_amd64/searchengine装进这个镜像的根目录，成为/searchengine；第三行拷贝indexer。
+
+有了Dockerfile我们就能用docker命令创建一个镜像了。
+下面命令创建一个镜像，并命名为wangkuiyi/helloworld：
+
+cp $GOPATH/src/github.com/wangkuiyi/helloworld/Dockerfile $GOPATH/
+docker build -t wangkuiyi/helloworld $GOPATH
+
+此时，我们可以用docker images命令看到我们创建的镜像：
+
+yiwang@yiwang-mn1-> docker images
+REPOSITORY             TAG                 IMAGE ID            CREATED             VIRTUAL SIZE
+wangkuiyi/helloworld   latest              255460c3d095        3 hours ago         13.86 MB
+
+====
+分布式系统的部署
+
+最简单的使用Docker的部署方案是：
+启动一个集装箱，在其中运行一个searchengine进程和一个indexer进程。
+这和上文中介绍的在Mac主机上运行的方式是一样的，但这不符合分布式系统的一般部署原则。
+
+通常，为了提高处理速度、提升吞吐量和系统容错能力，每个程序都会启动为多个进程，运行在不同的机器上。
+比如，indexer程序的每个进程处理一部分数据（比如一个cralwer进程的输出）。
+这样的并行处理提升建立索引的效率。
+这种情况下，每个进程及其处理的数据被称为一个shard。（shard应该怎么翻译？我不知道）。
+
+类似地，searchengine进程也会启动为多个进程，每个进程的内存空间里都装着同样地索引结构，所以都能提供同样地服务，从而提升吞吐量。
+如果这些进程运行在不同的机器上，那么哪怕某些机器挂了，还有活着的进程能不间断地提供搜索服务。
+这样的每个进程被称为一个replication。
+
+其实每个indexer shard也可以是一组多个进程，其中每个进程是隶属本shard的一个replication。
+从而同时提升indexer的处理速度和容错能力。
+
+这么多进程应该启动在哪些机器上呢？
+要靠人来决定，可就忙不过来咯；得靠机群管理系统。
+Google Borg就是这样一套系统。
+
+可是在很多年的时间里，外界都不知道Borg。
+有一些项目试图模仿Google的计算架构，比如Hadoop意图模仿MapReduce。
+Google MapReduce是一个构建在Borg之上的并行计算框架。
+但是Hadoop的开发者没有开发类似Borg的系统，而是让Hadoop（计算框架）兼任资源管理和调度的功能，导致系统复杂，代码乱作一团。
+
+实际上，在Hadoop开始的若干年里，甚至没有像Google MapReduce那样让每个job有一个master进程来管理；
+而是让机群上所有job里的所有进程都向一个叫Job Tracker的进程汇报心跳（heartbeat），
+以至于一个Hadoop机群不能太大，否则Job Tracker会处理不过来。
+而且Job Tracker作为性能和稳定性的双重瓶颈，一旦累坏了，整个机群上所有job就都挂了。
+Hadoop的开发者直到2011年左右才意识到这一点，并发布了一篇文章，
+开始计划开发“下一代Hadoop”，现在被称为YARN的系统。
+
+YARN的功能和Google Borg有类似之处，但是真正引发外界对Google Borg关注的，
+是加州大学伯克利分校和Twitter的合作项目Mesos。
+这是一个试图复制Borg的尝试。
+当Mesos在Twitter运行起来的时候，很多从Google加入Twitter的工程师都很兴奋——终于重新能“高效工作”了！
+这里的故事，可以参见这篇Wired文章。
+Mesos系统设计思路描述在这篇论文里。
+其第一作者Ben Hindman曾经在Google实习，后来在Twitter任职。
+
+实际上，即便Mesos也没有能很相似地模仿Google Borg。
+至少在程序的发布和部署上。
+Mesos没有和Google Borg等效的打包和执行包的功能。
+而这个功能能为外界所访问，正是靠了本文着重介绍的Docker。
+Docker和Google Borg一样，使用Google工程师为Linux内核贡献的cgroups功能来实现集装箱机制。
+
+借助Docker，Google终于于本月（2014年7月）开源了Borg
+——但是是用Go语言重写的Borg，称为Kubernetes——Google Borg是用C++开发的。
+感谢开源社区不懈的推动！
+
+====
+集成测试
+
+基于上一节的介绍，我们能想象，如果每个集装箱只执行一个进程，那么机群管理系统在部署和调度应用时受到的限制最少。
+反过来想，如果我们在一个集装箱里同时运行一个indexer进程和一个searchengine进程，
+那么我们实际上引入了一个不必要的约束——indexer进程和searchengine进程一一对应。
+而且如果机群中有一台机器，可以承担运行一个进程的负载，
+但是不能承担同时运行两个进程，那么这台机器上就没法部署上述“大”集装箱了。
+
+所以，在Google Borg和Google Kubernetes里，都建议每个集装箱里只执行一个进程。
+
+基于“打包一次，兼顾测试和发布”的原则，我们可以想象，对于一个应用（或者叫做产品，比如上述的极简搜索引擎），
+最常见的打包方式是产生一个集装箱镜像，但是每个集装箱里只执行一个程序的一个进程。
+
+上文中，我们已经用一个Dockerfile把两个程序：indexer和searchengine都装进一个镜像wangkuiyi/hellworld了。
+接下来，我们尝试在Mac主机上启动两个集装箱，分别执行一个indexer和一个searchengine进程：
+
+docker run -d -p 8080:8080 --name searchengine wangkuiyi/helloworld /searchengine
+VBoxManage modifyvm "boot2docker-vm" --natpf1 "tcp-port8080,tcp,,8080,,8080"
+docker run -d --name indexer --link searchengine:se wangkuiyi/helloworld /indexer -searchengine=se:8080
+
+这里，第一行启动了一个集装箱，并且起名叫searchengine，执行的镜像是wangkuiyi/helloworld。
+-d的意思是在后台执行，类似一个shell命令后面跟上一个&符号的效果。
+-p 8080:8080的意思是：“这个集装箱里有个程序会监听8080端口（如果看看searchengine的源码，会发现8080是其默认端口），
+把这个端口映射到主机（boot2docker创建的Linux虚拟机）的8080端口”。
+
+第二个命令让VirtualBox把Linux虚拟机的8080端口映射为Mac主机的8080端口。
+这样就可以在Mac主机上启动一个浏览器，通过访问本机的8080端口，来访问集装箱里的searchengine服务。
+（如果你在Linux主机上开发，就不需要boot2docker虚拟一个Linux主机了，也就不需要这个命令了。）
+
+上述第三个命令启动了一个名为indexer的集装箱，执行的也是wangkuiyi/helloworld镜像。
+在这个集装箱里启动了一个indexer进程；这个进程会去连接se:8080这个网络地址，并通过RPC调用，向这个目标地址发送更新的索引数据。
+se这个IP地址是怎么来的呢？
+这是--link seachengine:se参数的效果——这个参数使得Docker在启动indexer集装箱之前，修改了其中/etc/hosts文件，在其中增加了一行：
+
+ xxx.xxx.xxx.xxx se
+
+这里 xxx.xxx.xxx.xxx 指代集装箱searchengine（--link searchengine:se中冒号左边的部分）的虚拟IP地址，
+se（--link searchengine:se中冒号右边的部分）也就是其域名了。
+Docker就是通过--link这个参数，让不同集装箱内的多个进程可以互相通信的。
+
+此时，在本机打开一个浏览器窗口并访问http://localhost:8080/?q=news，可以看到和上图完全一样的结果。
+
+====
+自动部署
+
+到目前为止，我们都是手动调用docker命令来操作docker的。
+而得到的效果——在Mac主机上启动极简搜索引擎——和不用Docker是一样的。
+大家不禁会问，为什么要引入Docker呢？
+
+其实，实际使用Docker时，我们不会手动敲docker命令，而是会利用fleet或者Kubernetes来部署和启动集装箱。
+这样只需要写一个非常简明的部署配置文件，就可以在开发机、集成测试机群、预发布机群、和产品环境中完成部署了。
+这篇文章为了说明Docker的设计思路和使用方法已经很长了，
+所以关于fleet和Kubernetes的介绍，我准备放在《Docker：分布式系统的软件工程革命（下）》中。
+
+谢谢大家看到这里！
+

@@ -1,0 +1,365 @@
+﻿（官方文档）客户端指引05-Notifications
+http://books.zkoss.org/wiki/ZK%20Client-side%20Reference/Notifications
+
+In this section we discuss the notifications at the client side.
+There are three ways to notify: widget events (Event), DOM events (Event) and client activity watches.
+A DOM event (Event) is the DOM-level (i.e., low-level) event that is usually triggered by the browser. It is usually listened by the implementation of a widget, rather than the client application.
+A widget event is the high-level event. It is used either to encapsulate a DOM event, or to represent a notification specific to a widget, or to an application.
+It is generally suggested to listen widget events (rather than DOM events) if possible, since it is easier and more efficient.
+A client activity watch is a notification for special activities that are not available as DOM events or widget events, for example, the notification when a widget is becoming invisible.
+They are mainly used for component development. Application developers rarely need it. For a complete reference, please refer to JavaScript APIs.
+
+Subsections:
+Widget Events
+DOM Events
+Client Activity Watches
+
+========
+Widget Events
+
+
+
+1 Event Listening for Component Developers
+1.1 Listen by Overriding a Method
+1.2 Event Propgation
+1.3 Capture the Mouse Event
+1.4 Capture the Input Event
+1.5 Events and Corresponding Methods
+2 Event Listening for Application Developers
+3 Event Firing
+4 Version History
+
+A widget event is the widget-level event (Event).
+Like Event at the server side, the widget event can be anything, and can be triggered by a widget or an application to notify a widget-level or application-level event, such as that a window has been moved.
+In addition, ZK Client Engine intercepts most DOM events and encapsulate them into widgets events, such that it is easier and more efficient for component developers to handle events at widget-level (rather than DOM-level, Event).
+Event Listening for Component Developers
+ZK Client Engine intercepts most DOM events that are targeting the DOM elements belong to widgets. It then encapsulates them into widget events, and then invokes the corresponding method of Widget. For example, when the user moves the mouse over a DOM element of a widget, Widget.doMouseOver_(Event) will be called. Similarly, when the user clicks a DOM element of a widget, Widget.doClick_(Event) will be called.
+Listen by Overriding a Method
+Thus, the simplest way to listen a DOM event is to override the corresponding method. For example,
+1
+2
+3
+4
+doMouseDown_: function (evt) {
+    //do whatever you want
+    this.$supers('doMouseDown_', arguments); //invoke parent.fireX() and so on
+}
+where evt is an instance of Event. The original DOM event can be retrieved by the use of Event.domEvent, and the original DOM element can be found by the use of Event.domTarget (or evt.domEvent.target).
+If you want to listen and disable the default behavior, just not to call the super class:
+1
+2
+3
+4
+doClick_: function (evt) {
+    this.fireX(evt);
+    //don't call this.$supers to avoid the event propagation
+},
+Note that this approach is suggested for better performance since no real DOM-level event registration is required (as described in the next section).
+Event Propgation
+The default implementation of the event methods (doXxxx_ in Widget) propagates the event from the target widget to its parent, grandparent and so on. To stop the propagation, you can either invoke Event.stop(Map), or not calling back the superclass's event method (the effect is the same). In other words, if the propagation is stopped, the parent's event method won't be called.
+If a widget event is not stopped and required by the server, it will be sent to the server, and converted to an instance of AuRequest at the server[1].
+In addition to the event propagation, the default implementation will invoke Widget.fireX(Event, int) to inoke the application-level listeners, if any (registered with Widget.listen(Map, int).
+Notice that there are two kinds of propagation: widget-level and DOM-level. If you stop only the widget-level propagation (by calling evt.stop({propagation:true})), the DOM event will go through all DOM-level event listeners and then trigger the browser default behavior.
+↑ For more information, please refer to the AU Requests section.
+Capture the Mouse Event
+Sometime you want the following Widget.doMouseOver_(Event) and Widget.doMouseUp_(Event) are called against the same widget, no matter where the mouse-up event happens. This is also known as capturing. It can be done by setting zk.mouseCapture as follows.
+1
+2
+3
+4
+doMouseDown_: function () {
+    zk.mouseCapture = this;
+    this.$supers('doMouseDown_', arguments);
+}
+Notice that the mouse capture is reset automatically after Widget.doMouseUp_(Event) is called.
+Capture the Input Event
+Sometime you want the following Widget.onKeyPress_(Event) and Widget.onKeyUp_(Event) to be called against the same widget, no matter where the key-up event happens. It is also known as capturing. It can be done by setting zk.keyCapture as follows.
+1
+2
+3
+4
+doKeyDown_: function () {
+    zk.keyCapture = this;
+    this.$supers('doKeyDown_', arguments);
+}
+Notice that the key capture is reset automatically after Widget.onKeyUp_(Event) is called.
+Events and Corresponding Methods
+Events that can be handled by overriding a method
+DOM Event Name	 Method to Override
+blur	Widget.doBlur_(Event)
+Note: unlike others, you have to register a listener with Widget.domListen_(DOMElement, String, Object) as follows. Otherwise, doBlur_ won't be called.
+1
+this.domListen_(n, "onBlur");
+click	Widget.doClick_(Event)
+dblclick	Widget.doDoubleClick_(Event)
+contextmenu (aka., the right click)	Widget.doRightClick_(Event)
+focus	Widget.doFocus_(Event)
+Note: unlike others, you have to register a listener with Widget.domListen_(DOMElement, String, Object) as follows. Otherwise, doFocus_ won't be called.
+1
+this.domListen_(n, "onFocus");
+mouseover	Widget.doMouseOver_(Event)
+mouseout	Widget.doMouseOut_(Event)
+mousedown	Widget.doMouseDown_(Event)
+mouseup	Widget.doMouseUp_(Event)
+mousemove	Widget.doMouseMove_(Event)
+keydown	Widget.doKeyDown_(Event)
+keyup	Widget.doKeyUp_(Event)
+keypress	Widget.doKeyPress_(Event)
+Event Listening for Application Developers
+To listen a widget event, you could invoke Widget.listen(Map, int) to listen any widget event you want. However, Widget.listen(Map, int) is designed for applications to listen events at the client. Thus, it is also called the application-level event listener.
+For component development, the method overriding is suggested as described in the previous subsections.
+The signature of an event listener is as follows.
+1
+2
+function (event) { //an instance of zk.Event
+}
+Event Firing
+To fire a widget event, you could invoke Widget.fire(String, Object, Map, int) or Widget.fireX(Event, int).
+Then, the listeners registered with Widget.listen(Map, int) will be invoked one-by-one. Then, it will be sent to the server, if an event listener has been registered at the server or it is an import event[1].
+A client-side event listener could stop sending a widget event to the server by invoking Event.stop(Map) with {au:true}, such as
+1
+evt.stop({au: true});
+↑ For more information, please refer to the AU Requests section.
+Version History
+Last Update : 2011/8/18
+
+=======
+DOM Events
+
+
+
+1 How to Listen and Unlisten
+1.1 Use domListen_ and domUnlisten_
+1.2 Use jQuery
+2 Version History
+
+A DOM event (Event) is the DOM-level event that is usually triggered by the browser. It is usually listened by the implementation of a widget, rather than the client application.
+Since ZK Client Engine can intercept most DOM events and encapsulate them into the widget events, it is suggested to listen the widget events, if possible, for better performance (by overriding the corresponding methods, such as Widget.doClick_(Event)). For more information, please refer to the previous section.
+How to Listen and Unlisten
+There are two different approaches to listen a DOM event: Widget.domListen_(DOMElement, String, Object) and jQuery (jq).
+Use domListen_ and domUnlisten_
+Widget.domListen_(DOMElement, String, Object) registers a DOM-level event listener. The registration should be done when a widget is bound to DOM elements, i.e., when Widget.bind_(Desktop, Skipper, Array) is called. It is important to un-register by the use of Widget.domUnlisten_(DOMElement, String, Object) when a widget is un-bound from DOM elements, i.e., when Widget.unbind_(Skipper, Array) is called. For example,
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+bind_: function () {
+    this.$supers('bind_', arguments);
+    this.domListen_(this.getNode(), "onChange");
+},
+unbind_: function () {
+    this.domUnlisten_(this.node, "onChange");
+    this.$supers('unbind_', arguments);
+},
+_doChange: function (evt) { //event listener
+    //evt is an instance of jq.Event
+},
+Unlike jQuery's event listener (jq), Widget.domListen_(DOMElement, String, Object) will be ignored if the widget is under control of ZK Weaver (a WYSIWYG editor), i.e., in the so-called Design Mode. In most cases, a widget should not register any event listeners when it is under control of ZK Weaver to avoid any conflict.
+Use jQuery
+The use of jQuery (jq) is similar except using one of the event listening methods found in jQuery.
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+bind_: function () {
+    this.$supers('bind_', arguments);
+    jq(this.$("form")).bind("reset", this.proxy(this._resetForm));
+},
+unbind_: function () {
+    jq(this.$("form")).unbind("reset", this.proxy(this._resetForm));
+    this.$supers('unbind_', arguments);
+},
+_resetForm: function (evt) { //event listener
+   this.doSomething(); //this refers to the widget since this.proxy is used
+},
+where we use Object.proxy(Function) to proxy a function such that this will refer to the widget when the method is called. Also notice that the event name used with jQuery does not start with on.
+Version History
+Last Update : 2011/8/18
+
+====
+Client Activity Watches
+
+
+1 Listen and Unlisten
+2 Fire
+3 Client Activities
+3.1 beforeSize
+3.2 onBindLevelChange
+3.3 onFitSize
+3.4 onHide
+3.5 onFloatUp
+3.6 onResponse
+3.7 onRestore
+3.8 onScroll
+3.9 onSend
+3.10 onSize
+3.11 onShow
+3.12 onVParent
+4 Version History
+
+In addtion to widget events (Event) and DOM events (Event), there are some special notifications called client activity watches. They are used to notify special activities, such as when a widget becomes invisible, or a window is brought to the top. This kind of activity can be listened by so-called watch (zWatch)
+Listen and Unlisten
+To add a watch (i.e., listen to a client activity), you could use zWatch.listen(Map) as follows:
+1
+2
+3
+4
+5
+zWatch.listen({
+    onSize: this,
+    onShow: this,
+    onHide: [this, this._onHide]
+});
+As shown, the key of each entry in the given map is the name of the client activity (aka., the watch name), and the value could be one of the following:
+An object that has a method with the same name. In the above case, this must have the onSize and onShow methods
+A two-element array, where the first element is the target, and the second is the method
+The signature of the method is as follows.
+1
+2
+3
+4
+5
+function onWhatever(ctl, arg0, arg1...) {
+  //ctl.origin: the object passed as the first argument to zWatch.fire or zWatch.fireDown
+  //ctl.fireDown(something) and ctl.fire(something):
+  //   
+}
+where ctl is a controller allowing you to have better control of the invocation sequence of the listeners, and arg0 and others are the arguments that passed to zWatch.fire(String, Object, Map) or zWatch.fireDown(String, Object, Map).
+The controller has two methods: fire and fireDown, and one field: origin. The fire and fireDown methods are used to fore the remaining listeners (caused by the same invocation of of zWatch.fire(String, Object, Map) or zWatch.fireDown(String, Object, Map)) to be invoked. If your listener doesn't call any of them, the other listeners are called in the same order of registration.
+Here is the pseudo code for the controller:
+1
+2
+3
+4
+5
+6
+7
+8
+interface Controller {
+  /** Usually zk.Widget (unless fire and fireDown was called with a different object) */
+  Object origin;
+  /** enforce the remaining listeners to be invoked immediately (change the invocation sequence) */
+  void fire(Object ref, Object...);
+  /** enforce the remaining listeners to be invoked immediately (change the invocation sequence) */
+  void fireDown(Object ref, Object...);
+}
+where ref is optional. If specified, it will invoke only the listeners for the given object (and its descendants if fireDown) that are not invoked yet. If null, it will invokes all the listeners that are not invoked yet.
+The origin field (ctl.origin) is the original object (usually a widget, Widget) passed as the first argument when zWatch.fire(String, Object, Map) or zWatch.fireDown(String, Object, Map) was called. In other words, it is the one causes the client activity. It is null if not available.
+To unlisten, you could use zWatch.unlisten(Map) as follows:
+1
+2
+3
+4
+5
+zWatch.unlisten({
+    onSize: this,
+    onShow: this,
+    onHide: [this, this._onHide]
+});
+Fire
+The client activity is triggered (aka., fired) by either zWatch.fire(String, Object, Map) or zWatch.fireDown(String, Object, Map).
+zWatch.fire(String, Object, Map) will invoke the listeners for the target object (the first argument), while zWatch.fireDown(String, Object, Map) will invokes the listeners for the target object and all of its descendants (i.e., the target object's children, grandchildren...).
+For example, if a widget resizes itself, it could fire down onSize as follows.
+1
+zWatch.fireDown("onSize", wgt);
+The target object could be anything as long as the listener recognizes it, but ZK's standard widgets use Widget only.
+Client Activities
+Here is the list of client activities that you could watch.
+beforeSize
+[fireDown]
+It is called right before the browser window or the parent widget is resized.
+beforeSize, onFitSize and onSize are fired when the browser window or a widget is resized. beforeSize is fired first, such that the listeners could reset style's width or height. Then, the listeners of onFitSize are called in the reverse order (child first) to caculate the minimal allowed size. Finally, the the listener of onSize can change it to the correct size.
+Notice zWatch.fireDown(String, Object, Map) must be used to fire this event, so only the listeners of descendants of the specified widget will be called.
+Parameters
+ctl.origin - the widget that causes the resizing. If null, it means the whole browser is resized.
+onBindLevelChange
+[fire]
+It is called if the bind level of a widget (Widget's bindLevel) is changed due to moving from one parent to another.
+Notice it won't be called if it is unbound and bound (i.e., detached and attached).
+Notice zWatch.fire(String, Object, Map) is used, so all listeners are invoked.
+onFitSize
+[fireDown; reverse order]
+[since 5.0.8]
+It is called between beforeSize and onSize.
+beforeSize, onFitSize and onSize are fired when the browser window or a widget is resized. beforeSize is fired first, such that the listeners could reset style's width or height. Then, the listeners of onFitSize are called in the reverse order (child first) to caculate the minimal allowed size. Finally, the the listener of onSize can change it to the correct size.
+Notice that the listeners of onFitSize are called in the reverse order, i.e., the child is called before the parent. However, superclass's listener of the same widget will still be called first (like onSize and other events).
+Parameters
+ctl.origin - the widget that causes the resizing. If null, it means the whole browser is resized.
+onHide
+[fireDown]
+It is called before a widget is going to become invisible.
+Notice zWatch.fireDown(String, Object, Map) must be used to fire this event, so only the listeners of descendants of wgt will be called.
+Parameters
+ctl.origin - the widget is becoming invisible
+See Also
+#onShow
+onFloatUp
+[fire]
+It is called after a widget has gained the focus. It means the 'float' widget that is the parent of the focus widget shall become topmost.
+Notice zWatch.fire(String, Object, Map) is used, so all listeners are invoked.
+Parameters
+ctl.origin - the widget gains the focus.
+onResponse
+[fire]
+It is called after the response of the AU request has been sent back from the server, and processed.
+Notice the zWatch.fire(String, Object, Map) is used, so all listeners are invoked.
+onRestore
+[fireDown]
+It is called when Skipper restores the DOM elements.
+It is rarely required but to fix the browser's bug if any. Furthermore, if you listen to onRestore, it is likely you have to listen onVParent too.
+Parameters
+ctl.origin - the widget has become visible
+See Also
+#onVParent
+onScroll
+[fire]
+It is called when the browser window or the specified widget is scrolling.
+Notice the zWatch.fire(String, Object, Map) is used, so all listeners are invoked.
+Parameters
+ctl.origin - the widget that is scrolling (i.e., causing the onScroll watch), or null if the whole browser window is scrolling
+onSend
+[fire]
+It is called before sending the AU request to the server. The implicit argument indicates whether all AU requests being sent are implicit.
+Notice zWatch.fire(String, Object, Map) is used, so all listeners are invoked.
+onSize
+[fireDown]
+It is called when the browser window and a widget is resized.
+beforeSize, onFitSize and onSize are fired when the browser window or a widget is resized. beforeSize is fired first, such that the listeners could reset style's width or height. Then, the listeners of onFitSize are called in the reverse order (child first) to caculate the minimal allowed size. Finally, the the listener of onSize can change it to the correct size.
+Notice that a layout widget (such as Borderlayout and Hbox) must fire both beforeSize and onSize when it resizes.
+Notice zWatch.fireDown(String, Object, Map) must be used to fire this event, so only the listeners of descendants of wgt will be called.
+Parameters
+ctl.origin - the widget that causes the resizing. If null, it means the whole browser is resized.
+onShow
+[fireDown]
+It is called after a widget has become visible.
+Notice zWatch.fireDown(String, Object, Map) must be used to fire this event, so only the listeners of descendants of wgt will be called.
+Parameters
+ctl.origin - the widget has become visible
+See Also
+#onHide
+onVParent
+[fireDown]
+[since 5.0.8]
+It is called when jqzk.makeVParent() or jqzk.undoVParent() is called to move a DOM element to/from document.body.
+It is rarely required but to fix the browser's bug if any. Furthermore, if you listen to onVParent, it is likely you have to listen onRestore too.
+Parameters
+ctl.origin - the widget has become visible
+See Also
+#onRestore
+Version History
+Last Update : 2014/8/7
+

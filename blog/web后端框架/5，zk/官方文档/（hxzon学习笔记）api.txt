@@ -1,0 +1,215 @@
+﻿（hxzon学习笔记）api
+
+====
+1，伸缩性
+
+void org.zkoss.zk.ui.HtmlBasedComponent.setVflex(String flex)
+
+Sets vertical flexibility hint of this component. 
+
+（flexibility，n.柔韧性，机动性，灵活性；伸缩性；可塑度；柔度）
+设置此组件的垂直伸缩性提示。
+
+Number flex indicates how this component's container distributes remaining empty space among its children vertically. 
+数字值，决定了容器如何分配多余的垂直空间。
+Flexible component grow and shrink to fit their given space. 
+可伸缩组件会伸展或缩小来使用给它们的空间。
+Flexible components with larger flex values will be made larger than components with lower flex values, 
+at the ratio determined by all flexible components. 
+根据比例来分配剩余空间。
+The actual flex value is not relevant unless there are other flexible components within the same container. 
+Once the default sizes of components in a container are calculated, 
+the remaining space in the container is divided among the flexible components, according to their flex ratios.
+先计算组件默认的尺寸，剩余的空间按伸缩值的比例分配。
+
+Specify a flex value of negative value, 0, or "false" has the same effect as leaving the flex attribute out entirely. 
+Specify a flex value of "true" has the same effect as a flex value of 1.
+设置为”true“等同于”1“。
+
+Special flex hint, "min", indicates that the minimum space shall be given to this flexible component to enclose all of its children components. 
+That is, the flexible component grow and shrink to fit its children components.
+特殊值”min“，意味着分配给此组件最小空间，即它的尺寸，恰好适应它的子组件。
+
+Parameters:
+flex the vertical flex hint.
+Since:
+5.0.0
+
+=========
+2，客户端特效
+
+void org.zkoss.zk.ui.HtmlBasedComponent.setAction(String action)
+
+
+Sets the client-side action (CSA). 
+
+Default: null (no CSA at all) 
+
+The format: 
+action1: action-effect1; action2: action-effect2
+
+
+Currently, only two actions are show and hide. 
+They are called when the widget is becoming visible (show) and invisible (hide). 
+目前只有”显示“和”隐藏“两种动作。
+
+The action effect (action-effect1) is the name of a method defined in zk.eff.Actions, 
+such as show: slideDown; hide: slideUp 
+
+You could specify the effects as follows:
+show: slideDown({duration:1000}) 
+
+Security Tips: the action is not encoded and it is OK to embed JavaScript, 
+so, if you want to allow users to specify the action, you have to encode it. 
+
+Note for developers upgraded from ZK 3: CSA's format is different and limited. 
+In additions, it is part of HtmlBasedComponent.
+
+Parameters:
+action 
+Since:
+5.0.6
+
+========
+3，box布局：对齐
+
+（hxzon：布局功能是如何实现的？未在java代码见到）
+
+String org.zkoss.zul.Box.getAlign()
+
+
+Returns the alignment of cells of a box in the 'opposite' direction (null, start, center, end). 
+描述在另一个方向上的对齐方式。（参见getPack）
+
+Default: start
+
+The align attribute specifies how child elements of the box are aligned, 
+when the size of the box is larger than the total size of the children. 
+当box的尺寸大于所有子组件的尺寸总和时，指定如何对齐。
+For boxes that have horizontal orientation, it specifies how its children will be aligned vertically. 
+For boxes that have vertical orientation, it is used to specify how its children are aligned horizontally. 
+The pack attribute (getPack) is related to the alignment but is used to specify the position in the opposite direction. 
+
+start 
+Child elements are aligned starting from the left or top edge of the box. 
+If the box is larger than the total size of the children, the extra space is placed on the right or bottom side. 
+剩余空间放在右边或底部。
+
+center 
+Extra space is split equally along each side of the child elements, 
+resulting in the children being placed in the center of the box. 
+剩余空间平均放在两边。
+
+end 
+Child elements are placed on the right or bottom edge of the box. 
+If the box is larger than the total size of the children, the extra space is placed on the left or top side. 
+剩余空间在左边或顶部。
+
+stretch(since 5.0) 
+Child elements are stretched to fill the box. 
+子组件被拉伸，填充剩余空间。
+
+Since:
+3.0.0
+
+=======
+4，
+
+String org.zkoss.zul.Box.getPack()
+
+
+Returns the pack alignment of cells of this box (start, center, end) plus an indication stretch option. 
+
+Default: start. 
+
+The pack attribute specifies where child elements of the box are placed 
+when the box is larger that the size of the children. 
+当box的尺寸大于子组件的尺寸时，子组件如何放置。
+For boxes with horizontal orientation, it is used to indicate the position of children horizontally. 
+当水平布局时，它决定了子组件的水平位置。
+For boxes with vertical orientation, it is used to indicate the position of children vertically. 
+The align attribute (getAlign)is used to specify the position in the opposite direction. 
+align描述的是另一个方向上的位置。
+
+start 
+Child elements are aligned starting from the left or top edge of the box. 
+If the box is larger than the total size of the children, the Extra space is placed on the right or bottom side. 
+
+center 
+Extra space is split equally along each side of the child elements, 
+resulting in the children being placed in the center of the box. 
+
+end 
+Child elements are placed on the right or bottom edge of the box. 
+If the box is larger than the total size of the children, the extra space is placed on the left or top side. 
+
+stretch(since 5.0) 
+This is an extra option in addition to the (start, center, end) options. 
+When add this extra option in the pack attribute, the Extra space is placed proportionally and evenly along each child elements. 
+If you specify "stretch,start", then the Extra proportionally and evenly allocated space for each child 
+is placed on the right or bottom side of the child. 
+If you specify "stretch,center", then the Extra proportionally and evenly allocated space for each child 
+is split equally along each side of the child. 
+If you specify "stretch,end", then the Extra proportionally and evenly allocated space for each child 
+is placed on the left or top side of the child. 
+Note that if there are Splitter child inside this Box, then this Box behaves as if the pack attribute has been set the "stretch" option; 
+如果带有”分割器“，则始终带有”伸缩“选项。
+no matter you really specify "stretch" in pack attribute or not. 
+If you give null to the pack attribute, it is the same as "start". 
+If simply give "stretch" to this pack attribute then it is the same as "stretch,start" 
+
+Since:
+3.0.0
+
+======
+5，
+
+void org.zkoss.zul.Box.setSizedByContent(boolean byContent)
+
+
+Sets whether sizing the cell's size by its content. 
+
+Default: true. It means the cell's size is depended on its content. 
+
+With Splitter, you can specify the sizedByContent to be false for resizing smoothly, if it contains a grid or other sophisticated components.
+
+Parameters:
+byContent 
+Since:
+5.0.4
+
+======
+6，锚点布局
+
+void org.zkoss.zul.Anchorchildren.setAnchor(String anchor)
+
+Sets the width, height relative to parent, anchorlayout. 
+It can use % or number. 
+可以使用具体数值，或百分比。
+Accept one argument, or two argument separated by space. 
+支持一个参数，或两个参数，两个参数之间通过空格分隔。
+The first argument is for width, and second for height. 
+第一个参数是宽，第二个参数是高。
+For example, 
+"50% 50%" means the anchorchildren width and height is 50% of Anchorlayout. 
+"-30 20%" means the width is 20px less than parent, and height is 20% of parent. 
+"50%" means the width is 50% of parent, and the height is no assumed. 
+
+Parameters:
+anchor 
+
+==
+org.zkoss.zul.Anchorlayout
+
+An anchorlayout lays out a container which can resize it's children base on its width and height
+当本组件尺寸改变时，子组件会调整尺寸。
+
+Default getZclass: z-anchorlayout.
+
+Since:
+6.0.0
+Author:
+peterkuo
+
+
+

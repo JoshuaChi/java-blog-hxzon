@@ -151,7 +151,10 @@ expression IS FALSE
 expression IS NOT FALSE
 expression IS UNKNOWN
 expression IS NOT UNKNOWN
-These will always return true or false, never a null value, even when the operand is null. A null input is treated as the logical value "unknown". Notice that IS UNKNOWN and IS NOT UNKNOWN are effectively the same as IS NULL and IS NOT NULL, respectively, except that the input expression must be of Boolean type.
+
+These will always return true or false, never a null value, even when the operand is null. 
+A null input is treated as the logical value "unknown". 
+Notice that IS UNKNOWN and IS NOT UNKNOWN are effectively the same as IS NULL and IS NOT NULL, respectively, except that the input expression must be of Boolean type.
 
 ====
 9.3. Mathematical Functions and Operators

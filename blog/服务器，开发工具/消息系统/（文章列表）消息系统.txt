@@ -1,0 +1,19 @@
+﻿（文章列表）消息系统
+
+by hxzon
+===========
+1，为什么ZeroMQ不应该成为你的第一选择
+作者 马德奎 发布于 2014年8月12日
+http://www.infoq.com/cn/news/2014/08/zeromq-not-first-choice
+
+文中，Tyler Treat对nanomsg和ZeroMQ进行了比较。
+nanomsg是一个套接字库，提供了多种常见的通信协议，
+其目标是使网络层更快、更具扩展性、更容易使用。
+它用C进行了彻底地重写，可以说是对ZeroMQ的重建。
+它构建在ZeroMQ的可靠性能之上，同时又提供了若干重要的改进。
+而且，它还试图消除ZeroMQ经常出现一些怪异行为。
+
+====
+2，
+
+

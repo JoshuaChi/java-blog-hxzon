@@ -1,21 +1,24 @@
 ﻿（hxzon学习笔记）hibernate-定制字段转换，定制插删改和加载语句，定制集合字段的插删改和加载语句
 
 by hxzon
-
-hibernate定制字段转换，定制插删改和加载语句，定制属性集合的插删改和加载语句
-
 http://docs.jboss.org/hibernate/orm/4.1/manual/en-US/html/
 
-5.6,18.3,18.4节。
+5.6节，定制字段转换。
+18.3节，定制插删改语句（包括中间表的定制）。
+18.4节，定制加载语句。
 
---------------------------------
+==============
 5.6. Column transformers: read and write expressions
 
 定制字段转换
 
-Hibernate allows you to customize the SQL it uses to read and write the values of columns mapped to simple properties. For example, if your database provides a set of data encryption functions, you can invoke them for individual columns like this:
+Hibernate allows you to customize the SQL it uses to read and write the values of columns mapped to simple properties. 
+For example, if your database provides a set of data encryption functions, 
+you can invoke them for individual columns like this:
 
-hibernate允许你定制sql来控制简单字段的读和写。例如你的数据库提供了加密解密方法。你可以使用@ColumnTransformer在读取和写入时转换它们。
+hibernate允许你定制sql来控制简单字段的读和写。
+例如你的数据库提供了加密解密方法。
+你可以使用 @ColumnTransformer 在读取和写入时转换它们。
 
 @Entity
 class CreditCard {
@@ -41,7 +44,7 @@ Note
 You can use the plural form @ColumnTransformers if more than one columns need to define either of these rules.
 If a property uses more that one column, you must use the forColumn attribute to specify which column, the expressions are targeting.
 
-如果一个字段映射到多个列，@ColumnTransformers必须使用forColumn属性来说明使用的是哪一个列。
+如果一个字段映射到多个列，@ColumnTransformers 必须使用 forColumn 属性来说明使用的是哪一个列。
 
 @Entity
 class User {
@@ -59,9 +62,11 @@ class User {
 }
 
 
-Hibernate applies the custom expressions automatically whenever the property is referenced in a query. This functionality is similar to a derived-property formula with two differences:
+Hibernate applies the custom expressions automatically whenever the property is referenced in a query. 
+This functionality is similar to a derived-property formula with two differences:
 
-hibernate会在所有的查询语句中使用这个定制的表达式。这和衍生属性（通过公式计算）相似，但有两点不同。
+hibernate会在所有的查询语句中使用这个定制的表达式。
+这和衍生属性（通过公式计算）相似，但有两点不同。
 
 The property is backed by one or more columns that are exported as part of automatic schema generation.
 ？？作为建表语句的一部分。
@@ -70,15 +75,20 @@ The property is read-write, not read-only.
 The write expression, if specified, must contain exactly one '?' placeholder for the value.
 如果指定了“写表达式”，必须使用问号来做占位符。
 
----------------------------------
+===========
 18.3. Custom SQL for create, update and delete
-
 定制插删改语句
 
-Hibernate3 can use custom SQL for create, update, and delete operations. The SQL can be overridden at the statement level or inidividual column level. This section describes statement overrides. For columns, see Section 5.6, “Column transformers: read and write expressions”. Example 18.11, “Custom CRUD via annotations” shows how to define custom SQL operatons using annotations.
+Hibernate3 can use custom SQL for create, update, and delete operations. 
+The SQL can be overridden at the statement level or inidividual column level. 
+This section describes statement overrides. 
+For columns, see Section 5.6, “Column transformers: read and write expressions”. 
+Example 18.11, “Custom CRUD via annotations” shows how to define custom SQL operatons using annotations.
 
-hibernate3可以自定制插入，更新和删除语句。可在语句级别和字段级别定制sql语句。
-这一节将讲述如何在语句级别定制sql语句。字段级别的定制，参见上边的5.6节。
+hibernate3可以自定制插入，更新和删除语句。
+可在语句级别和字段级别定制sql语句。
+这一节将讲述如何在语句级别定制sql语句。
+字段级别的定制，参见上边的5.6节。
 
 
 使用@SQLInsert等注解在语句级别定制sql，如下例子。
@@ -87,12 +97,21 @@ Example 18.11. Custom CRUD via annotations
 
 @Entity
 @Table(name="CHAOS")
+
 @SQLInsert( sql="INSERT INTO CHAOS(size, name, nickname, id) VALUES(?,upper(?),?,?)")
+（hxzon：语句中的参数顺序，依赖于hibernate处理器的顺序，见下文。）
+
 @SQLUpdate( sql="UPDATE CHAOS SET size = ?, name = upper(?), nickname = ? WHERE id = ?")
+
 @SQLDelete( sql="DELETE CHAOS WHERE id = ?")
+
 @SQLDeleteAll( sql="DELETE CHAOS")
+
 @Loader(namedQuery = "chaos")
-@NamedNativeQuery(name="chaos", query="select id, size, name, lower( nickname ) as nickname from CHAOS where xml:id= ?", resultClass = Chaos.class)
+
+@NamedNativeQuery(name="chaos", 
+	query="select id, size, name, lower( nickname ) as nickname from CHAOS where xml:id= ?", resultClass = Chaos.class)
+
 public class Chaos {
     @Id
     private Long id;
@@ -104,7 +123,11 @@ public class Chaos {
 使用@NamedNativeQuery定义命名的sql语句。
 
 
-@SQLInsert, @SQLUpdate, @SQLDelete, @SQLDeleteAll respectively override the INSERT, UPDATE, DELETE, and DELETE all statement. The same can be achieved using Hibernate mapping files and the<sql-insert>,<sql-update> and <sql-delete> nodes. This can be seen in Example 18.12, “Custom CRUD XML”.
+@SQLInsert, @SQLUpdate, @SQLDelete, @SQLDeleteAll 
+respectively override the INSERT, UPDATE, DELETE, and DELETE all statement. 
+The same can be achieved using Hibernate mapping files and the<sql-insert>,<sql-update> and <sql-delete> nodes. 
+This can be seen in Example 18.12, “Custom CRUD XML”.
+也可以在映射文件中配置。
 
 Example 18.12. Custom CRUD XML
 
@@ -119,10 +142,12 @@ Example 18.12. Custom CRUD XML
 </class>
 
 
-If you expect to call a store procedure, be sure to set the callable attribute to true. In annotations as well as in xml.
+If you expect to call a store procedure, be sure to set the callable attribute to true. 
+In annotations as well as in xml.
 如果你想要调用存储过程，注意将callable属性设为true。
 
-To check that the execution happens correctly, Hibernate allows you to define one of those three strategies:
+To check that the execution happens correctly, 
+Hibernate allows you to define one of those three strategies:
 hibernate允许你使用以下三种策略中的一种，来检查存储过程的执行。
 
 none: no check is performed: the store procedure is expected to fail upon issues
@@ -130,20 +155,25 @@ count: use of rowcount to check that the update is successful
 param: like COUNT but using an output parameter rather that the standard mechanism
 
 To define the result check style, use the check parameter which is again available in annoations as well as in xml.
+使用check属性（注解或者xml文件）指定使用哪种检查策略。
 
-
+====
 定制集合字段的插删改语句
 
-You can use the exact same set of annotations respectively xml nodes to override the collection related statements -see Example 18.13, “Overriding SQL statements for collections using annotations”.
+You can use the exact same set of annotations respectively xml nodes 
+to override the collection related statements 
+-see Example 18.13, “Overriding SQL statements for collections using annotations”.
 
 
-使用@SQLInsert和@SQLDelete注解来定制集合字段。
 Example 18.13. Overriding SQL statements for collections using annotations
+使用@SQLInsert和@SQLDelete注解来定制集合字段。
 
 @OneToMany
 @JoinColumn(name="chaos_fk")
+
 @SQLInsert( sql="UPDATE CASIMIR_PARTICULE SET chaos_fk = ? where id = ?")
 @SQLDelete( sql="UPDATE CASIMIR_PARTICULE SET chaos_fk = null where id = ?")
+
 private Set<CasimirParticle> particles = new HashSet<CasimirParticle>();
 
 
@@ -152,11 +182,15 @@ Tip
 The parameter order is important and is defined by the order Hibernate handles properties. 
 You can see the expected order by enabling debug logging for the org.hibernate.persister.entity level. 
 With this level enabled Hibernate will print out the static SQL that is used to create, update, delete etc. entities. 
-(To see the expected sequence, remember to not include your custom SQL through annotations or mapping files as that will override the Hibernate generated static sql)
-Overriding SQL statements for secondary tables is also possible using @org.hibernate.annotations.Table and either (or all) attributes sqlInsert, sqlUpdate, sqlDelete:
+(To see the expected sequence, remember to not include your custom SQL through annotations or mapping files 
+as that will override the Hibernate generated static sql)
+Overriding SQL statements for secondary tables is also possible using @org.hibernate.annotations.Table 
+and either (or all) attributes sqlInsert, sqlUpdate, sqlDelete:
 
-注意，参数顺序是很重要的，它依赖于hibernate处理器的属性。你可以将org.hibernate.persister.entity设为调试级别来看这些参数的顺序。
+注意，参数顺序是很重要的，它依赖于hibernate处理器的属性。
+你可以将org.hibernate.persister.entity设为调试级别来看这些参数的顺序。
 可以使用@org.hibernate.annotations.Table注解来自定制辅助表的语句，例子如下。
+（hxzon：重要，对中间表的插删改定制。但如何定制中间表的字段？）
 
 Example 18.14. Overriding SQL statements for secondary tables
 
@@ -164,6 +198,7 @@ Example 18.14. Overriding SQL statements for secondary tables
 @SecondaryTables({
     @SecondaryTable(name = "`Cat nbr1`"),
     @SecondaryTable(name = "Cat2"})
+
 @org.hibernate.annotations.Tables( {
     @Table(appliesTo = "Cat", comment = "My cat table" ),
     @Table(appliesTo = "Cat2", foreignKey = @ForeignKey(name="FK_CAT2_CAT"), fetch = FetchMode.SELECT,
@@ -172,22 +207,26 @@ Example 18.14. Overriding SQL statements for secondary tables
 public class Cat implements Serializable {
 
 
-The previous example also shows that you can give a comment to a given table (primary or secondary): This comment will be used for DDL generation.
+The previous example also shows that you can give a comment to a given table (primary or secondary): 
+This comment will be used for DDL generation.
 上述例子也展示了如何给一个表添加注释。注释语句也会加入ddl中。
 
 
 Tip
-The SQL is directly executed in your database, so you can use any dialect you like. This will, however, reduce the portability of your mapping if you use database specific SQL.
-定制的sql会直接在你的数据库中执行。
+The SQL is directly executed in your database, so you can use any dialect you like. 
+This will, however, reduce the portability of your mapping if you use database specific SQL.
+定制的sql会直接在你的数据库中执行。但这也影响了迁移性。
 
-Last but not least, stored procedures are in most cases required to return the number of rows inserted, updated and deleted. 
+Last but not least, stored procedures are in most cases required 
+to return the number of rows inserted, updated and deleted.
+存储过程一般总是需要返回受影响的行数。 
 Hibernate always registers the first statement parameter as a numeric output parameter for the CUD operations:
 
-hibernate总是将第一个语句参数作为插改删操作的出参数（数字类型）。
+hibernate总是将第一个语句参数作为插改删操作“所影响的行数”（出参数，数字类型）。
 
-存储过程和它的返回值。
 
 Example 18.15. Stored procedures and their return value
+示例：存储过程和它的返回值。
 
 CREATE OR REPLACE FUNCTION updatePerson (uid IN NUMBER, uname IN VARCHAR2)
     RETURN NUMBER IS
@@ -203,16 +242,20 @@ BEGIN
 
 END updatePerson;
 
-
-----------------------------------
+=============
 18.4. Custom SQL for loading
-
 定制加载语句
 
 You can also declare your own SQL (or HQL) queries for entity loading. 
-As with inserts, updates, and deletes, this can be done at the individual column level as described in Section 5.6, “Column transformers: read and write expressions” or at the statement level. Here is an example of a statement level override:
+As with inserts, updates, and deletes, this can be done at the individual column level 
+as described in Section 5.6, “Column transformers: read and write expressions” 
+or at the statement level. 
 
-在语句级别定制加载语句。
+可以在列级别，或语句级别，定制加载语句。
+列级别的定制，参见上边的5.6 章节。
+
+Here is an example of a statement level override:
+下边是语句级别的定制。
 
 <sql-query name="person">
     <return alias="pers" class="Person" lock-mode="upgrade"/>
@@ -222,8 +265,10 @@ As with inserts, updates, and deletes, this can be done at the individual column
     FOR UPDATE
 </sql-query>
 
-This is just a named query declaration, as discussed earlier. You can reference this named query in a class mapping:
-这里声明了一个命名的查询语句。你可以在别处使用query-ref引用它。
+This is just a named query declaration, as discussed earlier. 
+You can reference this named query in a class mapping:
+这里声明了一个命名的查询语句。
+你可以在别处使用query-ref引用它。
 
 <class name="Person">
     <id name="id">
@@ -233,21 +278,24 @@ This is just a named query declaration, as discussed earlier. You can reference 
     <loader query-ref="person"/>
 </class>
 
+使用loader节点，配置加载语句。
+
 This even works with stored procedures.
 你也可使用存储过程。
 
-----------
+====
 定制集合字段的加载语句
 
 You can even define a query for collection loading:
 
-使用load-collection。
+使用 load-collection 节点。
 
 <set name="employments" inverse="true">
     <key/>
     <one-to-many class="Employment"/>
     <loader query-ref="employments"/>
 </set>
+
 <sql-query name="employments">
     <load-collection alias="emp" role="Person.employments"/>
     SELECT {emp.*}
@@ -258,7 +306,7 @@ You can even define a query for collection loading:
 
 You can also define an entity loader that loads a collection by join fetching:
 你可以定义一个实体的加载语句，该语句使用join来获取该实体的集合字段。
-
+使用 return-join 节点。
 
 <sql-query name="person">
     <return alias="pers" class="Person"/>
@@ -270,5 +318,6 @@ You can also define an entity loader that loads a collection by join fetching:
     WHERE xml:id=?
 </sql-query>
 
-The annotation equivalent <loader> is the @Loader annotation as seen in Example 18.11, “Custom CRUD via annotations”.
+The annotation equivalent <loader> is the @Loader annotation 
+as seen in Example 18.11, “Custom CRUD via annotations”.
 

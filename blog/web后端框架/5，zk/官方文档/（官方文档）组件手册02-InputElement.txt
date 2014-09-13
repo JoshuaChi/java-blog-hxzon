@@ -1,0 +1,352 @@
+﻿（官方文档）组件手册02-InputElement
+
+注释by hxzon
+====
+1 Input Element
+2 Employment/Purpose
+3 Example
+4 Validation
+4.1 Constraint
+4.2 Custom Constraint
+4.2.1 Display Error Message in Custom Way
+4.2.2 Validate at Client for Better Responsiveness
+4.3 WrongValueException
+5 Properties
+5.1 Inplace
+5.2 Instant
+5.3 Placeholder
+6 Supported Events
+7 Supported Children
+8 Use cases
+9 Version History
+
+=======
+Input Element
+
+Demonstration: N/A
+Java API: InputElement
+JavaScript API: InputWidget
+
+====
+Employment/Purpose
+
+InputElement is a super class for components which prove user key input, 
+such as textbox, intbox, decimalbox, doublebox, datebox, timebox, spinner, combobox, and bandbox.
+Some features are implemented in this class, such as constraint, disabled, maxlength, name, readonly, and so on.
+You should not use this class directly, please use the inherited class.
+Example
+
+<grid>
+    <rows>
+        <row>
+            UserName <textbox value="Jerry" width="150px" />
+        </row>
+        <row>
+            Password <textbox type="password" value="foo" width="150px" />
+        </row>
+        <row>
+            Phone: <intbox constraint="no negative,no zero" width="150px" value="12345678" />
+        </row>
+        <row>
+            Weight: <decimalbox format="###.##" value="154.32" width="150px" />
+        </row>
+        <row>
+            Birthday: <datebox id="db" width="150px" />           
+        </row>
+        <row>
+            E-mail:
+            <textbox width="150px" value="zk@zkoss.org"
+                constraint="/.+@.+\.[a-z]+/: Please enter an e-mail address" />
+        </row>
+    </rows>
+</grid>
+
+CrInputs.png
+
+====
+Validation
+输入校验
+
+There are two ways to validate the value entered by an user: 
+implementing Constraint or throwing WrongValueException.
+
+==
+Constraint
+约束
+
+An input element can be associated with a constraint (Constraint) to validate the value entered by an user. 
+There is a default implementation called SimpleConstraint that can handle many conditions. 
+If it is not enough, you can implement your own constraint, or throwing WrongValueException as described in the next sections.
+To use the default constraint, you could specify a list of conditions in InputElement.setConstraint(String), such as no positive and no empty. For example,
+
+<textbox constraint="no empty"/>
+<intbox constraint="no negative,no zero"/>
+
+To specify a regular expression, you could have to use / to enclose the regular expression as follows.
+
+<textbox constraint="/.+@.+\.[a-z]+/"/>
+
+Notice that the above statement is XML, so do not use \\ to specify a backslash. 
+On the other hand, it is required, if writing in Java:
+
+new Textbox().setContraint("/.+@.+\\.[a-z]+/");
+
+Notice that it is allowed to mix regular expression with other constraints by separating them with comma.
+
+If you prefer to display an application dependent message instead of default one, 
+you could append the constraint with colon and the message you want to display when failed.
+自定义消息提示，用冒号隔开。
+
+<textbox constraint="/.+@.+\.[a-z]+/: e-mail address only"/>
+<datebox constraint="no empty, no future: now or never"/>
+
+Notice that the error message, if specified, must be the last element and start with colon. 
+To support multilingual, you could use the l function as depicted in ZK Developer's Reference.
+
+<?taglib uri="http://www.zkoss.org/dsp/web/core" prefix="c"?>
+<textbox constraint="/.+@.+\.[a-z]+/: ${c:l('err.email.required')}"/>
+
+==
+Condition	 Description
+约束选项
+
+The default constraints
+no empty	 
+Empty is not allowed.
+
+no future	 
+Date in the future is not allowed.
+
+no negative	 
+Negative numbers are not allowed.
+
+no past	 
+Date in the past is not allowed.
+
+no positive	 
+Postive numbers are not allowed.
+
+no today	 
+Today is not allowed.
+
+no zero	 
+Zero numbers are not allowed.
+
+between yyyyMMdd and yyyyMMdd	 
+Date only allowed between the specified range. 
+The format must be yyyyMMdd, such as
+
+<datebox constraint="between 20071225 and 20071203"/>
+
+after yyyyMMdd	 
+Date only allowed after (and including) the specified date. 
+The format must be yyyyMMdd, such as
+
+<datebox constraint="after 20071225"/>
+
+before yyyyMMdd	 
+Date only allowed before (and including) the specified date. 
+The format must be yyyyMMdd, such as
+
+<datebox constraint="before 20071225"/>
+
+end_before
+end_after
+after_start
+after_end
+...
+Specifies the position of the error box. 
+Please refer to Popup for all allowed position.
+
+<textbox constraint="no empty, end_after"/>
+<textbox constraint="no empty, start_before"/>
+
+==
+Custom Constraint
+自定义约束
+
+If you want a custom constraint, you could implement Constraint and specify it in the constraint property (InputElement.setConstraint(Constraint)).
+
+public class EventNumberConstraint implements Constraint {
+    public void validate(Component comp, Object value) throws WrongValueException {
+        if (value != null && (value.intValue() & 1) != 0) //assume used with intbox
+            throw new WrongValueException(comp, "Only even numbers are allowed, not "+value);
+    }
+}
+
+If the validation fails, just throw WrongValue to indicate it. 
+Notice that you have to specify which component causes the exception as shown in line 5.
+To specify it to the constraint property, you have to instantiate it first by use of the new function as shown below
+
+<?taglib uri="http://www.zkoss.org/dsp/web/core" prefix="c"?>
+<textbox constraint="${c:new('foo.EventNumberConstraint')}"/>
+
+==
+Display Error Message in Custom Way
+定制消息提示样式
+
+Instead of the default error box, you could provide a custom approach by implementing CustomConstraint (with Constraint). 
+Then, CustomConstraint.showCustomError(Component, WrongValueException) 
+will be invoked when an exception is caught. For example,
+
+<window title="Custom Constraint" border="normal">
+    <zscript><![CDATA[
+        class MyConst implements Constraint, CustomConstraint {
+            //Constraint//
+            public void validate(Component comp, Object value) {
+                if (value == null || ((Integer)value).intValue() < 100)
+                    throw new WrongValueException(comp, "At least 100 must be specified");
+            }
+            //CustomConstraint//
+            public void showCustomError(Component comp, WrongValueException ex) {
+                errmsg.setValue(ex != null ? ex.getMessage(): "");
+            }
+        }
+        Constraint ctt = new MyConst();
+    ]]>
+    </zscript>
+    <hlayout>
+        Enter a number at least 100:
+        <intbox constraint="${ctt}" />
+        <label id="errmsg" />
+    </hlayout>
+</window>
+
+And, here is the result
+CrCustomConstraint.png
+
+==
+Validate at Client for Better Responsiveness
+在浏览器端校验
+
+Responsiveness could be improved by validating more constraints at the client side[1]. 
+To do it, you have to implement ClientConstraint (with Constraint).
+↑ The default constraint (SimpleConstraint) validates all constraints at the client side
+
+WrongValueException
+In addition to throwing WrongValueException in Constraint.validate(Component, Object), 
+you can throw WrongValueException in other situations. 
+For example, you can validate the user name and password when the user presses the login button. For example,
+
+public class FooComposer extends SelectorComposer {
+  @Wire
+  private Textbox username;
+  @Wire
+  private Textbox password;
+ 
+  @Listen("onClick = #login")
+  public void doLogin() {
+    username.clearErrorMessage(); //important to clear the previous error, if any
+    if (examine(username, password)) {
+      //success
+    } else {
+      throw new WrongValueException(username, "Not a valid username or password. Please retry.");
+    }
+  }
+}
+
+However, notice that you have to clear the error message manually by invoking InputElement.clearErrorMessage(). 
+Otherwise, the error message will remain there unless Textbox.setValue(String) is called.
+
+====
+Properties
+属性
+
+Inplace
+All input elements can have the in-place-editing functionality, like the combobox, textbox, datebox, and so on.
+原位进入编辑模式。
+
+<grid width="500px">
+    <rows>
+        <row>
+            Textbox:
+            <textbox inplace="true" value="Click me" />
+        </row>
+        <row>
+            Combobox:
+            <combobox inplace="true" value="Click me" />
+        </row>
+    </rows>
+</grid>
+
+==
+Instant
+值变化立即传送到服务端。
+
+The feature is available since 6.0.0. 
+When instant mode is on, 
+the onChange event will be fired as soon as possible as user types in the input (like onChanging event). 
+The value will also be updated to the component (server side) immediately.
+
+==
+Placeholder
+since 6.5.0
+占位值
+
+ZK 6.5 introduces support for HTML5 placeholder text, 
+a very useful feature for telling users what they should enter in a textbox. 
+This is a widely regarded UI pattern.
+The following image and code show the look of the placeholder as well as the code to replicate it.
+
+Zk textbox placeholder.png
+
+<textbox placeholder="Please type some text" />
+
+====
+Supported Events
+Name
+Event Type
+
+onChange
+Event: InputEvent
+Denotes the content of an input component has been modified by the user.
+
+onChanging
+Event: InputEvent
+Denotes that user is changing the content of an input component. 
+Notice that the component's content (at the server) won't be changed until onChange is received. 
+Thus, you have to invoke the getValue method in the InputEvent class to retrieve the temporary value.
+
+onSelection
+Event: SelectionEvent
+Denotes that user is selecting a portion of the text of an input component. 
+You can retrieve the start and end position of the selected text by use of the getStart and getEnd methods.
+
+onFocus
+Event: Event
+Denotes when a component gets the focus. 
+Remember event listeners execute at the server, 
+so the focus at the client might be changed when the event listener for onFocus got executed.
+
+onBlur
+Event: Event
+Denotes when a component loses the focus. 
+Remember event listeners execute at the server, 
+so the focus at the client might be changed when the event listener for onBlur got executed.
+
+onError
+Event: ErrorEvent
+Denotes when a component caused a validation error.
+
+====
+Supported Children
+*None
+
+Use cases
+Version	 Description	 Example Location
+ 	  	  
+Version History
+Version	 Date	 Content
+
+5.0.8	 
+June, 2011	 
+Allow user to specify the position of error-box
+
+6.0.0	 
+Sep, 2011	 
+Add instant mode, which sends onChange event and update value to component as soon as possible.
+
+6.5.0	 
+Sep, 2012	 
+Support HTML5 placeholder attribute for input elements
+

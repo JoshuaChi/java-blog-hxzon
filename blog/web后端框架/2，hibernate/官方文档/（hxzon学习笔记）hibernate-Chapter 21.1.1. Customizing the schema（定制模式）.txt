@@ -1,0 +1,124 @@
+﻿（hxzon学习笔记）hibernate-21.1.1. Customizing the schema（定制模式）
+
+http://docs.jboss.org/hibernate/orm/4.3/manual/en-US/html/ch21.html
+
+============
+21. Toolset Guide
+
+21.1. Automatic schema generation
+
+21.1.1. Customizing the schema
+
+==
+（以下略）
+21.1.2. Running the tool
+21.1.3. Properties
+21.1.4. Using Ant
+21.1.5. Incremental schema updates
+21.1.6. Using Ant for incremental schema updates
+21.1.7. Schema validation
+21.1.8. Using Ant for schema validation
+
+==============
+Roundtrip engineering with Hibernate is possible using a set of Eclipse plugins, commandline tools, and Ant tasks.
+
+Hibernate Tools currently include plugins for the Eclipse IDE as well as Ant tasks for reverse engineering of existing databases:
+
+Mapping Editor: an editor for Hibernate XML mapping files that supports auto-completion and syntax highlighting. It also supports semantic auto-completion for class names and property/field names, making it more versatile than a normal XML editor.
+Console: the console is a new view in Eclipse. In addition to a tree overview of your console configurations, you are also provided with an interactive view of your persistent classes and their relationships. The console allows you to execute HQL queries against your database and browse the result directly in Eclipse.
+Development Wizards: several wizards are provided with the Hibernate Eclipse tools. You can use a wizard to quickly generate Hibernate configuration (cfg.xml) files, or to reverse engineer an existing database schema into POJO source files and Hibernate mapping files. The reverse engineering wizard supports customizable templates.
+Please refer to the Hibernate Tools package documentation for more information.
+
+However, the Hibernate main package comes bundled with an integrated tool : SchemaExport aka hbm2ddl.It can even be used from "inside" Hibernate.
+
+21.1. Automatic schema generation
+
+DDL can be generated from your mapping files by a Hibernate utility. The generated schema includes referential integrity constraints, primary and foreign keys, for entity and collection tables. Tables and sequences are also created for mapped identifier generators.
+
+You must specify a SQL Dialect via the hibernate.dialect property when using this tool, as DDL is highly vendor-specific.
+
+First, you must customize your mapping files to improve the generated schema. The next section covers schema customization.
+
+21.1.1. Customizing the schema
+
+Many Hibernate mapping elements define optional attributes named length, precision and scale. You can set the length, precision and scale of a column with this attribute.
+
+<property name="zip" length="5"/>
+<property name="balance" precision="12" scale="2"/>
+Some tags also accept a not-null attribute for generating a NOT NULL constraint on table columns, and a unique attribute for generating UNIQUE constraint on table columns.
+
+<many-to-one name="bar" column="barId" not-null="true"/>
+<element column="serialNumber" type="long" not-null="true" unique="true"/>
+A unique-key attribute can be used to group columns in a single, unique key constraint. The attribute overrides the name of any generated unique key constraint.
+
+<many-to-one name="org" column="orgId" unique-key="OrgEmployeeId"/>
+<property name="employeeId" unique-key="OrgEmployee"/>
+An index attribute specifies the name of an index that will be created using the mapped column or columns. Multiple columns can be grouped into the same index by simply specifying the same index name.
+
+<property name="lastName" index="CustName"/>
+<property name="firstName" index="CustName"/>
+A foreign-key attribute can be used to override the name of any generated foreign key constraint.
+
+<many-to-one name="bar" column="barId" foreign-key="FKFooBar"/>
+Many mapping elements also accept a child <column> element. This is particularly useful for mapping multi-column types:
+
+<property name="name" type="my.customtypes.Name"/>
+    <column name="last" not-null="true" index="bar_idx" length="30"/>
+    <column name="first" not-null="true" index="bar_idx" length="20"/>
+    <column name="initial"/>
+</property>
+The default attribute allows you to specify a default value for a column.You should assign the same value to the mapped property before saving a new instance of the mapped class.
+
+<property name="credits" type="integer" insert="false">
+    <column name="credits" default="10"/>
+</property>
+<version name="version" type="integer" insert="false">
+    <column name="version" default="0"/>
+</property>
+The sql-type attribute allows the user to override the default mapping of a Hibernate type to SQL datatype.
+
+<property name="balance" type="float">
+    <column name="balance" sql-type="decimal(13,3)"/>
+</property>
+The check attribute allows you to specify a check constraint.
+
+<property name="foo" type="integer">
+    <column name="foo" check="foo > 10"/>
+</property>
+<class name="Foo" table="foos" check="bar < 100.0">
+    ...
+    <property name="bar" type="float"/>
+</class>
+The following table summarizes these optional attributes.
+
+Table 21.1. Summary
+
+Attribute	Values	Interpretation
+length	number	column length
+precision	number	column decimal precision
+scale	number	column decimal scale
+not-null	true|false	specifies that the column should be non-nullable
+unique	true|false	specifies that the column should have a unique constraint
+index	index_name	specifies the name of a (multi-column) index
+unique-key	unique_key_name	specifies the name of a multi-column unique constraint
+foreign-key	foreign_key_name	 specifies the name of the foreign key constraint generated for an association, for a <one-to-one>, <many-to-one>, <key>, or <many-to-many> mapping element. Note that inverse="true" sides will not be considered by SchemaExport.
+sql-type	SQL column type	 overrides the default column type (attribute of <column> element only)
+default	SQL expression	 specify a default value for the column
+check	SQL expression	 create an SQL check constraint on either column or table
+
+The <comment> element allows you to specify comments for the generated schema.
+
+<class name="Customer" table="CurCust">
+    <comment>Current customers only</comment>
+    ...
+</class>
+<property name="balance">
+    <column name="bal">
+        <comment>Balance in USD</comment>
+    </column>
+</property>
+This results in a comment on table or comment on column statement in the generated DDL where supported.
+
+=======
+（其余略）
+

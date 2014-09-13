@@ -1,0 +1,331 @@
+﻿（hxzon学习笔记）hibernate-Chapter 5. Basic O-R Mapping（5.2-5.7）
+
+
+5.1. Mapping declaration
+5.1.1. Entity
+5.1.2. Identifiers
+5.1.3. Optimistic locking properties (optional)
+5.1.4. Property
+5.1.5. Embedded objects (aka components)
+5.1.6. Inheritance strategy
+5.1.7. Mapping one to one and one to many associations
+5.1.8. Natural-id
+5.1.9. Any
+5.1.10. Properties
+5.1.11. Some hbm.xml specificities
+
+5.2. Hibernate types
+5.2.1. Entities and values
+5.2.2. Basic value types
+5.2.3. Custom value types
+
+5.3. Mapping a class more than once
+一个类，映射成多个实体
+5.4. SQL quoted identifiers
+5.5. Generated properties
+5.6. Column transformers: read and write expressions
+5.7. Auxiliary database objects
+
+===============
+5.2. Hibernate types
+
+5.2.1. Entities and values
+
+In relation to the persistence service, Java language-level objects are classified into two groups:
+
+An entity exists independently of any other objects holding references to the entity. 
+Contrast this with the usual Java model, where an unreferenced object is garbage collected. 
+Entities must be explicitly saved and deleted. 
+Saves and deletions, however, can be cascaded from a parent entity to its children. 
+This is different from the ODMG model of object persistence by reachability 
+and corresponds more closely to how application objects are usually used in large systems. 
+Entities support circular and shared references. 
+They can also be versioned.
+
+An entity's persistent state consists of references to other entities and instances of value types. 
+Values are primitives: collections (not what is inside a collection), components and certain immutable objects. 
+Unlike entities, values in particular collections and components, are persisted and deleted by reachability. 
+Since value objects and primitives are persisted and deleted along with their containing entity, 
+they cannot be independently versioned. 
+Values have no independent identity, so they cannot be shared by two entities or collections.
+
+Until now, we have been using the term "persistent class" to refer to entities. 
+We will continue to do that. 
+Not all user-defined classes with a persistent state, however, are entities. 
+A component is a user-defined class with value semantics. 
+A Java property of type java.lang.String also has value semantics. 
+Given this definition, all types (classes) provided by the JDK have value type semantics in Java, 
+while user-defined types can be mapped with entity or value type semantics. 
+This decision is up to the application developer. 
+An entity class in a domain model will normally have shared references to a single instance of that class, 
+while composition or aggregation usually translates to a value type.
+
+We will revisit both concepts throughout this reference guide.
+
+The challenge is to map the Java type system, 
+and the developers' definition of entities and value types, to the SQL/database type system. 
+The bridge between both systems is provided by Hibernate. 
+For entities, <class>, <subclass> and so on are used. 
+For value types we use <property>, <component>etc., that usually have a type attribute. 
+The value of this attribute is the name of a Hibernate mapping type. 
+Hibernate provides a range of mappings for standard JDK value types out of the box. 
+You can write your own mapping types and implement your own custom conversion strategies.
+
+With the exception of collections, all built-in Hibernate types support null semantics.
+除了集合类型，所有hibernate内建的类型都支持null语义。
+
+====
+5.2.2. Basic value types
+
+The built-in basic mapping types can be roughly categorized into the following:
+
+integer, long, short, float, double, character, byte, boolean, yes_no, true_false
+Type mappings from Java primitives or wrapper classes to appropriate (vendor-specific) SQL column types. 
+boolean, yes_no and true_false are all alternative encodings for a Java boolean or java.lang.Boolean.
+
+string
+A type mapping from java.lang.String to VARCHAR (or Oracle VARCHAR2).
+
+date, time, timestamp
+Type mappings from java.util.Date and its subclasses to SQL types DATE, TIME and TIMESTAMP (or equivalent).
+
+calendar, calendar_date
+Type mappings from java.util.Calendar to SQL types TIMESTAMP and DATE (or equivalent).
+
+big_decimal, big_integer
+Type mappings from java.math.BigDecimal and java.math.BigInteger to NUMERIC (or Oracle NUMBER).
+
+locale, timezone, currency
+Type mappings from java.util.Locale, java.util.TimeZone and java.util.Currency to VARCHAR (or Oracle VARCHAR2). 
+Instances of Locale and Currency are mapped to their ISO codes. Instances of TimeZone are mapped to their ID.
+
+class
+A type mapping from java.lang.Class to VARCHAR (or Oracle VARCHAR2). A Class is mapped to its fully qualified name.
+
+binary
+Maps byte arrays to an appropriate SQL binary type.
+
+text
+Maps long Java strings to a SQL LONGVARCHAR or TEXT type.
+
+image
+Maps long byte arrays to a SQL LONGVARBINARY.
+
+serializable
+Maps serializable Java types to an appropriate SQL binary type. 
+You can also indicate the Hibernate type serializable with the name of a serializable Java class or interface that does not default to a basic type.
+
+clob, blob
+Type mappings for the JDBC classes java.sql.Clob and java.sql.Blob. 
+These types can be inconvenient for some applications, since the blob or clob object cannot be reused outside of a transaction. 
+Driver support is patchy and inconsistent.
+
+materialized_clob
+Maps long Java strings to a SQL CLOB type. When read, the CLOB value is immediately materialized into a Java string. 
+Some drivers require the CLOB value to be read within a transaction. Once materialized, the Java string is available outside of the transaction.
+
+materialized_blob
+Maps long Java byte arrays to a SQL BLOB type. When read, the BLOB value is immediately materialized into a byte array. 
+Some drivers require the BLOB value to be read within a transaction. Once materialized, the byte array is available outside of the transaction.
+
+imm_date, imm_time, imm_timestamp, imm_calendar, imm_calendar_date, imm_serializable, imm_binary
+Type mappings for what are considered mutable Java types. 
+This is where Hibernate makes certain optimizations appropriate only for immutable Java types, 
+and the application treats the object as immutable. 
+For example, you should not call Date.setTime() for an instance mapped as imm_timestamp. 
+To change the value of the property, and have that change made persistent, the application must assign a new, nonidentical, object to the property.
+
+Unique identifiers of entities and collections can be of any basic type except binary, blob and clob. 
+Composite identifiers are also allowed. See below for more information.
+
+The basic value types have corresponding Type constants defined on org.hibernate.Hibernate. 
+For example, Hibernate.STRING represents the string type.
+
+====
+5.2.3. Custom value types
+
+It is relatively easy for developers to create their own value types. 
+For example, you might want to persist properties of type java.lang.BigInteger to VARCHAR columns. 
+Hibernate does not provide a built-in type for this. Custom types are not limited to mapping a property, or collection element, to a single table column. So, for example, you might have a Java property getName()/setName() of type java.lang.String that is persisted to the columns FIRST_NAME, INITIAL, SURNAME.
+
+To implement a custom type, implement either org.hibernate.UserType or org.hibernate.CompositeUserType 
+and declare properties using the fully qualified classname of the type. 
+View org.hibernate.test.DoubleStringType to see the kind of things that are possible.
+
+<property name="twoStrings" type="org.hibernate.test.DoubleStringType">
+    <column name="first_string"/>
+    <column name="second_string"/>
+</property>
+
+Notice the use of <column> tags to map a property to multiple columns.
+
+The CompositeUserType, EnhancedUserType, UserCollectionType, 
+and UserVersionType interfaces provide support for more specialized uses.
+
+You can even supply parameters to a UserType in the mapping file. 
+To do this, your UserType must implement the org.hibernate.usertype.ParameterizedType interface. 
+To supply parameters to your custom type, you can use the <type> element in your mapping files.
+
+<property name="priority">
+    <type name="com.mycompany.usertypes.DefaultValueIntegerType">
+        <param name="default">0</param>
+    </type>
+</property>
+
+The UserType can now retrieve the value for the parameter named default from the Properties object passed to it.
+
+If you regularly use a certain UserType, it is useful to define a shorter name for it. 
+You can do this using the <typedef> element. 
+Typedefs assign a name to a custom type, and can also contain a list of default parameter values if the type is parameterized.
+
+<typedef class="com.mycompany.usertypes.DefaultValueIntegerType" name="default_zero">
+    <param name="default">0</param>
+</typedef>
+<property name="priority" type="default_zero"/>
+
+It is also possible to override the parameters supplied in a typedef on a case-by-case basis by using type parameters on the property mapping.
+
+Even though Hibernate's rich range of built-in types and support for components means you will rarely need to use a custom type, 
+it is considered good practice to use custom types for non-entity classes that occur frequently in your application. 
+For example, a MonetaryAmount class is a good candidate for a CompositeUserType, 
+even though it could be mapped as a component. 
+One reason for this is abstraction. With a custom type, 
+your mapping documents would be protected against changes to the way monetary values are represented.
+
+===========
+5.3. Mapping a class more than once
+将一个类映射到多个表
+
+It is possible to provide more than one mapping for a particular persistent class. 
+In this case, you must specify an entity name to disambiguate between instances of the two mapped entities. 
+必须使用不同的实体名。（hxzon：相当于多个实体，只是使用了同一个类。）
+By default, the entity name is the same as the class name. 
+Hibernate lets you specify the entity name when working with persistent objects, 
+when writing queries, or when mapping associations to the named entity.
+
+<class name="Contract" table="Contracts"
+        entity-name="CurrentContract">
+    ...
+    <set name="history" inverse="true"
+            order-by="effectiveEndDate desc">
+        <key column="currentContractId"/>
+        <one-to-many entity-name="HistoricalContract"/>
+    </set>
+</class>
+
+<class name="Contract" table="ContractHistory"
+        entity-name="HistoricalContract">
+    ...
+    <many-to-one name="currentContract"
+            column="currentContractId"
+            entity-name="CurrentContract"/>
+</class>
+
+Associations are now specified using entity-name instead of class.
+
+Note
+This feature is not supported in Annotations
+注意，注解没有此功能。
+
+===========
+5.4. SQL quoted identifiers
+括起来的标识符
+
+You can force Hibernate to quote an identifier in the generated SQL 
+by enclosing the table or column name in backticks in the mapping document. 
+Hibernate will use the correct quotation style for the SQL Dialect. 
+This is usually double quotes, but the SQL Server uses brackets and MySQL uses backticks.
+hibernate会自动转成对应数据库的合适的“括符”。
+
+@Entity @Table(name="`Line Item`")
+class LineItem {
+   @id @Column(name="`Item Id`") Integer id;
+   @Column(name="`Item #`") int itemNumber
+}
+
+<class name="LineItem" table="`Line Item`">
+    <id name="id" column="`Item Id`"/><generator class="assigned"/></id>
+    <property name="itemNumber" column="`Item #`"/>
+    ...
+</class>
+
+============
+5.5. Generated properties
+生成的字段值
+
+Generated properties are properties that have their values generated by the database. 
+Typically, Hibernate applications needed to refresh objects 
+that contain any properties for which the database was generating values. 
+Marking properties as generated, however, 
+lets the application delegate this responsibility to Hibernate. 
+When Hibernate issues an SQL INSERT or UPDATE for an entity that has defined generated properties, 
+it immediately issues a select afterwards to retrieve the generated values.
+
+Properties marked as generated must additionally be non-insertable and non-updateable. 
+Only versions, timestamps, and simple properties, can be marked as generated.
+
+never (the default): 
+the given property value is not generated within the database.
+
+insert: 
+the given property value is generated on insert, but is not regenerated on subsequent updates. 
+Properties like created-date fall into this category. 
+Even though version and timestamp properties can be marked as generated, this option is not available.
+
+always: 
+the property value is generated both on insert and on update.
+
+To mark a property as generated, use @Generated.
+
+============
+5.6. Column transformers: read and write expressions
+
+另见《（hxzon学习笔记）hibernate-定制字段转换，定制插删改和加载语句，定制集合字段的插删改和加载语句》。
+
+============
+5.7. Auxiliary database objects
+
+Auxiliary database objects allow for the CREATE and DROP of arbitrary database objects. 
+In conjunction with Hibernate's schema evolution tools, 
+they have the ability to fully define a user schema within the Hibernate mapping files. 
+Although designed specifically for creating and dropping things like triggers or stored procedures, 
+any SQL command that can be run via a java.sql.Statement.execute() method is valid 
+(for example, ALTERs, INSERTS, etc.). 
+There are essentially two modes for defining auxiliary database objects:
+创建数据库对象。
+
+The first mode is to explicitly list the CREATE and DROP commands in the mapping file:
+
+<hibernate-mapping>
+    ...
+    <database-object>
+        <create>CREATE TRIGGER my_trigger ...</create>
+        <drop>DROP TRIGGER my_trigger</drop>
+    </database-object>
+</hibernate-mapping>
+
+The second mode is to supply a custom class that constructs the CREATE and DROP commands. 
+This custom class must implement the org.hibernate.mapping.AuxiliaryDatabaseObject interface.
+
+<hibernate-mapping>
+    ...
+    <database-object>
+        <definition class="MyTriggerDefinition"/>
+    </database-object>
+</hibernate-mapping>
+
+Additionally, these database objects can be optionally scoped so that they only apply when certain dialects are used.
+
+<hibernate-mapping>
+    ...
+    <database-object>
+        <definition class="MyTriggerDefinition"/>
+        <dialect-scope name="org.hibernate.dialect.Oracle9iDialect"/>
+        <dialect-scope name="org.hibernate.dialect.Oracle10gDialect"/>
+    </database-object>
+</hibernate-mapping>
+
+Note
+This feature is not supported in Annotations
+注意，注解没有此功能。
+

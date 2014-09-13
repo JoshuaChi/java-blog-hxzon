@@ -1,0 +1,125 @@
+﻿（官方文档）组件手册01-HtmlMacroComponent
+http://books.zkoss.org/wiki/ZK%20Component%20Reference/Base%20Components/HtmlMacroComponent
+
+注释by hxzon
+=======
+1 Html Macro Component
+2 Employment/Purpose
+3 Example
+4 Supported Events
+5 Supported Children
+6 Use cases
+7 Version History
+
+========
+Html Macro Component
+html宏组件
+
+Demonstration: N/A
+Java API: AbstractComponent
+JavaScript API: N/A
+
+====
+Employment/Purpose
+
+The base class for macro components.
+
+Since ZK 5.0.4, by default invoking HtmlMacroComponent.afterCompose() 
+supports auto forward events and wire accessible variables to this component.
+
+For example, (usemacro.zul)
+
+<?init zscript="macro.zs"?>
+<?component name="username" macroURI="macro.zul" class="Username"?>
+<window id="wnd">
+    <username id="ua"/>
+    <username label="Account"/>
+</window>
+
+(macro.zs)
+自动绑定。
+
+import org.zkoss.zk.ui.*;
+import org.zkoss.zul.*;
+ 
+public class Username extends HtmlMacroComponent {
+    Button btn; // auto wire
+     
+    // auto forward
+    public void onClick$btn () {
+        System.out.println("success... and btn varible is not null : " + (btn != null));
+    }
+};
+
+(macro.zul)
+
+<grid id="mc_grid">
+    <rows>
+        <row id="r">
+            <button label="${empty arg.label ? 'Username': arg.label}" id="btn"/>
+        </row>
+    </rows>
+</grid>
+
+If you want to turn off the auto wiring mechanism, please refer to the following steps:
+Turn off auto wire mechanism by specifying the Library Property "org.zkoss.zk.ui.macro.autowire.disabled" to "true" in WEB-INF/zk.xml. 
+If you did not specify the Library Property, the default is false.
+关闭自动绑定。
+
+<library-property>
+    <name>org.zkoss.zk.ui.macro.autowire.disabled</name>
+        <value>true</value>
+</library-property>
+
+or turn off auto forward events by specifying the Library Property "org.zkoss.zk.ui.macro.autoforward.disabled" to "true" in WEB-INF/zk.xml. 
+If you did not specify the Library Property, the default is false.
+
+<library-property>
+    <name>org.zkoss.zk.ui.macro.autoforward.disabled</name>
+        <value>true</value>
+</library-property>
+
+==
+In the early version, if you want to apply the auto-wiring, 
+you can invoke Components.wireVariables(Component, Object) in HtmlMacroComponent.afterCompose() as follows.
+早期版本，在代码中启用自动绑定。
+
+public void afterCompose() {
+    super.afterCompose(); //create components
+ 
+    Components.wireVariables(this, this);
+    Components.addForward(this, this);
+}
+
+====
+Example
+N/A
+
+Supported Events
+Name
+Event Type
+None	 None
+
+See also events inherited from HtmlBasedComponent's Supported Events.
+
+Supported Children
+*ALL
+
+Use cases
+Version	 Description	 Example Location
+
+====
+Version History
+Version	 Date	 Content
+
+5.0.3	 
+June 2010	 
+The corresponding DOM element is customizable. 
+It is default to SPAN (the same as prior version) but you can change it to any tag 
+by use of HtmlMacroComponent.setEnclosingTag(String).
+
+5.0.4	 
+August 2010	 
+By default, invoking HtmlMacroComponent.afterCompose() 
+supports auto forward events and wire accessible variables to this component.
+

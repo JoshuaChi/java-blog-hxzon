@@ -1,0 +1,51 @@
+﻿Java EE 8 来了
+作者 李士窑 发布于 2014年9月2日 |
+http://www.infoq.com/cn/news/2014/09/javaee-8
+
+自2013年6月Java EE 7发布以来，Java开发团队在这段时间内一直在规划和搜集下一个大版本Java EE 8带来的新功能。 
+近日，Java EE 8中的JSR366部分已经通过JCP投票通过，
+正如大家所期待的Java EE 8包括HTTP2和HTML5支持、CDI/Bean托管的支持、云服务等，
+值得关注的特性如下：
+
+Web标准方面
+
+HTTP2
+HTML5中Server-Sent Events(SSE) 允许服务端推送数据到客户端的功能
+基于事件的web框架组件JSF
+对超媒体的更多支持
+JSON-P、WebSocket和JAX-RS性能的提高
+
+Bean托管和上下文和依赖注入（CDI）方面
+
+上下文和依赖注入2（CDI 2）
+提供了如EJB风格声明安全控制和调度容器服务
+提供基于声明式的JMS消息监听器的MDB式CDI
+废除了EJB2／CORBA一些老的接口
+JAX-RS 支持上下文和依赖注入（CDI）
+
+云服务方面
+
+云服务相关配置
+多租户的支持
+简化的安全控制
+管理和监控的REST风格API
+
+Java SE
+
+充分利用了Java SE现有的功能如重复注解、lambda表达式、日期和时间API、类型注解、Completable Futures等
+
+另外，请广大读者请注意，除了JSR平台规范，Java EE 8的实现内容的一些API也已提交了各自的规范。
+读者可以通过相应的页面参看具体的细节内容：
+CDI 2 (JSR 365)、
+JSON-B (JSR 367)、
+JMS 2.1 (JSR 368)、
+Servlet 4 (JSR 369)、
+JAX-RS 2.1 (JSR 370)、
+MVC (JSR 371)、
+JSF 2.3 (JSR 372)。
+
+这些内容都是高层次的初步计划，所以还会有其他的变化，
+如JSF、JMS 等的更新以及在Java EE 7中未实现而新增的Jcache和数据网格计算等功能。
+有关Java EE 8的更多相关功能将很快被提出，欲了解详情请登录JCP上JSR的主页。
+另外，JCP会陆续告诉大家相关内容的进展情况，在此敬请广大用户给于意见和建议。
+

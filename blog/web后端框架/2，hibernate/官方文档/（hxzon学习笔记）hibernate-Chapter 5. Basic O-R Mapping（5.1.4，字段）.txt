@@ -1,0 +1,537 @@
+﻿（hxzon学习笔记）hibernate-Chapter 5. Basic O-R Mapping（5.1.4，字段）
+
+http://docs.jboss.org/hibernate/orm/4.3/manual/en-US/html/ch05.html#mapping-declaration
+
+=======
+5.1. Mapping declaration
+
+5.1.1. Entity
+5.1.2. Identifiers
+5.1.3. Optimistic locking properties (optional)
+
+5.1.4. Property
+
+5.1.5. Embedded objects (aka components)
+5.1.6. Inheritance strategy
+5.1.7. Mapping one to one and one to many associations
+5.1.8. Natural-id
+5.1.9. Any
+5.1.10. Properties
+5.1.11. Some hbm.xml specificities
+
+==
+5.2. Hibernate types
+5.2.1. Entities and values
+5.2.2. Basic value types
+5.2.3. Custom value types
+5.3. Mapping a class more than once
+5.4. SQL quoted identifiers
+5.5. Generated properties
+5.6. Column transformers: read and write expressions
+5.7. Auxiliary database objects
+
+========
+5.1.4. Property
+字段
+
+You need to decide which property needs to be made persistent in a given entity. 
+This differs slightly between the annotation driven metadata and the hbm.xml files.
+
+=========
+5.1.4.1. Property mapping with annotations
+
+In the annotations world, every non static non transient property 
+(field or method depending on the access type) of an entity is considered persistent, 
+unless you annotate it as @Transient. 
+除非标记为“非持久”，所以字段都参与映射。
+Not having an annotation for your property is equivalent to the appropriate @Basic annotation.
+
+==
+The @Basic annotation allows you to declare the fetching strategy for a property. 
+If set to LAZY, specifies that this property should be fetched lazily when the instance variable is first accessed. 
+是否延迟加载。
+It requires build-time bytecode instrumentation, if your classes are not instrumented, 
+property level lazy loading is silently ignored. 
+The default is EAGER. 
+
+==
+You can also mark a property as not optional thanks to the @Basic.optional attribute. 
+This will ensure that the underlying column are not nullable (if possible). 
+Note that a better approach is to use the @NotNull annotation of the Bean Validation specification.
+可以通过 @Basic.optional 属性设为true，将字段标记为必填的，即，将列定义为非null的。
+更好的方式是使用 @NotNull 注解。
+
+
+Let's look at a few examples:
+
+public transient int counter; //transient property
+
+private String firstname; //persistent property
+
+@Transient
+String getLengthInMeter() { ... } //transient property
+
+String getName() {... } // persistent property
+
+@Basic
+int getLength() { ... } // persistent property
+
+@Basic(fetch = FetchType.LAZY)
+String getDetailedComment() { ... } // persistent property
+
+@Temporal(TemporalType.TIME)
+java.util.Date getDepartureTime() { ... } // persistent property           
+
+//枚举类型
+@Enumerated(EnumType.STRING)
+Starred getNote() { ... } //enum persisted as String in database
+
+counter, a transient field, and lengthInMeter, a method annotated as @Transient, and will be ignored by the Hibernate. 
+name, length, and firstname properties are mapped persistent and eagerly fetched (the default for simple properties). 
+The detailedComment property value will be lazily fetched from the database 
+once a lazy property of the entity is accessed for the first time. 
+Usually you don't need to lazy simple properties (not to be confused with lazy association fetching). 
+一般，简单属性不需要使用延迟加载。
+The recommended alternative is to use the projection capability of JP-QL (Java Persistence Query Language) 
+or Criteria queries.
+更好的方式，是使用jpql的投影语句，或查询对象。
+
+JPA support property mapping of all basic types supported by Hibernate 
+(all basic Java types , their respective wrappers and serializable classes). 
+
+Hibernate Annotations supports out of the box enum type mapping either into a ordinal column (saving the enum ordinal) 
+or a string based column (saving the enum string representation): 
+the persistence representation, defaulted to ordinal, 
+can be overridden through the @Enumerated annotation as shown in the note property example.
+支持枚举类型。使用 @Enumerated 注解，
+存储时可以选择是枚举编号（数值），还是枚举名（字符串）。
+
+==
+In plain Java APIs, the temporal precision of time is not defined. 
+When dealing with temporal data you might want to describe the expected precision in database. 
+Temporal data can have DATE, TIME, or TIMESTAMP precision 
+(ie the actual date, only the time, or both). 
+Use the @Temporal annotation to fine tune that.
+时间类型。 @Temporal 注解。
+
+==
+@Lob indicates that the property should be persisted in a Blob or a Clob depending on the property type: 
+java.sql.Clob, Character[], char[] and java.lang.String will be persisted in a Clob. 
+java.sql.Blob, Byte[], byte[] and Serializable type will be persisted in a Blob.
+大对象类型。
+
+@Lob
+public String getFullText() {
+    return fullText;
+}
+
+@Lob
+public byte[] getFullCode() {
+    return fullCode;
+}
+
+If the property type implements java.io.Serializable and is not a basic type, 
+and if the property is not annotated with @Lob, then the Hibernate serializable type is used.
+
+====
+5.1.4.1.1. Type
+类型
+
+You can also manually specify a type using the @org.hibernate.annotations.Type 
+and some parameters if needed. 
+@Type.type could be:
+
+The name of a Hibernate basic type: integer, string, character, date, timestamp, 
+float, binary, serializable, object, blob etc.
+
+The name of a Java class with a default basic type: int, float, char, 
+java.lang.String, java.util.Date, java.lang.Integer, java.sql.Clob etc.
+
+The name of a serializable Java class.
+
+The class name of a custom type: com.illflow.type.MyCustomType etc.
+
+If you do not specify a type, Hibernate will use reflection upon the named property and guess the correct Hibernate type. 
+Hibernate will attempt to interpret the name of the return class of the property getter using, in order, rules 2, 3, and 4.
+
+@org.hibernate.annotations.TypeDef and @org.hibernate.annotations.TypeDefs allows you to declare type definitions. 
+These annotations can be placed at the class or package level. 
+Note that these definitions are global for the session factory (even when defined at the class level). 
+If the type is used on a single entity, you can place the definition on the entity itself. 
+Otherwise, it is recommended to place the definition at the package level. 
+In the example below, when Hibernate encounters a property of class PhoneNumer, 
+it delegates the persistence strategy to the custom mapping type PhoneNumberType. 
+However, properties belonging to other classes, too, can delegate their persistence strategy to PhoneNumberType, 
+by explicitly using the @Type annotation.
+定义类型。
+
+
+Note
+Package level annotations are placed in a file named package-info.java in the appropriate package. 
+Place your annotations before the package declaration.
+
+@TypeDef(
+   name = "phoneNumber",
+   defaultForType = PhoneNumber.class,
+   typeClass = PhoneNumberType.class
+)
+
+@Entity
+public class ContactDetails {
+   [...]
+   private PhoneNumber localPhoneNumber;
+   @Type(type="phoneNumber")
+   private OverseasPhoneNumber overseasPhoneNumber;
+   [...]
+}
+
+The following example shows the usage of the parameters attribute to customize the TypeDef.
+有参数的类型。
+
+//in org/hibernate/test/annotations/entity/package-info.java
+@TypeDefs(
+    {
+    @TypeDef(
+        name="caster",
+        typeClass = CasterStringType.class,
+        parameters = {
+            @Parameter(name="cast", value="lower")
+        }
+    )
+    }
+)
+
+package org.hibernate.test.annotations.entity;
+
+//in org/hibernate/test/annotations/entity/Forest.java
+public class Forest {
+    @Type(type="caster")
+    public String getSmallText() {
+    ...
+}      
+
+==
+When using composite user type, you will have to express column definitions. 
+The @Columns has been introduced for that purpose.
+由多列组成的字段。
+
+@Type(type="org.hibernate.test.annotations.entity.MonetaryAmountUserType")
+@Columns(columns = {
+    @Column(name="r_amount"),
+    @Column(name="r_currency")
+})
+public MonetaryAmount getAmount() {
+    return amount;
+}
+
+
+public class MonetaryAmount implements Serializable {
+    private BigDecimal amount;
+    private Currency currency;
+    ...
+}
+
+====
+5.1.4.1.2. Access type
+访问方式
+
+By default the access type of a class hierarchy is defined by the position of the @Id or @EmbeddedId annotations.
+根据 @Id 或 @EmbeddedId 的书写位置，来决定访问方式。 
+If these annotations are on a field, then only fields are considered for persistence and the state is accessed via the field. 
+如果注解是在字段上，则只有字段被处理，状态处理通过字段（hxzon：不会调用getter和setter方法）。
+If these annotations are on a getter, then only the getters are considered for persistence 
+and the state is accessed via the getter/setter.
+如果注解在getter方法上，则只有getter方法被处理，状态处理将通过getter和setter方法。 
+That works well in practice and is the recommended approach.
+
+
+Note
+The placement of annotations within a class hierarchy has to be consistent (either field or on property) 
+to be able to determine the default access type. 
+It is recommended to stick to one single annotation placement strategy throughout your whole application.
+However in some situations, you need to:
+
+force the access type of the entity hierarchy
+override the access type of a specific entity in the class hierarchy
+override the access type of an embeddable type
+
+The best use case is an embeddable class used by several entities that might not use the same access type. 
+In this case it is better to force the access type at the embeddable class level.
+
+To force the access type on a given class, use the @Access annotation as showed below:
+使用 @Access 注解显示指定访问方式。
+
+@Entity
+public class Order {
+   @Id private Long id;
+   public Long getId() { return id; }
+   public void setId(Long id) { this.id = id; }
+
+   @Embedded private Address address;
+   public Address getAddress() { return address; }
+   public void setAddress() { this.address = address; }
+}
+
+@Entity
+public class User {
+   private Long id;
+   @Id public Long getId() { return id; }
+   public void setId(Long id) { this.id = id; }
+
+   private Address address;
+   @Embedded public Address getAddress() { return address; }
+   public void setAddress() { this.address = address; }
+}
+
+@Embeddable
+@Access(AcessType.PROPERTY)
+public class Address {
+   private String street1;
+   public String getStreet1() { return street1; }
+   public void setStreet1() { this.street1 = street1; }
+
+   private hashCode; //not persistent
+}
+
+You can also override the access type of a single property while keeping the other properties standard.
+
+@Entity
+public class Order {
+   @Id private Long id;
+   public Long getId() { return id; }
+   public void setId(Long id) { this.id = id; }
+   @Transient private String userId;
+   @Transient private String orderId;
+
+   @Access(AccessType.PROPERTY)
+   public String getOrderNumber() { return userId + ":" + orderId; }
+   public void setOrderNumber() { this.userId = ...; this.orderId = ...; }
+}
+
+In this example, the default access type is FIELD except for the orderNumber property. 
+Note that the corresponding field, if any must be marked as @Transient or transient.
+注意，对应字段必须注解为 @Transient 。
+
+@org.hibernate.annotations.AccessType
+
+The annotation @org.hibernate.annotations.AccessType should be considered deprecated for FIELD and PROPERTY access. 
+It is still useful however if you need to use a custom access type.
+
+====
+5.1.4.1.3. Optimistic lock
+优化锁
+
+It is sometimes useful to avoid increasing the version number even if a given property is dirty (particularly collections). 
+You can do that by annotating the property (or collection) with @OptimisticLock(excluded=true).
+
+More formally, specifies that updates to this property do not require acquisition of the optimistic lock.
+
+====
+5.1.4.1.4. Declaring column attributes
+声明列的属性
+
+The column(s) used for a property mapping can be defined using the @Column annotation. 
+Use it to override default values (see the JPA specification for more information on the defaults). 
+You can use this annotation at the property level for properties that are:
+
+not annotated at all
+annotated with @Basic
+annotated with @Version
+annotated with @Lob
+annotated with @Temporal
+
+@Entity
+public class Flight implements Serializable {
+...
+@Column(updatable = false, name = "flight_name", nullable = false, length=50)
+public String getName() { ... }
+            
+
+The name property is mapped to the flight_name column, which is not nullable, 
+has a length of 50 and is not updatable (making the property immutable).
+
+This annotation can be applied to regular properties as well as @Id or @Version properties.
+
+@Column(
+    name="columnName";                                     (1)
+    boolean unique() default false;                        (2)
+    boolean nullable() default true;                       (3)
+    boolean insertable() default true;                     (4)
+    boolean updatable() default true;                      (5)
+    String columnDefinition() default "";                  (6)
+    String table() default "";                             (7)
+    int length() default 255;                              (8)
+    int precision() default 0; // decimal precision        (9)
+    int scale() default 0; // decimal scale
+
+1	name (optional): the column name (default to the property name)
+
+2	unique (optional): set a unique constraint on this column or not (default false)
+
+3	nullable (optional): set the column as nullable (default true).
+
+4	insertable (optional): whether or not the column will be part of the insert statement (default true)
+
+5	updatable (optional): whether or not the column will be part of the update statement (default true)
+
+6	columnDefinition (optional): override the sql DDL fragment for this particular column (non portable)
+定制列的定义。
+
+7	table (optional): define the targeted table (default primary table)
+
+8	length (optional): column length (default 255)
+
+8	precision (optional): column decimal precision (default 0)
+
+10	scale (optional): column decimal scale if useful (default 0)
+
+（hxzon补充：使用 @ColumnDefault 可以指定列的默认值。）
+
+====
+5.1.4.1.5. Formula
+用sql公式算出来的字段
+
+Sometimes, you want the Database to do some computation for you rather than in the JVM, 
+you might also create some kind of virtual column. 
+You can use a SQL fragment (aka formula) instead of mapping a property into a column. 
+This kind of property is read only (its value is calculated by your formula fragment).
+这种字段是只读的。
+
+@Formula("obj_length * obj_height * obj_width")
+public long getObjectVolume()
+
+The SQL fragment can be as complex as you want and even include subselects.
+
+====
+5.1.4.1.6. Non-annotated property defaults
+没有显示使用注解的字段
+
+If a property is not annotated, the following rules apply:
+
+If the property is of a single type, it is mapped as @Basic
+
+Otherwise, if the type of the property is annotated as @Embeddable, it is mapped as @Embedded
+
+Otherwise, if the type of the property is Serializable, 
+it is mapped as @Basic in a column holding the object in its serialized version
+
+Otherwise, if the type of the property is java.sql.Clob or java.sql.Blob, 
+it is mapped as @Lob with the appropriate LobType
+
+==========
+5.1.4.2. Property mapping with hbm.xml
+使用xml文件配置
+
+The <property> element declares a persistent JavaBean style property of the class.
+
+<property
+        name="propertyName"                                (1)
+        column="column_name"                               (2)
+        type="typename"                                    (3)
+        update="true|false"                                (4)
+        insert="true|false"                                (4)
+        formula="arbitrary SQL expression"                 (5)
+        access="field|property|ClassName"                  (6)
+        lazy="true|false"                                  (7)
+        unique="true|false"                                (8)
+        not-null="true|false"                              (9)
+        optimistic-lock="true|false"                       (10)
+        generated="never|insert|always"                    (11)
+        node="element-name|@attribute-name|element/@attribute|."
+        index="index_name"
+        unique_key="unique_key_id"
+        length="L"
+        precision="P"
+        scale="S"
+/>
+
+1	name: the name of the property, with an initial lowercase letter.
+
+2	column (optional - defaults to the property name): 
+the name of the mapped database table column. 
+This can also be specified by nested <column> element(s).
+
+3	type (optional): a name that indicates the Hibernate type.
+
+4	update, insert (optional - defaults to true): 
+specifies that the mapped columns should be included in SQL UPDATE and/or INSERT statements. 
+Setting both to false allows a pure "derived" property 
+whose value is initialized from some other property that maps to the same column(s), 
+or by a trigger or other application.
+此字段不参与插入和更新语句。
+
+5	formula (optional): an SQL expression that defines the value for a computed property. 
+Computed properties do not have a column mapping of their own.
+
+6	access (optional - defaults to property): 
+the strategy Hibernate uses for accessing the property value.
+（hxzon：还可以指定类名，见下文。）
+
+7	lazy (optional - defaults to false): 
+specifies that this property should be fetched lazily when the instance variable is first accessed. 
+It requires build-time bytecode instrumentation.
+
+8	unique (optional): 
+enables the DDL generation of a unique constraint for the columns. 
+Also, allow this to be the target of a property-ref.
+它可以作为 property-ref 的目标。
+
+9	not-null (optional): 
+enables the DDL generation of a nullability constraint for the columns.
+
+10	optimistic-lock (optional - defaults to true): 
+specifies that updates to this property do or do not require acquisition of the optimistic lock. 
+In other words, it determines if a version increment should occur when this property is dirty.
+
+11	generated (optional - defaults to never): 
+specifies that this property value is actually generated by the database. 
+See the discussion of generated properties for more information.
+指明该字段是否是数据库计算得出的。
+
+====
+typename could be:
+
+The name of a Hibernate basic type: 
+integer, string, character, date, timestamp, float, binary, serializable, object, blob etc.
+
+The name of a Java class with a default basic type: 
+int, float, char, java.lang.String, java.util.Date, java.lang.Integer, java.sql.Clob etc.
+
+The name of a serializable Java class.
+
+The class name of a custom type: 
+com.illflow.type.MyCustomType etc.
+
+If you do not specify a type, Hibernate will use reflection upon the named property and guess the correct Hibernate type. 
+Hibernate will attempt to interpret the name of the return class of the property getter using, 
+in order, rules 2, 3, and 4. 
+In certain cases you will need the type attribute. 
+For example, to distinguish between Hibernate.DATE and Hibernate.TIMESTAMP, or to specify a custom type.
+
+==
+The access attribute allows you to control how Hibernate accesses the property at runtime.
+字段访问方式。 
+By default, Hibernate will call the property get/set pair. 
+If you specify access="field", Hibernate will bypass the get/set pair and access the field directly using reflection. 
+You can specify your own strategy for property access by naming a class that implements the interface org.hibernate.property.PropertyAccessor.
+
+==
+衍生字段
+
+A powerful feature is derived properties. 
+These properties are by definition read-only. 
+The property value is computed at load time. 
+You declare the computation as an SQL expression. 
+This then translates to a SELECT clause subquery in the SQL query that loads an instance:
+
+<property name="totalPrice"
+    formula="( SELECT SUM (li.quantity*p.price) FROM LineItem li, Product p
+                WHERE li.productId = p.productId
+                AND li.customerId = customerId
+                AND li.orderNumber = orderNumber )"/>
+
+You can reference the entity table by not declaring an alias on a particular column. 
+This would be customerId in the given example. 
+You can also use the nested <formula> mapping element if you do not want to use the attribute.
+也可以内嵌<formula>来书写。
+

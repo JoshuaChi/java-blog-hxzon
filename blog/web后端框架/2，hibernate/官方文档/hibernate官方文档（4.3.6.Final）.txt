@@ -1,0 +1,622 @@
+﻿hibernate官方文档（4.3.6.Final）
+
+Hibernate Reference Documentation
+http://docs.jboss.org/hibernate/orm/4.3/manual/en-US/html/
+
+The Hibernate Team
+
+The JBoss Visual Design Team
+
+4.3.6.Final
+
+Copyright © 2004 Red Hat, Inc.
+
+Legal Notice
+2014-07-16
+
+==============
+Table of Contents
+
+Preface
+
+1. Tutorial
+
+1.1. Part 1 - The first Hibernate Application
+1.1.1. Setup
+1.1.2. The first class
+1.1.3. The mapping file
+1.1.4. Hibernate configuration
+1.1.5. Building with Maven
+1.1.6. Startup and helpers
+1.1.7. Loading and storing objects
+
+1.2. Part 2 - Mapping associations
+实体映射
+1.2.1. Mapping the Person class
+1.2.2. A unidirectional Set-based association
+1.2.3. Working the association
+1.2.4. Collection of values
+1.2.5. Bi-directional associations
+1.2.6. Working bi-directional links
+
+1.3. Part 3 - The EventManager web application
+web应用程序示例
+1.3.1. Writing the basic servlet
+1.3.2. Processing and rendering
+1.3.3. Deploying and testing
+
+1.4. Summary
+
+=========
+2. Architecture
+体系结构
+
+2.1. Overview
+2.1.1. Minimal architecture
+2.1.2. Comprehensive architecture
+2.1.3. Basic APIs
+2.2. Contextual sessions
+
+==========
+3. Configuration
+配置
+
+3.1. Programmatic configuration
+3.2. Obtaining a SessionFactory
+3.3. JDBC connections
+
+3.4. Optional configuration properties
+3.4.1. SQL Dialects
+3.4.2. Outer Join Fetching
+3.4.3. Binary Streams
+3.4.4. Second-level and query cache
+3.4.5. Query Language Substitution
+3.4.6. Hibernate statistics
+
+3.5. Logging
+3.6. Implementing a NamingStrategy
+3.7. Implementing a PersisterClassProvider
+3.8. XML configuration file
+
+3.9. Java EE Application Server integration
+3.9.1. Transaction strategy configuration
+3.9.2. JNDI-bound SessionFactory
+3.9.3. Current Session context management with JTA
+
+==========
+4. Persistent Classes
+实体类
+
+4.1. A simple POJO example
+4.1.1. Implement a no-argument constructor
+4.1.2. Provide an identifier property
+4.1.3. Prefer non-final classes (semi-optional)
+4.1.4. Declare accessors and mutators for persistent fields (optional)
+
+4.2. Implementing inheritance
+4.3. Implementing equals() and hashCode()
+
+4.4. Dynamic models
+动态模型
+4.5. Tuplizers
+4.6. EntityNameResolvers
+实体名字识别器
+
+=========
+5. Basic O/R Mapping
+基本映射
+
+5.1. Mapping declaration
+5.1.1. Entity
+5.1.2. Identifiers
+5.1.3. Optimistic locking properties (optional)
+5.1.4. Property
+5.1.5. Embedded objects (aka components)
+5.1.6. Inheritance strategy
+5.1.7. Mapping one to one and one to many associations
+5.1.8. Natural-id
+5.1.9. Any
+5.1.10. Properties
+5.1.11. Some hbm.xml specificities
+
+5.2. Hibernate types
+5.2.1. Entities and values
+5.2.2. Basic value types
+5.2.3. Custom value types
+
+5.3. Mapping a class more than once
+5.4. SQL quoted identifiers
+5.5. Generated properties
+5.6. Column transformers: read and write expressions
+5.7. Auxiliary database objects
+
+============
+6. Types
+数据类型
+
+6.1. Value types
+6.1.1. Basic value types
+6.1.2. Composite types
+6.1.3. Collection types
+
+6.2. Entity types
+6.3. Significance of type categories
+
+6.4. Custom types
+自定义类型
+6.4.1. Custom types using org.hibernate.type.Type
+6.4.2. Custom types using org.hibernate.usertype.UserType
+6.4.3. Custom types using org.hibernate.usertype.CompositeUserType
+
+6.5. Type registry
+
+=============
+7. Collection mapping
+集合映射
+
+7.1. Persistent collections
+
+7.2. How to map collections
+7.2.1. Collection foreign keys
+7.2.2. Indexed collections
+7.2.3. Collections of basic types and embeddable objects
+
+7.3. Advanced collection mappings
+7.3.1. Sorted collections
+7.3.2. Bidirectional associations
+7.3.3. Bidirectional associations with indexed collections
+7.3.4. Ternary associations
+7.3.5. Using an <idbag>
+
+7.4. Collection examples
+
+===========
+8. Association Mappings
+关联映射
+
+8.1. Introduction
+
+8.2. Unidirectional associations
+8.2.1. Many-to-one
+8.2.2. One-to-one
+8.2.3. One-to-many
+
+8.3. Unidirectional associations with join tables
+8.3.1. One-to-many
+8.3.2. Many-to-one
+8.3.3. One-to-one
+8.3.4. Many-to-many
+
+8.4. Bidirectional associations
+8.4.1. one-to-many / many-to-one
+8.4.2. One-to-one
+
+8.5. Bidirectional associations with join tables
+8.5.1. one-to-many / many-to-one
+8.5.2. one to one
+8.5.3. Many-to-many
+
+8.6. More complex association mappings
+
+============
+9. Component Mapping
+组件（内嵌对象）映射
+
+9.1. Dependent objects
+9.2. Collections of dependent objects
+9.3. Components as Map indices
+9.4. Components as composite identifiers
+9.5. Dynamic components
+动态组件
+
+==============
+10. Inheritance mapping
+继承映射
+
+10.1. The three strategies
+10.1.1. Table per class hierarchy
+10.1.2. Table per subclass
+10.1.3. Table per subclass: using a discriminator
+10.1.4. Mixing table per class hierarchy with table per subclass
+10.1.5. Table per concrete class
+10.1.6. Table per concrete class using implicit polymorphism
+10.1.7. Mixing implicit polymorphism with other inheritance mappings
+
+10.2. Limitations
+
+===========
+11. Working with objects
+
+11.1. Hibernate object states
+11.2. Making objects persistent
+11.3. Loading an object
+
+11.4. Querying
+11.4.1. Executing queries
+11.4.2. Filtering collections
+11.4.3. Criteria queries
+11.4.4. Queries in native SQL
+
+11.5. Modifying persistent objects
+11.6. Modifying detached objects
+11.7. Automatic state detection
+11.8. Deleting persistent objects
+11.9. Replicating object between two different datastores
+11.10. Flushing the Session
+11.11. Transitive persistence
+11.12. Using metadata
+
+==========
+12. Read-only entities
+只读实体
+
+12.1. Making persistent entities read-only
+12.1.1. Entities of immutable classes
+12.1.2. Loading persistent entities as read-only
+12.1.3. Loading read-only entities from an HQL query/criteria
+12.1.4. Making a persistent entity read-only
+
+12.2. Read-only affect on property type
+12.2.1. Simple properties
+12.2.2. Unidirectional associations
+12.2.3. Bidirectional associations
+
+===============
+13. Transactions and Concurrency
+事务和并发
+
+13.1. Session and transaction scopes
+13.1.1. Unit of work
+13.1.2. Long conversations
+13.1.3. Considering object identity
+13.1.4. Common issues
+
+13.2. Database transaction demarcation
+13.2.1. Non-managed environment
+13.2.2. Using JTA
+13.2.3. Exception handling
+13.2.4. Transaction timeout
+
+13.3. Optimistic concurrency control
+13.3.1. Application version checking
+13.3.2. Extended session and automatic versioning
+13.3.3. Detached objects and automatic versioning
+13.3.4. Customizing automatic versioning
+
+13.4. Pessimistic locking
+13.5. Connection release modes
+
+============
+14. Interceptors and events
+拦截器和事件
+
+14.1. Interceptors
+14.2. Event system
+14.3. Hibernate declarative security
+
+=================
+15. Batch processing
+批量处理
+
+15.1. Batch inserts
+15.2. Batch updates
+15.3. The StatelessSession interface
+15.4. DML-style operations
+
+============
+16. HQL: The Hibernate Query Language
+
+16.1. Case Sensitivity
+16.2. The from clause
+16.3. Associations and joins
+16.4. Forms of join syntax
+16.5. Referring to identifier property
+16.6. The select clause
+16.7. Aggregate functions
+16.8. Polymorphic queries
+16.9. The where clause
+16.10. Expressions
+16.11. The order by clause
+16.12. The group by clause
+16.13. Subqueries
+16.14. HQL examples
+16.15. Bulk update and delete
+16.16. Tips & Tricks
+16.17. Components
+16.18. Row value constructor syntax
+
+==========
+17. Criteria Queries
+
+17.1. Creating a Criteria instance
+17.2. Narrowing the result set
+17.3. Ordering the results
+17.4. Associations
+17.5. Dynamic association fetching
+动态关联对象加载
+17.6. Components
+17.7. Collections
+17.8. Example queries
+17.9. Projections, aggregation and grouping
+17.10. Detached queries and subqueries
+17.11. Queries by natural identifier
+
+=========
+18. Native SQL
+原生sql
+
+18.1. Using a SQLQuery
+18.1.1. Scalar queries
+18.1.2. Entity queries
+18.1.3. Handling associations and collections
+18.1.4. Returning multiple entities
+18.1.5. Returning non-managed entities
+18.1.6. Handling inheritance
+18.1.7. Parameters
+
+18.2. Named SQL queries
+18.2.1. Using return-property to explicitly specify column/alias names
+18.2.2. Using stored procedures for querying
+
+18.3. Custom SQL for create, update and delete
+18.4. Custom SQL for loading
+
+=========
+19. Filtering data
+过滤器
+
+19.1. Hibernate filters
+
+===========
+20. Improving performance
+提升性能
+
+20.1. Fetching strategies
+20.1.1. Working with lazy associations
+20.1.2. Tuning fetch strategies
+20.1.3. Single-ended association proxies
+20.1.4. Initializing collections and proxies
+20.1.5. Using batch fetching
+20.1.6. Using subselect fetching
+20.1.7. Fetch profiles
+20.1.8. Using lazy property fetching
+
+20.2. The Second Level Cache
+20.2.1. Cache mappings
+20.2.2. Strategy: read only
+20.2.3. Strategy: read/write
+20.2.4. Strategy: nonstrict read/write
+20.2.5. Strategy: transactional
+20.2.6. Cache-provider/concurrency-strategy compatibility
+
+20.3. Managing the caches
+20.4. The Query Cache
+20.4.1. Enabling query caching
+20.4.2. Query cache regions
+
+20.5. Bytecode Enhancement
+20.5.1. Implementing org.hibernate.engine.spi.ManagedEntity interface
+20.5.2. Runtime instrument
+20.5.3. Build-time instrument
+
+20.6. Understanding Collection performance
+20.6.1. Taxonomy
+20.6.2. Lists, maps, idbags and sets are the most efficient collections to update
+20.6.3. Bags and lists are the most efficient inverse collections
+20.6.4. One shot delete
+
+20.7. Monitoring performance
+20.7.1. Monitoring a SessionFactory
+20.7.2. Metrics
+
+==========
+21. Toolset Guide
+其它工具
+
+21.1. Automatic schema generation
+21.1.1. Customizing the schema
+21.1.2. Running the tool
+21.1.3. Properties
+21.1.4. Using Ant
+21.1.5. Incremental schema updates
+21.1.6. Using Ant for incremental schema updates
+21.1.7. Schema validation
+21.1.8. Using Ant for schema validation
+
+===========
+22. Additional modules
+其它模块
+
+22.1. Bean Validation
+校验
+22.1.1. Adding Bean Validation
+22.1.2. Configuration
+22.1.3. Catching violations
+22.1.4. Database schema
+
+
+22.2. Hibernate Search
+搜索引擎
+22.2.1. Description
+22.2.2. Integration with Hibernate Annotations
+
+==========
+23. Example: Parent/Child
+
+23.1. A note about collections
+23.2. Bidirectional one-to-many
+23.3. Cascading life cycle
+23.4. Cascades and unsaved-value
+23.5. Conclusion
+
+=======
+24. Example: Weblog Application
+
+24.1. Persistent Classes
+24.2. Hibernate Mappings
+24.3. Hibernate Code
+
+========
+25. Example: Various Mappings
+
+25.1. Employer/Employee
+25.2. Author/Work
+25.3. Customer/Order/Product
+
+25.4. Miscellaneous example mappings
+25.4.1. "Typed" one-to-one association
+25.4.2. Composite key example
+25.4.3. Many-to-many with shared composite key attribute
+25.4.4. Content based discrimination
+25.4.5. Associations on alternate keys
+
+==========
+26. Best Practices
+最佳实践
+
+==========
+27. Database Portability Considerations
+
+27.1. Portability Basics
+27.2. Dialect
+27.3. Dialect resolution
+27.4. Identifier generation
+27.5. Database functions
+27.6. Type mappings
+
+References
+
+========
+List of Tables
+
+3.1. Hibernate JDBC Properties
+3.2. Hibernate Datasource Properties
+3.3. Hibernate Configuration Properties
+3.4. Hibernate JDBC and Connection Properties
+3.5. Hibernate Cache Properties
+3.6. Hibernate Transaction Properties
+3.7. Miscellaneous Properties
+3.8. Hibernate SQL Dialects (hibernate.dialect)
+3.9. Hibernate Log Categories
+3.10. JTA TransactionManagers
+
+10.1. Features of inheritance mappings
+12.1. Affect of read-only entity on property types
+18.1. Alias injection names
+20.1. Cache Providers
+20.2. Cache Concurrency Strategy Support
+
+21.1. Summary
+21.2. SchemaExport Command Line Options
+21.3. SchemaExport Connection Properties
+21.4. SchemaUpdate Command Line Options
+21.5. SchemaValidator Command Line Options
+
+=========
+List of Examples
+
+4.1. Simple POJO representing a cat
+4.2. Disabling proxies in hbm.xml
+4.3. Disabling proxies in annotations
+4.4. Proxying an interface in hbm.xml
+4.5. Proxying an interface in annotations
+4.6. Specify custom tuplizers in annotations
+4.7. Specify custom tuplizers in hbm.xml
+
+5.1. @NotFound annotation
+5.2. @OnDelete annotation
+5.3. @ForeignKey annotation
+5.4. One to One association
+
+6.1. Defining and registering the custom Type
+6.2. Defining the custom UserType
+6.3. Defining the custom CompositeUserType
+6.4. Overriding the standard StringType
+6.5. Snippet from BasicType.java
+
+7.1. Hibernate uses its own collection implementations
+7.2. Collection mapping using @OneToMany and @JoinColumn
+7.3. Collection mapping using @OneToMany and @JoinTable
+7.4. Mapping a Set using <set>
+7.5. options of <one-to-many> element
+7.6. Elements of the <map> mapping
+7.7. Ordered lists using @OrderBy
+7.8. Explicit index column using @OrderColumn
+7.9. index-list element for indexed collections in xml mapping
+7.10. Use of target entity property as map key via @MapKey
+7.11. Map key as basic type using @MapKeyColumn
+7.12. map-key xml mapping element
+7.13. map-key-many-to-many
+7.14. Collection of basic types mapped via @ElementCollection
+7.15. @ElementCollection for embeddable objects
+7.16. <element> tag for collection values using mapping files
+7.17. Sorted collection with @Sort
+7.18. Sorted collection using xml mapping
+7.19. Sorting in database using order-by
+7.20. Sorting via a query filter
+7.21. Bidirectional one to many with many to one side as association owner
+7.22. Bidirectional association with one to many side as owner
+7.23. Bidirectional one to many via Hibernate mapping files
+7.24. Many to many association via @ManyToMany
+7.25. Default values for @ManyToMany (uni-directional)
+7.26. Default values for @ManyToMany (bi-directional)
+7.27. Many to many association using Hibernate mapping files
+7.28. Effect of inverse vs. non-inverse side of many to many associations
+7.29. Bidirectional association with indexed collection
+7.30. Bidirectional association with indexed collection, but no index column
+7.31. Ternary association mapping
+7.32. Example classes Parent and Child
+7.33. One to many unidirectional Parent-Child relationship using annotations
+7.34. One to many unidirectional Parent-Child relationship using mapping files
+7.35. Table definitions for unidirectional Parent-Child relationship
+7.36. One to many bidirectional Parent-Child relationship using annotations
+7.37. One to many bidirectional Parent-Child relationship using mapping files
+7.38. Table definitions for bidirectional Parent-Child relationship
+7.39. Enforcing NOT NULL constraint in unidirectional relation using annotations
+7.40. Enforcing NOT NULL constraint in unidirectional relation using mapping files
+7.41. Many to many Parent-Child relationship using annotations
+7.42. Many to many Parent-Child relationship using mapping files
+7.43. Table definitions for many to many releationship
+
+11.1. Defining a named query using @NamedQuery
+11.2. Defining a named query using <query>
+11.3. Parameter binding of a named query
+11.4. @OneToMany with orphanRemoval
+
+18.1. Named sql query using the <sql-query> maping element
+18.2. Execution of a named query
+18.3. Named sql query with association
+18.4. Named query returning a scalar
+18.5. <resultset> mapping used to externalize mapping information
+18.6. Programmatically specifying the result mapping information
+18.7. Named SQL query using @NamedNativeQuery together with @SqlResultSetMapping
+18.8. Implicit result set mapping
+18.9. Using dot notation in @FieldResult for specifying associations
+18.10. Scalar values via @ColumnResult
+18.11. Custom CRUD via annotations
+18.12. Custom CRUD XML
+18.13. Overriding SQL statements for collections using annotations
+18.14. Overriding SQL statements for secondary tables
+18.15. Stored procedures and their return value
+
+19.1. @FilterDef and @Filter annotations
+19.2. Using @FilterJoinTable for filterting on the association table
+19.3. @Filter annotation, disabling deduceAliasInjectionPoints
+19.4. Defining a filter definition via <filter-def>
+19.5. Attaching a filter to a class or collection using <filter>
+
+20.1. Specifying a fetch profile using @FetchProfile
+20.2. Specifying a fetch profile using <fetch-profile> outside <class> node
+20.3. Specifying a fetch profile using <fetch-profile> inside <class> node
+20.4. Activating a fetch profile for a given Session
+20.5. Definition of cache concurrency strategy via @Cache
+20.6. Caching collections using annotations
+20.7. @Cache annotation with attributes
+20.8. The Hibernate <cache> mapping element
+20.9. Explcitly evicting a cached instance from the first level cache using Session.evict()
+20.10. Second-level cache eviction via SessionFactoty.evict() and SessionFacyory.evictCollection()
+20.11. Browsing the second-level cache entries via the Statistics API
+20.12. Enabling Hibernate statistics
+
+22.1. Using custom groups for validation
+

@@ -271,14 +271,18 @@ TRUE
 'y'
 'yes'
 '1'
+
 而对于"假"而言，你可以使用下面这些：
+
 FALSE
 'f'
 'false'
 'n'
 'no'
 '0'
+
 使用TRUE和FALSE 这样的字眼比较好(也是SQL兼容的用法)。
+
 Example 8-2. 使用 boolean 类型
 
 CREATE TABLE test1 (a boolean, b text);
@@ -294,8 +298,11 @@ SELECT * FROM test1 WHERE a;
  a |    b
 ---+---------
  t | sic est
+
 Example 8-2 显示了使用字母 t 和 f 输出 boolean 数值的例子。
 
-技巧: boolean 类型的数值不能直接转换成其它 类型(也就是说， CAST (boolval AS integer) 是不会起作用的)。你可以用 CASE 表达式实现这个目的： CASE WHEN boolval THEN 'value if true' ELSE'value if false' END。见 Section 9.13。
+技巧: boolean 类型的数值不能直接转换成其它 类型(也就是说， CAST (boolval AS integer) 是不会起作用的)。
+你可以用 CASE 表达式实现这个目的： CASE WHEN boolval THEN 'value if true' ELSE'value if false' END。
+见 Section 9.13。
 
 bool 使用1字节存储空间。

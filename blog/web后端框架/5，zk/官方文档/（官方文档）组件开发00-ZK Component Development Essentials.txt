@@ -1,0 +1,41 @@
+﻿（官方文档）组件开发00-ZK Component Development Essentials
+
+ZK Component Overview
+What is a ZK component
+How does a ZK Component work
+Development Tools
+Creating ZK Component with Maven Archetype
+
+
+Creating a simple ZK Component
+ZK's JavaScript Extension
+Implementing the Component
+Implementing a Component Property
+Render All Properties to the Client
+Putting it all Together
+Implementing the Widget
+Implementing a Widget Property
+Putting it all Together
+Rendering Widgets
+Implementing Molds
+The Redraw Method
+
+
+Creating the Configuration Files
+The language-addon
+The Widget Package Descriptor
+
+
+Handling Events
+How we Implement the Event
+Overriding bind and unbind
+Registering Appropriate Listeners
+Client-Server Communication
+Server-side Listeners
+Declaring an Important Event
+
+
+Packing as a Jar
+
+
+Conclusion

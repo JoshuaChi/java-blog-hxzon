@@ -1,0 +1,210 @@
+﻿（官方文档）组件手册11-Groupbox
+http://books.zkoss.org/wiki/ZK%20Component%20Reference/Containers/Groupbox
+
+注释by hxzon
+====
+1 Groupbox
+2 Employment/Purpose
+3 Example
+3.1 Java Example
+4 Properties
+4.1 ContentStyle
+4.2 ContentSclass
+4.3 Closable
+4.4 Open/Close
+5 Limitation of the Default Mold
+5.1 Configure to Use the 3d Mold as Default
+6 Supported Events
+7 Supported Molds
+8 Supported Children
+9 Use Cases
+10 Version History
+
+=========
+Groupbox
+
+Demonstration: Groupbox
+Java API: Groupbox
+JavaScript API: Groupbox
+Style Guide: Groupbox
+
+====
+Employment/Purpose
+
+A group box is used to group components together. 
+A border is typically drawn around the components to show that they are related. 
+The label across the top of the group box can be created by using Caption component. 
+It works much like the HTML legend element. 
+Unlike Window, a group box is not an owner of the ID space. 
+It cannot be overlapped or popup.
+
+====
+Example
+
+ZKComRef Groupbox Example.png
+
+<groupbox width="250px">
+    <caption label="Fruits"/>
+    <radiogroup>
+        <radio label="Apple"/>
+        <radio label="Orange"/>
+        <radio label="Banana"/>
+    </radiogroup>
+</groupbox>
+
+Java Example
+
+Groupbox gb = new Groupbox();
+ 
+new Caption("Here is Caption").setParent(gb);
+ 
+gb.setMold("3d");
+gb.setWidth("200px");
+gb.appendChild(new Label("Here is Content"));
+ 
+// register an onOpen event.
+gb.addEventListener(Events.ON_OPEN, new EventListener() {
+    public void onEvent(Event event) throws Exception {
+    if (((OpenEvent)event).isOpen())
+        //do something you want.
+    }
+});
+gb.setParent(outer);
+
+====
+Properties
+
+==
+ContentStyle
+
+Specify the CSS style for the content block of the groupbox.
+
+ZKComRef Groupbox ContentStyle.png
+
+<groupbox width="250px" mold="3d"
+    contentStyle="border: 3px blue dashed;border-top:0px">
+    <caption label="Fruits"/>
+    <radiogroup>
+        <radio label="Apple"/>
+        <radio label="Orange"/>
+        <radio label="Banana"/>
+    </radiogroup>
+</groupbox>
+
+==
+ContentSclass
+
+Specify the CSS class for the content block of the groupbox.
+
+ZKComRef Groupbox ContentStyle.png
+
+<zk>
+<style>
+.mygroupbox-cnt {
+    border: 3px blue dashed;
+    border-top:0px
+}
+</style>
+<groupbox width="250px" mold="3d"
+    contentSclass="mygroupbox-cnt">
+    <caption label="Fruits"/>
+    <radiogroup>
+        <radio label="Apple"/>
+        <radio label="Orange"/>
+        <radio label="Banana"/>
+    </radiogroup>
+</groupbox>
+</zk>
+
+==
+Closable
+可收起
+
+Specify the groupbox whether can be collapsed or not. (Default: false)
+
+For example,
+
+<groupbox width="250px" mold="3d" closable="true">
+
+Note: the function can only be applied when the Caption exists.
+
+==
+Open/Close
+
+Specify the display of the groupbox whether is open or close. (Default: true)
+For example,
+
+<groupbox width="250px" mold="3d" open="false">
+
+Note: the false means the groupbox is closed, i.e. no content can appear.
+
+==
+Limitation of the Default Mold
+
+The default mold of groupbox uses HTML FIELDSET to represent a groupbox visually. 
+It is efficient, but it has some limitations:
+The look might be different from one browser to another
+The real width and height might not be exactly the same as the specified value in some browsers, such as Firefox.
+
+If it is an issue, you could use the 3d mold instead.
+Groupbox-3d.jpg
+
+<groupbox width="250px" mold="3d">
+    <caption label="Fruits"/>
+    <radiogroup>
+        <radio label="Apple"/>
+        <radio label="Orange"/>
+        <radio label="Banana"/>
+    </radiogroup>
+</groupbox>
+[since 6.0.0]
+
+The default mold use the same method of 3d mold to represent a groupbox, the limitation is gone.
+
+Configure to Use the 3d Mold as Default
+If you prefer to use the 3d mold as default, you could configure ZK by adding the following to /WEB-INF/zk.xml
+
+<library-property>
+    <name>org.zkoss.zul.Groupbox.mold</name>
+    <value>3d</value>
+</library-property>
+
+====
+Supported Events
+Name
+Event Type
+
+onOpen
+Event: OpenEvent
+Denotes user has opened or closed a component. 
+Note:
+unlike onClose, this event is only a notification. 
+The client sends this event after opening or closing the component.
+It is useful to implement load-on-demand by listening to the onOpen event, 
+and creating components when the first time the component is opened.
+
+Inherited Supported Events: XulElement
+
+====
+Supported Molds
+
+Available molds of a component are defined in lang.xml embedded in zul.jar.
+Name
+Snapshot
+
+default
+Groupbox mold default.png
+
+3d
+Groupbox mold 3d.png
+
+====
+Supported Children
+*ALL
+
+Use Cases
+Version	 Description	 Example Location
+ 		
+Version History
+Last Update : 2011/11/16
+

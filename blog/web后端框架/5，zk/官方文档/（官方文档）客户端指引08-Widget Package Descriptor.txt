@@ -1,0 +1,174 @@
+﻿（官方文档）客户端指引08-Widget Package Descriptor
+http://books.zkoss.org/wiki/ZK%20Client-side%20Reference/Widget%20Package%20Descriptor
+
+========
+This section describes what a Widget Package Descriptor is. This is required for the component. However, you could skip it if you do not have to develop components. For more information about component development, please refer to ZK Component Development Essentials.
+The Widget Package Descriptor (WPD) is a file describing the information of a package, such as its widget classes and external JavaScript files. WPD must be named zk.wpd and placed in the same directory as the widget classes. For example we would place it under web/js/com/foo.
+Below is an example zk.wpd of our SimpleLabel.
+
+
+<package name="com.foo" language="xul/html">
+    <widget name="SimpleLabel"/>
+</package>
+
+The table below describes the elements used within the above XML and their descriptions.
+Name	 Description
+package	 The root element denotes the package name and the language it belongs to
+widget	 The widget class name (without the package name). If the package contains multiple widgets list them one by one
+
+Having created the configuration the basic implementation of our component is complete. However it doesn't have any interactive events. Therefore the next logical step is to start adding events to the component.
+Package Dependence
+It is common for JavaScript packages to depend on another package. For example, zul.grid depends on zul.mesh and zul.menu. This can easily be specified by placing them within the depends attribute as follows.
+
+
+<package name="zul.grid" language="xul/html" depends="zul.mesh,zul.menu">
+    <widget name="Column"/>
+    <widget name="Columns"/>
+    <widget name="Grid"/>
+    <widget name="Row"/>
+    <widget name="Rows"/>
+    <widget name="Foot"/>
+    <widget name="Footer"/>
+</package>
+Including additional JavaScript files
+If a JavaScript package has to include other JavaScript files, this can be done easily by specifying the file with the script element. For example, the following is the content of zul.db's WPD:
+
+
+<package name="zul.db" language="xul/html" depends="zk.fmt,zul.inp">
+    <script src="datefmt.js"/>
+    <widget name="Calendar"/>
+    <widget name="Datebox"/>
+</package>
+
+Subsections:
+function
+package
+script
+widget
+
+======
+function
+
+syntax
+<function class="foo.MyClass" singature="java.lang.String funcName(Class0, Class1)"/>
+Specifies a static method (aka., a function) that should be called when a WPD file is interpreted. The returned string will be generated directly to the output. In other words, it must be a valid JavaScript code snippet.
+Example,
+1
+2
+3
+4
+5
+<package name="zul.lang" cacheable="false">
+    <script src="msgzul*.js"/>
+    <function class="org.zkoss.zul.impl.Utils"
+        signature="java.lang.String outLocaleJavaScript()"/>
+</package>
+class
+[Required]
+The name of the class where the static method is declared.
+signature
+[Required]
+The signature of the static method. The return type has to be a string and the return value should be a valid JavaScript code snippet.
+The method might have arbitrary numbers of arguments. WPD will check the type of each argument and assign a proper value if possible. The following is the type WPD recognized:
+Argument Type	 Value
+javax.servlet.ServletRequest and derives	 The current request.
+javax.servlet.ServletResponse and derives	 The current response.
+javax.servlet.ServletContext	 The current servlet context.
+Others	 null
+Version History
+Last Update : 2011/8/23
+
+=====
+package
+
+Syntax:
+<package name="a_name" [language="a_lang"] [depends="pkg0, pkg1..."] [cacheable="true|false"]>
+The root element of a WPD document. It specifies the name of the package, what packages it depends and other information.
+Example,
+
+
+<package name="zul.box" language="xul/html" depends="zul,zul.wgt">
+    <script src="Layout.js" jsdoc="true"/>
+     
+    <widget name="Box"/>
+    <widget name="Splitter"/>
+    <widget name="Hlayout"/>
+    <widget name="Vlayout"/>
+</package>
+Contents [hide]
+1 name
+2 language
+3 depends
+4 cacheable
+5 Version History
+name
+[Required]
+The package name, such as zul.grid. It has to be unique.
+language
+[Optional]
+The language name, such as xul/html.
+If omitted, it means it does not belong to a particular language. It is better to specify one if the WPD document defines a widget.
+depends
+[Optional]
+It specifies a list of packages that this package depends on. In other words, the packages specified in this attribute will be loaded before loading this package.
+cacheable
+[Optiona][Default: true]
+It specifies whether the client is allowed to cache the output of this WPD file. By default, it is cacheable since the performance is better. However, you have to turn it off, if you use a function that will generate the output depending on a varying condition (such as Locale and time zone).
+Version History
+Last Update : 2011/8/23
+
+======
+script
+
+
+
+
+Syntax:
+<script [src="foo.js"]
+[browser="ie|ie6|ie6-|ie7|ie7-|ie8|ie8-|gecko|gecko2|gecko2-|gecko3|gecko3-|gecko3.5|opera|safari"]>
+The script element is used to specify an external JavaScript file, or to embed the JavaScript code directly.
+Example,
+1
+2
+3
+4
+5
+  <script src="a.js"/>
+  <script>
+function doIt() {
+}
+  </script>
+src
+[Optional]
+The path of an external JavaScript file. It is suggested to use a path related to the directory of the WPD file. For example,
+1
+2
+<script src="abc.js"/>
+<script src="../foo/def.js"/>
+browser
+[Optional]
+It specifies the condition to embed the specified JavaScript file. For example, if browser="ie6-" is specified, the JavaSript file is embeded only if the client is Internet Explorer 6. For the available types you could check, please refer to Servlets.isBrowser(ServletRequest, String).
+Version History
+Last Update : 2010/12/3
+
+======
+widget
+
+
+Syntax:
+<widget name="widgetName"/>
+It specifies the widget's name.
+Example,
+
+
+<package name="zul.wgt" language="xul/html" depends="zul">
+    <widget name="A"/>
+    <widget name="Cell"/> 
+    <widget name="Div"/>
+    <widget name="Span"/>
+</package>
+A widget declaration will cause WPD to generate the widget definition in JavaScript. It also assumes that there is a JavaScript file with the same name in the same directory. For example, the above example will cause WPD to embed A.js, Cell.js, Div.js and Span.js.
+Version History
+Last Update : 2011/8/23
+
+

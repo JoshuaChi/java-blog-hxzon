@@ -1,0 +1,49 @@
+﻿（文章列表）js-Meteor
+
+
+===============================
+Meteor
+
+什么是 Meteor？
+
+Meteor 是一种新的 JavaScript 框架，用于自动化和简化实时运行的 Web 应用程序的开发。
+它使用一个名为分布式数据协议 (Distributed Data Protocol, DDP) 的协议来处理实时通信，
+使用 WebSockets 的新浏览器以及使用 Asynchronous JavaScript + XML (Ajax) 长轮询的旧浏览器来支持这种协议。
+
+在这两种情况下，浏览器到服务器的通信是透明的。
+
+=======
+----
+优秀的Meteor学习资源
+http://www.csdn.net/article/2013-04-25/2815040-Best-Learning-Resources-for-Meteor.js
+
+
+----
+使用 Meteor 和 Node.js 构建实时应用
+英文原文：Introduction to Realtime Web with Meteor and Node.js
+http://www.oschina.net/translate/introduction-to-realtime-web-meteor-and-nodejs
+
+
+----
+使用 Meteor 轻松开发实时网站
+快速实现几乎实时地响应用户交互的数据驱动应用程序
+David Berube, 所有者, Berube Consulting
+发布日期： 2013 年 3 月 14 日 
+http://www.ibm.com/developerworks/cn/web/wa-meteor/index.html
+
+
+----
+Book Review and Interview: Discover Meteor 
+
+Posted by Zef Hemel on May 07, 2013
+http://www.infoq.com/articles/discover-meteor
+
+
+----
+后HTTP时代：使用Meteor开发实时Web应用
+
+http://www.infoq.com/cn/news/2013/06/meteor-real-time
+作者 Zef Hemel ，译者 臧秀涛 发布于 六月 14, 2013
+
+
+----

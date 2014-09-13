@@ -1,0 +1,327 @@
+﻿（官方文档）组件开发02-Creating a simple ZK Component
+http://books.zkoss.org/wiki/ZK%20Component%20Development%20Essentials/Creating%20a%20simple%20ZK%20Component
+
+注释by hxzon
+====
+This section provides instructions on how to create a ZK component.
+
+Subsections:
+
+ZK's JavaScript Extension
+Implementing the Component
+Implementing a Component Property
+Render All Properties to the Client
+Putting it all Together
+Implementing the Widget
+Implementing a Widget Property
+Putting it all Together
+Rendering Widgets
+Implementing Molds
+The Redraw Method
+
+===========
+ZK's JavaScript Extension
+zk对js的扩展
+
+To make it easier for JavaScript objects to represent widgets ZK has introduced a class concept to JavaScript. 
+Here is a brief introduction on defining a class in JavaScript.
+
+To define a new class in JavaScript, we use zk.$extends(Class, Map, Map).
+创建新类。
+
+创建包（命名空间）：
+
+zk.$package('com.foo');
+  
+com.foo.Location = zk.$extends(zk.Object, {
+ x: 0,
+ y: 0,
+ distance: function (loc) {
+  return Math.sqrt(Math.pow(this.x - loc.x, 2) + Math.pow(this.y - loc.y, 2));
+ }
+},{
+ find: function (name) {
+  if (name == 'ZK')
+   return new com.foo.Location(10, 10);
+  throw 'unknown: "+name;
+ }
+})
+
+The first argument of zk.$extends(Class, Map, Map) is the base class to extend from.
+第一个参数是父类。 
+In this case, we extend from Object, which is the root of the class hierarchy. 
+The second argument consists of the (non-static) members of the class. 
+第二个参数是成员函数。
+In this case, we define two data members (x and y) and one method (distance).
+The third argument is optional and if omitted means that the extended class will contain no static members. 
+第三个参数是静态函数。
+In the example we define a static method (find). 
+For now this is all that is required for us to create our first component 
+so let’s move onto talk about the component implementation.
+
+===========
+Implementing the Component
+实现组件
+
+As previously mentioned a ZK Component consists of a server-side component usually written in Java 
+and a client based widget written in JavaScript. 
+
+Firstly let’s discuss the creation of the server-side component.
+The component’s Java class must extend AbstractComponent or one of its derivative classes. 
+There are several derived classes all providing different levels of functionality. 
+The derived classes are shown below.
+
+ZKComDevEss component hierarchy.png
+
+For tutorial purpose, we use HtmlBasedComponent, which is the base class for HTML-based component.
+
+To implement a component class, we need to decide on
+The class name. Let’s name it com.foo.SimpleLabel
+
+The properties to support. 
+In this case, we'd like to implement a property called value, which is the visual content at the client.
+
+Let’s investigate the component properties.
+
+====
+Implementing a Component Property
+实现组件的属性
+
+A property usually has a getter and a setter. 
+The getter is straightforward:
+
+private String _value = ""; //a data member
+  
+public String getValue() {
+ return _value;
+}
+
+The setter is similar except we have to notify the client. 
+This is achieved by using the AbstractComponent.smartUpdate(String, Object) function.
+setter方法必须调用 AbstractComponent.smartUpdate(String, Object) 方法，以便通知客户端更新。
+
+public void setValue(String value) {
+ if (!_value.equals(value)) {
+  _value = value;
+  smartUpdate("value", _value);
+ }
+}
+
+The AbstractComponent.smartUpdate(String, Object) function causes ZK Client Engine 
+to call the setValue method of the peer widget (the first argument is the property name). 
+Then, the widget can manipulate the DOM tree from there.
+
+====
+Render All Properties to the Client
+渲染所有属性到客户端（以便创建对应的部件）
+
+When a component is attached to a page for the first time, 
+the renderProperties(ContentRenderer) method is called 
+to render all properties that will be sent to the client for creating a peer widget. 
+All the required properties have to be rendered 
+such that the client can create a peer widget with the same set of properties.
+
+Implementing renderProperties(ContentRenderer) is straightforward. 
+As shown below, all you need to do is to invoke super.renderProperties to render all inherited properties (such as width and height), 
+and then the render method to render the property defined in this class.
+
+protected void renderProperties(org.zkoss.zk.ui.sys.ContentRenderer renderer)
+throws java.io.IOException {
+ super.renderProperties(renderer);
+ render(renderer, "value", _value);
+}
+
+==
+Why renderProperties and smartUpdate?
+
+A common question is why renderProperties(ContentRenderer) (and redraw(Writer)) is required to render value again, 
+when we notify the client with smartUpdate(String, boolean) in setValue.
+
+The simple answer is that renderProperties is used to send all properties at once, 
+when a component is going to be attached to the page at the client. 
+
+On the other hand, smartUpdate(String, boolean) is used to send a property that was modified after the peer widget is attached at the client. 
+ZK will minimize the traffic by removing unnecessary smartUpdate(String, boolean) (if renderProperties is called).
+
+Once a widget is attached to the page at the client, renderProperties won’t be called. 
+一旦一个部件已附着到页面上，renderProperties 不该再被调用。
+If you want to regenerate all properties and rerender it at the client, you can invoke the invalidate method. 
+Note that if you update a property multiple times in the same execution (with smartUpdate(String, boolean)), 
+only the last value will be sent to the client. 
+If you prefer to send them all (rather than overwriting), 
+then you can set the 3rd argument append to true (smartUpdate(String, Object, boolean)). 
+For example you may use this when adding a listener for a certain event 
+and you do not want to overwrite the present listener this is achieved by passing true as the third argument of smartUpdate(String, boolean). 
+The table below outlines the differences.
+
+smartUpdate	smartUpdate (append, 3rd argument true)
+Sent to client if invalidated or new created	 No	 No
+Sent to client if the component is removed	 No	 No
+Sent to client if name is the same	 Only the last value is sent	 Yes
+
+====
+Putting it all Together
+
+Finally we put all the component information together to produce the result below.
+
+package com.foo;
+ 
+public class SimpleLabel extends org.zkoss.zk.ui.HtmlBasedComponent {
+    private String _value = ""; // a data member
+ 
+    public String getValue() {
+        return _value;
+    }
+ 
+    public void setValue(String value) {
+        if (!_value.equals(value)) {
+            _value = value;
+            smartUpdate("value", _value);
+        }
+    }
+ 
+    protected void renderProperties(org.zkoss.zk.ui.sys.ContentRenderer renderer)
+            throws java.io.IOException {
+        super.renderProperties(renderer);
+        render(renderer, "value", _value);
+    }
+}
+
+Having implemented the Component we now need to implement the Widget.
+
+===========
+Implementing the Widget
+实现部件
+
+The widget class must extend from Widget or one of its derived classes. 
+There are several skeletal implementations available. 
+The skeletal implementations are shown in the image below.
+
+ZKComDevEss widget hierarchy.png
+
+For the purposes of this tutorial, we will use Widget. 
+Before we proceed, we need to decide the name of the widget class. 
+Let’s assume com.foo.SimpleLabel.
+
+====
+Implementing a Widget Property
+实现部件的属性
+
+A property usually has a getter and a setter. 
+The getter is straightforward:
+
+_value: '', //default value
+  
+getValue: function () {
+ return this._value;
+}
+
+The setter is defined in a similar manner except we have to modify the DOM tree if it has been attached. 
+A widget inherits a property called node which is assigned a reference to a DOM element 
+if the widget has been attached to the DOM tree. 
+继承而来的node属性，指向部件所附着的dom元素。
+If a widget is attached to DOM, this.desktop will be a reference to the desktop (Desktop) it belongs. 
+Otherwise, it is null.
+
+How we update depends on the DOM content. 
+In this example, we use HTML's span to enclose the value, so we only need to change innerHTML.
+
+setValue: function(value) {
+ if (this._value != value) {
+  this._value = value;
+  if (this.desktop) this.$n().innerHTML = zUtl.encodeXML(value);
+ }
+}
+
+====
+Putting it all Together
+
+The widget implementation must be placed in an independent JavaScript file. 
+部件实现必须放在单独的js源文件。
+The file must be placed under the directory, /web/js/package-path, in the Java class path. 
+Since the widget name is SimpleLabel and the package name is com.foo, 
+the file path is /web/js/com/foo/SimpleLabel.js.
+
+com.foo.SimpleLabel = zk.$extends(zk.Widget, {
+    _value : '', // default value
+ 
+    getValue : function() {
+        return this._value;
+    },
+ 
+    setValue : function(value) {
+        if (this._value != value) {
+            this._value = value;
+            if (this.desktop)
+                this.$n().innerHTML = zUtl.encodeXML(value);
+        }
+    }
+ 
+});
+
+Having set-up the ability to handle states we now need to create the component view. 
+This can be accomplished using two methods.
+
+====
+Rendering Widgets
+渲染部件
+
+Rendering of widgets can be achieved using two methods. 
+
+The first is named mold which enables a widget to have multiple display types 
+which a developer or user can select at will. 
+“模子”允许一个部件拥有多种显示外观。
+
+The second is a redraw method which only supports one type of view. 
+Firstly let us discuss how to implement a mold.
+
+====
+Implementing Molds
+实现“模子”
+
+
+A widget can have several molds. 
+Each mold needs to be placed in an independent JavaScript file. 
+Under a subdirectory named mold. 
+The full path of the directory in this example will be /web/js/com/foo/mold/simple-label.js.
+
+Let us assume we want to generate the following DOM content:
+value
+
+Then, the content of simple-label.js will be as follows.
+
+function (out) {
+ out.push('<span', this.domAttrs_(), '>', this.getValue(), '</span>');
+}
+
+As shown above, the mold is actually a JavaScript method. 
+More precisely, it is a method member of the widget class (the name is assigned by ZK Client Engine automatically), 
+so you can access the widget object by the use of this.
+
+The mold method takes an argument named out, which behaves like a writer in Java. 
+The out object at least implements the push and unshift method to write the content to the end or to the beginning. 
+It is by default an array, but the client application might use different kinds of objects.
+
+domAttrs_ is a (protected) method inherited from Widget. 
+It returns all HTML attributes required, such as style, id and so on. 
+You can override it if you want.
+
+If we do not require multiple styles per component we can just implement the redraw method directly.
+如果我们不需要多种样式，则只需实现 redraw 方法。
+
+====
+The Redraw Method
+redraw方法
+
+When a widget is attached to the DOM tree, 
+Widget.redraw(Array) is called to generate the HTML content. 
+
+For example, assume you want to use HTML SPAN tag to house the content, we can do as follows.
+
+redraw: function (out) {
+ out.push('<span', this.domAttrs_(), '>', this.getValue(), '</span>');
+}
+
+The default implementation of Widget.redraw(Array) delegates to a mold method depending on the mold. 
+In this instance we override the function to provide one implementation of redraw which doesn’t use molds.
+

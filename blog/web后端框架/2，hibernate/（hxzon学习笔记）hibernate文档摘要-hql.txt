@@ -1,0 +1,328 @@
+﻿（hxzon学习笔记）hibernate文档摘要-hql
+
+by hxzon
+《（hxzon学习笔记）hibernate-Chapter 16. HQL The Hibernate Query Language》
+========
+1，使用with关键字，你可以为join指定更多条件。（hxzon：重要）
+
+示例：
+
+from Cat as cat
+    left join cat.kittens as kitten
+        with kitten.bodyWeight > 10.0
+
+（只加载猫的“体重大于10”的孩子。）
+
+====
+2，“fetch” join允许你使用单个查询语句来加载关联的对象字段和集合字段。
+
+from Cat as cat
+    inner join fetch cat.mate
+    left join fetch cat.kittens child  //获取第一层关联对象
+    left join fetch child.kittens  //获取第二层关联对象
+
+（获取猫的孩子，这些孩子往下继续获取它们自己的孩子。）
+
+如果你使用属性级别的延迟加载（利用字节码增强），
+你可以使用“fetch all”（hxzon：必须是  fetch all properties ）
+强制让hibernate立即加载“所有字段”。
+
+示例：
+
+from Document fetch all properties order by name
+
+from Document doc fetch all properties where lower(doc.name) like '%cats%'
+
+====
+3，隐式关联（不使用join关键字）
+
+示例：
+
+from Cat as cat where cat.mate.name like '%s%'
+
+====
+4，可以使用特殊的小写的“id”来引用实体的id字段，
+但这些实体不能含有不作为唯一标识却名为“id”的字段。
+
+组合主键：
+
+from bank.Person person
+where person.id.country = 'AU'
+    and person.id.medicareNumber = 123456
+
+====
+5，查询可以返回多个对象和/或多个字段，结果是一个object数组。
+
+select mother, offspr, mate.name
+from DomesticCat as mother
+    inner join mother.mate as mate
+    left outer join mother.kittens as offspr
+
+也可以返回一个list。
+
+
+select new list(mother, offspr, mate.name)
+from DomesticCat as mother
+    inner join mother.mate as mate
+    left outer join mother.kittens as offspr
+
+返回一个map。
+
+select new map( max(bodyWeight) as max, min(bodyWeight) as min, count(*) as n )
+from Cat cat
+
+可以通过构造函数返回一个对象。
+
+select new Family(mother, mate, offspr)
+from DomesticCat as mother
+    join mother.mate as mate
+    left join mother.kittens as offspr
+
+====
+6，支持下列聚集函数：
+
+avg(...), sum(...), min(...), max(...)
+count(*)
+count(...), count(distinct ...), count(all...)
+
+你可以在select子句中使用数学运算，字符串连接和其它可识别的sql函数。
+
+====
+7，多态查询。（hxzon：重要）
+
+from Cat as cat
+
+上述查询返回的不只是cat实体，还包括所有的子类实体。
+hql允许在from子句中使用任何java类和接口。
+这些查询会返回指定类或接口的所有被映射的实体，包括子类实体。
+
+这个查询会返回所有被映射的实体：
+
+from java.lang.Object o
+
+上面的两条查询需要执行多条sql select语句。
+这意味着order by子句不能正常工作。
+这也意味着你不能使用 Query.scroll() 方法。
+
+==
+在多态时，使用“class”鉴别值来指明类型。
+
+示例：
+
+from Cat cat where cat.class = DomesticCat
+
+==
+（hxzon：？）
+
+An "any" type has the special properties id and class 
+that allows you to express a join in the following way 
+(where AuditLog.item is a property mapped with <any>):
+
+（“any”映射到AuditLog.item。）
+
+from AuditLog log, Payment payment
+where log.item.class = 'Payment' and log.item.id = payment.id
+
+The log.item.class and payment.class 
+would refer to the values of completely different database columns in the above query.
+
+====
+8，
+
+from Foo foo
+where foo.bar.baz.customer.address.city is not null
+
+上面这个查询生成的sql语句包含4个表的联接。
+
+from Cat as cat where cat.mate.id = 69
+
+上面这条查询不会使用表联接，因为只需要利用外键。
+
+====
+9，实例比较
+
+=操作符还可用于对象的比较，基于唯一标识字段。
+
+from Cat cat, Cat rival where cat.mate = rival.mate
+
+select cat, mate
+from Cat cat, Cat mate
+where cat.mate = mate
+
+====
+10，
+在hibernate配置件中，可以配置true和false的转换值。
+
+<property name="hibernate.query.substitutions">true 1, false 0</property>
+
+这会让true和false关键字在转换成sql时使用字面值1和0。
+
+====
+11，表达式
+文档16.10
+
+====
+12，
+javahean的属性能够用来为命名语句提供参数。
+
+例如：
+
+Query q = s.createQuery("from foo Foo as foo where foo.name=:name and foo.size=:size");
+q.setProperties(fooBean); // fooBean has getName() and getSize()
+List foos = q.list();
+
+====
+13，过滤器
+
+可以使用filter来为集合分页。
+
+Query q = s.createFilter( collection, "" ); // the trivial filter
+q.setMaxResults(PAGE_SIZE);
+q.setFirstResult(PAGE_SIZE * pageNumber);
+List page = q.list();
+
+--
+集合也能够通过filter来排序或分组。
+
+例如：
+
+Collection orderedCollection = s.filter( collection, "order by this.amount" );
+Collection counts = s.filter( collection, "select this.type, count(this) group by this.type" );
+
+====
+14，元组
+
+hql支持元组，即使底层数据库不支持。
+
+这里指“多值的比较”，例如组件。
+假设一个实体“人”含有“名字”这个组件字段：
+
+from Person p where p.name.first='John' and p.name.last='Jingleheimer-Schmidt'
+
+上面的语法有点累赘，你可以使用“元组”让它更简洁，见如下例子。
+
+from Person p where p.name=('John', 'Jingleheimer-Schmidt')
+
+==
+在子查询中使用元组，会让多值比较更简洁：
+
+from Cat as cat
+where not ( cat.name, cat.color ) in (
+    select cat.name, cat.color from DomesticCat cat
+)
+
+当你判断是否使用元组语法时，有一件事需考虑，
+那就是查询会依赖于组件的子字段的顺序。
+
+=====================
+=====================
+《（hxzon学习笔记）hibernate-dev-Chapter 11. HQL and JPQL》
+
+15，引用集合的成员
+
+select c
+from Customer c
+    join c.orders o
+    join o.lineItems l
+    join l.product p
+where o.status = 'pending'
+  and p.status = 'backorder'
+
+// alternate syntax
+另一种写法：
+
+select c
+from Customer c,
+    in(c.orders) o,
+    in(o.lineItems) l
+    join l.product p
+where o.status = 'pending'
+  and p.status = 'backorder'
+
+====
+16，集合相关的表达式
+
+注意，只能在where子句中使用（hibernate3）。
+
+可以使用特殊属性size或特殊函数size()来测试一个集合的大小。
+
+from Cat cat where cat.kittens.size > 0
+
+from Cat cat where size(cat.kittens) > 0
+
+==
+select cal
+from Calendar cal
+where maxelement(cal.holidays) > current_date()
+最大元素
+
+
+select o
+from Order o
+where maxindex(o.items) > 100
+最小索引
+
+select o
+from Order o
+where minelement(o.items) > 10000
+最小元素
+
+select m
+from Cat as m, Cat as kit
+where kit in elements(m.kittens)
+
+（hxzon：为何不能直接写 where kit in m.kittens ？）
+
+// the above query can be re-written in jpql standard way:
+select m
+from Cat as m, Cat as kit
+where kit member of m.kittens
+是否是集合成员
+
+select p
+from NameList l, Person p
+where p.name = some elements(l.names)
+等于其中一个元素
+
+select cat
+from Cat cat
+where exists elements(cat.kittens)
+
+select p
+from Player p
+where 3 > all elements(p.scores)
+大于所有元素
+
+select show
+from Show show
+where 'fizard' in indices(show.acts)
+索引的集合（返回“有 fizard 出演”的电影。）
+
+==
+使用索引操作符：
+
+from Order order where order.items[0].id = 1234
+
+（返回“第1个条目的ID是1234”的订单。）
+
+select person from Person person, Calendar calendar
+where calendar.holidays['national day'] = person.birthDay
+    and person.nationality.calendar = calendar
+
+（返回“生日和祖国的国庆日相同”的人。）
+
+select item from Item item, Order order
+where order.items[ size(order.items) - 1 ] = item
+
+（返回每个订单的最后一个条目。）
+
+select item, index(item) from Order order
+    join order.items item
+where index(item) < 5
+
+（返回每个订单的前5个条目，同时返回这些条目在订单中的次序。）
+
+====
+17，
+
+

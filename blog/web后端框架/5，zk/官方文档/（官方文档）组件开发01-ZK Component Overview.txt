@@ -1,0 +1,191 @@
+﻿（官方文档）组件开发01-ZK Component Overview
+http://books.zkoss.org/wiki/ZK%20Component%20Development%20Essentials/ZK%20Component%20Overview
+
+====
+This section provides an overview of ZK Component development.
+
+Subsections:
+
+What is a ZK component
+How does a ZK Component work
+Development Tools
+Creating ZK Component with Maven Archetype
+
+=======
+What is a ZK component
+什么是组件
+
+Each UI object in ZK consists of a component and a widget.
+
+Component
+A component is a Java object running at the server which represents a UI object which can be manipulated by a Java application. 
+A component has all the behavior of a UI object except it has no visual part.
+组件，在服务端，java对象。
+
+Widget
+A widget is a JavaScript object running at the client. 
+This object represents the UI object which interacts with the user. 
+Therefore, a widget usually has a visual appearance, and handles events happening at the client.
+部件，在客户端，js对象。
+
+Having established that there are two parts to a ZK Component 
+one needs to explore how these parts interact with 
+one another to form a fully interactive user experience.
+
+====
+How does a ZK Component work
+组件如何工作
+
+A component and a widget work hand in hand to deliver a rich UI experience to a user. 
+The widget traps the user activity and sends an appropriate request to the component. 
+The component then interacts with the developer’s application 
+which would respond appropriately telling when the widget should update. 
+This interaction is demonstrated in the following diagram.
+
+ZKComDevEss widget component application.png
+
+For example, when an application invokes the setLabel method to change the label of a button component, 
+the setLabel method of corresponding button widget (aka., peer widget) 
+will be invoked at the client to change the visual appearance (as shown below).
+
+ZKComDevEss button labels.png
+
+When the user clicks the button widget, 
+the onClick event will be sent back to the server and notify the application (as demonstrated below).
+
+ZKComDevEss button click.png
+
+In addition to manipulate a component at the server, it is also possible to control a widget at the client. 
+For example, an application may hide or change the order of grid columns at the client, 
+while the application running at the server handles the reloading of the grid’s content. 
+This technique is called Server+client fusion. 
+It can be used to improve responsiveness and reduce network traffic.
+
+====
+Development Tools
+开发工具
+
+Here is a list of development tools. 
+Though optional, they are helpful in many situations.
+
+Tool	 Description
+
+ZK CDT	 
+A component development tool providing wizards to simplify the creation of components.
+
+Firebug	 
+A JavaScript debugger. It is an addon for Firefox. It is not built-in, so you have to download and install it separately.
+
+Internet Explorer 9 Developer Tools	 
+It is built-in and you could start it by pressing F12.
+
+=========
+Creating ZK Component with Maven Archetype
+http://books.zkoss.org/wiki/ZK%20Component%20Development%20Essentials/ZK%20Component%20Overview/Creating%20ZK%20Component%20with%20Maven%20Archetype
+使用maven创建组件
+
+
+1 How to create a ZK Component Maven project
+1.1 Create a Maven Project
+1.2 How to run Maven project on Run-Jetty-Run
+1.3 Packing your component
+1.4 Use the command line version of Maven to create a project
+1.5 Import Maven project into Eclipse
+
+====
+How to create a ZK Component Maven project
+
+Create a Maven Project
+[File] -> [New] -> [Other] --> [Maven Project]
+ZK Installation Guide Maven step1.png
+
+Make sure Create a simple project is unticked in the first screen of the New Maven Project wizard and click Next >.
+ZK Installation Guide Maven Archetype step1.png
+
+From the Select an Archetype screen, select zk[1] from the catalog dropdown list.
+ZKComDevEss Maven CreateComponent setp4.png
+
+Select the zk-archetype-component from the list. (At time of writing this is at version 0.8.0).
+Next, fill in details for group id, artifact id, version number and package name.
+ZKComDevEss Maven CreateComponent setp5.png
+If property zk-version-since or component class is missing.[2]
+Click Finish and the Eclipse status bar should say ' Creating zk-archetype-component ' and ' Updating Maven Dependencies '. If this is the user's first time dealing with ZK libraries, Maven will download the necessary dependencies to compile and run this example, and would be stored in .m2/repository in your home directory.
+ZKComDevEss Maven CreateComponent setp6.png
+↑ To add a ZK archetype catalog, click Configure then refer to [[ZK_Installation_Guide/Quick_Start/Create_and_Run_Your_First_ZK_Application_with_Eclipse_and_Maven | Create and Run Your First ZK Application with Eclipse and Maven] for the complete instruction.
+↑ Users who are running this wizard for the first time, zk archetype would not have been downloaded into m2eclipse yet, and as a result may not populate the property zk-version-since correctly, leading to an error message as such:
+Unable to create project from archetype [org.zkoss:zk-archetype-component:0.8.0 -> http://mavensync.zkoss.org/maven2/], Archetype org.zkoss:zk-archetype-component:0.8.0 is not configured property zk-version-since is missing.
+The simple workaround for this problem is to just try again and the zk-version-since property should appear in the list. (The same apply to all other properties)
+How to run Maven project on Run-Jetty-Run
+Go to Run Configurations
+ZKComDevEss Maven CreateComponent run1.png
+Double click on Jetty Webapp
+It will automatically fill-out Project / Port / Context / WebApp Dir
+ZKComDevEss Maven CreateComponent run2.png
+Click Run and start browsing local ZK application at http://127.0.0.1:8080/mycomps/
+Packing your component
+Go to Run As > Maven package (or Maven install )
+ZKComDevEss Maven CreateComponent pak1.png
+The project will then be packed into a jar file and a zip file with source code.
+ZKComDevEss Maven CreateComponent pak2.png
+Use the command line version of Maven to create a project
+For instructions on how to set up maven, please refer to Maven.
+Go to the folder in Eclipse workspace, then run the following command:
+Calling archetype:generate -DarchetypeCatalog=http://mavensync.zkoss.org/maven2/ the plugin will first ask to choose the archetype from the zk catalog - just enter the number of the archetype.
+It will then ask the user to enter the values for groupId, the artifactId and the version of the project to create and the base package for the sources.
+It then asks for confirmation of the configuration and performs the creation of the project.
+In the following example, component archetype (number 1) is selected and groupId is set to org.test, artifactId to mycomps, version to 1.0-SNAPSHOT and package to org.test.mycomps.
+
+$ mvn archetype:generate -DarchetypeCatalog=http://mavensync.zkoss.org/maven2/
+[INFO] Scanning for projects...
+[INFO] Searching repository for plugin with prefix: 'archetype'.
+[INFO] ------------------------------------------------------------------------
+[INFO] Building Maven Default Project
+[INFO]    task-segment: [archetype:generate] (aggregator-style)
+[INFO] ------------------------------------------------------------------------
+[INFO] Preparing archetype:generate
+[INFO] No goals needed for project - skipping
+[INFO] [archetype:generate {execution: default-cli}]
+[INFO] Generating project in Interactive mode
+[INFO] No archetype defined. Using maven-archetype-quickstart (org.apache.maven.archetypes:maven-archetype-quickstart:1.0)
+
+Choose archetype:
+1: http://mavensync.zkoss.org/maven2/ -> zk-archetype-component (zk-archetype-component)
+2: http://mavensync.zkoss.org/maven2/ -> zk-archetype-webapp (zk-archetype-webapp)
+Choose a number: : 1
+Downloading: http://mavensync.zkoss.org/maven2//org/zkoss/zk-archetype-component/0.8.0/zk-archetype-component-0.8.0.jar
+20K downloaded  (zk-archetype-component-0.8.0.jar)
+Downloading: http://mavensync.zkoss.org/maven2//org/zkoss/zk-archetype-component/0.8.0/zk-archetype-component-0.8.0.pom
+1K downloaded  (zk-archetype-component-0.8.0.pom)
+Define value for property 'groupId': : org.test
+Define value for property 'artifactId': : mycomps
+Define value for property 'version': 1.0-SNAPSHOT:
+Define value for property 'package': org.test: org.test.mycomps
+Define value for property 'component-class': : Mylabel
+Define value for property 'component-name': : mylabel
+[INFO] Using property: zk-version-since = 5.0.6
+Confirm properties configuration:
+groupId: org.test
+artifactId: mycomps
+version: 1.0-SNAPSHOT
+package: org.test.mycomps
+component-class: Mylabel
+component-name: mylabel
+zk-version-since: 5.0.6
+Y:
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESSFUL
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time: 34 seconds
+[INFO] Finished at: Thu Jul 28 16:27:55 CST 2011
+[INFO] Final Memory: 13M/150M
+[INFO] ------------------------------------------------------------------------
+
+Import Maven project into Eclipse
+[File] -> [Import] -> [Maven] --> [Existing Maven Projects]
+
+ZKComDevEss Maven CreateComponent import1.png
+
+After this, the user should now get a new project in the Package explorer.
+
+ZKComDevEss Maven CreateComponent setp6.png
+

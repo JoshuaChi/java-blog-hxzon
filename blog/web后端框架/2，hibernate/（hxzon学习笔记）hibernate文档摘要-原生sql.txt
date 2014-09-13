@@ -1,0 +1,8 @@
+﻿（hxzon学习笔记）hibernate文档摘要-原生sql
+
+by hxzon
+《（hxzon学习笔记）hibernate-Chapter 18. Native SQL》
+===========
+1，通过使用 ResultTransformer，可以允许原生sql返回“不受管理”的实体。
+
+2，
