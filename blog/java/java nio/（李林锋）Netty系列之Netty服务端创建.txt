@@ -1,0 +1,408 @@
+﻿（李林锋）Netty系列之Netty服务端创建
+作者 李林锋 发布于 2014年9月11日 |
+http://www.infoq.com/cn/articles/netty-server-create
+
+====
+1. 背景
+
+1.1. 原生NIO类库的复杂性
+
+在开始本文之前，我先讲一件自己亲身经历的事：
+大约在2011年的时候，周边的两个业务团队同时进行新版本开发，他们都需要基于NIO非阻塞特性构建高性能、异步和高可靠性的底层通信框架。
+
+当时两个项目组的设计师都咨询了我的意见，在了解了两个项目团队的NIO编程经验和现状之后，我建议他们都使用Netty构建业务通信框架。
+令人遗憾的是其中1个项目组并没有按照我的建议做，而是选择直接基于JDK的NIO类库构建自己的通信框架。
+在他们看来，构建业务层的NIO通信框架并不是件难事，即便当前他们还缺乏相关经验。
+
+两个多月过去之后，自研NIO框架团队的通信框架始终无法稳定的工作，他们频繁遭遇客户端断连、句柄泄露和消息丢失等问题。
+项目的进度出现了严重的延迟；
+形成鲜明对比的是，另一个团队由于基于Netty研发，在通信框架上节省了大量的人力和时间，加之Netty自身的可靠性和稳定性非常好，他们的项目进展非常顺利。
+
+这两个项目组的不同遭遇告诉我们：开发高质量的NIO程序并不是一件简单的事情，除去NIO类库的固有复杂性和Bug，
+作为NIO服务端，需要能够处理网络的闪断、客户端的重连、安全认证和消息的编解码、半包处理等。
+如果没有足够的NIO编程经验积累，自研NIO框架往往需要半年甚至数年的时间才能最终稳定下来，这种成本即便对一个大公司而言也是个严重的挑战。
+
+1.2. Netty的优势
+
+Netty是业界最流行的NIO框架，它的可靠性、高性能和可扩展性已经得到了上百上千的商用项目验证，它的优点总结如下：
+
+API使用简单，开发门槛低；
+功能强大，内聚了很多实用的功能，简化用户的开发；
+定制性好，通过ChannelPipeline机制可以灵活的进行功能定制和扩展；
+性能高；
+成熟稳定，社区活跃，Bug的修复周期比较短，新功能不断的被加入，用户可以体验到更多、更实用的功能。
+经历了大规模不同行业的商用考验，架构质量得到了充分的验证。
+
+1.3. Netty服务端的学习
+
+对于想要深入学习Netty原理的人而言，通过阅读源码是最有效的学习方式之一。
+尽管Netty使用起来并不复杂，但是对于源码层面的分析和学习，掌握一些必备的基础知识还是很有必要的，否则即便读完代码也仍然会是一知半解。
+
+Netty服务端创建需要的必备知识如下：
+
+熟悉JDK NIO主要类库的使用，例如ByteBuffer、Selector、ServerSocketChannel等；
+熟悉JDK的多线程编程；
+了解Reactor模式。
+本文首先对Java NIO服务端的创建进行分析和介绍，然后对Netty服务端的创建进行原理讲解和源码分析，以期让更多希望了解Netty底层原理的读者可以快速入门。
+
+2. NIO服务端创建
+
+2.1. Java NIO服务端创建
+
+首先，我们通过一个时序图来看下如何创建一个NIO服务端并启动监听，接收多个客户端的连接，进行消息的异步读写。
+
+
+
+图2-1 Java NIO服务端创建时序图
+
+上图对Java NIO服务端创建的典型流程进行了说明，相比于实际生产系统中的商用代码，省略了半包的读写、异常处理、安全认证和消息缓存等过程。
+在实际商用项目中，读者需要根据实际情况进行处理，本文不再赘述。
+
+下面我们结合实际代码，对Java NIO服务端的创建进行解说。
+
+步骤1：打开ServerSocketChannel，用于监听客户端的连接，它是所有客户端连接的父通道，代码示例如下：
+
+ServerSocketChannel acceptorSvr = ServerSocketChannel.open();
+
+步骤2：绑定监听端口，设置客户端连接方式为非阻塞模式，示例代码如下
+
+acceptorSvr.socket().bind(new InetSocketAddress(InetAddress.getByName(“IP”), port));
+acceptorSvr.configureBlocking(false);
+
+步骤3：创建Reactor线程，打开多路复用器并启动服务端监听线程，通常情况下，可以采用线程池的方式创建Reactor线程。示例代码如下：
+
+Selector selector = Selector.open();
+New Thread(new ReactorTask()).start();
+
+步骤4：将ServerSocketChannel注册到Reactor线程的多路复用器Selector上，监听ACCEPT状态位，示例代码如下：
+
+SelectionKey key = acceptorSvr.register( selector, SelectionKey.OP_ACCEPT, ioHandler);
+
+步骤5：多路复用器在线程run方法的无限循环体内轮询准备就绪的Key，
+
+通常情况下需要设置一个退出状态检测位，用于优雅停机。代码如下：
+
+int num = selector.select();
+Set selectedKeys = selector.selectedKeys();
+Iterator it = selectedKeys.iterator();
+while (it.hasNext()) {
+     SelectionKey key = (SelectionKey)it.next();
+     // ... deal with I/O event ...
+}
+
+步骤6：多路复用器监听到有新的客户端接入，处理新的接入请求，完成TCP三次握手后，与客户端建立物理链路，示例代码如下：
+
+SocketChannel channel = svrChannel.accept();
+
+步骤7：设置客户端链路的TCP参数，示例代码如下：
+
+channel.configureBlocking(false);
+channel.socket().setReuseAddress(true);
+
+步骤8：将新接入的客户端连接注册到Reactor线程的多路复用器上，监听读操作位，用来读取客户端发送的网络消息，示例代码如下：
+
+SelectionKey key = socketChannel.register( selector, SelectionKey.OP_READ, ioHandler);
+
+步骤9：异步读取客户端请求消息到服务端缓冲区，示例代码如下：
+
+int  readNumber =  channel.read(receivedBuffer);
+
+步骤10：对ByteBuffer进行解码，如果有半包消息指针Reset，继续读取后续的报文，将解码成功的消息封装成Task，投递到业务线程池中，进行业务逻辑编排，示例代码如下：
+
+Object message = null;
+while(buffer.hasRemain())
+{
+       byteBuffer.mark();
+       Object message = decode(byteBuffer);
+       if (message == null)
+       {
+          byteBuffer.reset();
+          break;
+       }
+       messageList.add(message );
+}
+if (!byteBuffer.hasRemain())
+byteBuffer.clear();
+else
+    byteBuffer.compact();
+if (messageList != null & !messageList.isEmpty())
+{
+for(Object messageE : messageList)
+   handlerTask(messageE);
+}
+
+步骤11：将POJO对象encode成ByteBuffer，调用SocketChannel的异步write接口，将消息异步发送给客户端，示例代码如下：
+如果发送区TCP缓冲区满，会导致写半包，此时，需要注册监听写操作位，循环写，直到整包消息写入TCP缓冲区。
+
+socketChannel.write(buffer);
+
+====
+2.2. Netty服务端创建
+
+当我们直接使用JDK NIO的类库开发基于NIO的异步服务端时，需要使用到多路复用器Selector、ServerSocketChannel、SocketChannel、ByteBuffer、SelectionKey等等，
+相比于传统的BIO开发，NIO的开发要复杂很多，开发出稳定、高性能的异步通信框架，一直是个难题。
+
+Netty为了向使用者屏蔽NIO通信的底层细节，在和用户交互的边界做了封装，目的就是为了减少用户开发工作量，降低开发难度。
+ServerBootstrap是Socket服务端的启动辅助类，用户通过ServerBootstrap可以方便的创建Netty的服务端。
+
+2.2.1. Netty服务端创建时序图
+
+
+图2-2 Netty服务端创建时序图
+
+下面我们对Netty服务端创建的关键步骤和原理进行讲解。
+
+步骤1：创建ServerBootstrap实例。
+ServerBootstrap是Netty服务端的启动辅助类，它提供了一系列的方法用于设置服务端启动相关的参数。
+底层通过门面模式对各种能力进行抽象和封装，尽量不需要用户跟过多的底层API打交道，降低用户的开发难度。
+
+我们在创建ServerBootstrap实例时，会惊讶的发现ServerBootstrap只有一个无参的构造函数，作为启动辅助类这让人不可思议，因为它需要与多个其它组件或者类交互。
+ServerBootstrap构造函数没有参数的根本原因是因为它的参数太多了，而且未来也可能会发生变化，为了解决这个问题，就需要引入Builder模式。
+《Effective Java》第二版第2条建议遇到多个构造器参数时要考虑用构建器，关于多个参数构造函数的缺点和使用构建器的优点大家可以查阅《Effective Java》,在此不再详述。
+
+步骤2：设置并绑定Reactor线程池。
+Netty的Reactor线程池是EventLoopGroup，它实际就是EventLoop的数组。
+EventLoop的职责是处理所有注册到本线程多路复用器Selector上的Channel，Selector的轮询操作由绑定的EventLoop线程run方法驱动，在一个循环体内循环执行。
+值得说明的是，EventLoop的职责不仅仅是处理网络I/O事件，用户自定义的Task和定时任务Task也统一由EventLoop负责处理，这样线程模型就实现了统一。
+从调度层面看，也不存在在EventLoop线程中再启动其它类型的线程用于异步执行其它的任务，这样就避免了多线程并发操作和锁竞争，提升了I/O线程的处理和调度性能。
+
+步骤3：设置并绑定服务端Channel。
+作为NIO服务端，需要创建ServerSocketChannel,Netty对原生的NIO类库进行了封装，对应实现是NioServerSocketChannel。
+对于用户而言，不需要关心服务端Channel的底层实现细节和工作原理，只需要指定具体使用哪种服务端Channel即可。
+因此，Netty的ServerBootstrap方法提供了channel方法用于指定服务端Channel的类型。
+Netty通过工厂类，利用反射创建NioServerSocketChannel对象。
+由于服务端监听端口往往只需要在系统启动时才会调用，因此反射对性能的影响并不大。
+相关代码如下所示：
+
+
+
+步骤4：链路建立的时候创建并初始化ChannelPipeline。
+ChannelPipeline并不是NIO服务端必需的，它本质就是一个负责处理网络事件的职责链，负责管理和执行ChannelHandler。
+网络事件以事件流的形式在ChannelPipeline中流转，由ChannelPipeline根据ChannelHandler的执行策略调度ChannelHandler的执行。典型的网络事件如下：
+
+链路注册；
+链路激活；
+链路断开；
+接收到请求消息；
+请求消息接收并处理完毕；
+发送应答消息；
+链路发生异常；
+发生用户自定义事件。
+
+步骤5：初始化ChannelPipeline完成之后，添加并设置ChannelHandler。
+ChannelHandler是Netty提供给用户定制和扩展的关键接口。
+利用ChannelHandler用户可以完成大多数的功能定制，例如消息编解码、心跳、安全认证、TSL/SSL认证、流量控制和流量整形等。
+Netty同时也提供了大量的系统ChannelHandler供用户使用，比较实用的系统ChannelHandler总结如下：
+
+系统编解码框架-ByteToMessageCodec；
+通用基于长度的半包解码器-LengthFieldBasedFrameDecoder;
+码流日志打印Handler-LoggingHandler；
+SSL安全认证Handler-SslHandler；
+链路空闲检测Handler-IdleStateHandler；
+流量整形Handler-ChannelTrafficShapingHandler;
+Base64编解码-Base64Decoder和Base64Encoder。
+创建和添加ChannelHandler的代码示例如下：
+
+
+
+步骤6：绑定并启动监听端口。
+在绑定监听端口之前系统会做一系列的初始化和检测工作，完成之后，会启动监听端口，并将ServerSocketChannel注册到Selector上监听客户端连接，相关代码如下：
+
+
+
+步骤7：Selector轮询。
+由Reactor线程NioEventLoop负责调度和执行Selector轮询操作，选择准备就绪的Channel集合，相关代码如下：
+
+
+
+步骤8：当轮询到准备就绪的Channel之后，就由Reactor线程NioEventLoop执行ChannelPipeline的相应方法，最终调度并执行ChannelHandler，代码如下：
+
+
+
+步骤9：执行Netty系统ChannelHandler和用户添加定制的ChannelHandler。
+ChannelPipeline根据网络事件的类型，调度并执行ChannelHandler，相关代码如下所示：
+
+
+==
+2.2.2. Netty服务端创建源码分析
+
+首先通过构造函数创建ServerBootstrap实例，随后，
+通常会创建两个EventLoopGroup（并不是必须要创建两个不同的EventLoopGroup，也可以只创建一个并共享），代码如下图所示：
+
+
+
+NioEventLoopGroup实际就是Reactor线程池，负责调度和执行客户端的接入、网络读写事件的处理、用户自定义任务和定时任务的执行。
+通过ServerBootstrap的group方法将两个EventLoopGroup实例传入，代码如下：
+
+
+
+其中父NioEventLoopGroup被传入了父类构造函数中：
+
+
+
+该方法会被客户端和服务端重用，用于执行和调度网络事件的读写。
+
+线程组和线程类型设置完成后，需要设置服务端Channel，Netty通过Channel工厂类来创建不同类型的Channel，
+对于服务端，需要创建NioServerSocketChannel,所以，通过指定Channel类型的方式创建Channel工厂。
+ServerBootstrapChannelFactory是ServerBootstrap的内部静态类，职责是根据Channel的类型通过反射创建Channel的实例，
+服务端需要创建的是NioServerSocketChannel实例，代码如下：
+
+
+
+指定NioServerSocketChannel后，需要设置TCP的一些参数，作为服务端，主要是要设置TCP的 backlog参数，底层C的对应接口定义如下：
+
+int listen(int fd, int backlog);
+backlog指定了内核为此套接口排队的最大连接个数，对于给定的监听套接口，内核要维护两个队列，未链接队列和已连接队列，根据TCP三路握手过程中三个分节来分隔这两个队列。服务器处于listen状态时收到客户端syn 分节(connect)时在未完成队列中创建一个新的条目，然后用三路握手的第二个分节即服务器的syn 响应及对客户端syn的ack,此条目在第三个分节到达前(客户端对服务器syn的ack)一直保留在未完成连接队列中，如果三路握手完成，该条目将从未完成连接队列搬到已完成连接队列尾部。当进程调用accept时，从已完成队列中的头部取出一个条目给进程，当已完成队列为空时进程将睡眠，直到有条目在已完成连接队列中才唤醒。backlog被规定为两个队列总和的最大值，大多数实现默认值为5，但在高并发web服务器中此值显然不够，lighttpd中此值达到128*8 。需要设置此值更大一些的原因是未完成连接队列的长度可能因为客户端SYN的到达及等待三路握手第三个分节的到达延时而增大。Netty默认的backlog为100，当然，用户可以修改默认值，用户需要根据实际场景和网络状况进行灵活设置。
+
+TCP参数设置完成后，用户可以为启动辅助类和其父类分别指定Handler，两类Handler的用途不同，子类中的Hanlder是NioServerSocketChannel对应的ChannelPipeline的Handler，父类中的Hanlder是客户端新接入的连接SocketChannel对应的ChannelPipeline的Handler。两者的区别可以通过下图来展示：
+
+
+
+图2-3 ServerBootstrap的Hanlder模型
+
+本质区别就是：ServerBootstrap中的Handler是NioServerSocketChannel使用的，所有连接该监听端口的客户端都会执行它，父类AbstractBootstrap中的Handler是个工厂类，它为每个新接入的客户端都创建一个新的Handler。
+
+服务端启动的最后一步，就是绑定本地端口，启动服务，下面我们来分析下这部分代码：
+
+
+
+先看下NO.1, 首先创建Channel，createChannel由子类ServerBootstrap实现，创建新的NioServerSocketChannel，它有两个参数，参数1是从父类的NIO线程池中顺序获取一个NioEventLoop，它就是服务端用于监听和接收客户端连接的Reactor线程。第二个参数就是所谓的workerGroup线程池，它就是处理IO读写的Reactor线程组,相关代码如下：
+
+
+
+NioServerSocketChannel创建成功后对它进行初始化，初始化工作主要有三点：
+
+设置Socket参数和NioServerSocketChannel的附加属性，代码如下：
+
+
+将AbstractBootstrap的Handler添加到NioServerSocketChannel的ChannelPipeline中，代码如下：
+
+
+将用于服务端注册的Handler ServerBootstrapAcceptor添加到ChannelPipeline中，代码如下：
+
+
+到此处，Netty服务端监听的相关资源已经初始化完毕，就剩下最后一步-注册NioServerSocketChannel到Reactor线程的多路复用器上，然后轮询客户端连接事件。在分析注册代码之前，我们先通过下图看看目前NioServerSocketChannel的ChannelPipeline的组成：
+
+
+
+图2-4 NioServerSocketChannel的ChannelPipeline
+
+最后，我们看下NioServerSocketChannel的注册。当NioServerSocketChannel初始化完成之后，需要将它注册到Reactor线程的多路复用器上监听新客户端的接入，代码如下：
+
+
+
+首先判断是否是NioEventLoop自身发起的操作，如果是，则不存在并发操作，直接执行Channel注册；如果由其它线程发起，则封装成一个Task放入消息队列中异步执行。此处，由于是由ServerBootstrap所在线程执行的注册操作，所以会将其封装成Task投递到NioEventLoop中执行，代码如下：
+
+
+
+将NioServerSocketChannel注册到NioEventLoop的Selector上，代码如下：
+
+
+
+大伙儿可能会很诧异，应该注册OP_ACCEPT（16）到多路复用器上，怎么注册0呢？0表示只注册，不监听任何网络操作。这样做的原因如下：
+
+注册方法是多态的，它既可以被NioServerSocketChannel用来监听客户端的连接接入，也可以用来注册SocketChannel，用来监听网络读或者写操作；
+通过SelectionKey的interestOps(int ops)方法可以方便的修改监听操作位。所以，此处注册需要获取SelectionKey并给AbstractNioChannel的成员变量selectionKey赋值。
+注册成功之后，触发ChannelRegistered事件，方法如下：
+
+
+
+Netty的HeadHandler不需要处理ChannelRegistered事件，所以，直接调用下一个Handler,代码如下：
+
+
+
+当ChannelRegistered事件传递到TailHandler后结束，TailHandler也不关心ChannelRegistered事件，因此是空实现，代码如下：
+
+
+
+ChannelRegistered事件传递完成后，判断ServerSocketChannel监听是否成功，如果成功，需要出发NioServerSocketChannel的ChannelActive事件，代码如下：
+
+
+
+isActive()也是个多态方法，如果是服务端，判断监听是否启动，如果是客户端，判断TCP连接是否完成。ChannelActive事件在ChannelPipeline中传递，完成之后根据配置决定是否自动触发Channel的读操作，代码如下：
+
+
+
+AbstractChannel的读操作触发ChannelPipeline的读操作，最终调用到HeadHandler的读方法，代码如下：
+
+
+
+继续看AbstractUnsafe的beginRead方法，代码如下：
+
+
+
+由于不同类型的Channel对读操作的准备工作不同，因此，beginRead也是个多态方法，对于NIO通信，无论是客户端还是服务端，都是要修改网络监听操作位为自身感兴趣的，对于NioServerSocketChannel感兴趣的操作是OP_ACCEPT（16），于是重新修改注册的操作位为OP_ACCEPT，代码如下：
+
+
+
+在某些场景下，当前监听的操作类型和Chanel关心的网络事件是一致的，不需要重复注册，所以增加了&操作的判断，只有两者不一致，才需要重新注册操作位。
+
+JDK SelectionKey有四种操作类型，分别为：
+
+OP_READ = 1 << 0；
+OP_WRITE = 1 << 2；
+OP_CONNECT = 1 << 3；
+OP_ACCEPT = 1 << 4。
+
+由于只有四种网络操作类型，所以用4 bit就可以表示所有的网络操作位，由于JAVA语言没有bit类型，所以使用了整形来表示，每个操作位代表一种网络操作类型，分别为：0001、0010、0100、1000,这样做的好处是可以非常方便的通过位操作来进行网络操作位的状态判断和状态修改，提升操作性能。
+
+由于创建NioServerSocketChannel将readInterestOp设置成了OP_ACCEPT，所以，在服务端链路注册成功之后重新将操作位设置为监听客户端的网络连接操作，初始化NioServerSocketChannel的代码如下：
+
+
+
+到此，服务端监听启动部分源码已经分析完成，接下来，让我们继续分析一个新的客户端是如何接入的。
+
+2.3. 客户端接入源码分析
+
+负责处理网络读写、连接和客户端请求接入的Reactor线程就是NioEventLoop，下面我们分析下NioEventLoop是如何处理新的客户端连接接入的。当多路复用器检测到新的准备就绪的Channel时，默认执行processSelectedKeysOptimized方法，代码如下：
+
+
+
+由于Channel的Attachment是NioServerSocketChannel,所以执行processSelectedKey方法，根据就绪的操作位，执行不同的操作，此处，由于监听的是连接操作，所以执行unsafe.read()方法，由于不同的Channel执行不同的操作，所以NioUnsafe被设计成接口，由不同的Channel内部的NioUnsafe实现类负责具体实现，我们发现read()方法的实现有两个，分别是NioByteUnsafe和NioMessageUnsafe,对于NioServerSocketChannel，它使用的是NioMessageUnsafe，它的read方法代码如下：
+
+
+
+对doReadMessages方法进行分析，发现它实际就是接收新的客户端连接并创建NioSocketChannel代码如下：
+
+
+
+接收到新的客户端连接后，触发ChannelPipeline的ChannelRead方法，代码如下：
+
+
+
+执行headChannelHandlerContext的fireChannelRead方法，事件在ChannelPipeline中传递，执行ServerBootstrapAcceptor的channelRead方法，代码如下：
+
+
+
+该方法包含三个主要步骤：
+
+第一步：将启动时传入的childHandler加入到客户端SocketChannel的ChannelPipeline中；
+
+第二步：设置客户端SocketChannel的TCP参数；
+
+第三步：注册SocketChannel到多路复用器。
+
+channelRead主要执行如上图所示的三个方法，下面我们展开看下NioSocketChannel的register方法，代码如下所示：
+
+
+
+NioSocketChannel的注册方法与ServerSocketChannel的一致，也是将Channel 注册到Reactor线程的多路复用器上，由于注册的操作位是0，所以，此时NioSocketChannel还不能读取客户端发送的消息，那什么时候修改监听操作位为OP_READ呢，别着急，继续看代码。
+
+执行完注册操作之后，紧接着会触发ChannelReadComplete事件，我们继续分析ChannelReadComplete在ChannelPipeline中的处理流程：Netty的Header和Tail本身不关注ChannelReadComplete事件就直接透传，执行完ChannelReadComplete后，接着执行PipeLine的read（）方法，最终执行HeadHandler的read（）方法，代码如下：
+
+
+
+后面的代码已经在之前的小节已经介绍过，用来修改网络操作位为读操作，创建NioSocketChannel的时候已经将AbstractNioChannel的readInterestOp设置为OP_READ，这样，执行selectionKey.interestOps(interestOps | readInterestOp)操作时就会把操作位设置为OP_READ。代码如下：
+
+
+
+到此，新接入的客户端连接处理完成，可以进行网络读写等I/O操作。
+
+3. 作者简介
+
+李林锋，2007年毕业于东北大学，2008年进入华为公司从事高性能通信软件的设计和开发工作，有6年NIO设计和开发经验，
+精通Netty、Mina等NIO框架。
+Netty中国社区创始人，《Netty权威指南》作者。
+
+联系方式：新浪微博 Nettying 微信：Nettying
+
