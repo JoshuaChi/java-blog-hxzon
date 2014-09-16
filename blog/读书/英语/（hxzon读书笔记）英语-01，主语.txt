@@ -1,0 +1,214 @@
+﻿（hxzon读书笔记）英语-01，主语
+
+by hxzon
+《赖世雄经典英语语法》
+========
+第一章，句子的形成
+
+第1节，可作主语的词类
+
+1，动名词或不定式作主语
+动词绝不可直接作主语，必须变成动名词或不定式短语。
+
+动名词作主语，通常表示已知的事实，或曾经做过的经验。
+不定式作主语，通常表示一种意愿，目的，未完成的事。
+
+1.1，
+不定式或动名词短语作主语时，往往会形成主语太长的现象，故通常均用代词it作“形式主语”，
+置于句首而将“真正主语”（亦即不定式或动名词短语）移至句
+尾。
+动名词移至句尾时，通常改为不定式短语。
+
+Collecting stamps is one of his hobbies .
+＝It is one of his hobbies to collect stamps.
+
+有时我们亦可见到被it代替的动名词短语移至句尾时，仍保留动名词形态而不变
+成不定式短语。
+但此种用法并不普遍，初学语法者宜尽量避免。
+
+特殊情况：
+下列句型则属例外情形，it要代替动名词短语，不可使用不定式短语：
+It is no use＋动名词短语
+It is no use crying over spilt milk .
+（覆水难收。）
+It is no use asking him for help.
+（向他求救是没有用的。）
+
+注意：
+It is no use+动名词短语
+=It is useless+不定式短语
+=It is of no use+不定式短语
+=There is no use/sense/point in + 动名词短语
+
+====
+2，名词性从句作主语
+句子决不能作主语，要变成名词性从句。
+
+名词性从句一共三种：
+-1，that从句
+-2，whether从句
+-3，疑问词所引导的从句
+
+2.1，that从句
+He doesn't believe my words .（句子）
+that he doesn't believe my words（名词性从句）
+
+2.2，whether从句（用yes,no回答的问句）
+Is he happy?
+whether he is happy
+
+Can he do it?
+whether he can do it
+
+Has he dont it?
+whether he has dont it
+
+问句有do，does，did等助动词，去掉，
+后面的动词依人称，时态变化。
+
+Did he come?
+whether he came
+
+Does he like it?
+whether he likes it
+
+2.3，疑问词从句（特殊疑问句）
+what is he doing?
+what he is doing
+
+where can he find it?
+where he can find it
+
+含有do，does，did等助动词时，去掉，动词依人称和时态变化。
+
+What did he write?
+what he wrote
+
+When did he come?
+when he came
+
+How does he do it?
+how he does it
+
+注意：
+who,what,which为疑问代词，若在问句中作主语，变成名词性从句时，结构不变。
+
+Who came here?
+who came here
+
+What happened last night?
+what happened last night
+
+Which was bought?
+which was bought
+
+一如动名词或不定式短语，名词性从句作主语时容易造成主语太长的现象，
+因此亦可用形式主语it代替，置于句首，
+而被代替的名词性从句则置于句尾。
+
+That honesty is the best policy
+is a proverb (which) we should always keep in mind.
+=It is proverb we should always keep in mind
+that honesty is the best policy.
+
+==
+2.4，名词性从句，作介词的宾语
+此时，仅能用whether从句或疑问词引导的名词性从句作宾语，
+that从句不可作介词的宾语。
+
+遇到介词，且非要使用that从句时，补救方法如下：
+
+-1，方法一，介词+the fact+that从句
+that从句变成the fact的同位语。
+
+-2，方法二，介词之后的that从句，做如下变化：
+移除that。
+that后的主语变成所有格。
+动词变成动名词。
+
+that he plays around all day
+=>I am worried about his playing around all day.
+
+that从句若有助动词do，does，did时，去掉。
+that he doesn't study
+=>I am worried about his not studying.
+
+that从句若有助动词will，would时，去掉。
+that the team will win the game
+=>I am sure of the team's winning the game.
+
+that从句有以下助动词时，如下变化：
+may-> be likely to
+can-> he able to
+再将be动词变成动名词being。
+
+that he may come
+->I am happy about his being likely to come.
+
+that he is able to do it
+->I am sure of his being able to do it.
+
+-3，方法三，be+adj.+that从句
+即去掉介词，将that从句放在形容词后，作其宾语。
+
+I am worried about that he plays around all day.（误）
+I am worried that he plays around all day.
+worried是形容词。
+
+I am sure of that the team has won the game.（误）
+I am sure that the team has won the game.
+sure是形容词。
+
+特殊情况：惯用语。
+in that=because
+He is talented in that he can speak five different languages.
+
+except that，只可惜，除了...
+He is nice except that sometimes he lies.
+
+notwithstanding that，尽管。
+=despite the fact that
+=in spite of the fact that
+
+Notwithstanding that he is nice,I don't like him.
+
+====
+3，名词短语作主语
+
+名词短语，即“疑问词+不定式短语”。
+
+疑问副词
+where to live
+whether to try again
+when to talk to him
+how to do it
+
+疑问代词
+what to do
+whom to see
+which to buy
+whom to talk to
+
+疑问副词形成的名词短语中疑问副词因为是副词的性质，
+故不作不定式短语中及物动词的宾语。
+但疑问代词形成的名词短语中J疑问代词因具名词的性质，
+故一定要作不定式短语中动词或介词的宾语。
+故what 、 whom 、 which在上列名词短语中，
+分别作do 、 see 、 buy 、 to（介词）的宾语。
+
+名词短语因具名词性质，故亦可作主语，
+系由名词性从句化简而成。
+
+====
+4，表距离的地方副词短语，作主语
+
+from+地方名词+to+地方名词
+
+此为表距离的地方副词短语，亦可作主语，
+与单数的be动词连用。
+
+From Shanghai to Beijing is about 1000 kilometers.
+=It is about 1000 kilometers from Shanghai to Beijing.
+
+（第1节完）
+
