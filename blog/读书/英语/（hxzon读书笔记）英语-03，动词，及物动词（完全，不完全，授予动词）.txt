@@ -1,0 +1,195 @@
+﻿（hxzon读书笔记）英语-03，动词，及物动词（完全，不完全，授予动词）
+
+by hxzon
+《赖世雄经典英语语法》
+========
+第一章，句子的形成
+
+第2节，动词的种类及其用法
+
+另见《3，完全及物动词出现的形态》
+==========
+6，完全及物动词
+这里只讲主动语态。
+
+主语+完全及物动词+宾语
+
+==
+不定式当及物动词的宾语，表示某种愿望，企图，例如
+want，hope，desire。
+
+I want to see him now.
+
+==
+动名词作及物动词的宾语
+
+He considered studying abroad.
+
+I once imagined going on a date with him.
+
+I just can't fancy getting along with them.
+
+He risked doing it.
+
+I avoided seeing him again.
+
+He escaped being killed in the accident.
+他在那次意外中幸免于难。
+
+They suggested putting off the game.
+
+He recommended traveling abroad.
+
+I enjoy dancing.
+
+I resent having to do so much work.
+
+I practiced playing the piano.
+
+He stopped/quit smoking.
+
+Would you mind opening the window for me?
+
+注意：
+resist v-ing，抗拒
+refuse to v ，拒绝
+
+expect to v，期望
+=anticipate v-ing
+
+stop v-ing，停止
+=quit v-ing
+=cease v-ing
+=cease to v
+
+stop to v，停下来而去
+（hxzon：停下原有的事，做v这件事）
+
+He stopped to talk to me when he saw me.
+=He stopped (what he was doing)to talk to me when he saw me.
+他看见我时，便停下来和我说话。
+
+continue（继续），start（开始），begin（开始），
+like（喜欢），love（爱），hate（憎），
+可用不定式或动名词作宾语，意思相同。
+
+He continued trying/to try his luck at the casino.
+
+They started building/to build the house.
+
+I like/love/hate listening/to listen to music.
+
+==
+名词性从句作及物动词的宾语。
+
+that从句作及物动词宾语时，连接词that通常可省略。
+
+They feel (that) it is impossible to win the game.
+
+He thinks (that) the book is worth reading.
+
+whether从句作及物动词宾语时，连接词whether可被if取代。
+
+I don't know whether the typhoon will come.
+=I don't know if the typhoon will come.
+
+但whether从句作主语、介词的宾语，或be动词后的表语时，
+whether不可被if取代。
+
+He is worried about whether he can pass the exam.
+
+The problem is whether he has enough money for the trip.
+
+==============
+7，不完全及物动词
+
+此类动词加了宾语后，意思仍不完整，需要加补语。
+
+make，制造，做，此时为完全及物动词。
+He made a kite.
+
+make，使，叫，不完全及物动词。
+
+He made Mary happy.
+他使玛丽快乐。
+happy作宾语补语。
+
+He made Mary clean the window.
+他叫玛丽擦窗子。
+
+====
+7.1，使役动词
+
+make/have +宾语+原形动词（做补语）
+
+I made him wash the car.
+
+I had John report to me.
+我叫约翰向我报到。
+
+get也可表使役之意，但只能用不定式短语作宾语补语。
+get sb to v，叫某人做某事。
+I got him to wash the car.
+我叫他洗车。
+
+make可用于被动语态，但have，get不可。
+变成被动语态时，要用不定式短语。
+He was made to wash the car.
+
+==
+let，让
+
+let+宾语+原形动词（作宾语补语）
+
+I let him wash the car.
+I let Peter try it.
+
+let+宾语+作副词用的介词（in，out，down）
+
+He let me in.
+Don't let him out.
+His performance let me down.
+他的表演令我失望。
+
+注意，上述介词由于其后无宾语，可单独存在作副词使用，因此成为“介副词”。
+与“地方副词”（there，here，home）一样，可作be动词之后的表语。
+
+He is in.
+他在家。
+
+He is out.
+他出去了。
+
+但在let之后，只能用“介副词”作补语，不可用地方副词。
+He let me in.
+
+let之后若用原形动词做补语，变被动语态时，
+该原形动词要变成不定式短语，然而该用法已不多见。
+I let him wash the car.
+-> He was let to wash the car.
+很少人会这么说。
+
+==
+强迫，要求，怂恿，催促+宾语+不定式短语（作宾语补语）
+
+
+====
+7.2，知觉动词
+
+====
+7.3，任命动词
+
+====
+7.4，认定动词
+
+====
+7.5，转变动词
+
+====
+7.6，其它
+
+=============
+8，授予动词
+
+
+
