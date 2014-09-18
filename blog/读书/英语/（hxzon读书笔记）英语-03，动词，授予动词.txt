@@ -1,0 +1,162 @@
+﻿（hxzon读书笔记）英语-03，动词，授予动词
+
+by hxzon
+《赖世雄经典英语语法》
+========
+第一章，句子的形成
+
+第2节，动词的种类及其用法
+
+=============
+8，授予动词
+
+授予动词需要接两个宾语，
+直接宾语，表授予的东西（说话人先接触的是东西），间接宾语，授予的对象。
+
+I will give you this watch.
+
+Please lend me your book.
+
+I asked him a question.
+
+====
+8.1，间接宾语与直接宾语的倒置原则
+
+需要另加介词to，for，of。
+
+-1，表“给予”，用to。
+
+I gave him the book.
+=I gave the book to him.
+
+I sent the letter to him.
+I told him the story.
+I teach English to them.
+
+-2，表“代劳”，用for。
+
+I bought him the book.
+=I bought the book for him.
+
+-3，表“从...中”，用of。
+
+I asked him a question.
+=I asked a question of him.
+
+此处的of，等于from之意，但使用时，用of为宜。
+凡表“要求”的动词，都是这种用法。
+
+I didn't expect much of him.
+我对他不抱很大的期望。
+
+He required nothing of me.
+他对我毫无所求。
+
+He demanded little of me.
+他对我几无所求。
+
+上面三个动词，不能像ask一样，将间接宾语放在前面。
+
+====
+8.2，与of连用的授予动词
+
+与上面不同，of之后是表“东西”的名词为宾语，而不是“对象”。
+
+rob，抢夺
+He robbed me of my money.
+I was robbed of my money.
+
+deprive，剥夺（权利）
+The court deprived him of all his civil rights.
+法院剥夺了他的公民权利。
+He was deprived/stripped of all his civil rights.
+
+relieve，解除（职务，指挥权等）
+The captain relieved the platton leader of his command.
+
+==
+rid，解除，摆脱
+I cannot rid myself of the painful memory.
+=I cannot get rid of the painful memory.
+
+rid三态同形。
+rid myself of中的rid是动词，表“使脱离”。
+get rid of中的rid是过去分词，相当于形容词，表“脱离的”。
+get相当于be，但get rid of表“动作”，be rid of表“状态”（已摆脱）。
+
+I'll get rid of those chores.
+我要摆脱那些杂务。
+I'am glad to be rid of those chores.
+我很高兴摆脱了那些杂务。
+
+==
+break，戒除
+
+You should break/rid yourself of the bad habit of smoking.
+但也可写出：
+You should break the bad habit of smoking.
+
+cure，治愈
+The doctor cured him of his disease.
+但也可写成：
+The doctor cured his disease.
+
+====
+8.3，表“提供”的授予动词
+
+offer，provide，supply，furnish，present等。
+除了offer，都要与介词with连用。
+
+He offered me all I needed.
+
+He provided/supplied/furnished me with all I needed.
+
+注意：
+He offered me all I needed.
+=He offered all I needed to me.
+
+He provided me with all I needed.
+=He provided all I needed for me.
+
+offer还可表示“愿意，主动提议”，此时接不定式短语作宾语。
+offer to v，愿意做某事。
+=be willing to v.
+
+After he heard of my situation,he offered to help me.
+
+present（赠与）的用法与provide相似，不同的是，将间接宾语放在句尾时，要用介词to。
+
+He presented me with a watch.
+=He presented a watch to me.
+
+====
+8.4，补充
+
+前面讲，表“给与”时，用与to连用。
+但，explain（解释），introduce（介绍），propose（提议），
+recommend（建议），express（表示）等动词，
+不论间接和直接宾语是否颠倒，总是要用 to 。
+
+He explained the reason to me.
+=He explained to me the reason.（少用）
+
+He introduced the girl to me.
+=He introduced to me the girl.（少用）
+
+He recommended the method to me.
+=He recommended to me the method.（少用）
+
+He proposed a motion to the committee.
+=He proposed to the committee a motion.（少用）
+
+比较下列两句的不同：
+
+I took a picture of him.
+照片中有他。
+
+I took a picture for him.
+照片中不一定有他。
+
+（本节完）
+
+
