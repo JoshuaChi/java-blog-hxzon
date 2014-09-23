@@ -1,5 +1,7 @@
 ﻿（官方文档）组件手册02-InputElement
 
+http://books.zkoss.org/wiki/ZK%20Component%20Reference/Base%20Components/InputElement
+
 注释by hxzon
 ====
 1 Input Element
@@ -24,8 +26,11 @@
 Input Element
 
 Demonstration: N/A
+
 Java API: InputElement
+
 JavaScript API: InputWidget
+http://www.zkoss.org/javadoc/latest/jsdoc/zul/inp/InputWidget.html
 
 ====
 Employment/Purpose
@@ -63,26 +68,33 @@ Example
 
 CrInputs.png
 
+（hxzon：上边的文本框，指定了模式约束。）
+
 ====
 Validation
 输入校验
 
 There are two ways to validate the value entered by an user: 
+有两种方式来实现输入校验：
 implementing Constraint or throwing WrongValueException.
 
 ==
 Constraint
 约束
 
+（hxzon：默认的实现，即 SimpleConstraint ，在客户端完成校验。）
+
 An input element can be associated with a constraint (Constraint) to validate the value entered by an user. 
 There is a default implementation called SimpleConstraint that can handle many conditions. 
 If it is not enough, you can implement your own constraint, or throwing WrongValueException as described in the next sections.
-To use the default constraint, you could specify a list of conditions in InputElement.setConstraint(String), such as no positive and no empty. For example,
+To use the default constraint, you could specify a list of conditions in InputElement.setConstraint(String), 
+such as no positive and no empty. For example,
 
 <textbox constraint="no empty"/>
 <intbox constraint="no negative,no zero"/>
 
 To specify a regular expression, you could have to use / to enclose the regular expression as follows.
+正则表达式约束：
 
 <textbox constraint="/.+@.+\.[a-z]+/"/>
 
@@ -93,6 +105,7 @@ new Textbox().setContraint("/.+@.+\\.[a-z]+/");
 
 Notice that it is allowed to mix regular expression with other constraints by separating them with comma.
 
+==
 If you prefer to display an application dependent message instead of default one, 
 you could append the constraint with colon and the message you want to display when failed.
 自定义消息提示，用冒号隔开。
@@ -101,7 +114,9 @@ you could append the constraint with colon and the message you want to display w
 <datebox constraint="no empty, no future: now or never"/>
 
 Notice that the error message, if specified, must be the last element and start with colon. 
+注意，错误消息提示，必须位于最后。
 To support multilingual, you could use the l function as depicted in ZK Developer's Reference.
+如果想支持多种语言，可以使用 l 函数。
 
 <?taglib uri="http://www.zkoss.org/dsp/web/core" prefix="c"?>
 <textbox constraint="/.+@.+\.[a-z]+/: ${c:l('err.email.required')}"/>
@@ -150,13 +165,17 @@ The format must be yyyyMMdd, such as
 
 <datebox constraint="before 20071225"/>
 
+
+==
 end_before
 end_after
 after_start
 after_end
 ...
+
 Specifies the position of the error box. 
 Please refer to Popup for all allowed position.
+指定提示框的位置：
 
 <textbox constraint="no empty, end_after"/>
 <textbox constraint="no empty, start_before"/>
@@ -166,6 +185,7 @@ Custom Constraint
 自定义约束
 
 If you want a custom constraint, you could implement Constraint and specify it in the constraint property (InputElement.setConstraint(Constraint)).
+实现 Constraint 接口。
 
 public class EventNumberConstraint implements Constraint {
     public void validate(Component comp, Object value) throws WrongValueException {
@@ -186,6 +206,7 @@ Display Error Message in Custom Way
 定制消息提示样式
 
 Instead of the default error box, you could provide a custom approach by implementing CustomConstraint (with Constraint). 
+实现 CustomConstraint 和 Constraint 接口。
 Then, CustomConstraint.showCustomError(Component, WrongValueException) 
 will be invoked when an exception is caught. For example,
 
@@ -199,7 +220,7 @@ will be invoked when an exception is caught. For example,
             }
             //CustomConstraint//
             public void showCustomError(Component comp, WrongValueException ex) {
-                errmsg.setValue(ex != null ? ex.getMessage(): "");
+                errmsg.setValue(ex != null ? ex.getMessage(): "");    // errmsg是label组件的id
             }
         }
         Constraint ctt = new MyConst();
@@ -221,9 +242,13 @@ Validate at Client for Better Responsiveness
 
 Responsiveness could be improved by validating more constraints at the client side[1]. 
 To do it, you have to implement ClientConstraint (with Constraint).
+实现 ClientConstraint 接口。
 ↑ The default constraint (SimpleConstraint) validates all constraints at the client side
+默认的实现，SimpleConstraint，在客户端完成校验。
 
+====
 WrongValueException
+
 In addition to throwing WrongValueException in Constraint.validate(Component, Object), 
 you can throw WrongValueException in other situations. 
 For example, you can validate the user name and password when the user presses the login button. For example,
@@ -247,6 +272,8 @@ public class FooComposer extends SelectorComposer {
 
 However, notice that you have to clear the error message manually by invoking InputElement.clearErrorMessage(). 
 Otherwise, the error message will remain there unless Textbox.setValue(String) is called.
+
+（hxzon疑问：抛出异常，这个错误消息在界面的哪个位置显示？）
 
 ====
 Properties
@@ -294,6 +321,8 @@ Zk textbox placeholder.png
 
 ====
 Supported Events
+支持的事件
+
 Name
 Event Type
 
