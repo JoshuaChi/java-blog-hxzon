@@ -1,0 +1,292 @@
+﻿Half-Life and Team Fortress Networking：Closing the Loop on Scalable Network Gaming Backend Services
+by yahn bernier [Programming, GDC 2001]
+http://www.gamasutra.com/view/feature/3169/halflife_and_team_fortress_.php
+
+May 11, 2000
+
+=============
+Editor's note: This paper was originally published in the 2000 Game Developer's Conference proceedings.
+This article focuses on some of the various back-end services you might wish to provide to your users as part of your game platform. The purpose of the article is to provide a sense for how these services can be designed, how they can be deployed, and hopefully, how you can avoid making incredibly painful mistakes in either their design or deployment.
+
+More and more, having an on-line component to gaming is essential to the success of a title. In addition, as games become more of a consumer entertainment experience, making things easier on gamers becomes essential. The days of needing to do such things as manually type in IP addresses to connect to remote servers are coming rapidly to a close. Therefore, it is important for you to provide a seamless user experience for your gamers as they go on-line. To do this, you will possibly need to provision a variety of backend services. Doing so will dramatically increase the usability of your games, hopefully leading to increased sales and recognition.
+
+
+ 
+This discussion will give you not only a sense of the many different backend services you should consider, but will also provide you with information about how some of these systems can be designed. Although much of the discussion is focused on a few specific kinds of backend services, the examples are relevant for any backend services you might need to deploy.
+
+The main focus for this articlewill be on network messaging that is not directly related to the in-game flow of messages, though some design issues applicable to in-game flows will be covered. At the end, there will be a brief discussion of the PowerPlay industry initiative. PowerPlay is particularly relevant since it addresses Internet infrastructure problems and deployment problems that effect the ability of the Internet to handle both in-game and backend server traffic.
+
+Game Master Server
+
+For any game having servers spread around the Internet and hosted by end-users, it will be important to have a way for your client software to find these servers. While this example fits the client / server model of first person shooter style games quite well, the general rules are applicable to the back-end services that other kinds of games could use. With this in mind, an interesting back-end service that you will probably want to deploy is a game master server.
+
+A game master server is used to collect a database of active game servers available on the Internet. Your game client (or external "server browser" applications) can then query this collection when users are searching for on-line games to join. The basic networking requirements for a game master server are:
+
+ 
+
+Ability to receive initiation / keepalive and termination of services messages from game servers; and
+· Ability to receive queries from game clients and return appropriate server identification information to those clients
+ 
+
+Although this basic functionality requirements list is brief, there is a further set of additional services you might also choose to provide in deploying your game master server. For instance, you might want to support the capability to restrict the search with a set of search criteria.
+
+Initiation / keepalive messages can be kept fairly small. The game server simply sends a packet to the master server using an agreed upon protocol. For instance, many games have chosen to signal "out of band" traffic by pre-pending a 32 bit integer negative one (0xffffffff) as a header to each query packet. The simplest initiation message in this scenario is then to send a single byte payload along with the packet header to signify that the game server is online. We used this mechanism in Half-Life. Thus, a packet having a five byte payload is about as small as these packets are going to get.
+
+Because UDP packets also have a 28-byte packet header each, the simplest initiation / keepalive message weighs in at about 33 bytes (28 byte header plus 5 byte payload). Unless you are sending additional data only at startup of a server, it may be convenient to collapse keepalive and initiation messages into the same exact message. Also, rather than sending the server's IP address in the packet payload, we can just look at the IP address from which we received the packet to determine that information. This saves a few bytes and makes it marginally tougher to spoof the "from" address (more on that below). For Half-Life, the initiation and keepalive messages were the same. With this base message size in mind, traffic statistics can be estimated as follows (assuming a fairly popular on-line game having up to about 2500 active game servers reporting to the master server at any one time):
+
+ 
+
+500 active game servers
+300 seconds per keepalive 
+33 bytes per keepalive
+ 
+
+ 
+
+= 275 bytes/second load and 8.33 transactions/second load
+ 
+
+Using the above data, a game platform supporting this number of servers will create approximately (2500 * 33)/300 bytes/second in traffic to the game master server. This works out to about 275 bytes/second of inbound load on the server in the form of approximately 2500/300 or 8.33 transactions per second. Even a relatively low bandwidth connection at the master server should easily be able to accommodate the traffic coming in from game servers. In addition, termination messages are as simple as the basic keepalive message described so far (moreover, termination messages don't necessarily require sending any additional data even if initiation or keepalive messages do), and their frequency can be assumed to be quite low. Therefore, we'll assume that termination messages probably will not add much to the bandwidth requirements for the game master server.
+
+Purging Servers From the List:
+
+In the real world, game servers are known to crash or become disconnected fairly regularly. Therefore, the game master server must be able to purge non-responsive game servers from its list occasionally. Assuming that game servers send keepalive messages every five minutes, as in the example above, it is probably safe to discard the address of any game server that has not sent a keepalive message to the game master server over the last few multiples of the keepalive interval. For instance, if your keepalive messages come once every five minutes, then you would discard the server from the list if a keepalive message is not received at least once every fifteen minutes. Of course, receiving a termination packet causes the server to be discarded immediately. Because not all servers terminate cleanly, there are often a few non-responsive servers in the list of servers returned to users.
+
+Denial Of Service Attacks on Game Master Server:
+
+Unfortunately, the basic game master server just described (which is directly responsive to small keepalive messages from servers) is open to several straightforward Denial of Service (DoS) attacks. For instance, the hacking community is quite adept at spoofing the "from" address field in IP headers. Thus, the following operations could cause a lot of problems for a game master server:
+
+while (< we think the gaming master is still alive >)
+{
+< create a random from address >
+< send a fake "keepalive" message to master >
+}
+
+This kind of attack hurts the game master server by causing it to store a bunch of bogus IP addresses for purported game servers. One worry is that the attack would cause the machine to run out of memory. Assuming that each such record on the master occupies:
+
+ 
+
+6 bytes IP address
+4 bytes pointer to next server; and
+4 bytes time of last server keepalive (for removing outdated servers)
+ 
+
+Fortunately, in this example, at 14 bytes per record, it would be difficult, though not impossible, to force the game master server to die from running out of memory. This is especially true since you will almost certainly want to provision a high-end machine to act as the master server. Also, using this kind of attack, the malicious person might not be able to send enough keepalive messages before the master server starts removing old servers. Then again, the CPU load of iterating through a few hundred thousand servers and comparing timestamps every few seconds could still be a major problem. On the other hand, if your master server stores fairly substantial data about each server, then it is quite possible that the game master server could run out of resources.
+
+The nastier problem with this attack, though, is that it makes the server lists returned to your game clients virtually useless. Not to mention that if the malicious user has added 100,000 or more bogus servers to your master server list that it would mean that every time a user asked for the server list that the master server would try to send them approximately 600Kb (100 K * 6 bytes per server) of data. The master server probably will not be able to serve up that amount of data if there are more than a few users querying it.
+
+Challenge/Response System for Game Master Server
+
+This is obviously a major problem. One solution to this kind of attack is to implement a challenge/response system that servers must go through in order to be listed on the game master server. To implement a basic challenge/response system, the game master server must store, for each potential server to be listed:
+
+ 
+
+IP address of the server
+the time of the request to send a keepalive; and
+a random number that must be returned to the server to allow the keepalive message
+ 
+
+The master server creates this record (or updates the one for the same from IP address if it already exists) and then sends a packet to the game server containing the random number. The game server then must send a keepalive message to the master and must include the random number in that message. If the challenge request came in from a bogus IP address, then the requester would never receive the random number back from the game master server. In addition, if a keepalive message is received and the random number is wrong or the message is out of date (i.e., the challenge/response record is more than a couple of seconds old), then the keepalive message can be easily ignored.
+
+Of course, even this system still has some vulnerability to a DoS attack where the attacker has sufficient bandwidth to occupy all of the "challenge" slots (depending on data structure used and number of slots allowed to be active and the timeout period on such slots) or simply to overwhelm the master server's connection itself, but those kinds of attacks are, at least, fairly traceable. For example, id Software, creators of the popular Quake series of games, experienced such an attack in January 2000. The attackers were able to saturate two full DS3 (T3) lines of 45Mbps capacity. I.e., the attackers must have had access to a better than T3 capacity connection.
+
+Additional Data
+
+The game master server described so far only encompasses the most basic functionality. Additional server specific data can be stored at the master server, especially as a way to streamline the amount of data sent back to users based on queries. This kind of tradeoff of processing and storage for bandwidth can often be a good idea. For instance, if the master server were to store current and maximum players, probably encoded as a byte or short each for most games, then the memory overhead wouldn't go up very much. Nor would the size of the keepalive packets from game servers containing this data. With this data, queries from users could request that the game master server filter out empty or full servers. In this fashion, the size of the server list returned by the master server is reduced, thereby lowering the server's outgoing bandwidth requirements. In addition, by not always requiring the end-user to talk to each game server to discover the number of players, the load placed on your game servers in responding to information queries could also be reduced.
+
+Finally, the design of the master server should be looked at from a network reliability point of view. For example, is there much consequence to having a keepalive message packet dropped? In the Half-Life case, we decided that there probably wasn't much of a consequence.
+
+Master Server Responses to Clients:
+
+The more important part of the game master server is the client query response portion. Unlike traffic from keepalive messages from servers, the load from querying by users can by quite staggering. The main purpose of the game master server is to send each requester a list of the IP addresses of the active or relevant game servers. The request for the list of servers can be as simple as the keepalive message, except that instead of a keepalive code, the client sends a "list servers" code. Estimating the frequency and number of such list requests to the game master server is a little more difficult.
+
+For instance, if we assume a community having 10,000 users simultaneously on-line at peak times and that each such user requests a new list of all servers from the master server every 15 minutes, we can generate some useful load statistics. Based on these numbers, the game master server must respond to about 11.1 such requests per second. If the requests are about 33 bytes each, then that's only 367 bytes or so per second of requests coming into the server. Where things become interesting is when we look at how expensive it is to the server to send out the responses.
+
+====
+Handling Multiple Packet UDP Responses
+
+Assuming again that there are 2500 active game servers, sending back the server list to the client will require 2500 * 6 bytes per server, or approximately 15Kb of data per query request. Now, at 11.1 such requests to service per second, the bandwidth required to service this many queries is about 166.5Kb/sec (1.33Mbps). That data rate would nearly saturate a T1 line. Of course, there is a major flaw in this scenario as well, at least if we are using UDP. UDP packets of 15K in size are not supported. In general, anything above 1450 bytes or so is considered bad form for IP based packets such as UDP packets. Routers or other equipment often discard packets larger than about 1450 bytes. This raises the question of how to solve this problem.
+
+
+ 
+There are at least two straightforward solutions to this problem. Both end up sending the server list to the requester in batches. In the first method, the master server stores off the requester's IP address and over the next few seconds, sends batches of server IP addresses to the client. Assuming these packets will be at most 1450 bytes long, there is enough room for about 240 or so IP addresses per batch. For the example above, this would require about eleven such batches to communicate all 2500 servers to the client. How quickly should these packets be sent back to the client? That depends on two factors, the client's inbound bandwidth capacity and the master server's outbound bandwidth capacity. How do we know the bandwidth capacity of the requester? We don't, but perhaps part of the request is the bandwidth capacity of the requester. Then the spacing of the packets is easy to figure out. For example, if the requester states that it can receive up to 2500 bytes per second on it's link, then the master would determine the time for sending the next request as follows:
+
+Next Packet Time = Current Time + Size of Current Packet / Remote Receiving Rate
+ 
+
+Thus, for 1450 byte packets on a link that can handle 2500 bytes / s of data:
+
+ 
+
+Next Packet Time = Current Time + (1450 bytes + 28 byte UDP header) / 2500 
+= Current Time + .5912 seconds
+ 
+
+The update to this client will take place over several seconds. Of course, if the client's link speed is stated incorrectly (especially overstated), the game master server could easily flood out the client's connection. In addition, the requester would also require a mechanism for knowing how long to listen for additional data packets (e.g., embedding "packet # 1 of 6" in the responses, or signaling how many total servers will be forthcoming).
+
+The second alternative is a bit simpler and avoids some of the potential problems noted above because it does not require that the master server remember any state info about the requester and it does not require that the game master server have any knowledge of the requester's link speed. The tradeoff here is that it can take a bit longer to get the full list from the server (depending on the ping from the requester to the game master server). The second method is more or less a batch request-response method. In this method, the master server stores the servers in sequential order (an implementation detail) with some sort of sequence number associated with each server and the requester simply requests the next batch of servers starting with the server after the last sequence numbered server it received. In other words, the requester code is something like this:
+
+void RequestBatch( int nextbatch )
+{
+< Create packet header >
+< Add in "list servers" request indicator >
+< Add in nextbatch parameter >
+
+< Send packet to master server >
+}
+
+void StartRequests( void )
+{
+RequestBatch( 0 );
+}
+
+As responses are received, either a new batch is requested, or if the "nextbatch" the master server tells us to request is "0", then we know we have received the last batch of servers. Care should be taken to handle the case where the exact requested "batch" number is no longer active on the server (I.e., it timed out between the server response saying it can be requested and the actual request packet coming in to the master server).
+
+void HandleBatchResponse( void )
+{
+< Read nextbatch from response packet >
+< Read list of IP addresses from response packet >
+
+if ( nextbatch != 0 )
+{ 
+// Continue requesting
+RequestBatch( nextbatch );
+}
+else
+{
+// Done.
+}
+}
+
+The nice thing about this approach is that it "self-regulates" the bandwidth required. The next batch of server IP addresses is not requested until the previous batch has been successfully received over the link. The down side of the approach is that if the requester has a high-latency connection to the master server, then the round trip time per packet can be a bit higher than if the master server simply transmitted packets as fast as possible as stated in the first scenario above.
+
+With either method of receiving the entire list, data querying can be accommodated. The returned list of servers IP addresses is just culled for servers that don't meet the requested criteria.
+
+TCP vs. UDP:
+
+So far, we've talked about the game master server as using a datagram driven communication model -- UDP. However, for each of your backend services, you will need to decide which networking protocol makes the most sense for its actual use. The main choice you have if you are developing on the Windows Operating System is whether to use TCP/IP or UDP/IP. The general properties of each as follows:
+
+· TCP/IP:
+
+ 
+
+Reliable
+Stream oriented - so no size limit on data
+Connection persistence/overhead
+Slow start
+· UDP/IP
+
+ 
+
+Unreliable
+Datagram oriented with limited size per packet
+Low overhead
+Based on the needs of the game master server described above, UDP is probably the better choice. In particular, the server is designed with more focus on handling the shear volume of list requests and cannot spare the overhead of maintaining sufficient listening sockets for completing query requests that can take upwards of 5 to 10 seconds to complete.
+
+Dealing with Failure
+
+Assuming the game master server has the basic functionality above, dealing with failure cases is where you will spend the next large portion of time coding and debugging. Having a clear idea of how you want things to behave when everything goes wrong is essential.
+
+Handling of the failure to receive responses from the game master server can take several forms. Perhaps missing one of the IP address packets from the first method is no big deal. If so, then assuming at least one such IP address packet has been received, the request can be considered successful. Otherwise, you will need to decide whether the protocol should detect dropping a particular packet ("packet 5 of 6" was never received) and whether the whole series should be re-requested at that point or whether a special query for just the missing packet should be undertaken. Under the request-response model of the second example, if a response from the server is dropped, then the request can be remade shortly thereafter.
+
+For our master server, a failure occurs when either a request packet is dropped or a response packet is dropped. Generally, a packet can be assumed dropped if a response is not received within a specified timeout period. The important thing about timeouts is to avoid race conditions. Race conditions can occur when:
+
+ 
+
+a request is made but no response appears forthcoming
+a timeout value is exceeded
+a new request is sent
+the response to the original request is received; and
+the second request causes the game master server to restart the response stream
+ 
+
+The best way to avoid this is to grow (doubling, for example) the timeout period with each retransmission of the request. After a few such resends, if no response is received, then the requester is either experiencing a ton of packet loss between his or her machine and the game master server or the game master server has gone off-line for some reason.
+
+Multiple Master Servers
+
+If the game master server goes off-line and you do not have another one available, then your system has failed catastrophically. Something to consider is at least having redundant game master servers positioned on the East and West coast of the United States (and possibly Europe, Australia, or Japan) as it is quite common for the main East-West Internet backbone links to fail for short periods of time.
+
+If you deploy multiple game master servers, then to avoid the above failure, your client must know how to talk to each available master server. If communication with the first one fails, you can try and talk to the next game master server, and so on.
+
+There is a caveat with having multiple master servers, especially if your goal is to distribute workload between them. If you hard code all of your clients automatically to query only one of the master servers, instead of randomly distributing the requests, then it is likely that that server will be overworked while the other / failover servers will be underutilized. Instead, you should consider scrambling the list of game master servers that the requester will contact so that the load on the servers is evenly distributed. The only mitigating issue here is concerns about having requesters talk to the "closest" game master server (either geographically or by number of hops) so that the latency and packet loss issues are reduced.
+
+====
+Scaling the System
+
+Dealing with failure leads to issues of scalability. Scalability refers to both the capacity of the system to handle increased demand and to the ability of the system to handle failure of individual components. In our example, being able to add and remove a game master server will probably mean that each game master server should also be able to serve out a list of all of the other master servers that can be checked. In other words, users have to be able to find out the list of active servers in some fashion.
+
+
+ 
+Another aspect of scalability is how comprehensive your databases are across the various backend servers. When your backend services include multiple game master servers, you have to determine how you are going to make sure that basically the same list of game servers exists on each of the master servers. This particular process is generally referred to as peering of the game server databases. There are a couple of basic ways to accomplish peering.
+
+In the first method, the burden of making sure all master servers know about a game server is placed on each game server. In this scenario, the game server sends keepalive messages to all known game master servers. The downside is that each game server must duplicate the keepalive message and must somehow track the addresses of all of the master servers. Probably the better way to do this is to have a peering protocol in the actual game master server. With this type of protocol, the game master servers can inform all of the other master servers of keepalive and termination messages. Upon receiving a keepalive request, for example, the master acts more or less as a conduit and passes the keepalive message (and the actual IP address of the game server) on to the other master servers. Those servers then simply add the underlying game server to their active lists (as if they had themselves received the keepalive message directly) and life goes on. The only caveat is to make sure that the passthrough packets are labeled in such as a way as to prevent them also being peered to the other master, thereby causing a never-ending, ever-expanding message loop to occur.
+
+If, rather than having multiple separate addresses for your master servers, you are going to house multiple game master servers behind a single IP address, then you will probably want to use a load balancing system.
+
+Authentication Server
+
+Even though the game master server is a fairly straightforward server to implement, there are a lot of things to consider. With this in mind, we'll turn to a different type of server that we used during the deployment of Half-Life, the authentication server. This server has a different usage characteristic and requirements than the game master server and will help to demonstrate several other considerations for backend services.
+
+The main purposes of the authentication server we deployed in Half-Life were to validate a user's CD key and to check to see if the user's executable was out-of-date (which would then invoke an auto-update mechanism using yet another backend server).
+
+In order to never send a plain text (i.e., unencrypted) CD key over the Internet, we designed the authentication protocols to use public/private key cryptographic techniques for transmission of the back and forth dialog between the authentication server and the end-user software.
+
+The CD keys we used were algorithmically generated so as to be very difficult to guess randomly. Because authenticating takes several seconds, and the odds of guessing a valid CD key are low, there is a large barrier to repetitive key guessing.
+
+In addition to sending the CD key to the server, the client also sends encrypted version information to the authentication server so that the user can be told about updated versions of the software.
+
+One thing we found out is that a lot of users have virus problems on their systems. In particular, the CIH virus turned out to be the main culprit behind version mismatch errors and was apparently infectious enough to affect thousands of our users. This was causing our versioning system to tell the client that it was in need of an upgrade. Of course this was not actually true at the time. As a result, we implemented routines in the client to self-CRC check the executable at startup.
+
+Similar to the game master server, the authentication server can be quite resource intensive. This is especially true considering it must not only check versioning data, but also validate CD keys and perform all of the necessary cryptographic functions. Therefore, it is important to be able to bring on-line additional authentication servers as needed and to make sure that the end-user software can fail over to the other authentication servers when there are problems reaching a particular server.
+
+Making the Protocol Choice:
+
+Based on the need for a multi-part conversation, it made sense for us to consider using TCP/IP as the transport mechanism for authentication. Using TCP/IP, as noted, requires a significant OS overhead in setting up and dedicating a socket to handling a particular conversation. Thus, you should probably consider setting up the backend server using a thread for each listening socket. To prevent a malicious user from totally occupying all available server sockets, you should quickly disconnect the TCP connection as soon as there is trouble in the information, or if the socket times out.
+
+Server load is the biggest issue for the authentication server. The following is a bit of information about the load we've seen on one of the multiple authentication servers we use for Half-Life.
+
+ 
+
+Auth transactions
+ 
+
+ 
+
+Averaged over days: 384,745
+Averaged over hours: 16,031
+Averaged over minutes: 267
+Averaged over seconds: 4.45
+ 
+
+A typical usage graph shows how the data load (outgoing bandwidth needed) varies and peaks throughout the week:
+
+
+Figure 1. A typical usage graph demonstrating 
+how data load varies during a week.
+Additional Backend Services
+
+In addition to game master servers and authentication / CD key checking services, there are various other backend services that you might choose to provision. For instance, after we released Half-Life, we soon realized that we needed to make the process of finding, downloading, and installing custom games or MODs (game MODifications) easier than it had been in the past. We chose to solve this problem by creating a new master server to handle serving out information about existing mods. The master just provides our clients with a list of MODs, a bit of information about each one, and the ftp site from which the MOD could be downloaded. The clients would then handle downloading and installing the MOD to the right spot.
+
+The engineers a WON.net have developed a robust set of backend services that you might consider using for your games if you don't have the bandwidth, courage, or expertise to develop and deploy your own systems. Please feel free to e-mail me for further contact information for WON.
+
+On-line Chat Service: Another interesting backend service that you might choose to deploy for your game platform is chat. One method of delivering 'chat' to your users is simply to code IRC client support into your game. While this is certainly functional, you should be aware that IRC servers are subject to a whole host of interesting attacks and user behaviors that might not be desirable.
+
+If, instead, you determine that you will be creating a custom chat service, then there are a couple of ways you can handle design and implementation. The main issue will be whether to use a client / server or a peer-to-peer model. The other consideration is how many connections you want to support and whether you want to maintain any control over the creation and participation in chat rooms.
+
+Using a client / server model can be a bit simpler, but does require that you (or one of your users) set up a host server. Will the server portion host handle multiple chat rooms or will it simply service just one chat room? If it services multiple chat rooms, then you need to consider the load this could create on the server. On the other hand, if each server will only handle one chat room, then the main issue is making sure that users find out the address of the server so they can initiate a connection. You could create a chat master server similar to the game master server to accomplish this.
+
+For chat, the underlying protocols are pretty easy. First, each client initiates a connection to the server. If you use UDP, you need to build in a way to make sure, in a reliable way, that the connection succeeds. If you use TCP, this concern is obviated. However, using TCP could limit the number of simultaneous users you can handle in your chat rooms. The server then notifies all of the listeners of the new user joining (again handling all reliability issues). Finally, when users talk, the server simply echoes the text to all other users.
+
+Using a peer-to-peer approach is a bit more complicated since each peer must be able to keep up-to-date on all of the other peers. You can accomplish this by having one of the peers act like the "server" and handle join/part and text message retransmits to everyone else. Of course, this also means that you have to handle that guy dropping out of the chat (do you kill the chat or appoint a new "server" on the fly?) Otherwise, each client must be able to handle join / leave messages and to be able to retransmit text to all other users. You still have the issue of how other people find out the addresses of participants so they can join the chat. In addition, synchronization of the peers becomes an issue.
+
+Auto-Update: Another type of service you might wish to provision is an auto-update service. For us, this service was a natural extension and justification for our authentication service. We believe that fragmentation of our user base caused by "voluntary" upgrades is generally a really bad idea. Therefore, we implemented the authentication system as a way to ensure that all of our on-line players are always up-to-date and compatible. When authentication fails because the version data appears out of date, we invoke a separate auto-update executable. This executable is nothing more than a fancied up FTP client that knows where to search for updates and how to download, decompress, and run the installers for them.
+
+PowerPlay: Most action game experiences on the Internet can be characterized as realtime, latency sensitive applications. The current state of the Internet infrastructure is not tuned well for this kind of gaming. To make the Internet the future of entertainment, improving the infrastructure will be critical. We are currently getting started on an industry initiative to create an open-standard to address various infrastructure issues on the Internet. This initiative is called PowerPlay. For more up-to-date information about PowerPlay, please check http://www.powerplayinfo.com/.
+
+Conclusion
+
+Provisioning backend services for your game platform is a critical component to the success and longevity of your game. There are a variety of such services that you might provision, but they generally fall within just a few classifications. In general, backend services are there to make your user's lives easier and, therefore, designing them with typical usage patterns in mind is important. Understanding how your backend services can be attacked or overloaded is also important. For almost all backend services, you will have to take into consideration a similar set of design decisions , and you will need to handle scalability and failure cases elegantly in order to keep your user base happy.
+
+You can contact Yahn Bernier at yahn@valvesoftware.com.
+
+

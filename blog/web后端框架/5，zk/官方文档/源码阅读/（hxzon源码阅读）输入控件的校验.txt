@@ -1,0 +1,24 @@
+﻿（hxzon源码阅读）输入控件的校验
+
+by hxzon
+=========
+1，java端数字的校验
+
+zul.jar
+
+Object org.zkoss.zul.Intbox.coerceFromString(String value) throws WrongValueException
+
+将客户端值转为服务端值，失败时抛出 WrongValueException 。
+
+上述方法在下边的方法中被调用。
+
+void org.zkoss.zul.impl.InputElement.service(AuRequest request, boolean everError)
+在处理 Events.ON_CHANGE 事件时。
+
+2，客户端校验
+
+zul.jar -> web -> js.zul -> inp（即 input ） -> Intbox.js
+
+/web/js/zul/inp/SimpleConstraint.src.js
+
+
