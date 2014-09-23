@@ -1,0 +1,268 @@
+﻿网络游戏中移动同步问题的解决方案
+
+梁白鸥,陈雷霆 (电子科技大学计算机科学与工程学院,四川成都610054) 
+摘 要:在基于C/S网络游戏架构下,介绍了网络游戏中的网络分布式对象的概念,分析了基于图形帧移动的错误方法,
+提出了一种基于时间移动的算法,并使用插值的方法改进了该算法。
+最后在上述基础上,提出了一种基于客户端预测和客户端修正的移动同步算法。
+在实时性要求较高的网络游戏中该算法完全能解决移动同步问题。 
+关键词:网络引擎;网络游戏;同步;客户端预测;分布式对象 
+中图分类号:TP39119   
+文献标志码:A   
+文章编号:1001-3695(2007)05-0207-03 
+ResearchandImplementationofSynchronousMoveinNetworkGame 
+LIANGBa-iou,CHENLe-iting (SchoolofComputerScience&Engineering,UniversityofElectronicScience&TechnologyofChina,ChengduSichuan610054,China) 
+
+Abstract:UnderthearchitectureofaClient/Servernetworkgame,introducedtheconceptofdistributeobjectofnetworkgame.
+Analyzedthewrongalgorithmofmovementbygraphicframe,and introduced the algorithmofmovementbytmiestep,
+thenusedtheinterpolationtoenhancethealgorithm,
+finally,introducedthemovementsynchronizationalgorithmbasedonclientpredictionandclientcorrection,
+thissynchronizationalgorithmcanresolvethemovementsynchronizationprobleminrealtmienetworkgame.
+Keywords:networkengine;networkgame;synchronization;clientprediction;distributeobject 
+
+收稿日期:2006-02-24;修返日期:2006-04-29  
+基金项目:国家/8630计划资助项目(2005AA114080) 
+作者简介:梁白鸥(1982-),男,硕士研究生,主要研究方向为游戏网络引擎中的关键技术(liangbaiou@163.com);
+陈雷霆(1966-),男,教授,主要研究方向为数字图像处理、三维图形技术. 
+
+=========
+0 引言 
+目前网络多人在线游戏主要有以下两种典型的网络拓扑方式:
+一是C/S模式,即所有的网络数据都必须从一个客户端到一个服务器,然后又由服务器中心转发到其他客户端上;
+二是Peer-to-Peer模式,Peer-to-Peer游戏没有专门的服务器。
+在Peer-to-Peer世界中,每个客户端都要与其他客户端进行网络通信[1]。 
+在基于C/S架构的网络多人在线游戏中,服务器通常扮演着重要的角色,它主宰着整个游戏世界,负责游戏规则的判定,并处理客户端传来的玩家输入。
+客户端和服务器以极高的速率发送数据量很小的数据包进行通信。
+客户端接收当前在服务器上整个游戏世界的状态,并通过该状态产生视/音频效果并展示给玩家,
+客户端也通过对输入设备(键盘、鼠标、游戏杆等)进行定时采样将采样信息发送给服务器作进一步的处理[2]。 
+与单机游戏相比,网络游戏需要处理许多新的问题,如带宽、网络延迟、网络丢包问题等。
+这些问题均会导致网络同步,特别是在实时性很高的第一人称射击游戏中,网络同步问题成了制约游戏性能好坏的关键因素。 
+
+1 网络同步中的关键技术 
+111 网络分布式对象 
+
+网络分布式对象在游戏网络引擎中非常重要,是多人网络游戏中必不可少的技术。
+该技术的大体思路是:如果一个对象一旦在一个客户端上被创建,则该对象也会在所有已经连接到服务器的客户端上被创建;
+如果一个对象在客户端上被销毁,则它就会在所有已连接到服务器上的客户端中被销毁[3]。 
+
+为便于描述,笔者将在本地客户端上的对象定义为Player对象,
+非本地客户端上的相应对象定义为GhostPlayer对象;
+两个对象具有相同的操作,但可能具有不一致的数据。
+图1描述了两个客户端加入服务器后Player和GhostPlayer对象在网络中的分布情况。 
+当创建好分布式对象后,就可以通过分布式对象上相应的网络接口(如RPC)进行对象到对象的通信,给编程人员的感觉如图1中的虚线路径:
+PlayerA(客户端A)到GhostPlayerA(客户端B);
+但实质上还是经过了以下的通信过程:PlayerA(客户端A)到GhostPlayerA(服务器)到GhostPlayerA(客户端B)。
+
+112 基于时间的移动 
+
+游戏时间的安排非常重要[4]。
+一些编程者通常会把特定的硬件时间放置到游戏循环中,即他们可能根据帧计数器更新游戏,而不是根据所经历的实际时间来更新游戏。
+特别是在网络游戏中,保持基于时间的更新是保证各个客户端同步的基础。
+典型的错误方法如下: 
+
+float t=0.0f，TimeStep=0.01;
+while(!quit){ 
+	ProcessInput(t);,
+	Player.position.x=Player.position.x+5; , 
+	MoveObject(t);
+	Render(state);
+	t+=TimeStep;
+} 
+
+在上述代码中,每次游戏的更新都会使玩家在x方向上移动五个单位。
+假设有一个CPU为1GHz的计算机,由游戏循环的处理将消耗计算机1/60s的时间可知,
+1s内游戏将更新60次,这将会使玩家移动300个/s单位;
+
+如果一个计算机的CPU频率为2GHz,那么游戏将以帧率为120fps的速度运行,
+即两倍于前者计算机的帧速运行这个游戏,这将使玩家移动600个/s单位。
+如果他们是网络上的对手,那么后者将能以两倍于前者的速度在游戏世界中移动。 
+
+上述方法显然是错误的,因此需要一种基于时间移动的算法。
+目前的解决办法是:
+使用一个时间累计器(Accumulator),在每次更新时将每次游戏更新的时间间隔(DeltaTime)加到累计器上;
+当累计的时间大于TimeStep时就开始一次物理模拟,并将累计的时间减去TimeStep。
+该算法能保证游戏完全以TimeStep的时间步长进行游戏更新。
+下面是该算法的核心代码: 
+
+float TimeStep=0.01;//表示每0.01s更新一次
+while(!quit){
+    float CurrentTime=time();//获得当前的时间
+    float DeltaTime=CurrentTime–PreviousTime;//获得上一次更新的时间（hxzon：时间增量）
+    PreviousTime=CurrentTime;
+    Accumulator+=DeltaTime;
+    while( Accumulator >= TimeStep ) {
+        ProcessInput(t);//处理键盘及鼠标输入
+        SimulationGhostPlayers(t);//模拟GhostPlayer的物理运动
+        ConnectionUpdate(t);//网络数据的更新
+        Accumulator-=TimeStep;
+        t++; //时间递增,这里简化成UINT类型的数据,加快运行速度}  
+        float alpha=Accumulator/TimeStep;  
+        RenderLocalPlayer(alpha);//渲染本地Player 
+        RenderGhostPlayers(alpha);//渲染已经连入服务器的Ghos-tPlayer  
+    }
+}
+
+在上面的算法中出现了一个Alpha变量,该变量有什么作用呢?
+如果帧率为55fps,物理模拟以60fps运行,
+那么物理更新有可能在两次显示更新内完成或者在一次显示更新内完成(当Accumulator累计到一定程度时)。
+这种不规则的物理更新频率将会在屏幕上呈现出一种感觉不真实的物理模拟。
+A-lpha变量能保证物体平滑移动。
+实质上是在上一次物理状态和当前物理状态之间进行线性插值。 
+
+Statestate=CurrentState@alpha+PreviousState@(1-alpha) (1) 
+
+其中,alpha=Accumulator/TimeStep,alphaI[0,1]。
+用Alpha来做两个状态之间的线性插值得到当前的状态,然后对计算出的当前状态进行渲染。
+如果要取得更好的效果,则需采用Slerp方法进行插值。 
+
+====
+113 网络对象移动的同步算法
+
+要优雅并且高效地做到使每个客户端远程控制自己的角色,
+并且尽可能真实地反映服务器上的物理状态,就需要将物理模拟做如下的结构化[5]
+(假设只需要处理对象的前后左右移动): 
+
+structInput    
+{bool left;
+bool right;
+bool forward;
+bool back;}
+
+structState    
+{Vector position;
+Vector velocity;
+}; 
+
+structMove  
+{Inputinput;//输入   
+State state;//状态   
+UINTtime;//时间    
+}; 
+
+上述结构化保证了:
+角色的物理状态(State)完全由输入数据驱动;
+物理状态能被完全地封装在一个state结构中;
+并由Time来同步服务器和客户端的时间。
+物理模拟由初始的状态和输入决定。 
+
+现在假设客户端的时间已经与服务器端的时间同步,且只考虑在一个TimeStep周期内的过程。
+那么网络对象移动同步算法的大体描述如图2所示。 
+
+(1)客户端A开始控制PlayerA移动,此时获得客户端A的输入InputA,同时获得当前的客户端A的时间tA;
+客户端A发送(InputA,tA)到服务器上的GhostPlayerA的网络接口上。 
+
+(2)客户端A根据当前状态StateA和当前输入InputA,以及当前时间,tA,构造Move结构MoveA,
+并将MoveA插入到移动队列QueueMoves中。
+该队列主要用于客户端修正,以保持与服务器的同步,
+同时客户端A开始预测服务器的状态,即客户端预测。 
+
+(3)服务器保存InputA为Inputserver;
+根据InputA在服务器上模拟客户端A的运动。 
+
+(4)服务器将服务器上的时间tserver、服务器上模拟的状态Stateserver、输入Inputserver,
+发送到客户端A的PlayerA的网络接口上。
+该消息用于修正客户端A的预测状态。 
+
+(5)将(Inputserver、Stateserver、tserver)发送给客户端B的Ghos-tPlayerA的网络接口上。
+该信息主要用于使PlayerA与Ghos-tPlayerA同步。 
+
+(6)客户端A根据服务器发送过来的信息对PlayerA的状态进行修正。 
+
+(7)客户端B根据服务器发送过来的Inputserver来模拟GhostPlayerA的运动,
+如果模拟后的运动与Stateserver的误差大于一个阈值D,则平滑地运动到Stateserver。
+
+====
+114 客户端预测与客户端修正 
+
+目前为止,已经提出了一个方法,通过客户端的输入来驱动服务器上的物理状态,然后广播该物理状态到每个客户端。
+因此每个客户端可以维持一个与服务器近似的物理状态。
+其中最重要的两种技术为客户端预测和客户端修正[6]。
+实现同步通常有两种解决方案: 
+
+(1)验证同步,即每条指令在服务器验证通过后再执行动作。
+比如,客户端A按下前进键,直到该信息发送给服务器并从服务器返回后才做真正前进的运动。
+该方法的优点是能保证各个客户端之间绝对的同步;
+其缺点是,在网络延迟较大时,玩家客户端的行为变得很不流畅。
+显然这不适合实时性要求较高的游戏。
+
+(2)采用客户端预测的方法。
+该方法通过使用客户端的输入来预测服务器上的物理状态,而不等待服务器的状态返回。
+服务器周期性地发送修正数据到客户端,客户端通过该数据不断修正自己,从而保证与服务器的物理状态同步。（hxzon：服务端周期性发送）
+比如,客户端A按下前进键,不等待服务器的返回信息,而直接做前进运动;
+通过服务器返回的状态来不断修正客户端的预测状态。
+该方法能保证客户端图形的流畅性。
+
+客户端预测最复杂的部分就是处理来自服务器的同步修正。
+这个技术的具体实现需要使用一个存放客户端的Queue-Moves队列。
+该队列存储客户端的上n次移动操作。
+当客户端收到一个来自服务器t时刻的修正,它遍历所有存放Queue-Moves的队列,找到客户端t时刻的Move,
+并将服务器发送来的物理状态与其当前的物理状态进行比较。
+如果两个物理状态的差大于阈值Threshold,那么客户端将返回到t时刻,
+根据服务器的状态重新模拟t时刻后的所有过程。
+
+以下是该算法的核心代码:
+
+Move moves[1024];//假设队列的最大容量为1024
+int head=0,tail=100;//假设已经有50个Move存放到队列中（hxzon：为什么tail是100而不是1024或50？）
+
+//客户端修正
+void ClientCorrection(UINT ServerTime,State ServerState,Input ServerInput)
+{
+	（hxzon：time 即 ServerTime）
+	while( time>moves[head].time && head!=tail ) {
+		erase(head);//移出过时的Move操作
+	}
+
+	//队列不为空,且与服务器上操作的时间相同
+	if( head!=tail && time==Moves[head].time )
+	{
+		// hxzon：CurrentState 即本地最新状态
+		if( ( moves[head].state.position-CurrentState.position ).length  >  threshold )
+ 		{
+			CurrentTime=ServerTime;//保存服务器的时间
+			CurrentState=ServerState;//保存服务器的物理状态
+			CurrentInput=ServerInput;//保存服务器的输入
+			erase(head);//移出队列首的Move
+			int index=head;
+			while(index!=tail) //重新模拟t时刻之后的所有过程  
+			{
+				const float deltaTime=moves[index].time-currentTime;
+				updatePhysics(CurrentTime,deltaTime,CurrentInput);
+				CurrentTime=moves[index].time;
+				CurrentInput=moves[index].input;
+				moves[index].state=CurrentState;
+				index++;   
+			}   
+		}
+	}
+}
+
+=======
+2 实验及结果
+
+按照上述算法,以VisualC++.NET为开发工具,图形部分采用OpenGL,网络部分采用TNL(www.opent.lorg)网络引擎,实现了第一人称射击游戏的演示版。
+在多台计算机上分别运行服务器和多个客户端,运行效果较好,基本上能满足第一人称射击游戏的网络同步。
+
+3 结束语
+同步问题在网络游戏中是十分重要的问题,急需解决。
+目前的措施都是采用一些同步算法来减少网络不同步带来的影响。
+这些同步算法都是从分布式军事仿真系统中借鉴过来的。
+在C/S架构下,网络游戏中大多采用分布式对象进行通信,采用基于时间的移动,
+移动过程中采用客户端预测和客户端修正的方法保持客户端与服务器、客户端与客户端之间的同步。
+本文中提出的移动同步算法在实时性要求较高的网络游戏中有较好的效果。
+
+参考文献:
+[1]
+CRONINE,KURCAR,FILSTRUPB,etal.Anefficientsynchron-izationmechanismformirroredgamearchitectures[J].MultimediaToolsandApplications,2004,23(1):7-30.
+[2]BLOWJ.Alookatlatencyinnetworkedgames[J].GameDevelop-ment,1998,5(7):28-40.
+[3]
+ISHIBASHIY,TASAKAS.Causalityandmediasynchronizationcon-trolfornetworkedmultimediagames:centralizedversusdistributed:proceedingsofthe2ndWorkshoponNetworkandSystemSupportforGames[C].RedwoodCiyt:[s.n.],2003:42-51.
+[4]BARRONT,LOSTL.Multiplayergameprogramming[M].Washing-ton,D.C.:CourseTechnologyPTR,2002:406-408.
+[5]
+BERNIERYW.LatencycompensatingmethodsinClient/Serverin-gameprotocoldesignandoptimization[EB/OL].(2001-01).h-ttp://web.cs.
+wp.i
+edu/~
+claypool/courses/4513-B03/papers/
+games/bernier.pd.f
+[6]
+SMEDJ,KAUKORANTAT,HAKONENH.Areviewonnetworkingandmultiplayercomputergames[EB/OL].(2002-04).http://www.tucs.fi/publications/attachment.php%3ffname=TR454.pd.
+
