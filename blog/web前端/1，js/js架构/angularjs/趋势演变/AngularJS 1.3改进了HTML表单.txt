@@ -1,0 +1,80 @@
+﻿AngularJS 1.3改进了HTML表单
+作者 David Iffland ，译者 马德奎 发布于 2014年9月23日 |
+http://www.infoq.com/cn/news/2014/09/angular-13-html-forms
+
+即将到来的AngularJS 1.3重点改进了表单数据操作。
+虽然该版本解决了一些实际问题，但对于部分开发人员来说，它可能不是一次能够自动完成的升级。
+
+AngularJS团队已经开始推出1.3的候选版本。在一份Google+公告中，Angular团队写道：
+
+1.3版本的大部分API都已经确定，接下来的版本，直到1.3.0稳定版，将修复现有的Bug。
+
+1.3版本包含如下新特性：
+
+新的验证器管道
+自定义异步验证器
+模型数据绑定选项
+ngMessages错误信息模块重用
+支持一次性数据绑定
+
+最新版本为开发人员提供了一种创建自定义验证器的新方法，
+它不需要使用“分析器（parser）”和“格式器（formatter）”。
+在1.3中，要创建一个自定义验证器，开发人员必须把它注册到新的$validator管道上，并返回true或false：
+
+ngModule.directive('validateLessthanfive', function() {
+  return {
+    require : 'ngModel',
+    link : function($scope, element, attrs, ngModel) {
+      ngModel.$validators.lessthanFive = function(value) {
+        return (value < 5);
+      }; 
+    }
+  }
+});
+
+Matias Niemela是一名Angular贡献者，关于新的表单特性，他写了一篇十分详细的报道，
+http://www.yearofmoo.com/2014/09/taming-forms-in-angularjs-1-3.html
+其中包括创建异步验证器提供基于服务器的验证这一新功能。
+Matias还提到，HTML5验证器也进行了同样的改进：
+
+现在，每当验证失败时，所有的HTML5验证属性都会以恰当的方式绑定到ngModel，而错误则注册到ngModel.$error。
+
+Angular团队在1.3版本中引入了破坏性更改，这引来部分开发人员的抱怨，
+他们认为这应该在主要版本（比如，2.0版本）更新时出现。
+在GitHub上最近一次提交的评论中，Woot软件开发经理Chad Moran警告说：
+
+做破坏性更改，而又不生成一个主要版本，这很可能给用户带来巨大的麻烦。
+
+1.3中可能影响到企业开发人员的一项更改是不再支持IE8。
+在2013年12月Angular团队在他们的博客上宣布这一消息以来，开发人员已经发出了大量的警告。
+之所以进行这项更改，部分是因为1.3版本只支持jQuery 2.1或更高版本，
+而jQuery在2.x版本中停止支持IE8。
+
+在Angular的早期版本中，为了在正确时间显示正确的错误信息，
+表单验证错误信息的显示结合了ng-if指令和大量的布尔逻辑。
+1.3版本引入了ngMessages模块，作为一种改进方法，用来处理复杂的验证错误信息。
+下面是一个摘自yearofmoo.com博文的新语法示例：
+http://www.yearofmoo.com/2014/09/taming-forms-in-angularjs-1-3.html
+
+<form name="myForm">
+  <input type="text" name="colorCode" ng-model="data.colorCode" minlength="6" required />
+  <div ng-messages="myForm.colorCode.$error" ng-if="myForm.$submitted || myForm.colorCode.$touched">
+        <div ng-message="required">...</div>
+        <div ng-message="minlength">...</div>
+        <div ng-message="pattern">...</div>
+  </div>
+</form>
+
+据Niemela说，除代码行数减少外，新的ng-messages模块将“解决一个错误在另一个错误之前出现这一情况的复杂性。”
+
+尚不清楚1.3.0什么时候能达到稳定版本，
+但在1.2版本正式发布前，在三个月的时间里出现了三个候选版本。
+而目前为止，在三个周的时间里，已经有三个1.3候选版本。
+1.3版本后是2.0版本，根据Angular团队的一篇博文，
+那个版本的重点是使Angular成为一个“适用于移动应用的框架”。
+http://blog.angularjs.org/2014/03/angular-20.html
+
+AngularJS是一个由Google创建的JavaScript框架。
+
+查看英文原文：AngularJS 1.3 Improves HTML Forms
+

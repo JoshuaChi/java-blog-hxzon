@@ -1,0 +1,596 @@
+﻿（蔡剑飞，网易）构建高可伸缩性的WEB交互式系统（下）
+作者 蔡剑飞 发布于 2014年9月24日 |
+http://www.infoq.com/cn/articles/construction-of-web-interactive-system-part3
+
+图片见原文。
+NEJ框架。
+=========
+本文是《构建高可伸缩性的WEB交互式系统》系列文章的第三篇，以网易的NEJ框架为例，对模块的可伸缩性进行分析介绍。
+
+实例分析
+
+NEJ框架根据前两篇的描述对此套架构模式做了实现，下面我们用具体实例讲解如何使用NEJ中的模块调度系统来拆分一个复杂系统、开发测试模块、整合系统等。
+
+系统分解
+
+绘制层级关系图
+当我们拿到一个复杂系统时，根据交互稿可以绘制出组成系统的模块的层级关系图，并确定系统对外可访问的模块。
+
+（图）
+
+抽象依赖关系树
+从模块的层级关系图中，我们可以非常方便的抽象出模块的依赖关系树：
+
+（图）
+
+
+然后，我们将抽象出来的依赖关系树根据UMI规则进行格式化。格式化的主要操作包括：
+
+-1，增加一个名称为“/”的根结点（也可将“m”结点改为“/”）
+-2，每个结点增加“/”的子节点作为默认节点
+
+
+至此输出的依赖关系树，具有以下特性：
+
+任何一个结点（除根结点外）到根结点路径上的结点名称用“/”分隔组合起来即为结点的UMI值，如list结点的UMI值为/m/blog/list
+任何结点上的模块都依赖于他祖先结点（注册有模块）上的模块存在，如blog结点和list结点均注册有模块，
+则list结点上的模块显示必须以blog结点上的模块的显示为先决条件
+
+确定对外模块注册节点
+五个对外可访问的模块：日志、标签、基本资料、个人经历、权限设置，
+在依赖关系树中找到合适的结点（叶子结点，层级关系树在依赖关系树中对应的结点或“/”结点）来注册对外可访问的模块：
+
+（图）
+
+确定布局模块注册节点
+从可访问模块注册的结点往根结点遍历，凡碰到两模块交叉的结点即为布局模块注册结点，
+系统所需的组件相关的模块可注册到根结点，这样任何模块使用的时候都可以保证这些组件已经被载入。
+
+
+
+映射模块功能
+原则：结点的公共父结点实现结点上注册的模块的公共功能。
+
+举例：blog结点和setting结点的公共父结点为m结点，则我们可以通过切换blog模块和setting模块识别不变的功能即为m模块实现的功能，同理其他模块。
+
+
+
+分解复杂模块
+进一步分解复杂模块，一般需要分解的模块包括：
+
+可共用模块，比如日志列表，可以在日志管理页面呈现，也可以在弹层中显示
+
+逻辑上无必然联系的模块，如日志模块中日志列表与右侧的按标签查看的标签列表之间没有必然的联系，
+任何一个模块的移除或添加都不会影响到另外一个模块的业务逻辑
+
+至此我们可以得到两棵系统分解后的依赖关系树——对外模块依赖关系树：
+
+
+
+以及私有模块依赖关系树：
+
+
+
+绘制模块功能规范表
+本例中为了说明分解过程，将所有可分解的模块都做了分解。
+实际项目看具体情况，比如这里的/m模块组合的/?/tab/模块的功能可以直接在/m模块中实现，而不需要新建一个/?/tab/模块来实现这个功能。
+
+规范表范例如下所示：
+
+
+
+构建目录
+
+项目目录
+项目目录的构建如下图所示：
+
+
+
+各目录说明
+
+webroot                    项目前端开发相关目录
+   |- res                  静态资源文件目录，打包时可配置使用到该目录下的静态资源带版本信息
+   |- src                  前端源码目录，最终发布时该目录不会部署到线上
+       |- html
+            |- module      单页面模块目录，系统所有模块的实现均在此目录下
+            |- app.html    单页面入口文件
+
+==
+模块单元目录
+
+根据模块封装规则一个模块单元由以下几部分组成：
+
+模块测试：模块实现的功能可以通过模块测试页面独立进行测试
+模块结构：模块所涉及的结构分解出来的若干模板集合
+模块逻辑：根据模块规范实现的模块业务逻辑，从模块基类继承
+模块样式：模块特有的样式，一般情况下这部分样式可以直接在css目录下实现
+
+结构范例如下所示：
+
+
+
+至此我们可以得到所有模块的目录结构，如下所示：
+
+
+==
+模块实现
+
+结构
+这里我们假设系统的静态页面已经做完，这里的模块实现只是在原有结构的基础上进行结构分解和业务逻辑的实现，
+结构部分内容主要将模块相关的静态结构拆分成若干NEJ的模板。注意：
+
+模板中的外联资源如css，js文件地址如果使用的是相对路径则均相对于模块的html文件路径
+模板集合中的外联资源必须使用@TEMPLATE标记标识，这个在后面打包发布章节会详细介绍
+
+==
+NEJ模板说明
+
+
+
+模块结构举例
+
+<meta charset="utf-8"/>
+
+<textarea name="txt" id="m-ifrm-module">
+  <div class="n-login">
+    <div class="iner j-flag">
+      <span class="cls j-flag">×</span>
+      <span class="min j-flag">－</span>
+    </div>
+    <div class="cnt j-cnt"></div>
+  </div>
+</textarea>
+
+<!-- @TEMPLATE -->
+<textarea name="js" data-src="./index.css"></textarea>
+<textarea name="js" data-src="./index.js"></textarea>
+<!-- /@TEMPLATE -->
+
+逻辑
+依赖util/dispatcher/module模块，我们从_$$ModuleAbstract扩展一个项目的模块基类，完成项目中模块特有属性、行为的抽象。
+
+/*
+ * ------------------------------------------
+ * 项目模块基类实现文件
+ * @version  1.0
+ * @author   genify(caijf@corp.netease.com)
+ * ------------------------------------------
+ */
+NEJ.define([
+    'base/klass',
+    'util/dispatcher/module'
+],function(_k,_t,_p){
+    // variable declaration
+    var _pro;
+    /**
+     * 项目模块基类对象
+     * @class   {_$$Module}
+     * @extends {_$$ModuleAbstract}
+     * @param   {Object}  可选配置参数，已处理参数列表如下所示
+     */
+    _p._$$Module = _k._$klass();
+    _pro = _p._$$Module._$extend(_t._$$ModuleAbstract);
+    /**
+     * 操作
+     * @param  {Object}
+     * @return {Void}
+     */
+    _pro.__doSomething = function(_args){
+        // TODO
+    };
+
+    // TODO
+
+    return _p;
+});
+
+根据模块状态的划分，我们在实现一个模块时需要实现以下几个接口：
+
+
+
+各阶段对应的接口：
+
+构建 - __doBuild：构建模块结构，缓存模块需要使用的节点，初始化组合控件的配置参数
+
+显示 - __onShow：将模块放置到指定的容器中，分配组合控件，添加相关事件，执行__onRefresh的业务逻辑
+
+刷新 - __onRefresh：根据外界输入的参数信息获取数据并展示（这里主要做数据处理）
+
+隐藏 - __onHide：模块放至内存中，回收在__onShow中分配的组合控件和添加的事件，
+回收__onRefresh中产生的视图（这里尽量保证执行完成后恢复到__doBuild后的状态）
+
+具体模块实现举例
+
+/*
+ * ------------------------------------------
+ * 项目模块实现文件
+ * @version  1.0
+ * @author   genify(caijf@corp.netease.com)
+ * ------------------------------------------
+ */
+NEJ.define([
+    'base/klass',
+    'util/dispatcher/module',
+    '/path/to/project/module.js'
+],function(_k,_e,_t,_p){
+    // variable declaration
+    var _pro;
+    /**
+     * 项目模块对象
+     * @class   {_$$ModuleDemo}
+     * @extends {_$$Module}
+     * @param   {Object} 可选配置参数
+     */
+    _p._$$ModuleDemo = _k._$klass();
+    _pro = _p._$$ModuleDemo._$extend(_t._$$Module);
+    /**
+     * 构建模块，主要处理以下业务逻辑
+     * - 构建模块结构
+     * - 缓存后续需要使用的节点
+     * - 初始化需要使用的组件的配置信息
+     * @return {Void}
+     */
+    _pro.__doBuild = function(){
+        this.__super();
+        // TODO
+    };
+    /**
+     * 显示模块，主要处理以下业务逻辑
+     * - 添加事件
+     * - 分配组件
+     * - 处理输入信息
+     * @param  {Object} 输入参数
+     * @return {Void}
+     */
+    _pro.__onShow = function(_options){
+        this.__super(_options);
+        // TODO
+    };
+    /**
+     * 刷新模块，主要处理以下业务逻辑
+     * - 分配组件，分配之前需验证
+     * - 处理输入信息
+     * - 同步状态
+     * - 载入数据
+     * @return {Void}
+     */
+    _pro.__onRefresh = function(_options){
+        this.__super(_options);
+        // TODO
+    };
+    /**
+     * 隐藏模块，主要处理以下业务逻辑
+     * - 回收事件
+     * - 回收组件
+     * - 尽量保证恢复到构建时的状态
+     * @return {Void}
+     */
+    _pro.__onHide = function(){
+        this.__super();
+        // TODO
+    };
+    // notify dispatcher
+    _e._$regist(
+        'umi_or_alias',
+        _p._$$ModuleDemo
+    );
+
+    return _p;
+});
+
+消息
+点对点消息
+
+模块可以通过__doSendMessage接口向指定UMI的模块发送消息，也可以通过实现__onMessage接口来接收其他模块发给他的消息。
+
+发送消息
+
+_pro.__doSomething = function(){
+
+    // TODO
+
+    this.__doSendMessage(
+        '/m/setting/account/',{
+            a:'aaaaaa',
+            b:'bbbbbbbbb'
+        }
+    );
+};
+
+接收消息
+
+_pro.__onMessage = function(_event){
+    // _event.from 消息来源
+    // _event.data 消息数据，这里可能是 {a:'aaaaaa',b:'bbbbbbbbb'}
+
+    // TODO
+};
+
+发布订阅消息
+发布消息
+
+_pro.__doSomething = function(){
+
+    // TODO
+
+    this.__doPublishMessage(
+        'onok',{
+            a:'aaaaaa',
+            b:'bbbbbbbb'
+        }
+    );
+};
+
+订阅消息
+
+_pro.__doBuild = function(){
+
+    // TODO
+
+    this.__doSubscribeMessage(
+        '/m/message/account/','onok',
+        this.__onMessageReceive._$bind(this)
+    );
+};
+
+自测
+创建html页面，使用模板引入模块实现文件
+
+<!-- template box -->
+<div id="template-box" style="display:none;">
+  <textarea name="html" data-src="../index.html"></textarea>
+</div>
+
+模块放至document.mbody指定的容器中
+
+NEJ.define([
+    'util/dispatcher/test'
+],function(_e){
+    document.mbody = 'module-id-0';
+    // test module
+    _e._$testByTemplate('template-box');
+});
+
+系统整合
+
+映射依赖关系树
+系统整合时，我们只需要将依赖关系树中需要注册模块的节点同模块实现文件进行映射即可。
+
+对外模块整合
+
+
+
+私有模块整合
+
+
+
+提取系统配置信息
+规则配置举例
+
+  rules:{
+      rewrite:{
+          '404':'/m/blog/list/',
+          '/m/blog/list/':'/m/blog/',
+          '/m/setting/account/':'/m/setting/'
+      },
+      title:{
+          '/m/blog/tag/':'日志标签',
+          '/m/blog/list/':'日志列表',
+          '/m/setting/permission/':'权限管理',
+          '/m/setting/account/':'基本资料',
+          '/m/setting/account/edu/':'教育经历'
+      },
+      alias:{
+          'system-tab':'/?/tab/',
+          'blog-tab':'/?/blog/tab/',
+          'blog-list-box':'/?/blog/box/',
+          'blog-list-tag':'/?/blog/tag/',
+          'blog-list-class':'/?/blog/class/',
+          'blog-list':'/?/blog/list/',
+          'setting-tab':'/?/setting/tab/',
+          'setting-account-tab':'/?/setting/account/tab/',
+
+          'layout-system':'/m',
+          'layout-blog':'/m/blog',
+          'layout-blog-list':'/m/blog/list/',
+          'layout-setting':'/m/setting',
+          'layout-setting-account':'/m/setting/account',
+
+          'blog-tag':'/m/blog/tag/',
+          'setting-edu':'/m/setting/account/edu/',
+          'setting-profile':'/m/setting/account/',
+          'setting-permission':'/m/setting/permission/'
+      }
+  }
+
+模块配置举例
+
+  modules:{
+      '/?/tab/':'module/tab/index.html',
+      '/?/blog/tab/':'module/blog/tab/index.html',
+      '/?/blog/box/':'module/blog/list.box/index.html',
+      '/?/blog/tag/':'module/blog/list.tag/index.html',
+      '/?/blog/class/':'module/blog/list.class/index.html',
+      '/?/blog/list/':'module/blog/list/index.html',
+      '/?/setting/tab/':'module/setting/tab/index.html',
+      '/?/setting/account/tab/':'module/setting/account.tab/index.html',
+
+      '/m':{
+          module:'module/layout/system/index.html',
+          composite:{
+              tab:'/?/tab/'
+          }
+      },
+      '/m/blog':{
+          module:'module/layout/blog/index.html',
+          composite:{
+              tab:'/?/blog/tab/'
+          }
+      },
+      '/m/blog/list/':{
+          module:'module/layout/blog.list/index.html',
+          composite:{
+              box:'/?/blog/box/',
+              tag:'/?/blog/tag/',
+              list:'/?/blog/list/',
+              clazz:'/?/blog/class/'
+          }
+      },
+      '/m/blog/tag/':'module/blog/tag/index.html',
+
+      '/m/setting':{
+          module:'module/layout/setting/index.html',
+          composite:{
+              tab:'/?/setting/tab/'
+          }
+      },
+      '/m/setting/account':{
+          module:'module/layout/setting.account/index.html',
+          composite:{
+              tab:'/?/setting/account/tab/'
+          }
+      },
+      '/m/setting/account/':'module/setting/profile/index.html',
+      '/m/setting/account/edu/':'module/setting/edu/index.html',
+      '/m/setting/permission/':'module/setting/permission/index.html'
+  }
+
+模块组合
+模块通过__export属性开放组合模块的容器，__export中的parent为子模块的容器节点，顶层模块（如 “/m”）可以通过重写__doParseParent来明确指定应用所在容器。
+
+_pro.__doBuild = function(){
+    this.__body = _e._$html2node(
+        _e._$getTextTemplate('module-id-l2')
+    );
+    // 0 - box select
+    // 1 - class list box
+    // 2 - tag list box
+    // 3 - sub module box
+    var _list = _e._$getByClassName(this.__body,'j-flag');
+    this.__export = {
+        box:_list[0],
+        clazz:_list[1],
+        tag:_list[2],
+        list:_list[3],
+        parent:_list[3]
+    };
+};
+
+通过composite配置模块组合
+
+'/m/blog/list/':{
+    module:'module/layout/blog.list/index.html',
+    composite:{
+        box:'/?/blog/box/',
+        tag:'/?/blog/tag/',
+        list:'/?/blog/list/',
+        clazz:'/?/blog/class/'
+    }
+}
+
+模块组合时可以指定组合模块的处理状态：
+
+onshow - 这里配置的组合模块仅在模块显示时组合，后续的模块refresh操作不会导致组合模块的refresh，适合于模块在显示后不会随外界输入变化而变化的模块
+onrefresh - 这里配置的模块在模块显示时组合，后续如果模块refresh时也会跟随做refresh操作，适用于组合的模块需要与外部输入同步的模块
+不指定onshow或者onrefresh的模块等价于onrefresh配置的模块
+composite:{
+    onshow:{
+        // 模块onshow时组合
+        // 组合的模块在模块onrefresh时不会刷新
+    },
+    onrefresh{
+        // 模块onshow时组合
+        // 组合的模块在模块onrefresh时也同时会刷新
+    }
+    // 这里配置的组合模块等价于onrefresh中配置的模块
+}
+
+启动应用
+根据配置启动应用
+
+NEJ.define([
+    'util/dispatcher/dispatcher'
+],function(_e){
+    _e._$startup({
+        // 规则配置
+        rules:{
+            rewrite:{
+                // 重写规则配置
+            },
+            title:{
+                // 标题配置
+            },
+            alias:{
+                // 别名配置
+                // 建议模块实现文件中的注册采用这里配置的别名
+            }
+        },
+        // 模块配置
+        modules:{
+            // 模块UMI对应实现文件的映射表
+            // 同时完成模块的组合
+        }
+    });
+});
+
+打包发布
+打包发布内容详见NEJ工具集相关文档
+
+系统变更
+
+当系统需求变化而进行模块变更我们只需要开发新的模块或删除模块配置即可
+
+新增模块
+
+如果增加一个全新的模块，则只需按照上面的逻辑实现步骤开发一个模块即可。如果新增的模块功能在系统中已经实现，则只需修改配置即可。如上例中我们需要在将日志管理下的标签模块在博客设置中也加一份，访问路径为/m/setting/tag/
+
+
+
+修改规则配置
+
+rules:{
+    // ...
+    alias:{
+        // ...
+        'blog-tag':['/m/blog/tag/','/m/setting/tag/']
+    }
+}
+
+修改模块配置
+
+modules:{
+    // ...
+    '/m/setting/tag/':'module/blog/tag/index.html'
+}
+
+如果要在/?/setting/tab模块的结构模板中增加一个标签即可
+
+<textarea name="txt" id="module-id-8">
+  <div class="ma-t w-tab f-cb">
+    <a class="itm fl" href="#/setting/account/" data-id="/setting/account/">账号管理</a>
+    <a class="itm fl" href="#/setting/permission/" data-id="/setting/permission/">权限设置</a>
+    <a class="itm fl" href="#/setting/tag/" data-id="/setting/tag/">日志标签</a>
+  </div>
+</textarea>
+
+删除模块
+
+将退化的模块从系统中删除只需要将模块对应的UMI配置从模块配置中删除即可，而无需修改具体业务逻辑。
+
+总结
+
+随着WEB技术的快速发展，单页面系统（SPA）的应用变得越来越广泛，随着此类系统复杂度的增加，其对平台及模块的伸缩性方面需求变得越来越重要。
+对于这两方面，业界给出了不少解决方案，本文我们主要探讨了网易NEJ框架在这些方面给出的解决方案。
+网易在单页面系统方面也做了多年的实践和技术积累，
+如近几年的网易云音乐PC版、易信WebIM、网易邮箱助手等，早些年的网易相册、网易邮箱等，移动端的网易云相册IPad版、Lofter Android版等产品，
+均是此类单页面系统的应用实践。实践过程中对这方面有兴趣的同学可进一步做交流。
+
+本作品采用知识共享署名 4.0 国际许可协议进行许可。
+
+作者介绍
+
+蔡剑飞，网易杭州研究院前端高级技术专家，
+2005年加入网易，先后参与过网易邮箱、网易博客、网易相册、网易云音乐等产品的开发，
+从2010年开始开发NEJ框架，现在负责NEJ框架的维护及培训。
+他的邮箱是 genify@163.com ，微博是 genify ，欢迎大家来信交流！
+
