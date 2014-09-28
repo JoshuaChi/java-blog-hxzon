@@ -98,6 +98,79 @@ void QuickSelect( int a[], int k, int left, int right )
         InsertSort( a + left, right - left + 1 );
 }
 
+（hxzon：上述代码有误。java版：
+
+    public static <T> void quickSelectMinK_2(T a[], int k, Comparator<T> comp) {
+        quickSelectMinK(a, k, 0, a.length - 1, comp);
+    }
+
+    //QuickSelect 将第k小的元素放在 a[k-1]
+    public static <T> void quickSelectMinK_2(T a[], int k, int left, int right, Comparator<T> comp) {
+        if (left >= right) {
+            return;
+        }
+        //取三数中值作为枢纽元，可以很大程度上避免最坏情况
+        int vi = QuickSort.median3Index(a, left, right, (right + left) / 2, comp);
+        QuickSort.swap(a, vi, right);
+        //
+        int i = left - 1;
+        int j = right;
+        for (;;) {
+            while (comp.compare(a[++i], a[right]) < 0) {
+            }
+            while (comp.compare(a[--j], a[right]) > 0) {
+            }
+            if (i < j) {
+                QuickSort.swap(a, i, j);
+            } else {
+                break;
+            }
+        }
+        //重置枢纽元
+        QuickSort.swap(a, i, right);
+
+        if (k <= i) {
+            quickSelectMinK(a, k, left, i - 1, comp);
+        } else if (k > i + 1) {
+            quickSelectMinK(a, k, i + 1, right, comp);
+        }
+    }
+
+    public static <T> int median3Index(T objs[], int a, int b, int c, Comparator<T> comp) {
+        int bigger = comp.compare(objs[a], objs[b]) > 0 ? a : b;
+        return comp.compare(objs[bigger], objs[c]) < 0 ? bigger : c;
+    }
+
+测试数据：
+9, 10, 11, 1, 8, 5, 2, 12, 7, 6, 3, 4
+测试结果：
+12
+2 4 3 1 5 6 7 8 9 10 11 12 
+11
+2 4 3 1 5 6 7 8 9 10 11 12 
+10
+2 4 3 1 5 6 7 8 9 10 11 12 
+9
+2 4 3 1 5 6 7 8 9 10 11 12 
+8
+2 4 3 1 5 6 7 8 9 12 11 10 
+7
+2 4 3 1 5 6 7 12 9 8 11 10 
+6
+2 4 3 1 5 6 7 12 9 8 11 10 
+5
+2 4 3 1 5 9 8 12 7 6 11 10 
+4
+2 4 3 1 5 9 8 12 7 6 11 10 
+3
+1 2 3 4 5 9 8 12 7 6 11 10 
+2
+1 2 3 4 5 9 8 12 7 6 11 10 
+1
+1 2 3 4 5 9 8 12 7 6 11 10 
+
+）
+
 这个快速选择SELECT算法，类似快速排序的划分方法。
 N个数存储在数组S中，再从数组中选取“中位数的中位数”作为枢纽元X，把数组划分为Sa和Sb俩部分，Sa<=X<=Sb，
 如果要查找的k个元素小于Sa的元素个数，则返回Sa中较小的k个元素，
