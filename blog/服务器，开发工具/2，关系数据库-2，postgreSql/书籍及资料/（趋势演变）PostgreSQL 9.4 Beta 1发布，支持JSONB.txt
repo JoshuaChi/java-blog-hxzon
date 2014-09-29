@@ -1,0 +1,55 @@
+﻿（趋势演变）PostgreSQL 9.4 Beta 1发布，支持JSONB
+作者 郭蕾 发布于 2014年5月19日 |
+http://www.infoq.com/cn/news/2014/05/postgresql-9.4-beta1-publish
+
+5月15日，PostgreSQL全球开发小组正式发布了PostgreSQL 9.4首个测试版，此测试版包含了9.4正式版中的所有功能，
+目前官方已经提供了下载地址供外界下载测试，
+新版本的PostgreSQL内建了一些NOSQL的功能，全面转型为一款混合型（SQL和NOSQL）数据库。
+
+早在PostgreSQL 9.2中就已经提供了对JSON的原生支持，
+JSON是NOSQL数据库的特点之一，最常见的NOSQL数据库MongoDB的存储格式就是JSON类型的，
+但是由于数据库直接存储JSON字符串的性能非常差，
+所以业内会使用二进制结构来存储JSON数据以提高查询等方面的性能，比如Mongodb的底层存储结构BSON。
+PostgreSQL 9.4中也开始支持二进制的存储结构JSONB（Binary JavaScript Object Notation），
+JSONB与Mongodb的BSON大同小异，
+主要差别是BSON不能支持大于64位的整型以及浮点型数据。
+随着JSONB的引入以及索引、函数、JSON相关操作等功能的支持，
+PostgreSQL已经全面支持文档型数据的存储并且有相当不错的性能。
+
+除了对JSONB的支持外，
+PostgreSQL提供了新的Data Change Streaming API以对replication流中的数据编码和转换。
+实时刷新（Refresh Concurrently）的物化视图可以及时更新数据报告。
+ALTER SYSTEM SET允许管理人员通过SQL命令行修改PostgreSQL的配置文件postgresql.conf。
+
+另外，PostgreSQL 9.4 Beta 1中还包含了一些其他的功能，比如Replication slots，
+详细内容读者可以阅读发行说明和更新日志。
+读者可以下载安装最新版本的PostgreSQL来体验其新功能。
+PostgreSQL是目前流行的开源数据库之一，并逐步成为开源关系型数据库的首选，此次发布的新特性更是让人心动，让我们一起来期待更好的PostgreSQL。
+
+==========
+PostgreSQL的NoSQL特性表现抢眼，多个方面优于MongoDB
+作者 郭蕾 发布于 2014年9月28日 |
+http://www.infoq.com/cn/news/2014/09/postgres-outperforms-mongodb
+
+
+今年5月，PostgreSQL发布了全新的NoSQL特性，引入了新的类型JSONB，已经升级为一款混合型（SQL和NOSQL）数据库。
+而MongoDB作为流行的文档型数据库，也在努力提高性能以及稳定性，以帮助企业在生产环境中使用。
+除了发布MongoDB企业版外，前不久Mongodb又宣布开始对社区版本提供商业支持。
+作为关系型数据库，PostgreSQL已经获得社区的认可，
+但是作为NoSQL数据库，PostgreSQL如何了？
+近日，EnterpriseDB对PostgreSQL和MongoDB的性能作了比较，
+结果表明PostgreSQL在查询、加载、插入方面均优于MongoDB。具体如下：
+
+在插入方面将近比MongoDB快3倍
+查询方面比MongoDB快2.5倍以上
+数据加载方面比MongoDB快约2.1倍
+相同情况下，MongoDB消耗将近3倍多的磁盘空间
+
+以上测试基于MongoDB v2.6和PostgreSQL v9.4，
+数据库均为单实例，测试环境为AWS虚拟机（32G内存）。
+下面是官方给出的5000万条记录的测试数据：
+
+测试代码EDB已经放到了他们的GitHub仓库中，
+性能测试结果也暗示着PostgreSQL同样可以胜任NoSQL方面的需求，
+这也就是说不管是处理结构型数据还是非结构型数据，PostgreSQL都是一个不错的选择。
+

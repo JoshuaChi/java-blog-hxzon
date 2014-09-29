@@ -110,8 +110,8 @@ void QuickSelect( int a[], int k, int left, int right )
             return;
         }
         //取三数中值作为枢纽元，可以很大程度上避免最坏情况
-        int vi = QuickSort.median3Index(a, left, right, (right + left) / 2, comp);
-        QuickSort.swap(a, vi, right);
+        int vi = median3Index(a, left, right, (right + left) / 2, comp);
+        swap(a, vi, right);
         //
         int i = left - 1;
         int j = right;
@@ -121,13 +121,13 @@ void QuickSelect( int a[], int k, int left, int right )
             while (comp.compare(a[--j], a[right]) > 0) {
             }
             if (i < j) {
-                QuickSort.swap(a, i, j);
+                swap(a, i, j);
             } else {
                 break;
             }
         }
         //重置枢纽元
-        QuickSort.swap(a, i, right);
+        swap(a, i, right);
 
         if (k <= i) {
             quickSelectMinK(a, k, left, i - 1, comp);
@@ -168,6 +168,38 @@ void QuickSelect( int a[], int k, int left, int right )
 1 2 3 4 5 9 8 12 7 6 11 10 
 1
 1 2 3 4 5 9 8 12 7 6 11 10 
+
+测试数据：
+92, 10, 21, 3, 38, 5, 62, 92, 4, 12, 57, 66, 3, 4
+测试结果：
+14
+57 10 21 3 38 5 4 3 4 12 62 66 92 92 
+13
+57 10 21 3 38 5 4 3 4 12 62 66 92 92 
+12
+57 10 21 3 38 5 4 3 4 12 62 66 92 92 
+11
+57 10 21 3 38 5 4 3 4 12 62 66 92 92 
+10
+57 10 21 3 38 5 4 3 4 12 62 66 92 92 
+9
+4 10 21 3 12 5 4 3 38 57 62 66 92 92 
+8
+4 10 21 3 12 5 4 3 38 57 62 66 92 92 
+7
+3 3 4 4 10 5 12 21 38 57 62 66 92 92 
+6
+3 3 4 4 10 5 12 21 38 57 62 66 92 92 
+5
+3 3 4 4 5 10 12 21 38 57 62 66 92 92 
+4
+3 3 4 4 5 10 12 21 38 57 62 66 92 92 
+3
+3 3 4 4 10 5 12 21 38 57 62 66 92 92 
+2
+3 3 21 4 12 5 4 10 38 57 62 66 92 92 
+1
+3 3 21 4 12 5 4 10 38 57 62 66 92 92 
 
 ）
 
