@@ -60,13 +60,16 @@ In the example above, it is modified so that the superclass of test.Rectangle is
 上面的例子，将矩形类的父类改为点类。
 This change is reflected on the original class file when writeFile() in CtClass() is finally called.
 
-writeFile() translates the CtClass object into a class file and writes it on a local disk. 
+writeFile() translates the CtClass object into a class file and writes it on a local disk.
+将类文件写到本地磁盘。 
 Javassist also provides a method for directly obtaining the modified bytecode. 
 To obtain the bytecode, call toBytecode():
+获得字节码二进制字节数组。
 
 byte[] b = cc.toBytecode();
 
 You can directly load the CtClass as well:
+加载类。
 
 Class clazz = cc.toClass();
 
@@ -85,6 +88,7 @@ CtClass cc = pool.makeClass("Point");
 
 This program defines a class Point including no members. 
 Member methods of Point can be created with factory methods declared in CtNewMethod and appended to Point with addMethod() in CtClass.
+创建方法。
 
 makeClass() cannot create a new interface; 
 makeInterface() in ClassPool can do. 
@@ -174,7 +178,8 @@ For example, to load a class org.javassist.test.Main, its class file will be obt
 
 http://www.javassist.org:80/java/org/javassist/test/Main.class
 
-Furthermore, you can directly give a byte array to a ClassPool object and construct a CtClass object from that array. 
+Furthermore, you can directly give a byte array to a ClassPool object and construct a CtClass object from that array.
+从字节数组构建一个类。 
 To do this, use ByteArrayClassPath. 
 For example,
 
@@ -190,6 +195,8 @@ and the class name given to get() is equal to one specified by name.
 
 If you do not know the fully-qualified name of the class, then you can use makeClass() in ClassPool:
 如果你不知道类的完全限定名，可以使用makeClass()方法。
+
+（hxzon：从二进制流构建一个类。不需要知道类名。）
 
 ClassPool cp = ClassPool.getDefault();
 InputStream ins = an input stream for reading a class file;
@@ -286,6 +293,7 @@ If the parent ClassPool fails to find a class file, then the child ClassPool att
 
 If child.childFirstLookup is true, the child ClassPool attempts to find a class file 
 before delegating to the parent ClassPool. 
+通过参数设置，可以先从自己的路径查找类，找不到时再委托给父亲。
 For example,
 
 ClassPool parent = ClassPool.getDefault();
@@ -299,7 +307,7 @@ Changing a class name for defining a new class
 
 A new class can be defined as a copy of an existing class. 
 The program below does that:
-直接更改类名即可。
+直接更改类名即可。（hxzon：实用。）
 
 ClassPool pool = ClassPool.getDefault();
 CtClass cc = pool.get("Point");
@@ -407,6 +415,8 @@ public class Hello {
     }
 }
 
+（hxzon：实用）
+
 public class Test {
     public static void main(String[] args) throws Exception {
         ClassPool cp = ClassPool.getDefault();
@@ -423,10 +433,11 @@ Test.main() inserts a call to println() in the method body of say() in Hello.
 Then it constructs an instance of the modified Hello class and calls say() on that instance.
 
 Note that the program above depends on the fact that the Hello class is never loaded before toClass() is invoked. 
-需确保hello类在toClass()方法调用前未被加载。否则会抛出异常。
+需确保hello类在toClass()方法调用前未被加载。否则会抛出异常。（hxzon：注意！）
 If not, the JVM would load the original Hello class before toClass() requests to load the modified Hello class. 
 Hence loading the modified Hello class would be failed (LinkageError is thrown). 
 For example, if main() in Test is something like this:
+下面的例子会抛出异常：
 
 public static void main(String[] args) throws Exception {
     Hello orig = new Hello();
@@ -622,7 +633,7 @@ Then this program loads the modified class, and creates a new instance of the te
 If the users want to modify a class on demand when it is loaded, the users can add an event listener to a javassist.Loader. 
 The added event listener is notified when the class loader loads a class. 
 The event-listener class must implement the following interface:
-添加监听器，使得类在加载时被修改。
+添加监听器，使得类在加载时被修改。（hxzon：实用）
 
 public interface Translator {
     public void start(ClassPool pool)
@@ -676,7 +687,7 @@ Note that application classes like MyApp cannot access the loader classes
 such as Main2, MyTranslator, and ClassPool because they are loaded by different loaders. 
 The application classes are loaded by javassist.Loader whereas the loader classes such as Main2 are by the default Java class loader.
 
-注意，Main2如法访问这些类，因为它们是用不同的加载器加载的。
+注意，MyApp无法访问这些类，因为它们是用不同的加载器加载的。
 
 javassist.Loader searches for classes in a different order from java.lang.ClassLoader. 
 ClassLoader first delegates the loading operations to the parent class loader 
@@ -700,6 +711,7 @@ have been loaded by javassist.Loader.
 
 ====
 3.4 Writing a class loader
+写一个类加载器
 
 A simple class loader using Javassist is as follows:
 
@@ -740,12 +752,26 @@ public class SampleLoader extends ClassLoader {
         }
     }
 }
-The class MyApp is an application program. To execute this program, first put the class file under the ./class directory, which must not be included in the class search path. Otherwise, MyApp.class would be loaded by the default system class loader, which is the parent loader of SampleLoader. The directory name ./class is specified by insertClassPath() in the constructor. You can choose a different name instead of ./class if you want. Then do as follows:
+
+The class MyApp is an application program. 
+To execute this program, first put the class file under the ./class directory, 
+which must not be included in the class search path. 
+Otherwise, MyApp.class would be loaded by the default system class loader, 
+which is the parent loader of SampleLoader. 
+The directory name ./class is specified by insertClassPath() in the constructor. 
+You can choose a different name instead of ./class if you want. 
+Then do as follows:
 
 % java SampleLoader
+
 The class loader loads the class MyApp (./class/MyApp.class) and calls MyApp.main() with the command line parameters.
 
-This is the simplest way of using Javassist. However, if you write a more complex class loader, you may need detailed knowledge of Java's class loading mechanism. For example, the program above puts the MyApp class in a name space separated from the name space that the class SampleLoader belongs to because the two classes are loaded by different class loaders. Hence, the MyApp class cannot directly access the class SampleLoader.
+This is the simplest way of using Javassist. 
+However, if you write a more complex class loader, you may need detailed knowledge of Java's class loading mechanism. 
+For example, the program above puts the MyApp class in a name space 
+separated from the name space that the class SampleLoader belongs to 
+because the two classes are loaded by different class loaders. 
+Hence, the MyApp class cannot directly access the class SampleLoader.
 
 ====
 3.5 Modifying a system class
@@ -806,3 +832,4 @@ Next page
 
 Java(TM) is a trademark of Sun Microsystems, Inc.
 Copyright (C) 2000-2014 by Shigeru Chiba, All rights reserved.
+
