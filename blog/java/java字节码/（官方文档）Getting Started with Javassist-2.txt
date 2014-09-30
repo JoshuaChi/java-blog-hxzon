@@ -1,80 +1,160 @@
 ﻿（官方文档）Getting Started with Javassist-2
 
-Previous page
-Next page
-
+注释by hxzon
+====
 4. Introspection and customization
 
-Inserting source text at the beginning/end of a method body 
-Altering a method body 
-Adding a new method or field 
+Inserting source text at the beginning/end of a method body
+在方法体前或后插入源码 
+Altering a method body
+修改方法体 
+Adding a new method or field
+添加新方法或新字段 
 Runtime support classes 
 Annotations 
+注解
 Import 
 Limitations
+限制
 
-
+==========
 4. Introspection and customization
 
-CtClass provides methods for introspection. The introspective ability of Javassist is compatible with that of the Java reflection API. CtClass provides getName(), getSuperclass(), getMethods(), and so on. CtClass also provides methods for modifying a class definition. It allows to add a new field, constructor, and method. Instrumenting a method body is also possible.
+CtClass provides methods for introspection. 
+The introspective ability of Javassist is compatible with that of the Java reflection API. 
+CtClass provides getName(), getSuperclass(), getMethods(), and so on. 
+CtClass also provides methods for modifying a class definition. 
+It allows to add a new field, constructor, and method. 
+Instrumenting a method body is also possible.
 
-Methods are represented by CtMethod objects. CtMethod provides several methods for modifying the definition of the method. Note that if a method is inherited from a super class, then the same CtMethod object that represents the inherited method represents the method declared in that super class. A CtMethod object corresponds to every method declaration.
+Methods are represented by CtMethod objects. 
+CtMethod provides several methods for modifying the definition of the method. 
+Note that if a method is inherited from a super class, 
+then the same CtMethod object that represents the inherited method represents the method declared in that super class. 
+A CtMethod object corresponds to every method declaration.
+如果一个方法是继承而来的，则子类与父类共用同一个CtMethod对象。
 
-For example, if class Point declares method move() and a subclass ColorPoint of Point does not override move(), the two move() methods declared in Point and inherited in ColorPoint are represented by the identical CtMethod object. If the method definition represented by this CtMethod object is modified, the modification is reflected on both the methods. If you want to modify only the move() method in ColorPoint, you first have to add to ColorPoint a copy of the CtMethod object representing move() in Point. A copy of the the CtMethod object can be obtained by CtNewMethod.copy().
+For example, if class Point declares method move() and a subclass ColorPoint of Point does not override move(), 
+the two move() methods declared in Point and inherited in ColorPoint are represented by the identical CtMethod object. 
+If the method definition represented by this CtMethod object is modified, 
+the modification is reflected on both the methods. 
+If you want to modify only the move() method in ColorPoint, you first have to add to ColorPoint a copy of the CtMethod object representing move() in Point. 
+A copy of the the CtMethod object can be obtained by CtNewMethod.copy().
+如果修改了CtMethod，则父类子类同时被修改。
+可以先复制一个CtMethod对象。
 
-Javassist does not allow to remove a method or field, but it allows to change the name. So if a method is not necessary any more, it should be renamed and changed to be a private method by calling setName() and setModifiers() declared in CtMethod.
-Javassist does not allow to add an extra parameter to an existing method, either. Instead of doing that, a new method receiving the extra parameter as well as the other parameters should be added to the same class. For example, if you want to add an extra int parameter newZ to a method:
+Javassist does not allow to remove a method or field, but it allows to change the name. 
+不允许删除一个方法或字段，只能改名。
+So if a method is not necessary any more, it should be renamed and changed to be a private method by calling setName() and setModifiers() declared in CtMethod.
+如果一个方法不详被访问，可以将它改名，并设为私有的。
+Javassist does not allow to add an extra parameter to an existing method, either.
+也不允许给方法增加参数。
+Instead of doing that, a new method receiving the extra parameter as well as the other parameters should be added to the same class. 
+For example, if you want to add an extra int parameter newZ to a method:
 
 void move(int newX, int newY) { x = newX; y = newY; }
+
 in a Point class, then you should add the following method to the Point class:
 
 void move(int newX, int newY, int newZ) {
     // do what you want with newZ.
     move(newX, newY);
 }
-Javassist also provides low-level API for directly editing a raw class file. For example, getClassFile() in CtClass returns a ClassFile object representing a raw class file. getMethodInfo() in CtMethod returns a MethodInfo object representing a method_info structure included in a class file. The low-level API uses the vocabulary from the Java Virtual machine specification. The users must have the knowledge about class files and bytecode. For more details, the users should see the javassist.bytecode package.
 
-The class files modified by Javassist requires the javassist.runtime package for runtime support only if some special identifiers starting with $ are used. Those special identifiers are described below. The class files modified without those special identifiers do not need the javassist.runtime package or any other Javassist packages at runtime. For more details, see the API documentation of the javassist.runtime package.
+Javassist also provides low-level API for directly editing a raw class file. 
+For example, getClassFile() in CtClass returns a ClassFile object representing a raw class file. 
+getMethodInfo() in CtMethod returns a MethodInfo object representing a method_info structure included in a class file. 
+The low-level API uses the vocabulary from the Java Virtual machine specification. 
+The users must have the knowledge about class files and bytecode. 
+For more details, the users should see the javassist.bytecode package.
+
+The class files modified by Javassist requires the javassist.runtime package for runtime support only if some special identifiers starting with $ are used. 
+Those special identifiers are described below. 
+The class files modified without those special identifiers do not need the javassist.runtime package or any other Javassist packages at runtime. 
+For more details, see the API documentation of the javassist.runtime package.
 
 
-
+====
 4.1 Inserting source text at the beginning/end of a method body
+在方法体前后插入源码
 
-CtMethod and CtConstructor provide methods insertBefore(), insertAfter(), and addCatch(). They are used for inserting a code fragment into the body of an existing method. The users can specify those code fragments with source text written in Java. Javassist includes a simple Java compiler for processing source text. It receives source text written in Java and compiles it into Java bytecode, which will be inlined into a method body.
+CtMethod and CtConstructor provide methods insertBefore(), insertAfter(), and addCatch(). 
+They are used for inserting a code fragment into the body of an existing method. 
+The users can specify those code fragments with source text written in Java. 
+Javassist includes a simple Java compiler for processing source text. 
+It receives source text written in Java and compiles it into Java bytecode, which will be inlined into a method body.
+内联进方法体。
 
-Inserting a code fragment at the position specified by a line number is also possible (if the line number table is contained in the class file). insertAt() in CtMethod and CtConstructor takes source text and a line number in the source file of the original class definition. It compiles the source text and inserts the compiled code at the line number.
+Inserting a code fragment at the position specified by a line number is also possible (if the line number table is contained in the class file).
+可以通过指定行号，来插入代码。 
+insertAt() in CtMethod and CtConstructor takes source text and a line number in the source file of the original class definition. 
+It compiles the source text and inserts the compiled code at the line number.
 
-The methods insertBefore(), insertAfter(), addCatch(), and insertAt() receive a String object representing a statement or a block. A statement is a single control structure like if and while or an expression ending with a semi colon (;). A block is a set of statements surrounded with braces {}. Hence each of the following lines is an example of valid statement or block:
+The methods insertBefore(), insertAfter(), addCatch(), and insertAt() receive a String object representing a statement or a block. 
+A statement is a single control structure like if and while or an expression ending with a semi colon (;). 
+A block is a set of statements surrounded with braces {}. 
+Hence each of the following lines is an example of valid statement or block:
+插入语句或块。
 
 System.out.println("Hello");
 { System.out.println("Hello"); }
 if (i < 0) { i = -i; }
-The statement and the block can refer to fields and methods. They can also refer to the parameters to the method that they are inserted into if that method was compiled with the -g option (to include a local variable attribute in the class file). Otherwise, they must access the method parameters through the special variables $0, $1, $2, ... described below. Accessing local variables declared in the method is not allowed although declaring a new local variable in the block is allowed. However, insertAt() allows the statement and the block to access local variables if these variables are available at the specified line number and the target method was compiled with the -g option.
 
-The String object passed to the methods insertBefore(), insertAfter(), addCatch(), and insertAt() are compiled by the compiler included in Javassist. Since the compiler supports language extensions, several identifiers starting with $ have special meaning:
+The statement and the block can refer to fields and methods. 
+They can also refer to the parameters to the method that they are inserted into 
+if that method was compiled with the -g option (to include a local variable attribute in the class file). 
+如果设置编译选项，保留本地参数名，则插入的代码可以引用方法参数。
+Otherwise, they must access the method parameters through the special variables $0, $1, $2, ... described below. 
+否则，只能通过序号访问方法参数。
+Accessing local variables declared in the method is not allowed although declaring a new local variable in the block is allowed. 
+但是方法体内的本地变量则无法访问。
+However, insertAt() allows the statement and the block to access local variables 
+if these variables are available at the specified line number and the target method was compiled with the -g option.
+
+The String object passed to the methods insertBefore(), insertAfter(), addCatch(), and insertAt() are compiled by the compiler included in Javassist. 
+Since the compiler supports language extensions, several identifiers starting with $ have special meaning:
+以美元开头标识符有特殊含义：
 
 $0, $1, $2, ...    	this and actual parameters
+
 $args	An array of parameters. The type of $args is Object[].
+
 $$	All actual parameters.
+
 For example, m($$) is equivalent to m($1,$2,...)
  
 $cflow(...)	cflow variable
+
 $r	The result type. It is used in a cast expression.
+返回值类型。
+
 $w	The wrapper type. It is used in a cast expression.
+
 $_	The resulting value
+
 $sig	An array of java.lang.Class objects representing the formal parameter types.
+
 $type	A java.lang.Class object representing the formal result type.
+
 $class	A java.lang.Class object representing the class currently edited.
+
 $0, $1, $2, ...
 
-The parameters passed to the target method are accessible with $1, $2, ... instead of the original parameter names. $1 represents the first parameter, $2 represents the second parameter, and so on. The types of those variables are identical to the parameter types. $0 is equivalent to this. If the method is static, $0 is not available.
+The parameters passed to the target method are accessible with $1, $2, ... instead of the original parameter names. 
+$1 represents the first parameter, $2 represents the second parameter, and so on. 
+The types of those variables are identical to the parameter types. 
+$0 is equivalent to this.
+$0 表示 this 。 
+If the method is static, $0 is not available.
 
-These variables are used as following. Suppose that a class Point:
+These variables are used as following. 
+Suppose that a class Point:
 
 class Point {
     int x, y;
     void move(int dx, int dy) { x += dx; y += dy; }
 }
+
 To print the values of dx and dy whenever the method move() is called, execute this program:
 
 ClassPool pool = ClassPool.getDefault();
@@ -82,7 +162,10 @@ CtClass cc = pool.get("Point");
 CtMethod m = cc.getDeclaredMethod("move");
 m.insertBefore("{ System.out.println($1); System.out.println($2); }");
 cc.writeFile();
-Note that the source text passed to insertBefore() is surrounded with braces {}. insertBefore() accepts only a single statement or a block surrounded with braces.
+
+
+Note that the source text passed to insertBefore() is surrounded with braces {}. 
+insertBefore() accepts only a single statement or a block surrounded with braces.
 
 The definition of the class Point after the modification is like this:
 
@@ -93,37 +176,57 @@ class Point {
         x += dx; y += dy;
     }
 }
+
 $1 and $2 are replaced with dx and dy, respectively.
 
-$1, $2, $3 ... are updatable. If a new value is assigend to one of those variables, then the value of the parameter represented by that variable is also updated.
+$1, $2, $3 ... are updatable. 
+If a new value is assigend to one of those variables, then the value of the parameter represented by that variable is also updated.
 
 $args
 
-The variable $args represents an array of all the parameters. The type of that variable is an array of class Object. If a parameter type is a primitive type such as int, then the parameter value is converted into a wrapper object such as java.lang.Integer to store in $args. Thus, $args[0] is equivalent to $1 unless the type of the first parameter is a primitive type. Note that $args[0] is not equivalent to $0; $0 represents this.
+The variable $args represents an array of all the parameters. 
+The type of that variable is an array of class Object. 
+If a parameter type is a primitive type such as int, then the parameter value is converted into a wrapper object such as java.lang.Integer to store in $args. 
+Thus, $args[0] is equivalent to $1 unless the type of the first parameter is a primitive type. 
+Note that $args[0] is not equivalent to $0; 
+$0 represents this.
 
-If an array of Object is assigned to $args, then each element of that array is assigned to each parameter. If a parameter type is a primitive type, the type of the corresponding element must be a wrapper type. The value is converted from the wrapper type to the primitive type before it is assigned to the parameter.
+If an array of Object is assigned to $args, then each element of that array is assigned to each parameter. 
+If a parameter type is a primitive type, the type of the corresponding element must be a wrapper type. 
+The value is converted from the wrapper type to the primitive type before it is assigned to the parameter.
 
 $$
 
-The variable $$ is abbreviation of a list of all the parameters separated by commas. For example, if the number of the parameters to method move() is three, then
+The variable $$ is abbreviation of a list of all the parameters separated by commas. 
+For example, if the number of the parameters to method move() is three, then
+方法参数列表，用逗号分割。
 
 move($$)
+
 is equivalent to this:
 
 move($1, $2, $3)
+
 If move() does not take any parameters, then move($$) is equivalent to move().
 
-$$ can be used with another method. If you write an expression:
+$$ can be used with another method. 
+If you write an expression:
+可以用于另一个方法。
 
 exMove($$, context)
+
 then this expression is equivalent to:
 
 exMove($1, $2, $3, context)
-Note that $$ enables generic notation of method call with respect to the number of parameters. It is typically used with $proceed shown later.
+
+Note that $$ enables generic notation of method call with respect to the number of parameters. 
+It is typically used with $proceed shown later.
 
 $cflow
 
-$cflow means "control flow". This read-only variable returns the depth of the recursive calls to a specific method.
+$cflow means "control flow". 
+This read-only variable returns the depth of the recursive calls to a specific method.
+控制流。
 
 Suppose that the method shown below is represented by a CtMethod object cm:
 
@@ -133,26 +236,36 @@ int fact(int n) {
     else
         return n * fact(n - 1);
 }
+
 To use $cflow, first declare that $cflow is used for monitoring calls to the method fact():
 
 CtMethod cm = ...;
 cm.useCflow("fact");
-The parameter to useCflow() is the identifier of the declared $cflow variable. Any valid Java name can be used as the identifier. Since the identifier can also include . (dot), for example, "my.Test.fact" is a valid identifier.
 
-Then, $cflow(fact) represents the depth of the recursive calls to the method specified by cm. The value of $cflow(fact) is 0 (zero) when the method is first called whereas it is 1 when the method is recursively called within the method. For example,
+The parameter to useCflow() is the identifier of the declared $cflow variable. 
+Any valid Java name can be used as the identifier. 
+Since the identifier can also include . (dot), for example, "my.Test.fact" is a valid identifier.
+
+Then, $cflow(fact) represents the depth of the recursive calls to the method specified by cm. 
+The value of $cflow(fact) is 0 (zero) when the method is first called whereas it is 1 when the method is recursively called within the method. For example,
 
 cm.insertBefore("if ($cflow(fact) == 0)"
               + "    System.out.println(\"fact \" + $1);");
-translates the method fact() so that it shows the parameter. Since the value of $cflow(fact) is checked, the method fact() does not show the parameter if it is recursively called within fact().
 
-The value of $cflow is the number of stack frames associated with the specified method cm under the current topmost stack frame for the current thread. $cflow is also accessible within a method different from the specified method cm.
+translates the method fact() so that it shows the parameter. 
+Since the value of $cflow(fact) is checked, the method fact() does not show the parameter if it is recursively called within fact().
 
+The value of $cflow is the number of stack frames associated with the specified method cm under the current topmost stack frame for the current thread. 
+$cflow is also accessible within a method different from the specified method cm.
+
+==
 $r
 
 $r represents the result type (return type) of the method. It must be used as the cast type in a cast expression. For example, this is a typical use:
 
 Object result = ... ;
 $_ = ($r)result;
+
 If the result type is a primitive type, then ($r) follows special semantics. First, if the operand type of the cast expression is a primitive type, ($r) works as a normal cast operator to the result type. On the other hand, if the operand type is a wrapper type, ($r) converts from the wrapper type to the result type. For example, if the result type is int, then ($r) converts from java.lang.Integer to int.
 
 If the result type is void, then ($r) does not convert a type; it does nothing. However, if the operand is a call to a void method, then ($r) results in null. For example, if the result type is void and foo() is a void method, then
@@ -163,18 +276,25 @@ is a valid statement.
 The cast operator ($r) is also useful in a return statement. Even if the result type is void, the following return statement is valid:
 
 return ($r)result;
+
 Here, result is some local variable. Since ($r) is specified, the resulting value is discarded. This return statement is regarded as the equivalent of the return statement without a resulting value:
 
 return;
+
+==
 $w
 
-$w represents a wrapper type. It must be used as the cast type in a cast expression. ($w) converts from a primitive type to the corresponding wrapper type. The following code is an example:
+$w represents a wrapper type. 
+It must be used as the cast type in a cast expression. 
+($w) converts from a primitive type to the corresponding wrapper type. 
+The following code is an example:
 
 Integer i = ($w)5;
 The selected wrapper type depends on the type of the expression following ($w). If the type of the expression is double, then the wrapper type is java.lang.Double.
 
 If the type of the expression following ($w) is not a primitive type, then ($w) does nothing.
 
+==
 $_
 
 insertAfter() in CtMethod and CtConstructor inserts the compiled code at the end of the method. In the statement given to insertAfter(), not only the variables shown above such as $0, $1, ... but also $_ is available.
@@ -185,27 +305,36 @@ Although the compiled code inserted by insertAfter() is executed just before the
 
 If an exception is thrown, the compiled code inserted by insertAfter() is executed as a finally clause. The value of $_ is 0 or null in the compiled code. After the execution of the compiled code terminates, the exception originally thrown is re-thrown to the caller. Note that the value of $_ is never thrown to the caller; it is rather discarded.
 
+==
 $sig
 
 The value of $sig is an array of java.lang.Class objects that represent the formal parameter types in declaration order.
 
+==
 $type
 
 The value of $type is an java.lang.Class object representing the formal type of the result value. This variable refers to Void.class if this is a constructor.
 
+==
 $class
 
-The value of $class is an java.lang.Class object representing the class in which the edited method is declared. This represents the type of $0.
+The value of $class is an java.lang.Class object representing the class in which the edited method is declared. 
+This represents the type of $0.
 
+====
 addCatch()
+加入异常捕获
 
-addCatch() inserts a code fragment into a method body so that the code fragment is executed when the method body throws an exception and the control returns to the caller. In the source text representing the inserted code fragment, the exception value is referred to with the special variable $e.
+addCatch() inserts a code fragment into a method body so that the code fragment is executed 
+when the method body throws an exception and the control returns to the caller. 
+In the source text representing the inserted code fragment, the exception value is referred to with the special variable $e.
 
 For example, this program:
 
 CtMethod m = ...;
 CtClass etype = ClassPool.getDefault().get("java.io.IOException");
 m.addCatch("{ System.out.println($e); throw $e; }", etype);
+
 translates the method body represented by m into something like this:
 
 try {
@@ -215,13 +344,17 @@ catch (java.io.IOException e) {
     System.out.println(e);
     throw e;
 }
+
 Note that the inserted code fragment must end with a throw or return statement.
 
 
-
+=======
 4.2 Altering a method body
+修改方法体
 
-CtMethod and CtConstructor provide setBody() for substituting a whole method body. They compile the given source text into Java bytecode and substitutes it for the original method body. If the given source text is null, the substituted body includes only a return statement, which returns zero or null unless the result type is void.
+CtMethod and CtConstructor provide setBody() for substituting a whole method body. 
+They compile the given source text into Java bytecode and substitutes it for the original method body. 
+If the given source text is null, the substituted body includes only a return statement, which returns zero or null unless the result type is void.
 
 In the source text given to setBody(), the identifiers starting with $ have special meaning
 
@@ -440,12 +573,16 @@ the type of the exception caught by the catch clause.
 If a new exception object is assigned to $1, it is passed to the original catch clause as the caught exception.
 
 
-
+========
 4.3 Adding a new method or field
+添加新方法和新字段
 
 Adding a method
 
-Javassist allows the users to create a new method and constructor from scratch. CtNewMethod and CtNewConstructor provide several factory methods, which are static methods for creating CtMethod or CtConstructor objects. Especially, make() creates a CtMethod or CtConstructor object from the given source text.
+Javassist allows the users to create a new method and constructor from scratch. 
+CtNewMethod and CtNewConstructor provide several factory methods, 
+which are static methods for creating CtMethod or CtConstructor objects. 
+Especially, make() creates a CtMethod or CtConstructor object from the given source text.
 
 For example, this program:
 
@@ -454,7 +591,9 @@ CtMethod m = CtNewMethod.make(
                  "public int xmove(int dx) { x += dx; }",
                  point);
 point.addMethod(m);
-adds a public method xmove() to class Point. In this example, x is a int field in the class Point.
+
+adds a public method xmove() to class Point. 
+In this example, x is a int field in the class Point.
 
 The source text passed to make() can include the identifiers starting with $ except $_ as in setBody(). It can also include $proceed if the target object and the target method name are also given to make(). For example,
 
@@ -517,8 +656,9 @@ Removing a member
 To remove a field or a method, call removeField() or removeMethod() in CtClass. A CtConstructor can be removed by removeConstructor() in CtClass.
 
 
-
+=======
 4.4 Annotations
+注解
 
 CtClass, CtMethod, CtField and CtConstructor provides a convenient method getAnnotations() for reading annotations. It returns an annotation-type object.
 
@@ -550,13 +690,13 @@ Since the annoation of Point is only @Author, the length of the array all is one
 To use getAnnotations(), annotation types such as Author must be included in the current class path. They must be also accessible from a ClassPool object. If the class file of an annotation type is not found, Javassist cannot obtain the default values of the members of that annotation type.
 
 
-
+=======
 4.5 Runtime support classes
 
 In most cases, a class modified by Javassist does not require Javassist to run. However, some kinds of bytecode generated by the Javassist compiler need runtime support classes, which are in the javassist.runtime package (for details, please read the API reference of that package). Note that the javassist.runtime package is the only package that classes modified by Javassist may need for running. The other Javassist classes are never used at runtime of the modified classes.
 
 
-
+========
 4.6 Import
 
 All the class names in source code must be fully qualified (they must include package names). However, the java.lang package is an exception; for example, the Javassist compiler can resolve Object as well as java.lang.Object.
@@ -573,7 +713,7 @@ The seconde line instructs the compiler to import the java.awt package. Thus, th
 Note that importPackage() does not affect the get() method in ClassPool. Only the compiler considers the imported packages. The parameter to get() must be always a fully qualified name.
 
 
-
+=========
 4.7 Limitations
 
 In the current implementation, the Java compiler included in Javassist has several limitations with respect to the language that the compiler can accept. Those limitations are:
@@ -603,7 +743,6 @@ javassist.CtClass#intType.getName()
 so that the compiler can quickly parse the expression.
 
 
-Previous page    Next page
-
 Java(TM) is a trademark of Sun Microsystems, Inc.
 Copyright (C) 2000-2014 by Shigeru Chiba, All rights reserved.
+

@@ -1,7 +1,6 @@
 ﻿（官方文档）Getting Started with Javassist-3
 
-Previous page
-
+====
 5. Bytecode level API
 
 Obtaining a ClassFile object 
@@ -9,6 +8,8 @@ Adding and removing a member
 Traversing a method body 
 Producing a bytecode sequence 
 Annotations (Meta tags)
+
+==
 6. Generics
 
 7. Varargs
@@ -20,7 +21,7 @@ Annotations (Meta tags)
 10. Debug
 
 
-
+===========
 5. Bytecode level API
 
 Javassist also provides lower-level API for directly editing a class file. To use this level of API, you need detailed knowledge of the Java bytecode and the class file format while this level of API allows you any kind of modification of class files.

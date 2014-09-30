@@ -5,7 +5,6 @@ https://raw.githubusercontent.com/jboss-javassist/javassist/master/tutorial/tuto
 注释by hxzon
 
 ====
-Next page
 
 1. Reading and writing bytecode 
 读写字节码
@@ -13,7 +12,11 @@ Next page
 类池
 3. Class loader 
 类加载器
+
+==
 4. Introspection and customization 
+
+==
 5. Bytecode level API 
 6. Generics 
 7. Varargs 
@@ -88,7 +91,7 @@ CtClass cc = pool.makeClass("Point");
 
 This program defines a class Point including no members. 
 Member methods of Point can be created with factory methods declared in CtNewMethod and appended to Point with addMethod() in CtClass.
-创建方法。
+使用 CtNewMethod 创建方法。
 
 makeClass() cannot create a new interface; 
 makeInterface() in ClassPool can do. 
@@ -102,9 +105,11 @@ Frozen classes
 冻结类
 
 If a CtClass object is converted into a class file by writeFile(), toClass(), or toBytecode(), Javassist freezes that CtClass object. 
+调用上面三个方法时，类会被冻结。
 Further modifications of that CtClass object are not permitted. 
 This is for warning the developers when they attempt to modify a class file 
 that has been already loaded since the JVM does not allow reloading a class.
+这是因为jvm不允许重新加载相同的类。
 
 A frozen CtClass can be defrost so that modifications of the class definition will be permitted. For example,
 解冻，从而能够重新修改。
@@ -118,11 +123,14 @@ cc.setSuperclass(...);    // OK since the class is not frozen.
 After defrost() is called, the CtClass object can be modified again.
 
 If ClassPool.doPruning is set to true, then Javassist prunes the data structure contained in a CtClass object when Javassist freezes that object. 
+如果设置参数，则类被冻结时，类池会删除它。（prune，删除，减少，修剪。）
 To reduce memory consumption, pruning discards unnecessary attributes (attribute_info structures) in that object. 
+这会丢弃不再需要的属性。
 For example, Code_attribute structures (method bodies) are discarded. 
 Thus, after a CtClass object is pruned, the bytecode of a method is not accessible except method names, signatures, and annotations. 
 The pruned CtClass object cannot be defrost again. 
 The default value of ClassPool.doPruning is false.
+默认不会自动删除。
 
 To disallow pruning a particular CtClass, stopPruning() must be called on that object in advance:
 
@@ -132,7 +140,8 @@ cc.stopPruning(true);
 cc.writeFile();                             // convert to a class file.
 // cc is not pruned.
 
-The CtClass object cc is not pruned. Thus it can be defrost after writeFile() is called.
+The CtClass object cc is not pruned. 
+Thus it can be defrost after writeFile() is called.
 
 Note: While debugging, you might want to temporarily stop pruning and freezing 
 and write a modified class file to a disk drive. 
@@ -178,6 +187,7 @@ For example, to load a class org.javassist.test.Main, its class file will be obt
 
 http://www.javassist.org:80/java/org/javassist/test/Main.class
 
+==
 Furthermore, you can directly give a byte array to a ClassPool object and construct a CtClass object from that array.
 从字节数组构建一个类。 
 To do this, use ByteArrayClassPath. 
@@ -193,6 +203,7 @@ The obtained CtClass object represents a class defined by the class file specifi
 The ClassPool reads a class file from the given ByteArrayClassPath if get() is called 
 and the class name given to get() is equal to one specified by name.
 
+==
 If you do not know the fully-qualified name of the class, then you can use makeClass() in ClassPool:
 如果你不知道类的完全限定名，可以使用makeClass()方法。
 
@@ -205,6 +216,7 @@ CtClass cc = cp.makeClass(ins);
 makeClass() returns the CtClass object constructed from the given input stream. 
 You can use makeClass() for eagerly feeding class files to the ClassPool object. 
 This might improve performance if the search path includes a large jar file. 
+这有助于提高性能。
 Since a ClassPool object reads a class file on demand, 
 it might repeatedly search the whole jar file for every class file. 
 makeClass() can be used for optimizing this search. 
@@ -340,7 +352,7 @@ CtClass cc3 = pool.get("Point");   // cc3 is not identical to cc.
 
 cc1 and cc2 refer to the same instance of CtClass that cc does whereas cc3 does not. 
 Note that, after cc.setName("Pair") is executed, the CtClass object that cc and cc1 refer to represents the Pair class.
-注意，改名后的CtClass对象的同一性。
+注意，改名后的CtClass对象的同一性。（hxzon：注意！）
 
 The ClassPool object is used to maintain one-to-one mapping between classes and CtClass objects. 
 Javassist never allows two distinct CtClass objects to represent the same class unless two independent ClassPool are created. 
