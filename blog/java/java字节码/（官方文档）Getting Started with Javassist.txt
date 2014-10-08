@@ -467,6 +467,7 @@ the context class loader used by toClass() might be inappropriate.
 In this case, you would see an unexpected ClassCastException. 
 To avoid this exception, you must explicitly give an appropriate class loader to toClass(). 
 For example, if bean is your session bean object, then the following code:
+给 toClass() 方法指定类加载器。
 
 CtClass cc = ...;
 Class c = cc.toClass(bean.getClass().getClassLoader());
@@ -476,6 +477,7 @@ You should give toClass() the class loader that has loaded your program (in the 
 
 toClass() is provided for convenience. 
 If you need more complex functionality, you should write your own class loader.
+如果需要更复杂的控制，需要自己写类加载器。
 
 ====
 3.2 Class loading in Java
@@ -507,6 +509,7 @@ Object obj = clazz.newInstance();
 Box b = (Box)obj;    // this always throws ClassCastException.
 
 The Box class is loaded by two class loaders. 
+上述例子，Box 类被两个类加载器加载。
 Suppose that a class loader CL loads a class including this code snippet. 
 Since this code snippet refers to MyClassLoader, Class, Object, and Box, 
 CL also loads these classes (unless it delegates to another class loader). 
@@ -526,6 +529,7 @@ may be different from the loader that actually loads the class C.
 For distinction, we call the former loader the initiator of C and we call the latter loader the real loader of C.
 
 Furthermore, if a class loader CL requested to load a class C (the initiator of C) delegates to the parent class loader PL, 
+委托给父加载器。
 then the class loader CL is never requested to load any classes referred to in the definition of the class C. 
 CL is not the initiator of those classes. 
 Instead, the parent class loader PL becomes their initiators and it is requested to load them. 
@@ -555,7 +559,9 @@ Both the initiator and the real loader of Window are L.
 Since the definition of Window refers to Box, the JVM will request L to load Box. 
 Here, suppose that L delegates this task to the parent class loader PL. 
 The initiator of Box is L but the real loader is PL. 
+请求加载 Box 的加载器是L，但实际的加载器是PL。
 In this case, the initiator of Point is not L but PL since it is the same as the real loader of Box. 
+Box类所引用的类，请求加载的加载器是PL，不是L 。
 Thus L is never requested to load Point.
 
 Next, let's consider a slightly modified example.
@@ -840,7 +846,6 @@ For more information, see the API documentation of javassist.tools.HotSwapper.
 javassist提供了在运行时重新加载类的方法。参见《javassist.tools.HotSwapper》的api文档。
 （hxzon：位置已变动：javassist / src / main / javassist / util / HotSwapper.java ）
 
-Next page
 
 Java(TM) is a trademark of Sun Microsystems, Inc.
 Copyright (C) 2000-2014 by Shigeru Chiba, All rights reserved.

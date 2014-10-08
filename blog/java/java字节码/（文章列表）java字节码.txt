@@ -8,16 +8,30 @@ hibernate，spring，tapestry5都使用。
 当然不鼓励直接使用ASM，因为它要求你必须对JVM内部结构包括class文件的格式和指令集都很熟悉。
 http://asm.ow2.org/
 5.0.3，May 24, 2014
+http://download.forge.objectweb.org/asm/asm4-guide.pdf  事件模型和树模型
 
+==
 Javassist，源码级别。
 hibernate，tapestry5都使用。
 https://github.com/jboss-javassist/javassist
 Javassist 3.18.2-GA
 
+==
 CGLIB(Code Generation Library)是一个开源项目！
 是一个强大的，高性能，高质量的Code生成类库，它可以在运行期扩展Java类与实现Java接口。
 Hibernate用它来实现PO(Persistent Object 持久化对象)字节码的动态生成。
 CGLIB包的底层是通过使用一个小而快的字节码处理框架ASM，来转换字节码并生成新的类。
+
+Byte Code Generation Library is high level API to generate and transform Java byte code. 
+It is used by AOP, testing, data access frameworks to generate dynamic proxy objects and intercept field access.
+https://github.com/cglib/cglib
+
+net.sf.cglib.proxy.Enhancer 字节码增强
+
+
+==
+eclipse jdt
+java源代码处理。
 
 ====
 使用 ASM 实现 Java 语言的“多重继承”

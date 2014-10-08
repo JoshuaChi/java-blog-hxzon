@@ -1,5 +1,6 @@
 ﻿（官方文档）Getting Started with Javassist-3
 
+注释by hxzon
 ====
 5. Bytecode level API
 
@@ -23,63 +24,93 @@ Annotations (Meta tags)
 
 ===========
 5. Bytecode level API
+字节码级别的api
 
-Javassist also provides lower-level API for directly editing a class file. To use this level of API, you need detailed knowledge of the Java bytecode and the class file format while this level of API allows you any kind of modification of class files.
+Javassist also provides lower-level API for directly editing a class file. 
+To use this level of API, you need detailed knowledge of the Java bytecode and the class file format while this level of API allows you any kind of modification of class files.
+允许任意的操作，你需要了解java字节码的细节。
 
-If you want to just produce a simple class file, javassist.bytecode.ClassFileWriter might provide the best API for you. It is much faster than javassist.bytecode.ClassFile although its API is minimum.
+If you want to just produce a simple class file, javassist.bytecode.ClassFileWriter might provide the best API for you. 
+It is much faster than javassist.bytecode.ClassFile although its API is minimum.
 
+==
 5.1 Obtaining a ClassFile object
 
-A javassist.bytecode.ClassFile object represents a class file. To obtian this object, getClassFile() in CtClass should be called.
+A javassist.bytecode.ClassFile object represents a class file. 
+To obtian this object, getClassFile() in CtClass should be called.
 
-Otherwise, you can construct a javassist.bytecode.ClassFile directly from a class file. For example,
+Otherwise, you can construct a javassist.bytecode.ClassFile directly from a class file. 
+For example,
+
+从文件直接构建 ClassFile 对象：
 
 BufferedInputStream fin
     = new BufferedInputStream(new FileInputStream("Point.class"));
 ClassFile cf = new ClassFile(new DataInputStream(fin));
+
 This code snippet creats a ClassFile object from Point.class.
 
-A ClassFile object can be written back to a class file. write() in ClassFile writes the contents of the class file to a given DataOutputStream.
+A ClassFile object can be written back to a class file. 
+write() in ClassFile writes the contents of the class file to a given DataOutputStream.
 
-
-
+==
 5.2 Adding and removing a member
 
-ClassFile provides addField() and addMethod() for adding a field or a method (note that a constructor is regarded as a method at the bytecode level). It also provides addAttribute() for adding an attribute to the class file.
+ClassFile provides addField() and addMethod() for adding a field or a method (note that a constructor is regarded as a method at the bytecode level). 
+It also provides addAttribute() for adding an attribute to the class file.
 
-Note that FieldInfo, MethodInfo, and AttributeInfo objects include a link to a ConstPool (constant pool table) object. The ConstPool object must be common to the ClassFile object and a FieldInfo (or MethodInfo etc.) object that is added to that ClassFile object. In other words, a FieldInfo (or MethodInfo etc.) object must not be shared among different ClassFile objects.
+Note that FieldInfo, MethodInfo, and AttributeInfo objects include a link to a ConstPool (constant pool table) object. 
+The ConstPool object must be common to the ClassFile object and a FieldInfo (or MethodInfo etc.) object that is added to that ClassFile object. 
+In other words, a FieldInfo (or MethodInfo etc.) object must not be shared among different ClassFile objects.
+不能共享 FieldInfo 和 MethodInfo 对象。
 
-To remove a field or a method from a ClassFile object, you must first obtain a java.util.List object containing all the fields of the class. getFields() and getMethods() return the lists. A field or a method can be removed by calling remove() on the List object. An attribute can be removed in a similar way. Call getAttributes() in FieldInfo or MethodInfo to obtain the list of attributes, and remove one from the list.
+To remove a field or a method from a ClassFile object, you must first obtain a java.util.List object containing all the fields of the class. 
+getFields() and getMethods() return the lists. 
+A field or a method can be removed by calling remove() on the List object. 
+An attribute can be removed in a similar way. 
+Call getAttributes() in FieldInfo or MethodInfo to obtain the list of attributes, and remove one from the list.
 
-
-
+==
 5.3 Traversing a method body
+逐行指令处理
 
-To examine every bytecode instruction in a method body, CodeIterator is useful. To otbain this object, do as follows:
+To examine every bytecode instruction in a method body, CodeIterator is useful. 
+To otbain this object, do as follows:
 
 ClassFile cf = ... ;
 MethodInfo minfo = cf.getMethod("move");    // we assume move is not overloaded.
 CodeAttribute ca = minfo.getCodeAttribute();
 CodeIterator i = ca.iterator();
-A CodeIterator object allows you to visit every bytecode instruction one by one from the beginning to the end. The following methods are part of the methods declared in CodeIterator:
+
+A CodeIterator object allows you to visit every bytecode instruction one by one from the beginning to the end. 
+The following methods are part of the methods declared in CodeIterator:
 
 void begin()
 Move to the first instruction.
+
 void move(int index)
 Move to the instruction specified by the given index.
+
 boolean hasNext()
 Returns true if there is more instructions.
+
 int next()
 Returns the index of the next instruction.
 Note that it does not return the opcode of the next instruction.
+
 int byteAt(int index)
 Returns the unsigned 8bit value at the index.
+
 int u16bitAt(int index)
 Returns the unsigned 16bit value at the index.
+
 int write(byte[] code, int index)
 Writes a byte array at the index.
+
 void insert(int index, byte[] code)
 Inserts a byte array at the index. Branch offsets etc. are automatically adjusted.
+
+----
 The following code snippet displays all the instructions included in a method body:
 
 CodeIterator ci = ... ;
@@ -89,50 +120,77 @@ while (ci.hasNext()) {
     System.out.println(Mnemonic.OPCODE[op]);
 }
 
-
+==
 5.4 Producing a bytecode sequence
 
-A Bytecode object represents a sequence of bytecode instructions. It is a growable array of bytecode. Here is a sample code snippet:
+A Bytecode object represents a sequence of bytecode instructions. 
+It is a growable array of bytecode. 
+Here is a sample code snippet:
 
 ConstPool cp = ...;    // constant pool table
 Bytecode b = new Bytecode(cp, 1, 0);
 b.addIconst(3);
 b.addReturn(CtClass.intType);
 CodeAttribute ca = b.toCodeAttribute();
+
 This produces the code attribute representing the following sequence:
 
 iconst_3
 ireturn
-You can also obtain a byte array containing this sequence by calling get() in Bytecode. The obtained array can be inserted in another code attribute.
 
-While Bytecode provides a number of methods for adding a specific instruction to the sequence, it provides addOpcode() for adding an 8bit opcode and addIndex() for adding an index. The 8bit value of each opcode is defined in the Opcode interface.
+You can also obtain a byte array containing this sequence by calling get() in Bytecode. 
+The obtained array can be inserted in another code attribute.
 
-addOpcode() and other methods for adding a specific instruction are automatically maintain the maximum stack depth unless the control flow does not include a branch. This value can be obtained by calling getMaxStack() on the Bytecode object. It is also reflected on the CodeAttribute object constructed from the Bytecode object. To recompute the maximum stack depth of a method body, call computeMaxStack() in CodeAttribute.
+While Bytecode provides a number of methods for adding a specific instruction to the sequence, 
+it provides addOpcode() for adding an 8bit opcode and addIndex() for adding an index. 
+The 8bit value of each opcode is defined in the Opcode interface.
 
+addOpcode() and other methods for adding a specific instruction are automatically maintain the maximum stack depth unless the control flow does not include a branch. 
+This value can be obtained by calling getMaxStack() on the Bytecode object. 
+It is also reflected on the CodeAttribute object constructed from the Bytecode object. 
+To recompute the maximum stack depth of a method body, call computeMaxStack() in CodeAttribute.
 
-
+==
 5.5 Annotations (Meta tags)
+注解
 
-Annotations are stored in a class file as runtime invisible (or visible) annotations attribute. These attributes can be obtained from ClassFile, MethodInfo, or FieldInfo objects. Call getAttribute(AnnotationsAttribute.invisibleTag) on those objects. For more details, see the javadoc manual of javassist.bytecode.AnnotationsAttribute class and the javassist.bytecode.annotation package.
+Annotations are stored in a class file as runtime invisible (or visible) annotations attribute. 
+These attributes can be obtained from ClassFile, MethodInfo, or FieldInfo objects. 
+Call getAttribute(AnnotationsAttribute.invisibleTag) on those objects. 
+For more details, see the javadoc manual of javassist.bytecode.AnnotationsAttribute class and the javassist.bytecode.annotation package.
 
-Javassist also let you access annotations by the higher-level API. If you want to access annotations through CtClass, call getAnnotations() in CtClass or CtBehavior.
+Javassist also let you access annotations by the higher-level API. 
+If you want to access annotations through CtClass, call getAnnotations() in CtClass or CtBehavior.
 
-
+========
 6. Generics
+泛型
 
-The lower-level API of Javassist fully supports generics introduced by Java 5. On the other hand, the higher-level API such as CtClass does not directly support generics. However, this is not a serious problem for bytecode transformation.
+The lower-level API of Javassist fully supports generics introduced by Java 5. 
+On the other hand, the higher-level API such as CtClass does not directly support generics. 
+javassist的高级api不直接支持泛型。
+However, this is not a serious problem for bytecode transformation.
 
-The generics of Java is implemented by the erasure technique. After compilation, all type parameters are dropped off. For example, suppose that your source code declares a parameterized type Vector<String>:
+The generics of Java is implemented by the erasure technique. 
+After compilation, all type parameters are dropped off. 
+For example, suppose that your source code declares a parameterized type Vector<String>:
 
 Vector<String> v = new Vector<String>();
   :
 String s = v.get(0);
+
 The compiled bytecode is equivalent to the following code:
 
 Vector v = new Vector();
   :
 String s = (String)v.get(0);
-So when you write a bytecode transformer, you can just drop off all type parameters. Because the compiler embedded in Javassist does not support generics, you must insert an explicit type cast at the caller site if the source code is compiled by Javassist, for example, through CtMethod.make(). No type cast is necessary if the source code is compiled by a normal Java compiler such as javac.
+
+So when you write a bytecode transformer, you can just drop off all type parameters. 
+Because the compiler embedded in Javassist does not support generics, 
+javassist的编译器不支持泛型。
+you must insert an explicit type cast at the caller site if the source code is compiled by Javassist, 
+for example, through CtMethod.make(). 
+No type cast is necessary if the source code is compiled by a normal Java compiler such as javac.
 
 For example, if you have a class:
 
@@ -140,73 +198,107 @@ public class Wrapper<T> {
   T value;
   public Wrapper(T t) { value = t; }
 }
+
 and want to add an interface Getter<T> to the class Wrapper<T>:
 
 public interface Getter<T> {
   T get();
 }
-then the interface you really have to add is Getter (the type parameters <T> drops off) and the method you also have to add to the Wrapper class is this simple one:
+
+then the interface you really have to add is Getter (the type parameters <T> drops off) 
+and the method you also have to add to the Wrapper class is this simple one:
 
 public Object get() { return value; }
-Note that no type parameters are necessary. Since get returns an Object, an explicit type cast is needed at the caller site if the source code is compiled by Javassist. For example, if the type parameter T is String, then (String) must be inserted as follows:
+
+Note that no type parameters are necessary. 
+Since get returns an Object, an explicit type cast is needed at the caller site if the source code is compiled by Javassist. 
+For example, if the type parameter T is String, then (String) must be inserted as follows:
 
 Wrapper w = ...
 String s = (String)w.get();
+
 The type cast is not needed if the source code is compiled by a normal Java compiler because it will automatically insert a type cast.
 
-If you need to make type parameters accessible through reflection during runtime, you have to add generic signatures to the class file. For more details, see the API documentation (javadoc) of the setGenericSignature method in the CtClass.
+If you need to make type parameters accessible through reflection during runtime, 
+you have to add generic signatures to the class file. 
+For more details, see the API documentation (javadoc) of the setGenericSignature method in the CtClass.
 
-
+========
 7. Varargs
+不定参数
 
-Currently, Javassist does not directly support varargs. So to make a method with varargs, you must explicitly set a method modifier. But this is easy. Suppose that now you want to make the following method:
+Currently, Javassist does not directly support varargs. 
+目前，javassist不直接支持不定参数。
+So to make a method with varargs, you must explicitly set a method modifier. 
+But this is easy. 
+Suppose that now you want to make the following method:
 
 public int length(int... args) { return args.length; }
+
 The following code using Javassist will make the method shown above:
 
 CtClass cc = /* target class */;
 CtMethod m = CtMethod.make("public int length(int[] args) { return args.length; }", cc);
 m.setModifiers(m.getModifiers() | Modifier.VARARGS);
 cc.addMethod(m);
+
 The parameter type int... is changed into int[] and Modifier.VARARGS is added to the method modifiers.
 
 To call this method in the source code compiled by the compiler embedded in Javassist, you must write:
 
 length(new int[] { 1, 2, 3 });
+
 instead of this method call using the varargs mechanism:
 
 length(1, 2, 3);
 
+=======
 8. J2ME
 
-If you modify a class file for the J2ME execution environment, you must perform preverification. Preverifying is basically producing stack maps, which is similar to stack map tables introduced into J2SE at JDK 1.6. Javassist maintains the stack maps for J2ME only if javassist.bytecode.MethodInfo.doPreverify is true.
+If you modify a class file for the J2ME execution environment, you must perform preverification. 
+Preverifying is basically producing stack maps, which is similar to stack map tables introduced into J2SE at JDK 1.6. 
+Javassist maintains the stack maps for J2ME only if javassist.bytecode.MethodInfo.doPreverify is true.
 
-You can also manually produce a stack map for a modified method. For a given method represented by a CtMethod object m, you can produce a stack map by calling the following methods:
+You can also manually produce a stack map for a modified method. 
+For a given method represented by a CtMethod object m, you can produce a stack map by calling the following methods:
 
 m.getMethodInfo().rebuildStackMapForME(cpool);
-Here, cpool is a ClassPool object, which is available by calling getClassPool() on a CtClass object. A ClassPool object is responsible for finding class files from given class pathes. To obtain all the CtMethod objects, call the getDeclaredMethods method on a CtClass object.
 
+Here, cpool is a ClassPool object, which is available by calling getClassPool() on a CtClass object. 
+A ClassPool object is responsible for finding class files from given class pathes. 
+To obtain all the CtMethod objects, call the getDeclaredMethods method on a CtClass object.
 
+=======
 9. Boxing/Unboxing
 
-Boxing and unboxing in Java are syntactic sugar. There is no bytecode for boxing or unboxing. So the compiler of Javassist does not support them. For example, the following statement is valid in Java:
+Boxing and unboxing in Java are syntactic sugar. 
+There is no bytecode for boxing or unboxing. 
+So the compiler of Javassist does not support them. 
+For example, the following statement is valid in Java:
 
 Integer i = 3;
-since boxing is implicitly performed. For Javassist, however, you must explicitly convert a value type from int to Integer:
+
+since boxing is implicitly performed. 
+For Javassist, however, you must explicitly convert a value type from int to Integer:
+必须显式装箱拆箱。
 
 Integer i = new Integer(3);
 
+========
 10. Debug
 
-Set CtClass.debugDump to a directory name. Then all class files modified and generated by Javassist are saved in that directory. To stop this, set CtClass.debugDump to null. The default value is null.
+Set CtClass.debugDump to a directory name. 
+Then all class files modified and generated by Javassist are saved in that directory. 
+To stop this, set CtClass.debugDump to null. 
+The default value is null.
 
 For example,
 
 CtClass.debugDump = "./dump";
+
 All modified class files are saved in ./dump.
 
 
-Previous page
-
 Java(TM) is a trademark of Sun Microsystems, Inc.
 Copyright (C) 2000-2014 by Shigeru Chiba, All rights reserved.
+
