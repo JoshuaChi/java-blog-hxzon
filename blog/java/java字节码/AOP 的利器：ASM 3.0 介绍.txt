@@ -189,7 +189,7 @@ EasyBeans、BeanShell、Groovy、Jamaica、CGLIB、dynaop、
 Cobertura、JDBCPersistence、JiP、SonarJ、Substance L&F、Retrotranslator 等。
 Hibernate 和 Spring 也通过 cglib，另一个更高层一些的自动代码生成工具使用了 ASM。
 
-====
+=============
 Java 类文件概述
 
 所谓 Java 类文件，就是通常用 javac 编译器产生的 .class 文件。
@@ -252,7 +252,8 @@ Methods：该项对类或接口中声明的方法进行了细致的描述。
 
 Class attributes：该项存放了在该文件中类或接口所定义的属性的基本信息。
 
-事实上，使用 ASM 动态生成类，不需要像早年的 class hacker 一样，熟知 class 文件的每一段，以及它们的功能、长度、偏移量以及编码方式。
+事实上，使用 ASM 动态生成类，
+不需要像早年的 class hacker 一样，熟知 class 文件的每一段，以及它们的功能、长度、偏移量以及编码方式。
 ASM 会给我们照顾好这一切的，我们只要告诉 ASM 要改动什么就可以了 
 —— 当然，我们首先得知道要改什么：对类文件格式了解的越多，我们就能更好地使用 ASM 这个利器。
 

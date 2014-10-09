@@ -1,0 +1,220 @@
+﻿（官方文档）asm4-guide-3. Methods-3.2. Interfaces and components（续）
+
+3.2.5. Statefull transformations
+The transformation seen in the previous section is local and does not depend
+on the instructions that have been visited before the current one: the code
+added at the beginning is always the same and is always added, and likewise
+for the code inserted before each RETURN instruction. Such transformations
+are called stateless transformations. They are simple to implement but only
+the simplest transformations verify this property.
+More complex transformations require memorizing some state about the instructions that have been visited before the current one. Consider for example
+a transformation that removes all occurrences of the ICONST_0 IADD sequence,
+whose empty effect is to add 0. It is clear that when an IADD instruction is visited, it must be removed only if the last visited instruction was an ICONST_0.
+
+This requires storing state inside the method adapter. For this reason such
+transformations are called statefull transformations.
+Let’s look in more details at this example. When an ICONST_0 is visited,
+it must be removed only if the next instruction is an IADD. The problem is
+that the next instruction is not yet known. The solution is to postpone this
+decision to the next instruction: if it is an IADD then remove both instructions,
+otherwise emit the ICONST_0 and the current instruction.
+In order to implement transformations that remove or replace some instruction sequence, it is convenient to introduce a MethodVisitor subclass whose
+visitXxx Insn methods call a common visitInsn() method:
+public abstract class PatternMethodAdapter extends MethodVisitor {
+protected final static int SEEN_NOTHING = 0;
+protected int state;
+public PatternMethodAdapter(int api, MethodVisitor mv) {
+super(api, mv);
+}
+@Overrid public void visitInsn(int opcode) {
+visitInsn();
+mv.visitInsn(opcode);
+}
+@Override public void visitIntInsn(int opcode, int operand) {
+visitInsn();
+mv.visitIntInsn(opcode, operand);
+}
+...
+protected abstract void visitInsn();
+}
+Then the above transformation can be implemented like this:
+public class RemoveAddZeroAdapter extends PatternMethodAdapter {
+private static int SEEN_ICONST_0 = 1;
+public RemoveAddZeroAdapter(MethodVisitor mv) {
+super(ASM4, mv);
+}
+@Override public void visitInsn(int opcode) {
+if (state == SEEN_ICONST_0) {
+if (opcode == IADD) {
+state = SEEN_NOTHING;
+return;
+}
+}
+visitInsn();
+if (opcode == ICONST_0) {
+state = SEEN_ICONST_0;
+
+return;
+}
+mv.visitInsn(opcode);
+}
+@Override protected void visitInsn() {
+if (state == SEEN_ICONST_0) {
+mv.visitInsn(ICONST_0);
+}
+state = SEEN_NOTHING;
+}
+}
+The visitInsn(int) method first tests if the sequence has been detected. In
+this case it reinitializes state and returns immediately, which has the effect
+of removing the sequence. In the other cases it calls the common visitInsn
+method, which emits an ICONST_0 if this was the last visited instruction.
+Then, if the current instruction is an ICONST_0, it memorizes this fact and
+returns, in order to postpone the decision about this instruction. In all other
+cases the current instruction is forwarded to the next visitor.
+Labels and frames
+As we have seen in the previous sections, labels and frames are visited just
+before their associated instruction. In other words they are visited at the same
+time as instructions, although they are not instructions themselves. This has
+an impact on transformations that detect instruction sequences, but this impact is in fact an advantage. Indeed, what happens if one of the instructions
+we remove is the target of a jump instruction? If some instruction may jump
+to the ICONST_0, this means that there is a label designating this instruction. After the removal of the two instructions this label will designate the
+instruction that follows the removed IADD, which is what we want. But if
+some instruction may jump to the IADD, we can not remove the instruction
+sequence (we can not be sure that before this jump a 0 was pushed on the
+stack). Hopefully, in this case, there must be a label between the ICONST_0
+and the IADD, which can easily be detected.
+The reasoning is the same for stack map frames: if a stack map frame is
+visited between the two instructions, we can not remove them. Both cases
+can be handled by considering labels and frames as instructions in the pattern
+matching algorithm. This can be done in PatternMethodAdapter (note that
+visitMaxs also calls the common visitInsn method; this is used to handle
+the case where the end of the method is a prefix of the sequence that must be
+detected):
+
+public abstract class PatternMethodAdapter extends MethodVisitor {
+...
+@Override public void visitFrame(int type, int nLocal, Object[] local,
+int nStack, Object[] stack) {
+visitInsn();
+mv.visitFrame(type, nLocal, local, nStack, stack);
+}
+@Override public void visitLabel(Label label) {
+visitInsn();
+mv.visitLabel(label);
+}
+@Override public void visitMaxs(int maxStack, int maxLocals) {
+visitInsn();
+mv.visitMaxs(maxStack, maxLocals);
+}
+}
+As we will see in the next chapter, a compiled method may contain information
+about source file line numbers, used for instance in exception stack traces. This
+information is visited with the visitLineNumber method, which is also called
+at the same time as instructions. Here however the presence of line numbers
+in the middle of an instruction sequence does not have any impact on the
+possibility to transform or remove it. The solution is therefore to ignore them
+completely in the pattern matching algorithm.
+A more complex example
+The previous example can be easily generalized to more complex instruction
+sequences. Consider for example a transformation that removes self field assignments, generally due to typos, such as f = f; or, in bytecode, ALOAD 0
+ALOAD 0 GETFIELD f PUTFIELD f. Before implementing this transformation, it
+is preferable to design the state machine to recognize this sequence (see Figure
+3.6).
+Each transition is labeled with a condition (the value of the current instruction) and an action (an instruction sequence that must be emitted, in bold).
+For instance the transition from S1 to S0 happens if the current instruction
+is not an ALOAD 0. In this case the ALOAD 0 that was visited to arrive at this
+state is emitted. Note the transition from S2 to itself: this happens when
+three or more consecutive ALOAD 0 are found. In this case we stay in the
+state where two ALOAD 0 have been visited, and we emit the third one. Once
+the state machine has been found, writing the corresponding method adapter
+
+Figure 3.6.: State machine for ALOAD 0 ALOAD 0 GETFIELD f PUTFIELD f
+is straightforward (the 8 switch cases correspond to the 8 transitions in the
+diagram):
+class RemoveGetFieldPutFieldAdapter extends PatternMethodAdapter {
+private final static int SEEN_ALOAD_0 = 1;
+private final static int SEEN_ALOAD_0ALOAD_0 = 2;
+private final static int SEEN_ALOAD_0ALOAD_0GETFIELD = 3;
+private String fieldOwner;
+private String fieldName;
+private String fieldDesc;
+public RemoveGetFieldPutFieldAdapter(MethodVisitor mv) {
+super(mv);
+}
+@Override
+public void visitVarInsn(int opcode, int var) {
+switch (state) {
+case SEEN_NOTHING: // S0 -> S1
+if (opcode == ALOAD && var == 0) {
+state = SEEN_ALOAD_0;
+return;
+}
+break;
+case SEEN_ALOAD_0: // S1 -> S2
+if (opcode == ALOAD && var == 0) {
+state = SEEN_ALOAD_0ALOAD_0;
+return;
+}
+
+break;
+case SEEN_ALOAD_0ALOAD_0: // S2 -> S2
+if (opcode == ALOAD && var == 0) {
+mv.visitVarInsn(ALOAD, 0);
+return;
+}
+break;
+}
+visitInsn();
+mv.visitVarInsn(opcode, var);
+}
+@Override
+public void visitFieldInsn(int opcode, String owner, String name,
+String desc) {
+switch (state) {
+case SEEN_ALOAD_0ALOAD_0: // S2 -> S3
+if (opcode == GETFIELD) {
+state = SEEN_ALOAD_0ALOAD_0GETFIELD;
+fieldOwner = owner;
+fieldName = name;
+fieldDesc = desc;
+return;
+}
+break;
+case SEEN_ALOAD_0ALOAD_0GETFIELD: // S3 -> S0
+if (opcode == PUTFIELD && name.equals(fieldName)) {
+state = SEEN_NOTHING;
+return;
+}
+break;
+}
+visitInsn();
+mv.visitFieldInsn(opcode, owner, name, desc);
+}
+@Override protected void visitInsn() {
+switch (state) {
+case SEEN_ALOAD_0: // S1 -> S0
+mv.visitVarInsn(ALOAD, 0);
+break;
+case SEEN_ALOAD_0ALOAD_0: // S2 -> S0
+mv.visitVarInsn(ALOAD, 0);
+mv.visitVarInsn(ALOAD, 0);
+break;
+case SEEN_ALOAD_0ALOAD_0GETFIELD: // S3 -> S0
+mv.visitVarInsn(ALOAD, 0);
+mv.visitVarInsn(ALOAD, 0);
+mv.visitFieldInsn(GETFIELD, fieldOwner, fieldName, fieldDesc);
+
+break;
+}
+state = SEEN_NOTHING;
+}
+}
+Note that, for the same reasons as in the AddTimerAdapter case in section
+3.2.4, the statefull transformations presented in this section do not need to
+transform stack map frames: the original frames stay valid after the transformation. They don’t even need to transform the local variables and operand
+stack size. Finally it must be noted that statefull transformations are not
+limited to transformations that detect and transform instruction sequences.
+Many other types of transformation are also statefull. This is the case, for
+instance, of the method adapters presented in the next section.
+

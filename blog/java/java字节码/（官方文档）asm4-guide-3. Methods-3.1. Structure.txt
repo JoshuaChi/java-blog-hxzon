@@ -1,0 +1,350 @@
+﻿（官方文档）asm4-guide-3. Methods-3.1. Structure
+
+This chapter explains how to generate and transform compiled methods with
+the core ASM API. It starts with a presentation of compiled methods and then
+presents the corresponding ASM interfaces, components and tools to generate
+and transform them, with many illustrative examples.
+
+3.1. Structure
+Inside compiled classes the code of methods is stored as a sequence of bytecode
+instructions. In order to generate and transform classes it is fundamental to
+know these instructions and to understand how they work. This section gives
+an overview of these instructions which should be sufficient to start coding
+simple class generators and transformers. For a complete definition you should
+read the Java Virtual Machine Specification.
+
+3.1.1. Execution model
+Before presenting the bytecode instructions it is necessary to present the Java
+Virtual Machine execution model. As you know Java code is executed inside
+threads. Each thread has its own execution stack, which is made of frames .
+Each frame represents a method invocation: each time a method is invoked,
+a new frame is pushed on the current thread’s execution stack. When the
+method returns, either normally or because of an exception, this frame is
+popped from the execution stack and execution continues in the calling method
+(whose frame is now on top of the stack).
+Each frame contains two parts: a local variables part and an operand stack
+part. The local variables part contains variables that can be accessed by their
+index, in random order. The operand stack part, as its name implies, is a stack
+of values that are used as operands by bytecode instructions. This means that
+the values in this stack can only be accessed in Last In First Out order. Do
+
+not confuse the operand stack and the thread’s execution stack: each frame
+in the execution stack contains its own operand stack.
+The size of the local variables and operand stack parts depends on the method’s
+code. It is computed at compile time and is stored along with the bytecode
+instructions in compiled classes. As a consequence, all the frames that correspond to the invocation of a given method have the same size, but frames
+that correspond to different methods can have different sizes for their local
+variables and operand stack parts.
+Figure 3.1.: An execution stack with 3 frames
+Figure 3.1 shows a sample execution stack with 3 frames. The first frame
+contains 3 local variables, its operand stack has a maximum size of 4, and
+it contains two values. The second frame contains 2 local variables, and two
+values in its operand stack. Finally the third frame, on top of the execution
+stack, contains 4 local variables and two operands.
+When it is created, a frame is initialized with an empty stack, and its local variables are initialized with the target object this (for non static methods) and
+with the method’s arguments. For instance, calling the method a.equals(b)
+creates a frame with an empty stack and with the first two local variables
+initialized to a and b (other local variables are uninitialized).
+Each slot in the local variables and operand stack parts can hold any Java
+value, except long and double values. These values require two slots. This
+complicates the management of local variables: for instance the i
+th
+method
+argument is not necessarily stored in local variable i. For example, calling
+Math.max(1L, 2L) creates a frame with the 1L value in the first two local
+variable slots, and with the value 2L in the third and fourth slots.
+
+3.1.2. Bytecode instructions
+A bytecode instruction is made of an opcode that identifies this instruction,
+and of a fixed number of arguments:
+• The opcode is an unsigned byte value – hence the bytecode name –
+and is identified by a mnemonic symbol. For example the opcode value
+0 is designed by the mnemonic symbol NOP, and corresponds to the
+instruction that does nothing.
+• The arguments are static values that define the precise instruction behavior. They are given just after the opcode. For instance the GOTO label
+instruction, whose opcode value is 167, takes as argument label, a label
+that designates the next instruction to be executed. Instruction arguments must not be confused with instruction operands: argument values
+are statically known and are stored in the compiled code, while operand
+values come from the operand stack and are known only at runtime.
+The bytecode instructions can be divided in two categories: a small set of instructions is designed to transfer values from the local variables to the operand
+stack, and vice versa; the other instructions only act on the operand stack:
+they pop some values from the stack, compute a result based on these values,
+and push it back on the stack.
+The ILOAD, LLOAD, FLOAD, DLOAD, and ALOAD instructions read a local variable
+and push its value on the operand stack. They take as argument the index
+i of the local variable that must be read. ILOAD is used to load a boolean,
+byte, char, short, or int local variable. LLOAD, FLOAD and DLOAD are used to
+load a long, float or double value, respectively (LLOAD and DLOAD actually
+load the two slots i and i +1). Finally ALOAD is used to load any non primitive
+value, i.e. object and array references. Symmetrically the ISTORE, LSTORE,
+FSTORE, DSTORE and ASTORE instructions pop a value from the operand stack
+and store it in a local variable designated by its index i.
+As you can see the x LOAD and x STORE instructions are typed (in fact, as you
+will see below, almost all instructions are typed). This is used to ensure that
+no illegal conversion is done. Indeed it is illegal to store a value in a local
+variable and then to load it with a different type. For instance the ISTORE
+1 ALOAD 1 sequence is illegal – it would allow to store an arbitrary memory
+address in local variable 1, and to convert this address to an object reference!
+It is however perfectly legal to store in a local variable a value whose type
+differ from the type of the current value stored in this local variable. This
+
+means that the type of a local variable, i.e. the type of the value stored in this
+local variable, can change during the execution of a method.
+As said above, all other bytecode instructions work on the operand stack only.
+They can be grouped in the following categories (see appendix A.1):
+Stack These instructions are used to manipulate values on the stack: POP
+pops the value on top of the stack, DUP pushes a copy of the top stack
+value, SWAP pops two values and pushes them in the reverse order, etc.
+Constants These instructions push a constant value on the operand stack:
+ACONST_NULL pushes null, ICONST_0 pushes the int value 0, FCONST_0
+pushes 0f, DCONST_0 pushes 0d, BIPUSH b pushes the byte value b,
+SIPUSH s pushes the short value s, LDC cst pushes the arbitrary int,
+float, long, double, String, or class
+1
+constant cst, etc.
+Arithmetic and logic These instructions pop numeric values from the operand
+stack combine them and push the result on the stack. They do not have
+any argument. x ADD, x SUB, x MUL, x DIV and x REM correspond to the +,
+-, *, / and % operations, where x is either I, L, F or D. Similarly there
+are other instructions corresponding to <<, >>, >>>, |, & and ^, for int
+and long values.
+Casts These instructions pop a value from the stack, convert it to another
+type, and push the result back. They correspond to cast expressions in
+Java. I2F, F2D, L2D, etc. convert numeric values from one numeric type
+to another. CHECKCAST t converts a reference value to the type t.
+Objects These instructions are used to create objects, lock them, test their
+type, etc. For instance the NEW type instruction pushes a new object of
+type type on the stack (where type is an internal name).
+Fields These instructions read or write the value of a field. GETFIELD owner
+name desc pops an object reference, and pushes the value of its name
+field. PUTFIELD owner name desc pops a value and an object reference,
+and stores this value in its name field. In both cases the object must
+be of type owner, and its field must be of type desc. GETSTATIC and
+PUTSTATIC are similar instructions, but for static fields.
+Methods These instructions invoke a method or a constructor. They pop as
+many values as there are method arguments, plus one value for the target
+object, and push the result of the method invocation. INVOKEVIRTUAL
+1
+this corresponds to the identifier .class Java syntax.
+
+owner name desc invokes the name method defined in class owner,
+and whose method descriptor is desc. INVOKESTATIC is used for static
+methods, INVOKESPECIAL for private methods and constructors, and
+INVOKEINTERFACE for methods defined in interfaces. Finally, for Java
+7 classes, INVOKEDYNAMIC is used for the new dynamic method invocation mechanism.
+Arrays These instructions are used to read and write values in arrays. The
+x ALOAD instructions pop an index and an array, and push the value of
+the array element at this index. The x ASTORE instructions pop a value,
+an index and an array, and store this value at that index in the array.
+Here x can be I, L, F, D or A, but also B, C or S.
+Jumps These instructions jump to an arbitrary instruction if some condition
+is true, or unconditionally. They are used to compile if, for, do, while,
+break and continue instructions. For instance IFEQ label pops an int
+value from the stack, and jumps to the instruction designed by label
+if this value is 0 (otherwise execution continues normally to the next
+instruction). Many other jump instructions exist, such as IFNE or IFGE.
+Finally TABLESWITCH and LOOKUPSWITCH correspond to the switch Java
+instruction.
+Return Finally the x RETURN and RETURN instructions are used to terminate
+the execution of a method and to return its result to the caller. RETURN is
+used for methods that return void, and x RETURN for the other methods.
+3.1.3. Examples
+Lets look at some basic examples to get a more concrete sense of how bytecode
+instructions work. Consider the following bean class:
+package pkg;
+public class Bean {
+private int f;
+public int getF() {
+return this.f;
+}
+public void setF(int f) {
+this.f = f;
+}
+}
+The bytecode of the getter method is:
+
+ALOAD 0
+GETFIELD pkg/Bean f I
+IRETURN
+The first instruction reads the local variable 0, which was initialized to this
+during the creation of the frame for this method call, and pushes this value on
+the operand stack. The second instruction pops this value from the stack, i.e.
+this, and pushes the f field of this object, i.e. this.f. The last instruction
+pops this value from the stack, and returns it to the caller. The successive
+states of the execution frame for this method are shown in Figure 3.2.
+Figure 3.2.: Successive frame states for the getF method: a) initial state, b)
+after ALOAD 0 and c) after GETFIELD
+The bytecode of the setter method is:
+ALOAD 0
+ILOAD 1
+PUTFIELD pkg/Bean f I
+RETURN
+The first instruction pushes this on the operand stack, as before. The second
+instruction pushes the local variable 1, which was initialized with the f argument value during the creation of the frame for this method call. The third
+instruction pops these two values and stores the int value in the f field of
+the referenced object, i.e. in this.f. The last instruction, which is implicit
+in the source code but which is mandatory in the compiled code, destroys the
+current execution frame and returns to the caller. The successive states of the
+execution frame for this method are shown in Figure 3.3.
+The Bean class also has a default public constructor which is generated by
+the compiler, since no explicit constructor was defined by the programmer.
+This default public constructor is generated as Bean() { super(); }. The
+bytecode of this constructor is the following:
+ALOAD 0
+
+Figure 3.3.: Successive frame states for the setF method: a) initial state, b)
+after ALOAD 0, c) after ILOAD 1 and d) after PUTFIELD
+INVOKESPECIAL java/lang/Object <init> ()V
+RETURN
+The first instruction pushes this on the operand stack. The second instruction pops this value from the stack, and calls the <init> method defined in
+the Object class. This corresponds to the super() call, i.e. a call to the
+constructor of the super class, Object. You can see here that constructors are
+named differently in compiled and source classes: in compiled classes they are
+always named <init>, while in source classes they have the name of the class
+in which they are defined. Finally the last instruction returns to the caller.
+Now let us consider a slightly more complex setter method:
+public void checkAndSetF(int f) {
+if (f >= 0) {
+this.f = f;
+} else {
+throw new IllegalArgumentException();
+}
+}
+The bytecode for this new setter method is the following:
+ILOAD 1
+IFLT label
+ALOAD 0
+ILOAD 1
+PUTFIELD pkg/Bean f I
+GOTO end
+label:
+NEW java/lang/IllegalArgumentException
+DUP
+INVOKESPECIAL java/lang/IllegalArgumentException <init> ()V
+ATHROW
+
+end:
+RETURN
+The first instruction pushes the local variable 1, initialized to f, on the operand
+stack. The IFLT instruction pops this value from the stack, and compares it
+to 0. If it is Less Than (LT) 0, it jumps to the instruction designated by the
+label label, otherwise it does nothing and the execution continues to the next
+instruction. The next three instructions are the same instructions as in the
+setF method. The GOTO instruction unconditionally jumps to the instruction
+designated by the end label, which is the RETURN instruction. The instructions
+between the label and end labels create and throw an exception: the NEW
+instruction creates an exception object and pushes it on the operand stack.
+The DUP instruction duplicates this value on the stack. The INVOKESPECIAL
+instruction pops one of these two copies and calls the exception constructor
+on it. Finally the ATHROW instruction pops the remaining copy and throws it
+as an exception (so the execution does not continue to the next instruction).
+3.1.4. Exception handlers
+There is no bytecode instruction to catch exceptions: instead the bytecode
+of a method is associated with a list of exception handlers that specify the
+code that must be executed when an exception is thrown in a given part of a
+method. An exception handler is similar to a try catch block: it has a range,
+which is a sequence of instructions that corresponds to the content of the try
+block, and a handler, which corresponds to the content of the catch block.
+The range is specified by a start and end labels, and the handler with a start
+label. For example the source code below:
+public static void sleep(long d) {
+try {
+Thread.sleep(d);
+} catch (InterruptedException e) {
+e.printStackTrace();
+}
+}
+can be compiled into:
+TRYCATCHBLOCK try catch catch java/lang/InterruptedException
+try:
+LLOAD 0
+INVOKESTATIC java/lang/Thread sleep (J)V
+RETURN
+catch:
+
+INVOKEVIRTUAL java/lang/InterruptedException printStackTrace ()V
+RETURN
+The code between the try and catch labels corresponds to the try block,
+while the code after the catch label corresponds to the catch block. The
+TRYCATCHBLOCK line specifies an exception handler that covers the range between the try and catch labels, with a handler starting at the catch label,
+and for exceptions whose class is a subclass of InterruptedException. This
+means that if such an exception is thrown anywhere between try and catch
+the stack is cleared, the exception is pushed on this empty stack, and execution
+continues at catch .
+3.1.5. Frames
+Classes compiled with Java 6 or higher contain, in addition to bytecode instructions, a set of stack map frames that are used to speed up the class
+verification process inside the Java Virtual Machine. A stack map frame gives
+the state of the execution frame of a method at some point during its execution. More precisely it gives the type of the values that are contained in each
+local variable slot and in each operand stack slot just before some specific
+bytecode instruction is executed.
+For example, if we consider the getF method of the previous section, we can
+define three stack map frames giving the state of the execution frame just
+before ALOAD, just before GETFIELD, and just before IRETURN. These three
+stack map frames correspond to the three cases shown in Figure 3.2 and can
+be described as follows, where the types between the first square brackets
+correspond to the local variables, and the others to the operand stack:
+State of the execution frame before Instruction
+[pkg/Bean] [] ALOAD 0
+[pkg/Bean] [pkg/Bean] GETFIELD
+[pkg/Bean] [I] IRETURN
+We can do the same for the checkAndSetF method:
+
+State of the execution frame before Instruction
+[pkg/Bean I] [] ILOAD 1
+[pkg/Bean I] [I] IFLT label
+[pkg/Bean I] [] ALOAD 0
+[pkg/Bean I] [pkg/Bean] ILOAD 1
+[pkg/Bean I] [pkg/Bean I] PUTFIELD
+[pkg/Bean I] [] GOTO end
+[pkg/Bean I] [] label :
+[pkg/Bean I] [] NEW
+[pkg/Bean I] [Uninitialized(label)] DUP
+[pkg/Bean I] [Uninitialized(label) Uninitialized(label)] INVOKESPECIAL
+[pkg/Bean I] [java/lang/IllegalArgumentException] ATHROW
+[pkg/Bean I] [] end :
+[pkg/Bean I] [] RETURN
+This is similar to the previous method, except for the Uninitialized(label)
+type. This is a special type that is used only in stack map frames, and that
+designates an object whose memory has been allocated but whose constructor
+has not been called yet. The argument designates the instruction that created
+this object. The only possible method that can be called on a value of this
+type is a constructor. When it is called, all the occurrences of this type in
+the frame are replaced with the real type, here IllegalArgumentException.
+Stack map frames can use three other special types: UNINITIALIZED_THIS
+is the initial type of local variable 0 in constructors, TOP corresponds to an
+undefined value, and NULL corresponds to null.
+As said above, starting from Java 6, compiled classes contain, in addition to
+bytecode, a set of stack map frames. In order to save space, a compiled method
+does not contain one frame per instruction: in fact it contains only the frames
+for the instructions that correspond to jump targets or exception handlers, or
+that follow unconditional jump instructions. Indeed the other frames can be
+easily and quickly inferred from these ones.
+In the case of the checkAndSetF method, this means that only two frames are
+stored: one for the NEW instruction, because it is the target of the IFLT instruction, but also because it follows the unconditional jump GOTO instruction, and
+one for the RETURN instruction, because it is the target of the GOTO instruction,
+and also because it follows the “unconditional jump” ATHROW instruction.
+In order to save even more space, each frame is compressed by storing only its
+difference compared to the previous frame, and the initial frame is not stored
+
+at all, because it can easily be deduced from the method parameter types. In
+the case of the checkAndSetF method the two frames that must be stored are
+equal and are equal to the initial frame, so they are stored as the single byte
+value designated by the F_SAME mnemonic. These frames can be represented
+just before their associated bytecode instruction. This gives the final bytecode
+for the checkAndSetF method:
+ILOAD 1
+IFLT label
+ALOAD 0
+ILOAD 1
+PUTFIELD pkg/Bean f I
+GOTO end
+label:
+F_SAME
+NEW java/lang/IllegalArgumentException
+DUP
+INVOKESPECIAL java/lang/IllegalArgumentException <init> ()V
+ATHROW
+end:
+F_SAME
+RETURN
+
