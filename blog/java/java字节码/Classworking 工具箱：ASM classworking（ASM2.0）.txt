@@ -1,4 +1,4 @@
-﻿Classworking 工具箱：ASM classworking
+﻿Classworking 工具箱：ASM classworking（ASM 2.0）
 http://www.ibm.com/developerworks/cn/java/j-cwt05125/index.html
 
 Dennis M. Sosnoski (dms@sosnoski.com), Java 和 XML 顾问, Sosnoski Software Solutions, Inc.
@@ -354,7 +354,8 @@ ASM	62.4	1.1
 
 将 ASM 与其他 classworking 框架进行对比，结果显示，它比其他框架快若干倍（至少对于这个相当典型的测试用例是这样的）。
 
-ASM 在结构上更加紧凑，使用的运行时 JAR 大小仅为 33k（对比之下，Javassist 的大小为 310K，BCEL 的大小更为惊人，为 504K）。
+ASM 在结构上更加紧凑，使用的运行时 JAR 大小仅为 33k
+（对比之下，Javassist 的大小为 310K，BCEL 的大小更为惊人，为 504K）。
 ASM 是否易于使用还很难说，但是它的接口看起来明显比 BCEL 的接口更整齐，
 同时也提供了同样程度的灵活性（只是缺少一些 BCEL 独有的特性，例如成段而非逐行构建代码的能力）。
 由于其类似 Java 的源代码接口，因而 ASM 不像 Javassist 那么容易使用，

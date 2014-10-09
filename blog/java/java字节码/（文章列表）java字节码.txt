@@ -12,7 +12,7 @@ http://download.forge.objectweb.org/asm/asm4-guide.pdf  事件模型和树模型
 
 ==
 Javassist，源码级别。
-hibernate，tapestry5都使用。
+hibernate，tapestry5（早期）都使用。
 https://github.com/jboss-javassist/javassist
 Javassist 3.18.2-GA
 
@@ -28,10 +28,20 @@ https://github.com/cglib/cglib
 
 net.sf.cglib.proxy.Enhancer 字节码增强
 
+==
+org.apache.tapestry5.plastic
+
+基于ASM。
 
 ==
 eclipse jdt
 java源代码处理。
+
+==
+BCEL
+
+==
+SERP
 
 ====
 使用 ASM 实现 Java 语言的“多重继承”

@@ -1,0 +1,64 @@
+﻿（文章列表）plastic
+
+
+Meeting Plastic I: Introduction
+给所有类加上toString()方法：plasticClass.addToString。
+创建实例：pm.getClassInstantiator("plasticdemo.controlled.Foo").newInstance() 。
+http://tawus.wordpress.com/2011/04/18/meeting-plastic/
+
+Meeting Plastic II: Simple ChainBuilder(Plastic Chains: Simple ChainBuilder)
+创建命令链：依次执行命令，直到抛出异常。
+http://tawus.wordpress.com/2011/04/19/plastic-chains-simple-chainbuilder/
+
+Meeting Plastic III: @Property
+使用Plastic实现@Property注解。
+http://tawus.wordpress.com/2011/04/21/plastic-property/
+
+Meeting Plastic IV: Replacing interfaces
+让类实现接口（添加方法）。
+http://tawus.wordpress.com/2011/05/22/meeting-plastic-iv-replacing-interfaces/
+
+Meeting Plastic V: A Method Shadow Builder
+http://tawus.wordpress.com/2011/05/22/meeting-plastic-v-a-method-shadow-builder/
+
+Plastic: Advanced Example
+指令创建器。
+http://tapestryjava.blogspot.com/2012/02/plastic-advanced-example.html
+
+
+=======
+Tapestry Magic #1: Using Class Transformations
+http://tawus.wordpress.com/2011/04/16/tapestry-magic-1-using-componentclasstransformworker/
+
+Tapestry Magic #2: Ajax with Graceful Degradation
+使用ComponentClassTransformWorker和注解让一个处理ajax请求的方法支持处理普通请求。
+http://tawus.wordpress.com/2011/04/16/tapestry-magic-2-ajax-with-graceful-degradation/
+
+Tapestry Magic #3: Plugin Blocks
+插件式block。
+http://tawus.wordpress.com/2011/04/20/tapestry-magic-3-plugin-blocks/
+
+Tapestry Magic #4: Integrating Guice
+http://tawus.wordpress.com/2011/04/22/tapestry-magic-4-integrating-guice/
+
+Tapestry Magic #5: Advising Services
+使用注解和MethodAdvice完成事务管理。
+http://tawus.wordpress.com/2011/04/23/tapestry-magic-5-advising-services/
+
+Tapestry Magic #13: Generic Data Access Objects
+动态创建一系列服务。
+http://tawus.wordpress.com/2011/05/28/tapestry-magic-13-generic-data-access-objects/
+
+
+=======
+Some Reporting tricks with class-transformations
+使用注解和ComponentClassTransformWorker2向客服端报告异常。
+http://tawus.wordpress.com/2012/02/03/some-reporting-tricks-with-class-transformations/
+
+Tapestry Mixins & ClassTransformations
+用ComponentClassTransformWorker2给所有的label加上某个“混入”。
+http://tawus.wordpress.com/2011/08/01/tapestry-mixins-classtransformations/
+
+ASM : Creating a ChainBuilder
+http://tawus.wordpress.com/2011/05/07/asm-creating-a-chainbuilder/
+
