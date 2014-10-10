@@ -1,0 +1,206 @@
+﻿asm操作java（3）
+http://alvinqq.iteye.com/blog/940970
+
+=========
+1．Signature： 
+a)说明：J2SE 5.0为了支持范型，参数化参数，Annotation和枚举等新增特性，因此增加了一个Signature属性，作为类，字段，方法的Description之外的一个辅助机制。 
+
+2． Annotation： 
+a) Annotation： 
+i.定义： 
+
+cw.visit(V1_5, ACC_PUBLIC + ACC_ANNOTATION + ACC_ABSTRACT + ACC_INTERFACE,   
+"asm/AN", null, "java/lang/Object", new String[]   
+{ "java/lang/annotation/Annotation" });  
+
+
+等价于： 
+
+public @interface AN {}  
+
+
+ii.使用：通过ClassVisitor，FieldVisitor，MethodVisitor上的visitAnnotation()方法，来获取一个AnnotationVisitor实例，从而为类，字段，方法设置Annotation。 
+
+AnnotationVisitor av0 = cw.visitAnnotation("Lasm/AN;", false);  
+av0.visitEnd();  
+  
+@AN  
+public class A{}  
+
+
+b)属性： 
+i.定义： 
+
+mv = cw.visitMethod(ACC_PUBLIC + ACC_ABSTRACT, "age", "()I", null, null);  
+mv.visitEnd();  
+  
+mv = cw.visitMethod(ACC_PUBLIC + ACC_ABSTRACT, "name", "()Ljava/lang/String;",   
+null, null);  
+av0 = mv.visitAnnotationDefault();  
+av0.visit(null, "A");  
+av0.visitEnd();  
+mv.visitEnd();  
+
+
+等价于： 
+
+public @interface AN {  
+     int age();  
+     String name() default "A";  
+}  
+
+
+ii.使用： 
+
+av0 = cw.visitAnnotation("Lasm/AN;", false);  
+av0.visit("age", new Integer(1));  
+av0.visit("name", "B");  
+av0.visitEnd();  
+
+等价于： 
+
+@AN(age = 1, name = "B")  
+public class A {  
+}  
+
+3．范型： 
+a)定义： 
+
+cw.visit(V1_5, ACC_PUBLIC + ACC_SUPER, "asm/A", "<T::Lasm/IA;G:Lasm/B;>Ljava/lang/Object;Ljava/lang/Comparable;", "java/lang/Object", new String[] { "java/lang/Comparable" });  
+
+
+等价于： 
+
+public class A<T extends IA, G extends B> implements Comparable {  
+…  
+}  
+
+
+说明：在类定义当中使用范型时，需要增加Signature字段来添加范型信息。该Signature的组成是“<范型参数名：范型扩展的类：范型扩展的接口…>父类描述 接口描述” 
+
+b)范型字段： 
+i.定义： 
+
+FieldVisitor fv = cw.visitField(ACC_PRIVATE, "l", "Ljava/util/List;",   
+"Ljava/util/List<Ljava/lang/String;>;", null);  
+fv.visitEnd();  
+
+
+等价于： 
+
+private List<String> l;  
+
+
+说明：在声明范型字段时，需要增加Signature来增加范型信息。该Signature的组成是 
+“基类型描述<参数类型描述>” 
+
+ii.使用：由于范型信息只是供编译器在编译时进行类型检查，而在编译以后该信息将会被擦除，因此在使用时与没有范型的情况一致。 
+
+c)范型方法： 
+i.定义： 
+
+mv = cw.visitMethod(ACC_PUBLIC, "getList", "(Ljava/util/Map;)Ljava/util/List;", "(Ljava/util/Map<Ljava/lang/String;Ljava/lang/Integer;>;)Ljava/util/List<Ljava/lang/String;>;", null);  
+
+
+等价于： 
+
+public List<String> getList(Map<String, Integer> maps) {…}  
+
+
+ii.使用：由于范型信息只是供编译器在编译时进行类型检查，而在编译以后该信息将会被擦除，因此在使用时与没有范型的情况一致。 
+
+4．枚举： 
+a)定义： 
+
+ClassWriter cw = new ClassWriter(false);  
+FieldVisitor fv;  
+MethodVisitor mv;  
+AnnotationVisitor av0;  
+  
+cw.visit(V1_5, ACC_PUBLIC + ACC_FINAL + ACC_SUPER + ACC_ENUM, "asm/E",   
+"Ljava/lang/Enum<Lasm/E;>;", "java/lang/Enum", null);  
+cw.visitSource("E.java", null);  
+  
+fv = cw.visitField(ACC_PUBLIC + ACC_FINAL + ACC_STATIC + ACC_ENUM, "E1", "Lasm/E;", null, null);  
+fv.visitEnd();         //   定义静态字段E1  
+  
+fv = cw.visitField(ACC_PUBLIC + ACC_FINAL + ACC_STATIC + ACC_ENUM, "E2", "Lasm/E;", null, null);  
+fv.visitEnd();         //   定义静态字段E2  
+  
+fv = cw.visitField(ACC_PRIVATE + ACC_FINAL + ACC_STATIC + ACC_SYNTHETIC, "ENUM$VALUES",   
+"[Lasm/E;", null, null);  
+fv.visitEnd();         //   定义存储所有枚举值的静态字段ENUM$VALUES  
+  
+mv = cw.visitMethod(ACC_STATIC, "<clinit>", "()V", null, null);  
+mv.visitCode();  
+  
+//   初始化E1  
+mv.visitTypeInsn(NEW, "asm/E");  
+mv.visitInsn(DUP);  
+mv.visitLdcInsn("E1");  
+mv.visitInsn(ICONST_0);  
+mv.visitMethodInsn(INVOKESPECIAL, "asm/E", "<init>", "(Ljava/lang/String;I)V");  
+mv.visitFieldInsn(PUTSTATIC, "asm/E", "E1", "Lasm/E;");  
+  
+//   初始化E2  
+mv.visitTypeInsn(NEW, "asm/E");  
+mv.visitInsn(DUP);  
+mv.visitLdcInsn("E2");  
+mv.visitInsn(ICONST_1);  
+mv.visitMethodInsn(INVOKESPECIAL, "asm/E", "<init>", "(Ljava/lang/String;I)V");  
+mv.visitFieldInsn(PUTSTATIC, "asm/E", "E2", "Lasm/E;");  
+  
+//   初始化ENUM$VALUES，将E1，E2存入ENUM$VALUES当中  
+mv.visitInsn(ICONST_2);  
+mv.visitTypeInsn(ANEWARRAY, "asm/E");  
+mv.visitInsn(DUP);  
+mv.visitInsn(ICONST_0);  
+mv.visitFieldInsn(GETSTATIC, "asm/E", "E1", "Lasm/E;");  
+mv.visitInsn(AASTORE);  
+mv.visitInsn(DUP);  
+mv.visitInsn(ICONST_1);  
+mv.visitFieldInsn(GETSTATIC, "asm/E", "E2", "Lasm/E;");  
+mv.visitInsn(AASTORE);  
+mv.visitFieldInsn(PUTSTATIC, "asm/E", "ENUM$VALUES", "[Lasm/E;");  
+mv.visitInsn(RETURN);  
+mv.visitMaxs(8, 0);  
+mv.visitEnd();  
+  
+mv = cw.visitMethod(ACC_PRIVATE, "<init>", "(Ljava/lang/String;I)V", null, null);  
+mv.visitCode();  
+mv.visitVarInsn(ALOAD, 0);  
+mv.visitVarInsn(ALOAD, 1);  
+mv.visitVarInsn(ILOAD, 2);  
+mv.visitMethodInsn(INVOKESPECIAL, "java/lang/Enum", "<init>", (Ljava/lang/String;I)V");  
+mv.visitInsn(RETURN);  
+mv.visitMaxs(3, 3);  
+mv.visitEnd();  
+  
+//   使用arraycopy()方法，将ENUM$VALUES的值存入一个新数组当中，并返回。  
+mv = cw.visitMethod(ACC_PUBLIC + ACC_FINAL + ACC_STATIC, "values", "()[Lasm/E;", null, null);  
+..  
+mv.visitEnd();  
+  
+//   返回某个枚举值的字符表示  
+mv = cw.visitMethod(ACC_PUBLIC + ACC_FINAL + ACC_STATIC, "valueOf",   
+"(Ljava/lang/String;)Lasm/E;", null, null);  
+mv.visitEnd();  
+cw.visitEnd();  
+
+
+等价于： 
+
+public enum E {  
+     E1, E2  
+
+} 
+b)        使用： 
+
+mv.visitFieldInsn(GETSTATIC, "asm/E", "E1", "Lasm/E;");  
+
+等价于： 
+
+E e = E.E1;  
+
+c)        说明：从上面的代码可以看到，即使是一个简单的枚举，也需要使用很多的代码才能定义，因此更可行的办法是使用Java编译器来生成枚举。 
+

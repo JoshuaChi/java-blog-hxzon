@@ -1,0 +1,49 @@
+﻿asm操作Java（1）
+http://alvinqq.iteye.com/blog/940960
+
+=======
+1．流程控制： 
+
+a)说明：JVM提供了基本的流程控制结构，这些结构都是基于Label而实现的。
+这些跳转指令，包括基于比较结果的有条件跳转和无条件的GOTO指令。
+另外，JVM也提供了实现switch结构的LOOKUPSWITCH和TABLESWITCH指令，
+其中LOOKUPSWITCH是基于键比较的，而TABLESWITCH则是基于键索引的，因此后者的匹配速度更快。
+
+====
+2．   接口声明： 
+
+ClassWriter cw = new ClassWriter(false);  
+cw.visit(V1_5, ACC_PUBLIC + ACC_ABSTRACT + ACC_INTERFACE, "asm/IA", null,   
+"java/lang/Object", null);  
+cw.visitSource("IA.java", null);  
+cw.visitEnd();  
+
+等价于： 
+
+public interface IA{}  
+
+====
+3．类声明：
+ 
+a)抽象类： 
+
+ClassWriter cw = new ClassWriter(false);  
+cw.visit(V1_5, ACC_PUBLIC + ACC_SUPER + ACC_ABSTRACT, "asm/A", null, "java/lang/Object", null);  
+cw.visitSource("A.java", null);  
+
+等价于： 
+
+public abstract class A{}  
+
+==
+b)具体类： 
+
+ClassWriter cw = new ClassWriter(false);  
+cw.visit(V1_5, ACC_PUBLIC + ACC_SUPER, "asm/A", null, "java/lang/Object", null);  
+cw.visitSource("A.java", null);  
+cw.visitEnd();  
+
+等价于： 
+
+public class A{}
+

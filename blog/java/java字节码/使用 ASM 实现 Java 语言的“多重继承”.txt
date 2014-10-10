@@ -460,14 +460,12 @@ desc 为方法描述。
     this.className = name; 
  } 
 
- public void visitMethodInsn(int opcode, String owner, 
- String name,String desc) { 
+ public void visitMethodInsn(int opcode, String owner, String name,String desc) { 
 
     // 将 Java 代码中的类全限定名替换为虚拟机中使用的形式
     if (name.equals(AddImplementClassAdapter.INTERNAL_INIT_METHOD_NAME)) { 
-    mv.visitMethodInsn(opcode, className.replace(".", "/"), 
-    name, desc); 
- } 
+    	mv.visitMethodInsn(opcode, className.replace(".", "/"), name, desc); 
+ 	} 
  } 
  } 
 
@@ -594,6 +592,7 @@ public static <T> T newInstance(Class<T> clazz,Class<?>... impls)
  System.out.println("The Fibonacci number of 10 is "+obj1.compute(10)); 
  System.out.println("Now is :"+obj1.tellMeTheTime()); 
  System.out.println("--------------------------------------"); 
+
  // 对于 SubClass2 的增强类实例的创建也是一样的
  SubClass2 obj2 = EnhanceFactory.newInstance(SubClass2.class, 
  TimeRetriever.class,FibonacciComputer.class); 

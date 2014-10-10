@@ -1,13 +1,22 @@
 ﻿（官方文档）asm4-guide-3. Methods-3.3. Tools
 
+注释by hxzon
+====
+
 The org.objectweb.asm.commons package contains some predefined method
 adapters that can be useful to define your own adapters. This section presents
 three of them and shows how they can be used with the AddTimerAdapter
 example of section 3.2.4. It also shows how the tools seen in the previous
 chapter can be used to ease method generation or transformation.
+工具类。
+
+====
 3.3.1. Basic tools
+
 The tools presented in section 2.3 can also be used for methods.
+
 Type
+类型
 Many bytecode instructions, such as x LOAD, x ADD or x RETURN, depend on the
 type to which they are applied. The Type class provides a getOpcode method
 that can be used to get, for these instructions, the opcode corresponding
@@ -16,14 +25,17 @@ type, and returns the opcode for the type on which it is called. For instance
 t.getOpcode(IMUL) returns FMUL if t is equal to Type.FLOAT_TYPE.
 
 TraceClassVisitor
+跟踪查看
 This class, which has already been presented in the previous chapter, prints a
 textual representation of the classes it visits, including a textual representation
 of their methods, in a form very similar to the one used in this chapter. It can
 therefore be used to trace the content of generated or transformed methods at
 any point in a transformation chain. For example:
+
 java -classpath asm.jar:asm-util.jar \
 org.objectweb.asm.util.TraceClassVisitor \
 java.lang.Void
+
 prints:
 // class version 49.0 (49)
 // access flags 49
@@ -48,28 +60,35 @@ RETURN
 MAXSTACK = 1
 MAXLOCALS = 0
 }
+
 This shows how to generate a static block static { ... }, namely with
 a <clinit> method (for CLass INITializer). Note that if you want to trace
-the content of a single method at some point in a chain, instead of tracing all the content of its class, you can use TraceMethodVisitor instead of
+the content of a single method at some point in a chain, 
+instead of tracing all the content of its class, you can use TraceMethodVisitor instead of
 TraceClassVisitor (in this case you must specify the backend explicitly; here
 we use a Textifier):
-public MethodVisitor visitMethod(int access, String name,
-String desc, String signature, String[] exceptions) {
-MethodVisitor mv = cv.visitMethod(access, name, desc, signature,
-exceptions);
+只跟踪打印其中一个方法。
 
-if (debug && mv != null && ...) { // if this method must be traced
-Printer p = new Textifier(ASM4) {
-@Override public void visitMethodEnd() {
-print(aPrintWriter ); // print it after it has been visited
+public MethodVisitor visitMethod(int access, String name,
+	String desc, String signature, String[] exceptions) {
+	MethodVisitor mv = cv.visitMethod(access, name, desc, signature, exceptions);
+
+	if (debug && mv != null && ...) { // if this method must be traced
+		Printer p = new Textifier(ASM4) {
+			@Override public void visitMethodEnd() {
+				print(aPrintWriter ); // print it after it has been visited
+			}
+		};
+		mv = new TraceMethodVisitor(mv, p);
+	}
+	return new MyMethodAdapter (mv);
 }
-};
-mv = new TraceMethodVisitor(mv, p);
-}
-return new MyMethodAdapter (mv);
-}
+
 This code prints the method after transformation by MyMethodAdapter.
+
+==
 CheckClassAdapter
+
 This class, which has already been presented in the previous chapter, checks
 that the ClassVisitor methods are called in the appropriate order, and with
 valid arguments, and it does the same for the MethodVisitor methods. It
@@ -77,6 +96,7 @@ can therefore be used to check that the MethodVisitor API is correctly used
 at any point in a transformation chain. Like with TraceMethodVisitor, you
 can use the CheckMethodAdapter class to check a single method instead of
 checking all its class:
+
 public MethodVisitor visitMethod(int access, String name,
 String desc, String signature, String[] exceptions) {
 MethodVisitor mv = cv.visitMethod(access, name, desc, signature,
@@ -86,20 +106,27 @@ mv = new CheckMethodAdapter(mv);
 }
 return new MyMethodAdapter (mv);
 }
-This code checks that MyMethodAdapter uses the MethodVisitor API correctly. Note however that this adapter will not check that the bytecode is
+
+This code checks that MyMethodAdapter uses the MethodVisitor API correctly. 
+Note however that this adapter will not check that the bytecode is
 correct: for instance it will not detect that ISTORE 1 ALOAD 1 is invalid. In
 fact this kind of error can be detected, if you use the other constructor of
 CheckMethodAdapter (see the Javadoc), and if you provide valid maxStack
 and maxLocals arguments in visitMaxs.
+
+==
 ASMifier
+
 This class, which has already been presented in the previous chapter, also
 works with the content of methods. It can be used to know how to generate
-
 some compiled code with ASM: just write the corresponding source code in
 Java, compile it with javac, and use the ASMifier to visit this class. You
 will get the ASM code to generate the bytecode corresponding to your source
 code.
+
+====
 3.3.2. AnalyzerAdapter
+
 This method adapter computes the stack map frames before each instruction,
 based on the frames visited in visitFrame. Indeed, as explained in section
 3.1.5, visitFrame is only called before some specific instructions in a method,
@@ -108,11 +135,13 @@ inferred from these ones”. This is what this adapter does. Of course it only
 works on classes that contain precomputed stack map frames, i.e. compiled
 with Java 6 or higher (or previously upgraded to Java 6 with an ASM adapter
 using the COMPUTE_FRAMES option).
+
 In the case of our AddTimerAdapter example, this adapter could be used to
 get the size of the operand stack just before the RETURN instructions, thereby
 allowing to compute an optimal transformed value for maxStack in visitMaxs
 (in fact this method is not recommended in practice, because it is much less
 efficient than using COMPUTE_MAXS):
+
 class AddTimerMethodAdapter2 extends AnalyzerAdapter {
 private int maxStack;
 public AddTimerMethodAdapter2(String owner, int access,
@@ -144,17 +173,20 @@ super.visitInsn(opcode);
 super.visitMaxs(Math.max(this.maxStack, maxStack), maxLocals);
 }
 }
+
 The stack field is defined in the AnalyzerAdapter class, and contains the
 types in operand stack. More precisely, in a visitXxx Insn, and before the
 overridden method is called, this list contains the state of the operand stack
 just before this instruction. Note that the overridden methods must be called
 so that the stack field is correctly updated (hence the use of super instead
 of mv in the original code).
+
 Alternatively the new instructions can be inserted by calling the methods of
 the super class: the effect is that the frames for these instructions will be
 computed by AnalyzerAdapter. Since, in addition, this adapter updates the
 arguments of visitMaxs based on the frames it computes, we do not need to
 update them ourselves:
+
 class AddTimerMethodAdapter3 extends AnalyzerAdapter {
 public AddTimerMethodAdapter3(String owner, int access,
 String name, String desc, MethodVisitor mv) {
@@ -180,9 +212,12 @@ super.visitInsn(opcode);
 }
 }
 
+==
 3.3.3. LocalVariablesSorter
+
 This method adapter renumbers the local variables used in a method in the
-order they appear in this method. For instance in a method with two parameters, the first local variable read or written whose index is greater than or
+order they appear in this method. For instance in a method with two parameters, 
+the first local variable read or written whose index is greater than or
 equal to 3 – the first three local variables correspond to this and to the two
 method parameters, and can therefore not be changed – is assigned index 3,
 the second one is assigned index 4, and so on. This adapter is useful to insert
@@ -191,6 +226,7 @@ to add new local variables after all the existing ones, but unfortunately their
 number is not known until the end of the method, in visitMaxs.
 In order to show how this adapter can be used, let’s suppose that we want to
 use a local variable to implement AddTimerAdapter:
+
 public class C {
 public static long timer;
 public void m() throws Exception {
@@ -199,8 +235,10 @@ Thread.sleep(100);
 timer += System.currentTimeMillis() - t;
 }
 }
+
 This can be done easily by extending LocalVariablesSorter, and by using
 the newLocal method defined in this class:
+
 class AddTimerMethodAdapter4 extends LocalVariablesSorter {
 private int time;
 public AddTimerMethodAdapter4(int access, String desc,
@@ -231,17 +269,21 @@ super.visitInsn(opcode);
 super.visitMaxs(maxStack + 4, maxLocals);
 }
 }
+
 Note that the original frames associated to the method become invalid when
 the local variables are renumbered, and a fortiori when new local variables
 are inserted. Hopefully it is possible to avoid recomputing these frames from
-scratch: indeed no frames must be added or removed, and it “suffices” to reorder the content of local variables in the original frames to get the frames of
-the transformed method. LocalVariablesSorter takes care of that automatically. If you also need to do incremental stack map frame updates for one of
+scratch: indeed no frames must be added or removed, and it “suffices” 
+to reorder the content of local variables in the original frames to get the frames of
+the transformed method. LocalVariablesSorter takes care of that automatically. 
+If you also need to do incremental stack map frame updates for one of
 your method adapters, you can inspire yourself from the source of this class.
 As you can see above using a local variable does not solve the problem we
 had in the original version of this class, concerning the worst case value for
 maxStack. If you want to use an AnalyzerAdapter to solve that, in addition
 to a LocalVariablesSorter, you must use these adapters through delegation
 instead of via inheritance (since multiple inheritance is not possible):
+
 class AddTimerMethodAdapter5 extends MethodVisitor {
 public LocalVariablesSorter lvs;
 public AnalyzerAdapter aa;
@@ -276,6 +318,7 @@ mv.visitInsn(opcode);
 mv.visitMaxs(Math.max(this.maxStack, maxStack), maxLocals);
 }
 }
+
 In order to use this adapter you must chain a LocalVariablesSorter to
 an AnalyzerAdapter, itself chained to your adapter: the first adapter will
 sort local variables and update frames accordingly, the analyzer adapter will
@@ -289,40 +332,46 @@ at.aa = new AnalyzerAdapter(owner, access, name, desc, at);
 at.lvs = new LocalVariablesSorter(access, desc, at.aa);
 return at.lvs;
 }
+
+====
 3.3.4. AdviceAdapter
+
 This method adapter is an abstract class that can be used to insert code at
 the beginning of a method and just before any RETURN or ATHROW instruction.
 Its main advantage is that it also works for constructors, where code must not
 be inserted just at the beginning of the constructor, but after the call to the
 super constructor. In fact most of the code of this adapter is dedicated to the
 detection of this super constructor call.
+
 If you look carefully at the AddTimerAdapter class in section 3.2.4, you will
 see that the AddTimerMethodAdapter is not used for constructors, because of
 this problem. By inheriting from AdviceAdapter this method adapter can be
 improved to work on constructors too (note that AdviceAdapter inherits from
 LocalVariablesSorter, so we could also easily use a local variable):
-class AddTimerMethodAdapter6 extends AdviceAdapter {
-public AddTimerMethodAdapter6(int access, String name, String desc,
-MethodVisitor mv) {
-super(ASM4, mv, access, name, desc);
 
+class AddTimerMethodAdapter6 extends AdviceAdapter {
+
+public AddTimerMethodAdapter6(int access, String name, String desc,MethodVisitor mv) {
+	super(ASM4, mv, access, name, desc);
 }
+
 @Override protected void onMethodEnter() {
-mv.visitFieldInsn(GETSTATIC, owner, "timer", "J");
-mv.visitMethodInsn(INVOKESTATIC, "java/lang/System",
-"currentTimeMillis", "()J");
-mv.visitInsn(LSUB);
-mv.visitFieldInsn(PUTSTATIC, owner, "timer", "J");
+	mv.visitFieldInsn(GETSTATIC, owner, "timer", "J");
+	mv.visitMethodInsn(INVOKESTATIC, "java/lang/System","currentTimeMillis", "()J");
+	mv.visitInsn(LSUB);
+	mv.visitFieldInsn(PUTSTATIC, owner, "timer", "J");
 }
+
 @Override protected void onMethodExit(int opcode) {
-mv.visitFieldInsn(GETSTATIC, owner, "timer", "J");
-mv.visitMethodInsn(INVOKESTATIC, "java/lang/System",
-"currentTimeMillis", "()J");
-mv.visitInsn(LADD);
-mv.visitFieldInsn(PUTSTATIC, owner, "timer", "J");
+	mv.visitFieldInsn(GETSTATIC, owner, "timer", "J");
+	mv.visitMethodInsn(INVOKESTATIC, "java/lang/System","currentTimeMillis", "()J");
+	mv.visitInsn(LADD);
+	mv.visitFieldInsn(PUTSTATIC, owner, "timer", "J");
 }
+
 @Override public void visitMaxs(int maxStack, int maxLocals) {
-super.visitMaxs(maxStack + 4, maxLocals);
+	super.visitMaxs(maxStack + 4, maxLocals);
 }
+
 }
 

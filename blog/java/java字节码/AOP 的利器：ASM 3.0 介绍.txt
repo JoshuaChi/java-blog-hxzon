@@ -291,6 +291,7 @@ ClassAdaptor类实现了 ClassVisitor接口所定义的所有函数，当新建�
 每个 ClassAdaptor类的派生类可以仅封装单一功能，比如删除某函数、修改字段可见性等等，然后再加入到职责链中，
 这样耦合更小，重用的概率也更大，但代价是产生很多小对象，而且职责链的层次太长的话也会加大系统调用的开销，
 用户需要在低耦合和高效率之间作出权衡。
+
 用户可以通过控制职责链中 visit 事件的过程，对类文件进行如下操作：
 删除类的字段、方法、指令：只需在职责链传递过程中中断委派，不访问相应的 visit 方法即可，
 比如删除方法时只需直接返回 null，而不是返回由 visitMethod方法返回的 MethodVisitor对象。（hxzon：注意）
@@ -386,7 +387,7 @@ class AddSecurityCheckClassAdapter extends ClassAdapter {
 
 	 public void visitCode() { 
 		 visitMethodInsn(Opcodes.INVOKESTATIC, "SecurityChecker", 
-			"checkSecurity", "()V"); 
+			"checkSecurity", "()V"); //hxzon：在方法体开始处插入字节码
 	 } 
  }
 
@@ -466,7 +467,8 @@ class AddSecurityCheckClassAdapter extends ClassAdapter {
 	 return wrappedMv; 
  }
 
-这里 ChangeToChildConstructorMethodAdapter将负责把 Account的构造函数改造成其子类 Account$EnhancedByASM的构造函数：
+这里 ChangeToChildConstructorMethodAdapter
+将负责把 Account的构造函数改造成其子类 Account$EnhancedByASM的构造函数：
 
  class ChangeToChildConstructorMethodAdapter extends MethodAdapter { 
 	 private String superClassName; 
