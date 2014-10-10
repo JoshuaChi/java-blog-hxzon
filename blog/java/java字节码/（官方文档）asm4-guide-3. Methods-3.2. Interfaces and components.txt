@@ -1,16 +1,23 @@
 ﻿（官方文档）asm4-guide-3. Methods-3.2. Interfaces and components
 
+注释by hxzon
 
+========
 3.2.1. Presentation
+
 The ASM API for generating and transforming compiled methods is based on
 the MethodVisitor abstract class (see Figure 3.4), which is returned by the
 ClassVisitor’s visitMethod method. In addition to some methods related to
 annotations and debug information, which are explained in the next chapter,
+核心类：MethodVisitor 。
+
 this class defines one method per bytecode instruction category, based on the
 number and type of arguments of these instructions (these categories do not
 correspond to the ones presented in section 3.1.2). These methods must be
 called in the following order (with some additional constraints specified in the
 Javadoc of the MethodVisitor interface):
+调用顺序。
+
 visitAnnotationDefault?
 ( visitAnnotation | visitParameterAnnotation | visitAttribute )*
 ( visitCode
@@ -19,8 +26,11 @@ visitLocalVariable | visitLineNumber )*
 visitMaxs )?
 visitEnd
 
-This means that annotations and attributes, if any, must be visited first, followed by the method’s bytecode, for non abstract methods. For these methods the code must be visited in sequential order, between exactly one call to
+This means that annotations and attributes, if any, must be visited first, 
+followed by the method’s bytecode, for non abstract methods. 
+For these methods the code must be visited in sequential order, between exactly one call to
 visitCode and exactly one call to visitMaxs.
+
 abstract class MethodVisitor { // public accessors ommited
 MethodVisitor(int api);
 MethodVisitor(int api, MethodVisitor mv);
@@ -55,14 +65,18 @@ void visitLineNumber(int line, Label start);
 void visitMaxs(int maxStack, int maxLocals);
 void visitEnd();
 }
+
 Figure 3.4.: The MethodVisitor class
+
 The visitCode and visitMaxs methods can therefore be used to detect the
 start and end of the method’s bytecode in a sequence of events. Like for
 classes, the visitEnd method must be called last, and is used to detect the
-
 end of a method in a sequence of events.
+
 The ClassVisitor and MethodVisitor classes can be combined in order to
 generate complete classes:
+指定访问哪个方法。
+
 ClassVisitor cv = ...;
 cv.visit(...);
 MethodVisitor mv1 = cv.visitMethod(..., "m1", ...);
@@ -71,6 +85,7 @@ mv1.visitInsn(...);
 ...
 mv1.visitMaxs(...);
 mv1.visitEnd();
+
 MethodVisitor mv2 = cv.visitMethod(..., "m2", ...);
 mv2.visitCode();
 mv2.visitInsn(...);
@@ -78,9 +93,12 @@ mv2.visitInsn(...);
 mv2.visitMaxs(...);
 mv2.visitEnd();
 cv.visitEnd();
+
 Note that it is not necessary to finish one method in order to start visiting
 another one. In fact MethodVisitor instances are completely independent
 and can be used in any order (as long as cv.visitEnd() has not been called):
+
+
 ClassVisitor cv = ...;
 cv.visit(...);
 MethodVisitor mv1 = cv.visitMethod(..., "m1", ...);
@@ -97,8 +115,10 @@ mv1.visitEnd();
 mv2.visitMaxs(...);
 mv2.visitEnd();
 cv.visitEnd();
+
 ASM provides three core components based on the MethodVisitor API to
 generate and transform methods:
+
 • The ClassReader class parses the content of compiled methods and calls
 the corresponding methods on the MethodVisitor objects returned by
 the ClassVisitor passed as argument to its accept method.
@@ -106,8 +126,10 @@ the ClassVisitor passed as argument to its accept method.
 • The ClassWriter’s visitMethod method returns an implementation of
 the MethodVisitor interface that builds compiled methods directly in
 binary form.
+
 • The MethodVisitor class delegates all the method calls it receives to
 another MethodVisitor instance. It can be seen as an event filter.
+
 ClassWriter options
 As we have seen in section 3.1.5, computing the stack map frames for a method
 is not very easy: you have to compute all the frames, find the frames that
@@ -116,28 +138,36 @@ compress these remaining frames. Likewise, computing the size of the local
 variables and operand stack parts for a method is easier but still not very easy.
 Hopefully ASM can compute this for you. When you create a ClassWriter
 you can specify what must be automatically computed:
+
 • with new ClassWriter(0) nothing is automatically computed. You
 have to compute yourself the frames and the local variables and operand
 stack sizes.
+不自动计算。
+
 • with new ClassWriter(ClassWriter.COMPUTE_MAXS) the sizes of the
 local variables and operand stack parts are computed for you. You must
 still call visitMaxs, but you can use any arguments: they will be ignored
 and recomputed. With this option you still have to compute the frames
 yourself.
+
 • with new ClassWriter(ClassWriter.COMPUTE_FRAMES) everything is
 computed automatically. You don’t have to call visitFrame, but you
 must still call visitMaxs (arguments will be ignored and recomputed).
-Using these options is convenient but this has a cost: the COMPUTE_MAXS option makes a ClassWriter 10% slower, and using the COMPUTE_FRAMES option
+自动计算。
+
+Using these options is convenient but this has a cost: 
+the COMPUTE_MAXS option makes a ClassWriter 10% slower, and using the COMPUTE_FRAMES option
 makes it two times slower. This must be compared to the time it would take
 to compute this yourself: in specific situations there are often easier and faster
 algorithms for computing this, compared to the algorithm used in ASM, which
 must handle all cases.
+
 Note that if you choose to compute the frames yourself, you can let the
 ClassWriter class do the compression step for you. For this you just have to
 visit your uncompressed frames with visitFrame(F_NEW, nLocals, locals,
-
 nStack, stack), where nLocals and nStack are the number of locals and
 the operand stack size, and locals and stack are arrays containing the corresponding types (see the Javadoc for more details).
+
 Note also that, in order to compute frames automatically, it is sometimes
 necessary to compute the common super class of two given classes. By default
 the ClassWriter class computes this, in the getCommonSuperClass method,
@@ -145,23 +175,33 @@ by loading the two classes into the JVM and by using the reflection API. This
 can be a problem if you are generating several classes that reference each other,
 because the referenced classes may not yet exist. In this case you can override
 the getCommonSuperClass method to solve this problem.
+
+====
 3.2.2. Generating methods
+
 The bytecode of the getF method defined in section 3.1.3 can be generated
 with the following method calls, if mv is a MethodVisitor:
+
 mv.visitCode();
 mv.visitVarInsn(ALOAD, 0);
 mv.visitFieldInsn(GETFIELD, "pkg/Bean", "f", "I");
 mv.visitInsn(IRETURN);
 mv.visitMaxs(1, 1);
 mv.visitEnd();
+
 The first call starts the bytecode generation. It is followed by three calls that
-generate the three instructions of this method (as you can see the mapping between the bytecode and the ASM API is quite simple). The call to visitMaxs
+generate the three instructions of this method 
+(as you can see the mapping between the bytecode and the ASM API is quite simple). 
+
+The call to visitMaxs
 must be done after all the instructions have been visited. It is used to define
 the sizes of the local variables and operand stack parts for the execution frame
 of this method. As we saw in section 3.1.3, these sizes are 1 slot for each part.
+定义本地变量，操作栈的大小。
 Finally the last call is used to end the generation of the method.
 The bytecode of the setF method and of the constructor can be generated in
 a similar way. A more interesting example is the checkAndSetF method:
+
 mv.visitCode();
 mv.visitVarInsn(ILOAD, 1);
 Label label = new Label();
@@ -184,113 +224,143 @@ mv.visitFrame(F_SAME, 0, null, 0, null);
 mv.visitInsn(RETURN);
 mv.visitMaxs(2, 2);
 mv.visitEnd();
+
 Between the visitCode and visitEnd calls you can see method calls that map
-exactly to the bytecode shown at the end of section 3.1.5: one call per instruction, label or frame (the only exceptions are the declaration and construction
+exactly to the bytecode shown at the end of section 3.1.5: 
+one call per instruction, label or frame (the only exceptions are the declaration and construction
 of the label and end Label objects).
+
 Note: a Label object designates the instruction that follows the visitLabel
 call for this label. For example end designates the RETURN instruction,
-and not the frame that is visited just after, since this is not an instruction. It is perfectly legal to have several labels designating the same
+and not the frame that is visited just after, since this is not an instruction. 
+It is perfectly legal to have several labels designating the same
 instruction, but a label must designate exactly one instruction. In other
 words it is possible to have successive calls to visitLabel with different
 labels, but a label used in an instruction must be visited exactly once
 with visitLabel. A last constraint is that labels can not be shared:
 each method must have its own labels.
+标签不能共享，每个方法有自己的标签集。
+
+====
 3.2.3. Transforming methods
+
 You should now have guessed that methods can be transformed like classes,
 i.e. by using a method adapter that forwards the method calls it receives with
-some modifications: changing arguments can be used to change individual instructions, not forwarding a received call removes an instruction, and inserting
+some modifications: changing arguments can be used to change individual instructions, 
+not forwarding a received call removes an instruction, and inserting
 calls between the received ones adds new instructions. The MethodVisitor
 class provides a basic implementation of such a method adapter, which does
 nothing else than just forwarding all the method calls it receives.
+
 In order to understand how method adapters can be used, let’s consider a very
 simple adapter that removes the NOP instructions inside methods (they can be
 removed without problems since they do nothing):
+示例：移除“空操作”指令。
+
 public class RemoveNopAdapter extends MethodVisitor {
 
-public RemoveNopAdapter(MethodVisitor mv) {
-super(ASM4, mv);
+	public RemoveNopAdapter(MethodVisitor mv) {
+		super(ASM4, mv);
+	}
+	@Override
+	public void visitInsn(int opcode) {
+		if (opcode != NOP) {
+			mv.visitInsn(opcode);
+		}
+	}
 }
-@Override
-public void visitInsn(int opcode) {
-if (opcode != NOP) {
-mv.visitInsn(opcode);
-}
-}
-}
+
 This adapter can be used inside a class adapter as follows:
+
 public class RemoveNopClassAdapter extends ClassVisitor {
-public RemoveNopClassAdapter(ClassVisitor cv) {
-super(ASM4, cv);
+	public RemoveNopClassAdapter(ClassVisitor cv) {
+		super(ASM4, cv);
+	}
+	@Override
+	public MethodVisitor visitMethod(int access, String name,
+		String desc, String signature, String[] exceptions) {
+		MethodVisitor mv;
+		mv = cv.visitMethod(access, name, desc, signature, exceptions);
+		if (mv != null) {
+			mv = new RemoveNopAdapter(mv);
+		}
+		return mv;
+	}
 }
-@Override
-public MethodVisitor visitMethod(int access, String name,
-String desc, String signature, String[] exceptions) {
-MethodVisitor mv;
-mv = cv.visitMethod(access, name, desc, signature, exceptions);
-if (mv != null) {
-mv = new RemoveNopAdapter(mv);
-}
-return mv;
-}
-}
+
 In other words the class adapter just builds a method adapter encapsulating
 the method visitor returned by the next class visitor in the chain, and returns
 this adapter. The effect is the construction of a method adapter chain that is
 similar to the class adapter chain (see Figure 3.5).
+
 Note however that this is not mandatory: it is perfectly possible to build
 a method adapter chain that is not similar to the class adapter chain. Each
 method can even have a different method adapter chain. For instance the class
 adapter could choose to remove NOPs only in methods and not in constructors.
 This can be done as follows:
+
 ...
 mv = cv.visitMethod(access, name, desc, signature, exceptions);
 if (mv != null && !name.equals("<init>")) {
-mv = new RemoveNopAdapter(mv);
+	mv = new RemoveNopAdapter(mv);
 }
 ...
+
 In this case the adapter chain is shorter for constructors. On the contrary, the
 adapter chain for constructors could have been longer, with several method
 
 Figure 3.5.: Sequence diagram for the RemoveNopAdapter
+
 adapters chained together created inside visitMethod. The method adapter
 chain can even have a different topology than the class adapter chain. For
 instance the class adapter chain could be linear, while the method adapter
 chain has branches:
+
 public MethodVisitor visitMethod(int access, String name,
-String desc, String signature, String[] exceptions) {
-MethodVisitor mv1, mv2;
-mv1 = cv.visitMethod(access, name, desc, signature, exceptions);
-mv2 = cv.visitMethod(access, "_" + name, desc, signature, exceptions);
-return new MultiMethodAdapter(mv1, mv2);
+	String desc, String signature, String[] exceptions) {
+	MethodVisitor mv1, mv2;
+	mv1 = cv.visitMethod(access, name, desc, signature, exceptions);
+	mv2 = cv.visitMethod(access, "_" + name, desc, signature, exceptions);
+	return new MultiMethodAdapter(mv1, mv2); //hxzon：注意，返回了多个方法
 }
+
 Now that we have seen how method adapters can be used and combined inside
 a class adapter, let’s see how to implement more interesting adapters than
 RemoveNopAdapter.
+
+====
 3.2.4. Stateless transformations
+
 Let’s suppose we want to measure the time spent in each class of a program.
 We need to add a static timer field in each class, and we need to add the
 execution time of each method of this class to this timer field. In other words
 we want to transform a class such as C:
-public class C {
-public void m() throws Exception {
-Thread.sleep(100);
+示例：给每个类添加一个字段，计算每个方法的执行时间。
 
-}
-}
-into this:
 public class C {
-public static long timer;
-public void m() throws Exception {
-timer -= System.currentTimeMillis();
-Thread.sleep(100);
-timer += System.currentTimeMillis();
+	public void m() throws Exception {
+		Thread.sleep(100);
+	}
 }
+
+into this:
+
+public class C {
+	public static long timer;
+
+	public void m() throws Exception {
+		timer -= System.currentTimeMillis();
+		Thread.sleep(100);
+		timer += System.currentTimeMillis();
+	}
 }
+
 In order to have an idea of how this can be implemented in ASM, we can
 compile these two classes and compare the output of TraceClassVisitor
 on these two versions (either with the default Textifier backend, or with an
 ASMifier backend). With the default backend we get the following differences
 (in bold):
+
 GETSTATIC C.timer : J
 INVOKESTATIC java/lang/System.currentTimeMillis()J
 LSUB
@@ -304,36 +374,41 @@ PUTSTATIC C.timer : J
 RETURN
 MAXSTACK = 4
 MAXLOCALS = 1
+
 We see that we must add four instructions at the beginning of the method,
 and four other instructions before the return instruction. We also need to
 update the maximum operand stack size. The beginning of the method’s code
+前后各加四条指令，且更新执行栈的最大栈数。
 is visited with the visitCode method. We can therefore add the first four
 instructions by overriding this method in our method adapter:
+
 public void visitCode() {
-mv.visitCode();
-mv.visitFieldInsn(GETSTATIC, owner, "timer", "J");
-mv.visitMethodInsn(INVOKESTATIC, "java/lang/System",
-"currentTimeMillis", "()J");
-mv.visitInsn(LSUB);
-mv.visitFieldInsn(PUTSTATIC, owner, "timer", "J");
+	mv.visitCode();
+	mv.visitFieldInsn(GETSTATIC, owner, "timer", "J");//获取静态变量
+	mv.visitMethodInsn(INVOKESTATIC, "java/lang/System","currentTimeMillis", "()J");//调用静态方法
+	mv.visitInsn(LSUB);//减
+	mv.visitFieldInsn(PUTSTATIC, owner, "timer", "J");//设置静态变量
 }
 
 where owner must be set to the name of the class that is being transformed.
+
 We must now add four other instructions before any RETURN, but also before
 any x RETURN or before ATHROW, which are all the instructions that terminate
 the method’s execution. These instructions do not have any argument, and
 are therefore visited in the visitInsn method. We can then override this
 method in order to add our instructions:
+这些指令都没有参数。
+
 public void visitInsn(int opcode) {
-if ((opcode >= IRETURN && opcode <= RETURN) || opcode == ATHROW) {
-mv.visitFieldInsn(GETSTATIC, owner, "timer", "J");
-mv.visitMethodInsn(INVOKESTATIC, "java/lang/System",
-"currentTimeMillis", "()J");
-mv.visitInsn(LADD);
-mv.visitFieldInsn(PUTSTATIC, owner, "timer", "J");
+	if ((opcode >= IRETURN && opcode <= RETURN) || opcode == ATHROW) {
+		mv.visitFieldInsn(GETSTATIC, owner, "timer", "J");
+		mv.visitMethodInsn(INVOKESTATIC, "java/lang/System","currentTimeMillis", "()J");
+		mv.visitInsn(LADD);//加
+		mv.visitFieldInsn(PUTSTATIC, owner, "timer", "J");
+	}
+	mv.visitInsn(opcode);
 }
-mv.visitInsn(opcode);
-}
+
 Finally we must update the maximum operand stack size. The instructions
 that we add push two long values, and therefore require four slots on the
 operand stack. At the beginning of the method the operand stack is initially
