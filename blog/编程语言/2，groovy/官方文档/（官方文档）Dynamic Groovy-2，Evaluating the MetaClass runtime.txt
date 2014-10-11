@@ -1,0 +1,55 @@
+﻿（官方文档）Dynamic Groovy-2，Evaluating the MetaClass runtime
+http://groovy.codehaus.org/Evaluating+the+MetaClass+runtime
+
+Since 1.1, Groovy supports a much richer set of APIs for evaluating the MetaClass runtime. Using these APIs in combination with ExpandoMetaClass makes Groovy an extremely powerful language for meta-programming
+
+Finding out methods and properties
+To obtain a list of methods ( or MetaMethod instances in Groovy speak) for a particular Groovy class use can inspect its MetaClass:
+
+
+println obj.metaClass.methods
+println obj.metaClass.methods.find { it.name.startsWith("to") }
+The same can be done for properties:
+
+
+println obj.metaClass.properties
+println obj.metaClass.properties.find { it.name.startsWith("to") }
+Using respondsTo and hasProperty
+Obtaining a list of methods sometimes is a little more than what you want. It is quite common in meta-programming scenarios to want to find out if an object supports a particular method.
+
+Since 1.1, you can use respondsTo and hasProperty to achieve this:
+
+
+class Foo {
+   String prop
+   def bar() { "bar" }
+   def bar(String name) { "bar $name" }
+   def add(Integer one, Integer two) { one + two}
+}
+
+def f = new Foo()
+
+if(f.metaClass.respondsTo(f, "bar")) {
+   // do stuff
+}
+
+if(f.metaClass.respondsTo(f, "bar", String)) {
+   // do stuff
+}
+
+if(!f.metaClass.respondsTo(f, "bar", Integer)) {
+   // do stuff
+}
+
+if(f.metaClass.respondsTo(f, "add", Integer, Integer)) {
+   // do stuff
+}
+
+if(f.metaClass.hasProperty(f, "prop")) {
+  // do stuff
+}
+The respondsTo method actually returns a List of MetaMethod instances so you can use it to both query and evaluate the resulting list.
+
+Icon
+respondsTo only works for "real" methods and those added via ExpandoMetaClass and not for cases where you override invokeMethod or methodMissing. It is impossible in these cases to tell if an object responds to a method without actually invoking the method.
+

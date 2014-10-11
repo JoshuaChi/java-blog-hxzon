@@ -1,0 +1,510 @@
+﻿（官方文档）Dynamic Groovy-3，ExpandoMetaClass
+http://groovy.codehaus.org/ExpandoMetaClass
+
+Using ExpandoMetaClass to add behaviour
+
+Groovy includes a special MetaClass called an ExpandoMetaClass that allows you to dynamically add methods, constructors, properties and static methods using a neat closure syntax.
+
+How does it work? Every java.lang.Class is supplied with a special "metaClass" property that will give you a reference to an ExpandoMetaClass instance.
+
+For example to obtain the ExpandoMetaClass of the java.lang.String class you use:
+
+String.metaClass.swapCase = {->
+      def sb = new StringBuffer()
+      delegate.each {
+           sb << (Character.isUpperCase(it as char) ? Character.toLowerCase(it as char) : 
+                   Character.toUpperCase(it as char))
+      }
+      sb.toString()
+}
+This adds a method called swapCase to the String class.
+
+Icon
+By default ExpandoMetaClass doesn't do inheritance. To enable this you must call ExpandoMetaClass.enableGlobally() before your app starts such as in the main method or servlet bootstrap
+
+Further Reading:
+
+ExpandoMetaClass - Borrowing Methods — Borrowing methods from other classes
+ExpandoMetaClass - Constructors — Adding or overriding constructors
+ExpandoMetaClass Domain-Specific Language
+ExpandoMetaClass - Dynamic Method Names — Dynamically creating method names
+ExpandoMetaClass - GroovyObject Methods — Overriding invokeMethod, getProperty and setProperty
+ExpandoMetaClass - Interfaces — Adding methods on interfaces
+ExpandoMetaClass - Methods — Adding or overriding instance methods
+ExpandoMetaClass - Overriding static invokeMethod — Overriding invokeMethod for static methods
+ExpandoMetaClass - Properties — Adding or overriding properties
+ExpandoMetaClass - Runtime Discovery — Overriding invokeMethod for static methods
+ExpandoMetaClass - Static Methods — Adding or overriding static methods
+
+========
+ExpandoMetaClass - Borrowing Methods from other classes
+http://groovy.codehaus.org/ExpandoMetaClass+-+Borrowing+Methods
+
+With ExpandoMetaClass you can also use Groovy's method pointer syntax to borrow methods from other classes. For example:
+
+
+class Person {
+    String name
+} 
+class MortgageLender {
+   def borrowMoney() {
+      "buy house"
+   }
+}
+
+def lender = new MortgageLender()
+
+Person.metaClass.buyHouse = lender.&borrowMoney
+
+def p = new Person()
+
+assert "buy house" == p.buyHouse()
+
+==========
+ExpandoMetaClass - Adding constructors
+http://groovy.codehaus.org/ExpandoMetaClass+-+Constructors
+
+Adding constructors is a little different to adding a method with ExpandoMetaClass. Essentially you use a special "constructor" property and either use the << or = operator to assign a closure. The arguments to the closure are of course the constructor arguments
+
+
+class Book {
+    String title
+}
+Book.metaClass.constructor << { String title -> new Book(title:title) }
+
+
+def b = new Book("The Stand")
+Be careful when adding constructors however, as it is very easy to get into stack overflow troubles. For example this code which overrides the default constructor:
+
+
+class Book {
+    String title
+}
+Book.metaClass.constructor = {  new Book() }
+
+
+def b = new Book("The Stand")
+The above would produce a StackOverflowError as it rescursively keeps calling the same constructor through Groovy's MetaClass system. You can get around this by writing helper code to instantiate an instance outside of Groovy. For example this uses Spring's BeanUtils class and does not cause a StackOverflow:
+
+
+class Book {
+    String title
+}
+Book.metaClass.constructor = {  BeanUtils.instantiateClass(Book) }
+
+
+def b = new Book("The Stand")
+
+==========
+ExpandoMetaClass Domain-Specific Language
+http://groovy.codehaus.org/ExpandoMetaClass+Domain-Specific+Language
+
+
+Initially developed under the Grailsumbrella and integrated back into Groovy 1.5, ExpandoMetaClass is a very handy way for changing the runtime behavior of your objects and classes, instead of writing full-blow MetaClass classes. Each time, we want to add / change several properties or methods of an existing type, there is too much of a repetition of Type.metaClass.xxx. Take for example this extract of a Unit manipulation DSL dealing with operator overloading:
+
+
+Number.metaClass.multiply = { Amount amount -> amount.times(delegate) }
+Number.metaClass.div =      { Amount amount -> amount.inverse().times(delegate) }
+
+Amount.metaClass.div =      { Number factor -> delegate.divide(factor) }
+Amount.metaClass.div =      { Amount factor -> delegate.divide(factor) }
+Amount.metaClass.multiply = { Number factor -> delegate.times(factor) }
+Amount.metaClass.power =    { Number factor -> delegate.pow(factor) }
+Amount.metaClass.negative = { -> delegate.opposite() }
+The repetition, here, looks obvious. But with the ExpandoMetaClass DSL, we can streamline the code by regrouping the operators per type:
+
+
+Number.metaClass {
+    multiply { Amount amount -> amount.times(delegate) }
+    div      { Amount amount -> amount.inverse().times(delegate) }
+}
+
+Amount.metaClass {
+    div <<   { Number factor -> delegate.divide(factor) }
+    div <<   { Amount factor -> delegate.divide(factor) }
+    multiply { Number factor -> delegate.times(factor) }
+    power    { Number factor -> delegate.pow(factor) }
+    negative { -> delegate.opposite() }
+}
+A metaClass() method takes a closure as single argument, containing the various definitions of the methods and properties, instead of repeating the Type.metaClass on each line. When there is just one method of a given name, use the pattern methodName
+
+{ /* closure */ }, but when there are several, you should use the append operator and follow the patten methodName <<
+
+{ /* closure */ }. Static methods can also be added through this mechanism, so instead of the classical approach:
+
+
+// add a fqn() method to Class to get the fully
+// qualified name of the class (ie. simply Class#getName)
+Class.metaClass.static.fqn = { delegate.name }
+
+assert String.fqn() == "java.lang.String"
+You can now do:
+
+
+Class.metaClass {
+    'static' {
+        fqn { delegate.name }
+    }
+}
+Note here that you have to quote the statickeyword, to avoid this construct to look like a static initializer. For one off method addition, the classical approach is obviously more concise, but when you have several methods to add, the EMC DSL makes sense.
+
+The usual approach for adding properties to existing classes through ExpandoMetaClass is to add a getter and a setter as methods. For instance, say you want to add a method that counts the number of words in a text file, you could try this:
+
+
+File.metaClass.getWordCount = {
+    delegate.text.split(/\w/).size()
+}
+
+new File('myFile.txt').wordCount
+When there is some logic inside the getter, this is certainly the best approach, but when you just want to have new properties holding simple values, through the ExpandoMetaClass DSL, it is possible to define them. In the following example, a lastAccessed property is added to a Car class — each instance will have its property. Whenever a method is called on that car, this property is updated with a newer timestamp.
+
+
+class Car {
+    void turnOn() {}
+    void drive() {}
+    void turnOff() {}
+}
+
+Car.metaClass {
+    lastAccessed = null
+    invokeMethod = { String name, args ->
+        def metaMethod = delegate.metaClass.getMetaMethod(name, args)
+        if (metaMethod) {
+            delegate.lastAccessed = new Date()
+            metaMethod.doMethodInvoke(delegate, args)
+        } else {
+            throw new MissingMethodException(name, delegate.class, args)
+        }
+    }
+}
+
+
+def car = new Car()
+println "Last accessed: ${car.lastAccessed ?: 'Never'}"
+
+car.turnOn()
+println "Last accessed: ${car.lastAccessed ?: 'Never'}"
+
+car.drive()
+sleep 1000
+println "Last accessed: ${car.lastAccessed ?: 'Never'}"
+
+sleep 1000
+car.turnOff()
+
+println "Last accessed: ${car.lastAccessed ?: 'Never'}"
+In our example, in the DSL, we access that property through the delegate of the closure, with delegate.lastAccessed = new Date(). And we intercept any method call thanks to invokeMethod(), delegating to the original method for the call, and throwing an exception in case the method doesn't exist. Later on, you can see by executing this script that lastAccessed is updated as soon as we call a method on our instance.
+
+===========
+ExpandoMetaClass - Dynamic method/property name creation
+http://groovy.codehaus.org/ExpandoMetaClass+-+Dynamic+Method+Names
+
+Since Groovy allows you to use Strings as property names this in turns allows you to dynamically create method and property names at runtime.
+
+The Basics
+To create a method with a dynamic name simply use Groovy's feature of reference property names as strings. You can combine this with Groovy's string interpolation (Gstrings) to create method and property names on the fly:
+
+
+class Person {
+   String name = "Fred"
+}
+
+def methodName = "Bob"
+
+Person.metaClass."changeNameTo${methodName}" = {-> delegate.name = "Bob" }
+
+def p = new Person()
+
+assert "Fred" == p.name
+
+p.changeNameToBob()
+
+assert "Bob" == p.name
+The same concept can be applied to static methods and properties.
+
+A more elaborate example
+In Grails we have a concept of dynamic codecs, classes that can encode and decode data.
+
+These classes are called HTMLCodec, JavaScriptCodec etc. an example of which can be seen below:
+
+
+import org.springframework.web.util.HtmlUtils
+class HTMLCodec {
+    static encode = { theTarget ->
+        HtmlUtils.htmlEscape(theTarget.toString())
+    }
+
+    static decode = { theTarget ->
+    	HtmlUtils.htmlUnescape(theTarget.toString())
+    }
+}
+So what we do with these classes is to evaluate the convention and add "encodeAsXXX" methods to every object based on the first part of the name of the codec class such as "encodeAsHTML". The pseudo code to achieve this is below:
+
+
+def codecs = classes.findAll { it.name.endsWith('Codec') }
+
+codecs.each { codec ->
+    Object.metaClass."encodeAs${codec.name-'Codec'}" = { codec.newInstance().encode(delegate) }
+    Object.metaClass."decodeFrom${codec.name-'Codec'}" = { codec.newInstance().decode(delegate) }
+}
+
+
+def html = '<html><body>hello</body></html>'
+
+assert '<html><body>hello</body></html>' == html.encodeAsHTML()
+As you can see from the above we dynamically construct the names of the methods using GString expressions!
+
+==========
+ExpandoMetaClass - Overriding invokeMethod, getProperty and setProperty
+http://groovy.codehaus.org/ExpandoMetaClass+-+GroovyObject+Methods
+
+It is also possible to override the methods invokeMethod, getProperty and setPropety on ExpandoMetaClass thus allowing even more dynamic behaviour.
+
+Overriding invokeMethod
+As an example of overring invokeMethod, take this simple example:
+
+
+class Stuff {
+   def invokeMe() { "foo" }
+}
+
+Stuff.metaClass.invokeMethod = { String name, args ->
+   def metaMethod = Stuff.metaClass.getMetaMethod(name, args)
+   def result
+   if(metaMethod) result = metaMethod.invoke(delegate,args)
+   else {
+      result = "bar"
+   }
+   result
+}
+
+def stf = new Stuff()
+
+assert "foo" == stf.invokeMe()
+assert "bar" == stf.doStuff()
+So what is happening here? Well firstly we've overriden invokeMethod by assigning it an appropriate closure, but in addition we first look-up a MetaMethod with the line:
+
+
+def metaMethod = delegate.class.metaClass.getMetaMethod(name)
+A MetaMethod in Groovy is a method that is known to exist on the MetaClass whether added at runtime or whatever, thus we check if there is an existing MetaMethod and if there isn't we simply return "bar", hence the behaviour of the assert statements is correct.
+
+Overriding getProperty and setProperty
+Again overriding getProperty and setProperty is similar to the above:
+
+
+class Person {
+   String name = "Fred"
+}
+
+Person.metaClass.getProperty = { String name ->
+   def metaProperty = Person.metaClass.getMetaProperty(name)
+   def result
+   if(metaProperty) result = metaProperty.getProperty(delegate)
+   else {
+      result = "Flintstone"
+   }
+   result
+}
+
+def p = new Person()
+
+assert "Fred" == p.name
+assert "Flintstone" == p.other
+The important thing to note here is that instead of a MetaMethod we look-up a MetaProperty instance if that exists we call the getProperty method of the MetaProperty passing the delegate (ie the instance of the class).
+
+The only different with setProperty is you need the value in the method signature and to call setProperty on the MetaProperty:
+
+
+Person.metaClass.setProperty = { String name, value ->
+   ...
+   if(metaProperty) metaProperty.setProperty(delegate, value)
+   ...
+
+}
+
+Useful References
+MetaMethod
+MetaProperty
+
+==========
+ExpandoMetaClass - Adding methods to interfaces
+http://groovy.codehaus.org/ExpandoMetaClass+-+Interfaces
+
+It is possible to add methods onto interfaces with ExpandoMetaClass. To do this however, it MUST be enabled globally using the ExpandoMetaClass.enableGlobally() method before application start-up.
+
+As an example this code adds a new method to all implementors of java.util.List:
+
+
+List.metaClass.sizeDoubled = {-> delegate.size() * 2 }
+
+def list = []
+
+list << 1
+list << 2
+
+assert 4 == list.sizeDoubled()
+Another example taken from Grails, this code allows access to session attributes using Groovy's subscript operator to all implementors of the HttpSession interface:
+
+
+  HttpSession.metaClass.getAt = { String key ->
+        delegate.getAttribute(key)
+  }
+  HttpSession.metaClass.putAt = { String key, Object val ->
+        delegate.setAttribute(key, val)
+  }  
+
+  def session = new MockHttpSession()
+
+  session.foo = "bar"
+
+==========
+ExpandoMetaClass - Methods
+http://groovy.codehaus.org/ExpandoMetaClass+-+Methods
+
+ExpandoMetaClass - Adding & Overriding instance methods
+Once you have an ExpandoMetaClass to add new methods to it is trivial:
+
+
+class Book {
+   String title
+}
+
+Book.metaClass.titleInUpperCase << {-> title.toUpperCase() }
+
+def b = new Book(title:"The Stand")
+
+assert "THE STAND" == b.titleInUpperCase()
+
+Note that in this case the left shift << operator is used to "append" the new method. If the method already exists an exception will be thrown. If you want to replace an instance method you can use the = operator:
+
+
+Book.metaClass.toString = {-> title.toUpperCase() }
+
+==========
+ExpandoMetaClass - Overriding invokeMethod for static methods
+http://groovy.codehaus.org/ExpandoMetaClass+-+Overriding+static+invokeMethod
+
+It is also possible to override invokeMethod for static methods.
+
+Overriding invokeMethod for static
+As an example of overriding invokeMethod for static methods, take this simple example:
+
+
+class Stuff {
+   static invokeMe() { "foo" }
+}
+
+Stuff.metaClass.'static'.invokeMethod = { String name, args ->
+   def metaMethod = Stuff.metaClass.getStaticMetaMethod(name, args)
+   def result
+   if(metaMethod) result = metaMethod.invoke(delegate,args)
+   else {
+      result = "bar"
+   }
+   result
+}
+
+assert "foo" == Stuff.invokeMe()
+assert "bar" == Stuff.doStuff()
+So what is happening here? Well firstly we've overridden invokeMethod using the 'static' qualifier and by assigning it an appropriate closure, but in addition we first look-up a MetaMethod with the line:
+
+
+def metaMethod = delegate.class.metaClass.getStaticMetaMethod(name)
+A MetaMethod in Groovy is a method that is known to exist on the MetaClass whether added at runtime or whatever, thus we check if there is an existing MetaMethod and if there isn't we simply return "bar", hence the behaviour of the assert statements is correct.
+
+Useful References
+MetaMethod
+MutableMetaClass
+MetaObjectProtocol
+
+===========
+ExpandoMetaClass - Properties
+http://groovy.codehaus.org/ExpandoMetaClass+-+Properties
+
+Adding properties
+Properties can be added in a couple of ways. Firstly you can use the instance method syntax seen previously:
+
+class Book {
+  String title
+}
+Book.metaClass.getAuthor << {-> "Stephen King" }
+
+def b = new Book("The Stand")
+
+assert "Stephen King" == b.author
+In this case the property is dictated by the closure and is a read-only property. You can add the equivalent setter but then remember you will have to store the property somewhere for retrieval later so make sure you use thread safe code. For example you could store values in a synchronized Map using the object identity as the key:
+
+def properties = Collections.synchronizedMap([:])
+
+Book.metaClass.setAuthor = { String value ->
+   properties[System.identityHashCode(delegate) + "author"] = value
+}
+Book.metaClass.getAuthor = {->
+   properties[System.identityHashCode(delegate) + "author"]
+}
+This is not the only technique however. For example in a servlet container you may store the values in the currently executing request as request attributes (as is done in some cases in Grails).
+
+Alternatively you can simply assign a value as follows:
+
+Book.metaClass.author = "Stephen King"
+def b = new Book("The Stand")
+
+assert "Stephen King" == b.author
+In this case the property is mutable and has both a setter and getter.
+
+==========
+ExpandoMetaClass - Runtime Discovery
+http://groovy.codehaus.org/ExpandoMetaClass+-+Runtime+Discovery
+
+ExpandoMetaClass - Runtime MetaClass Analysis
+
+At runtime it is often useful to know what other methods or properties exist at the time the method is executed. To this end ExpandoMetaClass provides the following methods as of this writing:
+
+getMetaMethod
+hasMetaMethod
+getMetaProperty
+hasMetaProperty
+Why can't you just use reflection? Well because Groovy is different, it has the methods that are "real" methods and methods that are available only at runtime. These are sometimes (but not always) represented as MetaMethods. The MetaMethods tell you what methods are available at runtime, thus your code can adapt.
+
+This is of particular use when overriding invokeMethod, getProperty and/or setProperty for example:
+
+
+class Stuff {
+   def invokeMe() { "foo" }
+}
+
+Stuff.metaClass.invokeMethod = { String name, args ->
+   def metaMethod = Stuff.metaClass.getMetaMethod(name,args)
+   def result
+   if(metaMethod) result = metaMethod.invoke(delegate,args)
+   else {
+      result = "bar"
+   }
+   result
+}
+
+def stf = new Stuff()
+
+assert "foo" == stf.invokeMe()
+assert "bar" == stf.doStuff()
+Here we are using the getMetaMethod method to obtain a reference to a method that may or may not exist. If it doesn't exist the getMetaMethod method will return null and the code can adapt to this fact.
+
+Useful References
+MetaMethod
+MetaProperty
+
+==========
+ExpandoMetaClass - Adding static methods
+http://groovy.codehaus.org/ExpandoMetaClass+-+Static+Methods
+
+Static methods can also be added using the same technique as instance methods with the addition of the "static" qualifier before the method name:
+
+
+class Book {
+   String title
+}
+
+Book.metaClass.static.create << { String title -> new Book(title:title) }
+
+def b = Book.create("The Stand")
+

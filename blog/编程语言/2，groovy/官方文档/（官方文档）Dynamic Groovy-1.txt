@@ -1,0 +1,70 @@
+﻿（官方文档）Dynamic Groovy-1
+http://groovy.codehaus.org/Dynamic+Groovy
+
+===========
+Dynamic Groovy
+
+Evaluating the MetaClass runtime
+
+ExpandoMetaClass
+ExpandoMetaClass - Borrowing Methods
+ExpandoMetaClass - Constructors
+ExpandoMetaClass Domain-Specific Language
+ExpandoMetaClass - Dynamic Method Names
+ExpandoMetaClass - GroovyObject Methods
+ExpandoMetaClass - Interfaces
+ExpandoMetaClass - Methods
+ExpandoMetaClass - Overriding static invokeMethod
+ExpandoMetaClass - Properties
+ExpandoMetaClass - Runtime Discovery
+ExpandoMetaClass - Static Methods
+
+Global AST Transformations
+Local AST Transformations
+Per-Instance MetaClass
+Runtime mixins
+Using invokeMethod and getProperty
+Using methodMissing and propertyMissing
+
+===========
+This section details how to go about using the dynamic features of Groovy such as implementing the GroovyObject interface and using ExpandoMetaClass, an expandable MetaClass that allows adding of methods, properties and constructors.
+
+Using invokeMethod and getProperty
+Using methodMissing and propertyMissing
+Evaluating the MetaClass runtime
+Using ExpandoMetaClass to add behaviour
+Customizing MetaClass for a single instance
+Runtime mixins
+Compile-time metaprogramming is also available using Compile-time Metaprogramming - AST Transformations
+
+Dynamic Method Invocation
+You can invoke a method even if you don't know the method name until it is invoked:
+
+
+class Dog {
+  def bark() { println "woof!" }
+  def sit() { println "(sitting)" }
+  def jump() { println "boing!" }
+}
+
+def doAction( animal, action ) {
+  animal."$action"()                  //action name is passed at invocation
+}
+
+def rex = new Dog()
+
+doAction( rex, "bark" )               //prints 'woof!'
+doAction( rex, "jump" )               //prints 'boing!'
+You can also "spread" the arguments in a method call, when you have a list of arguments:
+
+
+def max(int i1, int i2) {
+    Math.max(i1, i2)
+}
+def numbers = [1, 2]
+assert max( *numbers ) == 2
+This also works in combination of the invocation with a GString:
+
+
+someObject."$methodName"(*args)
+
