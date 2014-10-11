@@ -1,30 +1,68 @@
 ﻿（官方文档）Extended Guide to Method Signatures
 http://groovy.codehaus.org/Extended+Guide+to+Method+Signatures
 
-Groovy supports most of the signatures you know from Java. Since Groovy 1.5 Groovy supports full usage of generics in method declarations. Please see a Java tutorial for details.
+注释by hxzon
+=======
+Groovy supports most of the signatures you know from Java. 
+Since Groovy 1.5 Groovy supports full usage of generics in method declarations. 
+Please see a Java tutorial for details.
 
+====
 General Form
+
 I will often show a more general method signature like def foo(x, y, p1, p2, ..., pn)
 
-This is not valid Groovy code, it is just there to show that a method named foo has n+2 parameters. Usually this means also that n could be 0. In that case, the real resulting method signature would look like: def foo(x,y)
+This is not valid Groovy code, it is just there to show that a method named foo has n+2 parameters. 
+Usually this means also that n could be 0. 
+In that case, the real resulting method signature would look like: 
 
-A form of def foo(x,y, p1, p2, ..., pn, q1, q2, ...., qm) would mean n+m+2 parameters. Likewise a method call foo(x, p1, p2, ..., pn) is a method call with n+1 arguments.
+def foo(x,y)
 
-I will use the word parameter when a method declaration is involved and argument in case of method calls. I will in general use the method name foo as a placeholder for a real method name. I will use T if a certain type is required. This could be Object, a primitive type or any class you like to use. If T cannot be chosen freely, then I will mention the possible types for T
+A form of def foo(x,y, p1, p2, ..., pn, q1, q2, ...., qm) would mean n+m+2 parameters. 
+Likewise a method call foo(x, p1, p2, ..., pn) is a method call with n+1 arguments.
 
+I will use the word parameter when a method declaration is involved and argument in case of method calls. 
+I will in general use the method name foo as a placeholder for a real method name. 
+I will use T if a certain type is required. 
+This could be Object, a primitive type or any class you like to use. 
+If T cannot be chosen freely, then I will mention the possible types for T
+
+====
 Variable Arguments
-Like Java since Java5 Groovy supports variable arguments. To use them you have to give a special method signature where the last parameter is an array. def foo(p1, ...., pn, T... args). Here foo supports n arguments by default, but also an unspecified number of further arguments exceeding n.
+不定参数
+
+Like Java since Java5 Groovy supports variable arguments. 
+To use them you have to give a special method signature where the last parameter is an array. 
+def foo(p1, ...., pn, T... args). 
+Here foo supports n arguments by default, but also an unspecified number of further arguments exceeding n.
 
 Example:
 
 def foo(Object... args){args.length}
 assert foo() == 0
 assert foo(1,2) == 2
-In this example we defined a method foo, that is able to take any number of arguments, including no arguments at all. args.length will then specify the number of arguments. T... is the same syntax as used in Java and is internally represented as array where the parameter has a special flag set. Groovy allows as alternative T[]. That means any method that has an array as last parameter is seen by Groovy as a method that takes a variable number of arguments. These methods are seen as such by Java too, since the "variable arguments flag" is set. Methods defined in Java using T... behave like a variable arguments method. Methods defined in Java using T[] will not have the special flag set, but Groovy will still see them as variable arguments methods.
 
-If in case of def foo(T[] args), foo is called with null, then args will be null and not an array of length 1 with null as only element. If foo is called with an array as argument, then args will be that array instead of an array of length 1 containing the given array as only element. T... will not behave different. This is no special logic we thought of, that is how variable arguments behave in Java too.
+In this example we defined a method foo, that is able to take any number of arguments, including no arguments at all. 
+args.length will then specify the number of arguments. 
+T... is the same syntax as used in Java and is internally represented as array where the parameter has a special flag set. 
+Groovy allows as alternative T[]. 
+数组语法，在groovy中也视为不定参数。
+That means any method that has an array as last parameter is seen by Groovy as a method that takes a variable number of arguments. 
+These methods are seen as such by Java too, since the "variable arguments flag" is set. 
+Methods defined in Java using T... behave like a variable arguments method. 
+Methods defined in Java using T[] will not have the special flag set, but Groovy will still see them as variable arguments methods.
 
-One more important point to mention is maybe a method overloaded with a method that takes variable arguments. Groovy (and java) will select the most specific method, that means if there is a method taking one argument and the parameter type is an array and there is also another method, that takes also only one argument and the argument is not an array, then the other method is preferred. Examples:
+If in case of def foo(T[] args), foo is called with null, then args will be null and not an array of length 1 with null as only element. 
+If foo is called with an array as argument, then args will be that array instead of an array of length 1 containing the given array as only element. 
+T... will not behave different. 
+This is no special logic we thought of, that is how variable arguments behave in Java too.
+
+One more important point to mention is maybe a method overloaded with a method that takes variable arguments. 
+Groovy (and java) will select the most specific method, 
+that means if there is a method taking one argument and the parameter type is an array and there is also another method, 
+that takes also only one argument and the argument is not an array, then the other method is preferred. 
+Examples:
+方法的优先性：
 
 def foo(Object[] args) {1}
 def foo (x) {2}
@@ -36,25 +74,36 @@ assert foo(1,2) == 3
 def x = [1,2] as Object[]
 assert foo(x) == 1
 assert foo(1,1,1) == 1
+
 Note: T[] or T... do have to be the last parameter, this clashes with Closures
 
+====
 Closures
+闭包
+
 See also Closures.
 
 Groovy allows you to attach "blocks" to method calls like in:
 
 foo() { println it  }
-To be able to attach a "block" in this way, the method signature must be def foo(p1, p2, ..., pn, T t), where T is Object, Closure or no explicit type.
+
+To be able to attach a "block" in this way, the method signature must be 
+def foo(p1, p2, ..., pn, T t), 
+where T is Object, Closure or no explicit type.
 
 Example:
 
 def foo(x,closure) {x+closure.call()}
 assert 1 == foo(1) {0}
 assert 2 == foo(1) {1}
+
 You are also allowed to use the "block" as normal argument
 
 foo(1,{1})
-If variable arguments and Closures are combined you will have the problem, that the closure needs to be the last argument, but the parameter enabling variable arguments needs to be the last one too. You could use code like this to check that at runtime:
+
+If variable arguments and Closures are combined you will have the problem, 
+that the closure needs to be the last argument, but the parameter enabling variable arguments needs to be the last one too. 
+You could use code like this to check that at runtime:
 
 def foo(Object[] args) {
    if (!args || !(args[-1] instanceof Closure)) {
@@ -62,14 +111,26 @@ def foo(Object[] args) {
    }
   ...
 }
+
 !args will be true if args is null or an array of length 0, args[-1] refers to the last element of the array.
 
 Note: the "block" is always the last argument
+注意：块总是最后一个参数。
 
+=======
 Named Arguments
+命名参数
+
 See Maps
 
-Named arguments requires the following method signature def foo(T t, p1, p2, ..., pn), but the real work is done by the compiler where the the method call is defined. A method call foo(p1:e1, p2:e2, ..., pn:en, q1, q2, ..., qm) will always be transformed to foo([p1:e1, p2:e2, ..., pn:en], q1, q2, ..., qm). If you mix the positions of the pi and qi elements, then the compiler will still force the same transformed signature.
+Named arguments requires the following method signature 
+def foo(T t, p1, p2, ..., pn), 
+but the real work is done by the compiler where the the method call is defined. 
+A method call 
+foo(p1:e1, p2:e2, ..., pn:en, q1, q2, ..., qm) 
+will always be transformed to 
+foo([p1:e1, p2:e2, ..., pn:en], q1, q2, ..., qm). 
+If you mix the positions of the pi and qi elements, then the compiler will still force the same transformed signature.
 
 Example:
 
@@ -79,28 +140,57 @@ assert foo(a:1,3,b:2,4) == [[a:1, b:2], 3, 4]
 assert foo(3,4,a:1,b:2) == [[a:1, b:2], 3, 4]
 
 assert foo(4,3,b:2,a:1) == [[b:2, a:1], 4, 3]
+
 The type T can be Object, Map or no explicit type.
 
-(In fact other types are possible for T. Any type compatible to [:].getClass() can be used. But the type may change for example from HashMap (Groovy 1.0) to LinkedHashMap (since Groovy 1.5), so it is only safe to use the less specialized types.)
+(In fact other types are possible for T. 
+Any type compatible to [:].getClass() can be used. 
+But the type may change for example from HashMap (Groovy 1.0) to LinkedHashMap (since Groovy 1.5), 
+so it is only safe to use the less specialized types.)
 
-Combining named arguments with closures or variable arguments is no problem. You can make the map the first element of the variable arguments part or you can let it have its own parameter: That is for you to decide. If you combine named arguments and closures, you will need two parameters. One for the map and one for the closure.
+Combining named arguments with closures or variable arguments is no problem. 
+You can make the map the first element of the variable arguments part or you can let it have its own parameter: 
+That is for you to decide. 
+If you combine named arguments and closures, you will need two parameters. 
+One for the map and one for the closure.
 
-In case of def foo(T t, p1, p2, ..., pn) all named arguments will be in t, but that also means that you can not make a method call where you access pi by name. Example
+In case of def foo(T t, p1, p2, ..., pn) all named arguments will be in t, 
+but that also means that you can not make a method call where you access pi by name. Example
 
 def foo(x,y){}
 foo(x:1,y:2)
+
 This code will fail at runtime, because the method foo expects two arguments, but the map you gave is only one argument.
 
 Note: the map is always the first argument
+map总是第一个参数。
 
+====
 Arguments with Default Values
-Groovy supports also the usage of methods with default values for parameters. Any parameter T t can have a default value using T t=x, where x is the value. The usage of the default value is not bound to a special type. In fact this is a short form to declare an overloaded method. def foo(p1, p2, ..., pn, T t=x, q1, q2, ..., qm) becomes a method def foo(p1, p2, ..., pn, T t, q1, q2, ..., qm), where t has no default value and a method def foo(p1, p2, ..., pn, q1, q2, ..., qm) this implementation:
+参数默认值
+
+Groovy supports also the usage of methods with default values for parameters. 
+Any parameter T t can have a default value using T t=x, where x is the value. 
+The usage of the default value is not bound to a special type. 
+In fact this is a short form to declare an overloaded method. 
+def foo(p1, p2, ..., pn, T t=x, q1, q2, ..., qm) becomes a method def foo(p1, p2, ..., pn, T t, q1, q2, ..., qm), 
+where t has no default value and a method def foo(p1, p2, ..., pn, q1, q2, ..., qm) this implementation:
 
 def foo(p1, p2, ..., pn, q1, q2, ..., qm) {
   // note: this is not working groovy code, just pseudo code!
   foo(p1, p2, ..., pn, x, q1, q2, ..., qm)
 }
-If multiple default values are used, then the parameter with the default value most right will be eliminated like seen here and the resulting method signature will be processed again. That means def foo(p1, p2, ..., pn, T t1=x, T t2=y, q1, q2, ..., qm) will first produce def foo(p1, p2, ..., pn, T t1, T t2, q1, q2, ..., qm) as the most general method and then continue the processing with def foo(p1, p2, ..., pn, T t1=x, q1, q2, ..., qm) which calls the other method and sets by using y for t2. since the signature still contains a default value the compiler will create def foo(p1, p2, ..., pn, q1, q2, ..., qm), which calls the most general method using x for t1 and y for {t2}}. This means if you use n default values, the compiler will produce n+1 methods. You are not required to group the parameters with default values together in any way.
+
+If multiple default values are used, then the parameter with the default value most right will be eliminated like seen here 
+and the resulting method signature will be processed again. 
+That means def foo(p1, p2, ..., pn, T t1=x, T t2=y, q1, q2, ..., qm) will first produce 
+def foo(p1, p2, ..., pn, T t1, T t2, q1, q2, ..., qm) 
+as the most general method and then continue the processing with def foo(p1, p2, ..., pn, T t1=x, q1, q2, ..., qm) 
+which calls the other method and sets by using y for t2. since the signature still contains a default value 
+the compiler will create def foo(p1, p2, ..., pn, q1, q2, ..., qm), 
+which calls the most general method using x for t1 and y for {t2}}. 
+This means if you use n default values, the compiler will produce n+1 methods. 
+You are not required to group the parameters with default values together in any way.
 
 Example:
 
@@ -108,5 +198,8 @@ def foo(x=1,y=2) {x+y}
 assert foo() == 3
 assert foo(2) == 4
 assert foo(5,10) == 15
-You can combine default values with maps def foo(Map m=[:],x,y) to get optional named arguments, with closures def foo(x,y,Closure c={}) to get optional closures and theoretically with variable arguments def foo(x,y, Object[] args=[1,2]), but there should be only rare cases where default arguments and variable arguments combined like this is making sense.
+
+You can combine default values with maps def foo(Map m=[:],x,y) to get optional named arguments, 
+with closures def foo(x,y,Closure c={}) to get optional closures and theoretically with variable arguments def foo(x,y, Object[] args=[1,2]), 
+but there should be only rare cases where default arguments and variable arguments combined like this is making sense.
 

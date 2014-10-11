@@ -1,10 +1,15 @@
 ﻿（官方文档）Groovy way to implement interfaces
 http://groovy.codehaus.org/Groovy+way+to+implement+interfaces
 
+注释by hxzon
+=======
 Groovy provides some very convenient ways to implement interfaces.
 
 Implement interfaces with a closure
+用闭包实现接口
+
 An interface with a single method can be implemented with a closure like so:
+只有一个方法的接口
 
 // a readable puts chars into a CharBuffer and returns the count of chars added
 def readable = { it.put("12 34".reverse()); 5 } as Readable
@@ -12,7 +17,12 @@ def readable = { it.put("12 34".reverse()); 5 } as Readable
 // the Scanner constructor can take a Readable
 def s = new Scanner(readable)
 assert s.nextInt() == 43
-You can also use a closure to implement an interface with more than one method. The closure will be invoked for each method on the interface. Since you need a closure whose parameter list matches that of all of the methods you typically will want to use an array as the sole parameter. This can be used just as it is for any Groovy closure and will collect all of the arguments in an array. For example:
+
+You can also use a closure to implement an interface with more than one method. 
+The closure will be invoked for each method on the interface. 
+Since you need a closure whose parameter list matches that of all of the methods you typically will want to use an array as the sole parameter. 
+This can be used just as it is for any Groovy closure and will collect all of the arguments in an array. For example:
+有多个方法的接口
 
 interface X {??
     void f()
@@ -24,7 +34,11 @@ x = {Object[] args -> println "method called with $args"} as X
 x.f()
 x.g(1)
 x.h("hello",2)
+
+====
 Implement interfaces with a map
+使用map语法
+
 More commonly an interface with multiple methods would be implemented with a map like so:
 
 impl = [
@@ -32,12 +46,15 @@ impl = [
   hasNext: { impl.i > 0 },
   next: { impl.i-- },
 ]
+
 iter = impl as Iterator
 while ( iter.hasNext() )
   println iter.next()
+
 Note this is a rather contrived example, but illustrates the concept.
 
-You only need to implement those methods that are actually called, but if a method is called that doesn't exist in the map a NullPointerException is thrown. For example:
+You only need to implement those methods that are actually called, 
+but if a method is called that doesn't exist in the map a NullPointerException is thrown. For example:
 
 interface X
 { void f(); void g(int n); void h(String s, int n); }
@@ -45,20 +62,31 @@ interface X
 x = [ f: {println "f called"} ] as X
 x.f()
 //x.g()    // NPE here
-Be careful that you don't accidentally define the map with { }. Can you guess what happens with the following?
+
+Be careful that you don't accidentally define the map with { }. 
+Can you guess what happens with the following?
 
 x = { f: {println "f called"} } as X
 x.f()
 x.g(1)
-What we've defined here is a closure with a label and a block. Since we've just defined a single closure every method call will invoke the closure. Some languages use { } to define maps so this is an easy mistake until you get used to using [:] to define maps in Groovy.
 
-Note that using the "as" operator as above requires that you have a static reference to the interface you want to implement with a map. If you have a reference to the java.lang.Class object representing the interface (i.e. do not know or can not hard code the type at script write time) you want to implement, you can use the asType method like this:
+What we've defined here is a closure with a label and a block. 
+Since we've just defined a single closure every method call will invoke the closure. 
+Some languages use { } to define maps so this is an easy mistake until you get used to using [:] to define maps in Groovy.
+
+Note that using the "as" operator as above requires that 
+you have a static reference to the interface you want to implement with a map. 
+If you have a reference to the java.lang.Class object representing the interface 
+(i.e. do not know or can not hard code the type at script write time) you want to implement, 
+you can use the asType method like this:
+如果接口名本身也是参数，使用 asType 。
 
 def loggerInterface = Class.forName( 'my.LoggerInterface' )
 def logger = [
                log : { Object[] params -> println "LOG: ${params[0]}"; if( params.length > 1 ) params[1].printStackTrace() },
                close : { println "logger.close called" }
              ].asType( loggerInterface )
+
 See also:
 
 Developer Testing using Closures instead of Mocks
