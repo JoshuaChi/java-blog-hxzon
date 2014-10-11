@@ -1,0 +1,103 @@
+﻿（官方文档）Lua 5.2 Reference Manual
+http://www.lua.org/manual/5.2/contents.html
+
+The reference manual is the official definition of the Lua language. 
+For a complete introduction to Lua programming, see the book Programming in Lua.
+
+Copyright © 2011–2013 Lua.org, PUC-Rio. Freely available under the terms of the Lua license.
+
+============
+Contents
+
+1 – Introduction
+
+2 – Basic Concepts
+基本概念
+
+2.1 – Values and Types
+2.2 – Environments and the Global Environment
+2.3 – Error Handling
+2.4 – Metatables and Metamethods
+2.5 – Garbage Collection
+2.5.1 – Garbage-Collection Metamethods
+2.5.2 – Weak Tables
+2.6 – Coroutines
+
+====
+3 – The Language
+语法
+
+3.1 – Lexical Conventions
+3.2 – Variables
+
+3.3 – Statements
+3.3.1 – Blocks
+3.3.2 – Chunks
+3.3.3 – Assignment
+3.3.4 – Control Structures
+3.3.5 – For Statement
+3.3.6 – Function Calls as Statements
+3.3.7 – Local Declarations
+
+3.4 – Expressions
+3.4.1 – Arithmetic Operators
+3.4.2 – Coercion
+3.4.3 – Relational Operators
+3.4.4 – Logical Operators
+3.4.5 – Concatenation
+3.4.6 – The Length Operator
+3.4.7 – Precedence
+3.4.8 – Table Constructors
+3.4.9 – Function Calls
+3.4.10 – Function Definitions
+
+3.5 – Visibility Rules
+
+====
+4 – The Application Program Interface
+c接口
+
+4.1 – The Stack
+4.2 – Stack Size
+4.3 – Valid and Acceptable Indices
+4.4 – C Closures
+4.5 – Registry
+4.6 – Error Handling in C
+4.7 – Handling Yields in C
+4.8 – Functions and Types
+4.9 – The Debug Interface
+
+5 – The Auxiliary Library
+
+5.1 – Functions and Types
+
+====
+6 – Standard Libraries
+标准库
+
+6.1 – Basic Functions
+6.2 – Coroutine Manipulation
+6.3 – Modules
+6.4 – String Manipulation
+6.4.1 – Patterns
+6.5 – Table Manipulation
+6.6 – Mathematical Functions
+6.7 – Bitwise Operations
+6.8 – Input and Output Facilities
+6.9 – Operating System Facilities
+6.10 – The Debug Library
+
+====
+7 – Lua Standalone
+
+====
+8 – Incompatibilities with the Previous Version
+变更历史与兼容性
+
+8.1 – Changes in the Language
+8.2 – Changes in the Libraries
+8.3 – Changes in the API
+
+====
+9 – The Complete Syntax of Lua
+

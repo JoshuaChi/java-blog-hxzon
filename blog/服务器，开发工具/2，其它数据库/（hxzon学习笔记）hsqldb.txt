@@ -1,0 +1,8 @@
+﻿（hxzon学习笔记）hsqldb
+
+by hxzon
+====
+select * from information_schema.tables;
+
+SELECT * FROM information_schema.system_tables;
+
