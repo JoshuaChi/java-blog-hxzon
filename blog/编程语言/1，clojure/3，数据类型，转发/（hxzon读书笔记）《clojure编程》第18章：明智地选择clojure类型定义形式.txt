@@ -4,9 +4,9 @@ by hxzon
 ======
 6种形式用于定义类型：
 
-普通map，最灵活的临时类型。
-deftype，defrecord，reify，clojure的主要数据类型抽象。
-proxy和gen-class，提供全部的java和jvm交互性。
+普通map：最灵活的临时类型。
+deftype，defrecord，reify：clojure的主要数据类型抽象。
+proxy和gen-class：提供全部的java和jvm交互性。
 
 https://github.com/cemerick/clojure-type-selection-flowchart
 

@@ -143,17 +143,28 @@ Operator precedence in Lua follows the table below, from lower to higher priorit
      ^
 As usual, you can use parentheses to change the precedences of an expression. The concatenation ('..') and exponentiation ('^') operators are right associative. All other binary operators are left associative.
 
+====
 3.4.8 – Table Constructors
+表构造函数（表即“映射”）
 
-Table constructors are expressions that create tables. Every time a constructor is evaluated, a new table is created. A constructor can be used to create an empty table or to create a table and initialize some of its fields. The general syntax for constructors is
+Table constructors are expressions that create tables. 
+Every time a constructor is evaluated, a new table is created. 
+A constructor can be used to create an empty table or to create a table and initialize some of its fields. 
+The general syntax for constructors is
 
 	tableconstructor ::= ‘{’ [fieldlist] ‘}’
 	fieldlist ::= field {fieldsep field} [fieldsep]
 	field ::= ‘[’ exp ‘]’ ‘=’ exp | Name ‘=’ exp | exp
 	fieldsep ::= ‘,’ | ‘;’
-Each field of the form [exp1] = exp2 adds to the new table an entry with key exp1 and value exp2. A field of the form name = exp is equivalent to ["name"] = exp. Finally, fields of the form exp are equivalent to [i] = exp, where i are consecutive numerical integers, starting with 1. Fields in the other formats do not affect this counting. For example,
+
+Each field of the form [exp1] = exp2 adds to the new table an entry with key exp1 and value exp2. 
+A field of the form name = exp is equivalent to ["name"] = exp. 
+Finally, fields of the form exp are equivalent to [i] = exp, where i are consecutive numerical integers, starting with 1. 
+Fields in the other formats do not affect this counting. 
+For example,
 
      a = { [f(1)] = g; "x", "y"; x = 1, f(x), [30] = 23; 45 }
+
 is equivalent to
 
      do
@@ -167,82 +178,132 @@ is equivalent to
        t[4] = 45          -- 4th exp
        a = t
      end
-If the last field in the list has the form exp and the expression is a function call or a vararg expression, then all values returned by this expression enter the list consecutively (see §3.4.9).
+
+If the last field in the list has the form exp and the expression is a function call or a vararg expression, 
+then all values returned by this expression enter the list consecutively (see §3.4.9).
 
 The field list can have an optional trailing separator, as a convenience for machine-generated code.
+字段列表末尾允许多出来的逗号和分号。
 
+====
 3.4.9 – Function Calls
+函数调用
 
 A function call in Lua has the following syntax:
 
 	functioncall ::= prefixexp args
-In a function call, first prefixexp and args are evaluated. If the value of prefixexp has type function, then this function is called with the given arguments. Otherwise, the prefixexp "call" metamethod is called, having as first parameter the value of prefixexp, followed by the original call arguments (see §2.4).
+
+In a function call, first prefixexp and args are evaluated. 
+If the value of prefixexp has type function, then this function is called with the given arguments. 
+Otherwise, the prefixexp "call" metamethod is called, having as first parameter the value of prefixexp, 
+followed by the original call arguments (see §2.4).
 
 The form
 
 	functioncall ::= prefixexp ‘:’ Name args
-can be used to call "methods". A call v:name(args) is syntactic sugar for v.name(v,args), except that v is evaluated only once.
+
+can be used to call "methods". 
+A call v:name(args) is syntactic sugar for v.name(v,args), except that v is evaluated only once.
 
 Arguments have the following syntax:
 
 	args ::= ‘(’ [explist] ‘)’
 	args ::= tableconstructor
 	args ::= String
-All argument expressions are evaluated before the call. A call of the form f{fields} is syntactic sugar for f({fields}); that is, the argument list is a single new table. A call of the form f'string' (or f"string" or f[[string]]) is syntactic sugar for f('string'); that is, the argument list is a single literal string.
 
-A call of the form return functioncall is called a tail call. Lua implements proper tail calls (or proper tail recursion): in a tail call, the called function reuses the stack entry of the calling function. Therefore, there is no limit on the number of nested tail calls that a program can execute. However, a tail call erases any debug information about the calling function. Note that a tail call only happens with a particular syntax, where the return has one single function call as argument; this syntax makes the calling function return exactly the returns of the called function. So, none of the following examples are tail calls:
+All argument expressions are evaluated before the call. 
+A call of the form f{fields} is syntactic sugar for f({fields}); that is, the argument list is a single new table. 
+A call of the form f'string' (or f"string" or f[[string]]) is syntactic sugar for f('string'); 
+that is, the argument list is a single literal string.
+
+A call of the form return functioncall is called a tail call. 
+Lua implements proper tail calls (or proper tail recursion): 
+in a tail call, the called function reuses the stack entry of the calling function. 
+Therefore, there is no limit on the number of nested tail calls that a program can execute. 
+However, a tail call erases any debug information about the calling function. 
+Note that a tail call only happens with a particular syntax, where the return has one single function call as argument; 
+this syntax makes the calling function return exactly the returns of the called function. 
+So, none of the following examples are tail calls:
+尾递归。
 
      return (f(x))        -- results adjusted to 1
      return 2 * f(x)
      return x, f(x)       -- additional results
      f(x); return         -- results discarded
      return x or f(x)     -- results adjusted to 1
+
+====
 3.4.10 – Function Definitions
+函数定义
 
 The syntax for function definition is
 
 	functiondef ::= function funcbody
 	funcbody ::= ‘(’ [parlist] ‘)’ block end
+
 The following syntactic sugar simplifies function definitions:
 
 	stat ::= function funcname funcbody
 	stat ::= local function Name funcbody
 	funcname ::= Name {‘.’ Name} [‘:’ Name]
+
 The statement
 
      function f () body end
+
 translates to
 
      f = function () body end
+
 The statement
 
      function t.a.b.c.f () body end
+
 translates to
 
      t.a.b.c.f = function () body end
+
 The statement
 
      local function f () body end
+
 translates to
 
      local f; f = function () body end
+
 not to
 
      local f = function () body end
+
 (This only makes a difference when the body of the function contains references to f.)
 
-A function definition is an executable expression, whose value has type function. When Lua precompiles a chunk, all its function bodies are precompiled too. Then, whenever Lua executes the function definition, the function is instantiated (or closed). This function instance (or closure) is the final value of the expression.
+A function definition is an executable expression, whose value has type function. 
+When Lua precompiles a chunk, all its function bodies are precompiled too. 
+Then, whenever Lua executes the function definition, the function is instantiated (or closed). 
+This function instance (or closure) is the final value of the expression.
 
 Parameters act as local variables that are initialized with the argument values:
 
 	parlist ::= namelist [‘,’ ‘...’] | ‘...’
-When a function is called, the list of arguments is adjusted to the length of the list of parameters, unless the function is a vararg function, which is indicated by three dots ('...') at the end of its parameter list. A vararg function does not adjust its argument list; instead, it collects all extra arguments and supplies them to the function through a vararg expression, which is also written as three dots. The value of this expression is a list of all actual extra arguments, similar to a function with multiple results. If a vararg expression is used inside another expression or in the middle of a list of expressions, then its return list is adjusted to one element. If the expression is used as the last element of a list of expressions, then no adjustment is made (unless that last expression is enclosed in parentheses).
+
+When a function is called, the list of arguments is adjusted to the length of the list of parameters, 
+unless the function is a vararg function, which is indicated by three dots ('...') at the end of its parameter list. 
+A vararg function does not adjust its argument list; 
+instead, it collects all extra arguments and supplies them to the function through a vararg expression, 
+which is also written as three dots. 
+The value of this expression is a list of all actual extra arguments, similar to a function with multiple results. 
+If a vararg expression is used inside another expression or in the middle of a list of expressions, 
+then its return list is adjusted to one element. 
+If the expression is used as the last element of a list of expressions, 
+then no adjustment is made (unless that last expression is enclosed in parentheses).
+不定参数。
 
 As an example, consider the following definitions:
 
      function f(a, b) end
      function g(a, b, ...) end
      function r() return 1,2,3 end
+
 Then, we have the following mapping from arguments to parameters and to the vararg expression:
 
      CALL            PARAMETERS
@@ -257,16 +318,24 @@ Then, we have the following mapping from arguments to parameters and to the vara
      g(3, 4)          a=3, b=4,   ... -->  (nothing)
      g(3, 4, 5, 8)    a=3, b=4,   ... -->  5  8
      g(5, r())        a=5, b=1,   ... -->  2  3
-Results are returned using the return statement (see §3.3.4). If control reaches the end of a function without encountering a return statement, then the function returns with no results.
 
-There is a system-dependent limit on the number of values that a function may return. This limit is guaranteed to be larger than 1000.
+Results are returned using the return statement (see §3.3.4). 
+If control reaches the end of a function without encountering a return statement, then the function returns with no results.
 
-The colon syntax is used for defining methods, that is, functions that have an implicit extra parameter self. Thus, the statement
+There is a system-dependent limit on the number of values that a function may return. 
+This limit is guaranteed to be larger than 1000.
+
+The colon syntax is used for defining methods, that is, 
+functions that have an implicit extra parameter self. 
+Thus, the statement
 
      function t.a.b.c:f (params) body end
+
 is syntactic sugar for
 
      t.a.b.c.f = function (self, params) body end
+
+=========
 3.5 – Visibility Rules
 
 Lua is a lexically scoped language. The scope of a local variable begins at the first statement after its declaration and lasts until the last non-void statement of the innermost block that includes the declaration. Consider the following example:
