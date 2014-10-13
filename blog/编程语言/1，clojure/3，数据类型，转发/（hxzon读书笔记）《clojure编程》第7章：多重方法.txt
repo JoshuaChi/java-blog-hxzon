@@ -22,6 +22,7 @@ defmethod并不定义或重定义任何var。
 
 (defmulti nameXX dispatch-fnYY :default default-valueZZ)
 
+====
 2，通往层级之路
 
 (ns-unmap *ns* 'fill)
@@ -87,6 +88,7 @@ defmethod并不定义或重定义任何var。
 ;= :attrs {:type "checkbox",
 ;= :value "first choice"}}
 
+====
 3，层级
 
 层级可以表达转发值之间的关系。
@@ -259,6 +261,7 @@ derive隐式的修改了全局层级。
         (assoc-in node [:attrs :checked] "checked")
         (update-in node [:attrs] dissoc :checked)))
 
+====
 4，真正实现多重
 
 当转发值是向量的时候，isa?一个元素一个元素地处理。
@@ -360,7 +363,8 @@ derive隐式的修改了全局层级。
 ;= hello!
 ;= nil
 
-这个偏好机制让我们可以声明式的解决菱形继承问题。偏好是的多重继承关系明确，易于推理。
+这个偏好机制让我们可以声明式的解决菱形继承问题。
+偏好使得多重继承关系明确，易于推理。
 
 
 ----
@@ -458,3 +462,4 @@ body))
     (.addMethod multifn dispatch-val f))
 
 这依赖于实现细节。
+

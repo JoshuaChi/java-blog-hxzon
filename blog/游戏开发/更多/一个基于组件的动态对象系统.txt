@@ -1,0 +1,389 @@
+﻿一个基于组件的动态对象系统
+文 封烨
+发表于 2009-8-12 09:41:21
+http://game.techweb.com.cn/thread-234669-1-1.html
+
+　一、静态的痛苦 
+    作为一个项目经验丰富的程序员，你经常会遇到游戏开发过程中的“反复”(iterations)：今天美术将一个静态的模型改为骨骼模型并添加了动画；明天企划会议上决定把所有未拾取武器由原先的闪光效果改为原地旋转；后天你的老板告诉你：配合投资方的要求，需要提升AI的质量，这使得AI需要响应特定的碰撞检测、可破坏的路径变化，甚至彼此的交互。哦，修改设计，按照教科书上的做法我们必须对现有代码进行重构，你回答道。但你的老板显然不这么认为。尽管全体程序员一致地、强烈地反对，项目经理还是决定要在一周内把这些改动全部付诸实施。这是一场噩梦不是吗？于是工程上的禁忌、代码层面的犯罪……各种各样丑陋不堪的东西写进了游戏程序，除此之外，你还搭上了周末和女朋友约会的时间。更糟糕的是，当你周一凌晨提交代码后，发现原本“健壮”的游戏程序，经常莫名奇妙地崩溃，这让你的老板在投资方那里出尽了洋相……后果可想而知。 
+    当然这不能完全责怪你的项目经理和老板，毕竟游戏不是一道纯软件大餐。而我相信，你的游戏只要还被当作一件艺术品来制做，就永远无法避免反复。既然它至榛完美的必经之路就是设计上的反复，那么我们总有办法将它的冲击降至最小。这里我要讨论的是一个基于组件的对象系统：在游戏层中，它可以使对象行为的改变变得异常简单，甚至可以在无需程序员介入的情况下，由企划或设计师来动态组合成新类型的对象，而作为应用该系统的一个副产品，它还能为你的游戏层代码降低耦合度。下面让我们来看看，传统情况下我们是如何设计游戏层的： 
+    所有的物体都是一个Object。它作为游戏中所有类型的基类，由许多子类来继承，诸如Renderable、Movable、Collideable等等。顾名思义是为可渲染对象、可移动对象、和计算碰撞的对象准备的基类。继承自Renderable又有一个名为Animatable的类，显然有经验的你也能猜到它具有赋予类型以动画的功能。在Collider之下有一个Inventory类，它定义了可拾取物件的一些规则。在此之下就是一些具体的类，例如会进行动画的、可移动的Character人物类，以及只能渲染静态物件的、可拾取的Weapon类、Item类、Armor类。这样一个简单的类继承体系可以由图1来表示。
+
+
+图1  一个传统的、典型的、看上去不错的继承体系
+    嗯，这个继承体系看上去合理且干净，绝对可以做教科书中的范例，而且对于这个简单系统来说能工作得很好，直到有一天企划的设计发生了修改。就像之前提到的，企划们从测试员或内测玩家中获得了反馈：武器或者道具掉落在地上，如果没有一点显眼的表示，玩家很难注意到，甚至会让整个游戏显得死气沉沉。于是他们告诉你武器掉落在地上需要原地旋转，就像Quake那样，而道具掉落在地上，每隔2秒要闪烁一下。你对照着类继承图比划了一下，觉得可以把Inventory类的继承关系从Collideable下转移为多重继承Collideable和Animatable。于是你开始修改类继承结构，尽管Armor不需要播放动画，一个空函数就可以打发它了。那么这个问题目前算是被解决了。可是好景不长，关卡企划觉得目前刚体物理的效果还不错，决定广泛应用这一特性，而他失望地发现很多物件都没有刚体物理的效果，只有RigidBody才拥有这项功能，而它的实现只有一些简单的盒子一类的物体，用于做关卡设计。于是他告诉你需要把屏幕上能看到的物体，尽量都赋予刚体特性。你同他争执了一段时间，最后你妥协了，把Renderable整个拉到RigidBody继承体系下。这样尽管Tree和Character并不能按照一个简单刚体来运动，但至少Weapon、Item、Armor可以了。在折腾完关于刚体物理对象的改动之后，你再度审视这个继承体系时，发现它已经不像原先那般优雅了：大量定义接口的基类被放在继承树的上方，而下方都是零散的各个具体类。这很让人倒胃口，你这么想着，打算着手真正重构目前的代码。但时间不等人，第二天企划又告诉你，他需要用脚本来控制这些刚体对象的位置，这下连Movable都无法幸免，你必须把它移动到RigidBody之上，让所有的具体类都能继承它。这样一个头重脚轻(top-heavy)的继承树简直是一个教科书式的反面教材（如图2所示）！坚持原则的你实在看不下去了，向项目经理提出了质疑，要求砍掉这个功能，或者开辟额外的时间让你重构代码。但是很不幸，很多情况下，项目经理是不会理睬这种要求的。
+
+  
+
+图2 在许多“合理”的设计改动后，继承树往往变成了这种头重脚轻的样子
+    如此这般的设计，为什么无法满足游戏的快速反复的开发需要呢？我想主要原因有二：一是C++和其他强类型语言在继承上的强制性；二是我们恰恰让继承做了它所不擅长的事情。继承在很多强类型语言中，是一个静态的语言行为，是在编译期决定的，而且对一个较大的继承体系的修改，不但面临重重困难，而且将会对之后的系统产生深远影响。继承的这种特性决定了它不适合类型行为经常变更的场合，或者说在类型行为经常变更的场合中，仅仅使用继承很难解决矛盾。那除了继承，语言的其他特性是否能满足我们对对象类型这种近乎变态的反复要求呢？答案之一就是组合，或者聚合，直观一点就叫“has-a”的关系。倍受推崇的《设计模式》一书中，也建议尽量使用对象组合而非类继承。该书开宗明义写道：“1、对接口编程，而不是对实现编程；2、优先考虑使用对象组合，而不是使用类继承”[GoF 94]。至于原因，在书中也有很精辟的论述：“我们的经验显示，架构师经常过分强调将继承作为重用技术，而事实上，如果着重以对象组合作为重用技术，则可以获得更多的可重用性以及简单的设计”[注1]。 
+
+　二、动态的优雅 
+　1、组合 
+    既然大师们是这样说的，我们不妨回头看看游戏层的系统。假设我们要设计这样一个“武器”的类，类似上面的那个例子，它需要能渲染、能播放动画、能移动位置，甚至在掉落在场景中时，它还具备刚体物理的特性。于是可以整理出如图3这样的类： 
+  
+
+图3 一个典型的由组件组合而成的对象。
+
+    可以看到，一个Weapon对象就是简单地由IRenderable、IAnimatable、IMovable以及IRigidBody这些具体的组件组合而成的。在下文里，我就把组合成对象的这些功能性的类，称为组件。 
+    哦，功能倒是都组合在一起了，但我怎么使用这些组件呢？它没有任何可供调用的方式！经常使用基类接口的你开始注意到这个问题。在传统设计中，我们通常需要一个统一的基类接口来操作多个对象，而这些接口被声明为虚拟的，以便我们在类层次中实现多态（若接口不是虚拟的，则其调用的实现函数就是虚拟的），而在客户端，我们一旦能获得这个接口就能以统一的方式来处理所有从这个类继承的类型。这种做法对于有经验的你早就像吃饭睡觉一般熟悉了，如果不能通过统一接口来处理多种对象，恐怕很多人要难过到死。我们的组件，也是由一个通用的组件基类接口定义的，权且称他为IComponent，实现各自功能的组件，需要各自扩展这套接口。例如渲染组件IRenderable，可能需要扩展一个Render()方法；而动画组件IAnimatable，可能要做的是扩展一个Update(float)方法用以更新动画；IMovable组件就需要SetPosition()/GetPosition()之类的接口等等。有了这些组件接口之后，我们的组件类就直接实现这些接口。例如Renderable就实现IRenderable::Render()。定义接口的优点在于，你可以通过一个对象的句柄，查询这个对象是否实现了某一组件的接口。如果回答是肯定的，则可以返回一个指向该组件的指针，而指针的类型是接口类，这样客户端代码就可以调用这些组件的实际功能了。如果回答是否定的，则返回空指针，意味着该对象并未实现指定的接口，查询失败。图4比较好的说明了这个问题。
+
+  
+
+图4 需要使用组件接口时，要对ObjectManager查询组件接口。
+　2、无中生有 
+    既然对象都是由组件组成的，那么对象本身就可以非常精简，甚至连一个组件的指针都不用储存，而将组件管理的工作可以交给对象管理器去做，我们暂且叫它ObjectManager。这样，世界上就不存在名叫Car的对象，也不存在叫Dog的对象，它们不过是一些组件的组合而已，只是在ObjectManager一侧的记录中，有着Dog所拥有的组件，以及Car所拥有的组件。当对象需要行为的时候，客户端代码就向ObjectManager索取对应的组件接口，比如： 
+代码1 
+IRenderable* renderable = static_cast<IRenderable*>(objectManager->QueryInterface(object, TYPE_IRenderable)); 
+或者写一道宏指令以减少笔误： 
+代码2
+IRenderable* renderable = QUERY_INTERFACE(objectManager, object, IRenderable); 
+之后你就像平常一样操作这个组件： 
+
+代码3
+renderable->PreRender(); 
+... 
+renderable->Render(); 
+... 
+renderable->PostRender(); 
+所有不同类型的ObjectHandle看起来都是差不多的，他们的区别只在于记录在ObjectManager里的组件不同而已。所以，忘掉类型的概念吧！在这个世界中，只有组件的组合，没有死板的类型。 
+　3、即插即用 
+    那么如果企划再对我的Weapon提出什么非份的要求，怎么办？担惊受怕的你继续问道。很简单，如果Weapon类还需要其他的功能，只要这个功能已经以组件形式实现了，那么你完全可以让他自己搞定！因为基于组件的对象系统中，一个具体的对象已经没有静态的“类型”概念了，只要我愿意，我可以对某个对象添加任意的组件功能，即使它看上去多么荒谬： 
+代码4
+ObjectHandle* weapon = objectManager->CreateObject(); // 创建了一个赤身裸体的对象，它还没有任何功能。 
+objectManager->AddComponent(weapon, TYPE_IRenderable); // 对象拥有了渲染的组件，及其功能。 
+objectManager->AddComponent(weapon, TYPE_IProceduralAnimatable); // 武器也需要过程动画吗？无论怎样的组件都能添加。 
+    对象的能力不再“静态”地由继承关系决定，而是由一组扁平组织起来的组件“动态”地、自由地组合而成。只要组件实现得足够健壮，我们可以放心地生成任意“类型”（或称组合）的对象，而不用担心设计上的修改和对象臃肿的问题。 
+    嗯，这样的对象足够灵活，但还不够！我们可以解析描述对象的XML文件，从其中读取的信息里，决定我们要生成什么样的对象，以及添加怎样的组件。
+代码5
+void CreateObjectFromXml( XmlNode* pNode ) 
+{ 
+    ObjectHandle* object = NULL; 
+    if ( pNode->GetName() == TEMPLATE_WEAPON ) 
+    { 
+        object = objectManager->CreateObject(); 
+        objectManager->AddComponent( object, TYPE_IRenderable); 
+        objectManager->AddComponent( object, TYPE_IProceduralAnimatable); 
+        IProceduralAnimtable* procAnim = static_cast<IProceduralAnimtable*>(objectManager->QueryInterface(object, TYPE_IProceduralAnimtable)); 
+        ASSERt(procAnim); 
+        procAnim->SetSeed( Rand() ); 
+        procAnim->SetIteration( pNode->GetAttribute("Num_Iteration").ToNumber() ); 
+    } 
+    else 
+    ....
+} 
+    哈哈！这样我们可以把这些添加功能的工作，扔给企划写XML去了。而且我们可以为某些特定“类型”的对象定义模板，不用每次创建对象时都一个个手动添加类型。更上一层楼的做法是，把这套系统暴露给脚本系统，让脚本也可以创建自己的组件，同时也能使用C++已定义的、且暴露给脚本的组件。这样连企划也能使用脚本来创建新类型的组件，然后随他们高兴去创建、组合对象，反正随便他们怎么折腾都行。我们不仅能让数据来驱动对象的“内容”，还能驱动对象的“类型”，真真正正地做到了数据驱动，不是吗？ 
+    当然，这种方法也是有负面效果的，任何方法都不可能完美。负面效果就是——组合对象变得太过容易了，一不小心企划就创建了成千上万种不同对象，对于游戏平衡调整的复杂度也会随之提高，不过，这就是企划的份内事务了。 
+　4、深化交流与合作 
+    理想情况下，组件之间应该不进行通信。但如果组件之间完全不进行通信，那么这个游戏估计也不怎么吸引人了。组件之间进行通信的方式一般有两种：其一是通过查询接口，直接获得其他组件的接口，通过调用函数的方式进行通信。例如： 
+
+代码6 
+void Renderable::Render() 
+{ 
+    // 需要获得对象在世界空间的位置 
+    IMovable movable = static_cast<IMovable*>(objectManager->QueryInterface(object, TYPE_IMovable)); 
+    ASSERt(movable); 
+    const Point3& pos = movable->GetPosition(); 
+    ... 
+    // 通过获得的位置信息进行绘制。
+} 
+    这种通信方式会增加代码之间的耦合性，但适合于需要知道特殊接口，或需要保证调用顺序的场合。 
+    第二种方式就是事件（或消息）。通过事件和消息，也迫使代码之间的耦合度下降。例如： 
+代码7
+objectManager->SubscribeEvent(TYPE_IAnimatable, EVENT_Tick, new MemberFunctor(Animatable::OnTickEvent)); 
+... 
+void Animatable::OnTickEvent(float tick) 
+{ 
+    _fElapsedTime += tick;
+} 
+    而在发生事件的组件中，只需要调用以下方法即可以让所有注册的回调函数响应：
+代码8
+objectManager->FireEvent(EVENT_Tick, tick); 
+    基于事件或消息的通信方式，由于它的调用取决于注册顺序，适合于无需保证调用顺序的场合。 
+    最后在我们的场景中，对象之间的组织如图4所示： 
+  
+
+
+    图5 我们的场景像是一个由组件组成的二维表格，表格的列是同一组件类型的实例，而每个对象就是表格的一行，它可以自由选择是否需要某列提供的组件功能。
+
+
+　三、着手实现 
+    该是着手写一些代码的时候了[注2]。基于上述应用的代码，我们肯定需要一个IComponent的接口，作为所有组件的基类：
+　代码9
+   public interface IComponent 
+    { 
+        void Init(ObjectId oid, ObjectManager objMan); 
+        ObjectId ObjectId 
+        { 
+            get; 
+        } 
+    } 
+    这个接口只定义了一个组件的最小功能集，它所做的就是保留ObjectManager的句柄和所属对象的句柄。根据IComponent接口，我们可以衍生出更多的接口： 
+　代码10
+    interface IComponentMovable : IComponent 
+    { 
+        Vector3 Position 
+        { 
+            get; 
+            set; 
+        } 
+... 
+    } 
+    interface IComponentRenderable : IComponent 
+    { 
+        void Tick(float dt); 
+        bool Draw(); 
+    } 
+    这两个接口分别定义了可移动对象以及可供渲染的对象的基本接口。在客户端代码中，基本上用户只需要面对的就是这些接口，而不用关心其实现。现在对于这些接口分别实现它的具体类： 
+　代码11
+    class ComponentMovable : IComponentMovable 
+    { 
+        ObjectId _oid; 
+        Vector3 _pos; 
+        public ComponentMovable() 
+        { 
+            _pos = new Vector3(); 
+        } 
+        public void Init(ObjectId oid, ObjectManager objMan) 
+        { 
+            this._oid = oid; 
+        } 
+        public ObjectId ObjectId 
+        { 
+            get 
+            { 
+                return _oid; 
+            } 
+        } 
+        // 有关世界位置的属性 
+        public Vector3 Position 
+        { 
+            get 
+            { 
+                return _pos; 
+            } 
+            set 
+            { 
+                _pos = value; 
+            } 
+        } 
+        ... 
+    } 
+    class ComponentRenderable : IComponentRenderable 
+    { 
+        ObjectId _oid; 
+        ObjectManager _objMan; 
+        public ComponentRenderable() 
+        { 
+        } 
+        public void Init(ObjectId oid, ObjectManager objMan) 
+        { 
+            this._oid = oid; 
+            this._objMan = objMan; 
+        } 
+        public ObjectId ObjectId 
+        { 
+            get 
+            { 
+                return _oid; 
+            } 
+        } 
+        public void Tick(float dt) 
+        { 
+            // 有关帧更新的东西 
+        } 
+        public bool Draw() 
+        { 
+            // 有关渲染的东西 
+            return true; 
+        } 
+        ... 
+    } 
+    以上这些具体类将会提供我们组件的基本能力。而这些组件的具体实现，一旦注册到对象管理器后，客户端程序员就无需再关心它了。作为库的提供者，我们甚至可以把这些实现类完全隐藏起来，让客户端的程序员以数据驱动的方式注册这些类型，就像上节中解析XML的函数所作的一般。 
+    由于对象的功能都是由组件提供的，对象本身的表示将会非常简单，它只需要一个标识自己的标记就可以了。很多程序语言支持将地址或句柄作为对象的唯一标识，所以有时候连这个标识都可以去掉。不过为了除错的目的，我们还是为它加上了一个描述自身的字串： 
+　代码12
+    public class ObjectId 
+    { 
+        private string _desc; 
+        public ObjectId(string desc) 
+        { 
+            _desc = desc; 
+        } 
+        public string Description 
+        { 
+            get { return _desc; } 
+        } 
+    } 
+    我们的设计是想让客户端所需的先验知识尽可能的少，只有对象句柄ObjectId、所需的接口类型IComponentXXX，以及ObjectManager的方法。可以说ObjectManager是这个系统核心部件。下面就让我们来看一下ObjectManager是如何上演这出把戏的。首先我们需要让ObjectManager创建对象，并把对象句柄返回给调用端，这可以有如下的简单实现：
+　代码13
+public class ObjectManager 
+{ 
+        private Dictionary<ObjectId, List<IComponent>> object2ComponentList; 
+        ... 
+        public ObjectId CreateObject(string desc) 
+        { 
+            ObjectId oid = new ObjectId(desc); 
+            // 为新的对象创建其所拥有的组件列表 
+            object2ComponentList[oid] = new List<IComponent>(); 
+            return oid; 
+        } 
+} 
+    接下来客户端需要做的就是为对象添加组件。而这个添加组件的工作也相对简单： 
+　代码14
+public class ObjectManager 
+{ 
+        ... 
+        public bool AddComponentToObject(ObjectId oid, IComponent componentInstance) 
+        { 
+            List<IComponent> componentList; 
+            if (object2ComponentList.TryGetValue(oid, out componentList)) 
+            { 
+                // TODO: 需要保证同一对象中注册的组件类型唯一 
+                componentInstance.Init(oid, this); 
+                componentList.Add(componentInstance); 
+                return true; 
+            } 
+            throw new ObjectNotFoundException(oid); 
+        } 
+} 
+    一旦为某个对象添加了组件，其他代码就可以通过QueryInterface的方法来获得某一类型的组件的指针： 
+　代码15
+public class ObjectManager 
+{ 
+        ... 
+        public IComponent QueryInterface(ObjectId oid, Type interfaceType) 
+        { 
+            List<IComponent> componentList; 
+            if (object2ComponentList.TryGetValue(oid, out componentList)) 
+            { 
+                // 在注册列表中，查询组件类型。如果不熟悉C#匿名方法和委托：这里其实就是一个简单的查找， 
+                // 只不过查找条件是由Type.IsIntanceOf()的结果来决定的。 
+                IComponent findResult = componentList.Find( delegate(IComponent component) 
+                    { 
+                        if (interfaceType.IsInstanceOfType(component) ) 
+                            return true; 
+                        else 
+                            return false; 
+                    }); 
+                return findResult; 
+            } 
+            throw new ObjectNotFoundException(oid); 
+        } 
+} 
+    如果查询结果成功，则安全返回组件接口引用。查询不到则返回空句柄。如果对象句柄本身也没能查询到，则抛出一个异常以示抗议。到目前为止，ObjectManager已经可以做到生成对象、为对象注册组件、并提供外界查询组件接口的功能。这样，客户端代码已经可以组合复杂对象，并通过查询接口的方式在组件之间进行通信（见前一节）。客户端代码已经可以这样写： 
+代码16
+ObjectId oid = objectManager.CreateObject(); 
+objectManager.AddComponent(oid, new Renderable()); 
+objectManager.AddComponent(oid, new Movable()); 
+... 
+IRenderable* renderable = objectManager.QueryInterface(oid, typeof(IRenderable)); 
+renderable->Render(); 
+void Renderble::Foobar() 
+{ 
+    IMovable movable = objectManager.QueryInterface(_oid, typeof(IMovable)); 
+    DoSomethingWithPosition(movable.Position);
+} 
+
+    不过要实现通过消息或事件的通信方式，需要再加把劲。C#由于有方便的委托机制，示例代码中就使用了这种语言特性。而如果使用C++或者实现一个泛型函数绑定嫌麻烦的话，完全可以使用基于消息的机制，也足够方便： 
+　代码17
+public class ObjectManager 
+{ 
+        // 记录逐事件的组件类型列表，一对多 
+        private Dictionary<string, List<Type>> event2Types; 
+        // 记录逐组件类型的处理函数，一对一 
+private Dictionary<Type, Delegate> eventTable; 
+        // 为每个组件类型准备的实例列表，字典中的记录将会随着每个组件的生成、销毁而变化 
+        private Dictionary<Type, List<IComponent>> type2ComponentList;  
+        ... 
+        public void SubscribeEventHandler(string eventName, Type receivingComponentType, ComponentEventDispatcher handler) 
+        { 
+List<Type> typeList; 
+if (!event2Types.TryGetValue(eventName, out typeList)) 
+{ 
+typeList = new List<Type>(); 
+event2Types[eventName] = typeList; 
+} 
+// TODO: 检测类型列表中，和目标类型相同的记录，避免为一个类型添加多个事件处理函数。 
+typeList.Add(receivingComponentType); 
+eventTable[receivingComponentType] = handler; 
+        } 
+        public bool FireEvent(string eventName, IComponent sender, ComponentEventArgs e) 
+        { 
+bool processed = false; 
+List<Type> typeList = event2Types[eventName]; 
+if (null != typeList) 
+{ 
+// 通知所有注册了该事件的组件类型 
+foreach (Type componentType in typeList) 
+{ 
+ComponentEventDispatcher dispatcher = (ComponentEventDispatcher)eventTable[componentType]; 
+List<IComponent> components = type2ComponentList[componentType]; 
+if (null != components) 
+{ 
+// 通知该组件类型的所有实例 
+foreach (IComponent cmp in components) 
+{ 
+// 调用事件处理函数 
+processed |= dispatcher(cmp, sender, e); 
+} 
+} 
+} 
+} 
+return processed; 
+        } 
+} 
+    事件-类型在ObjectManager中的管理类似于图5： 
+  
+
+
+    图6 一套典型的事件-类型映射。组件类型中的颜色即对应其注册的事件颜色，例如IScriptable注册了EventDraw和EventTick两种事件。 
+    这样客户端可以利用ObjectManager提供的事件消息机制，写出下面的代码： 
+　代码18
+public class Movable : IMovable 
+{ 
+    public void Move(const Vector3 offset) 
+    { 
+        _pos += offset; 
+        objectManager.FireEvent(EVENT_MOVE, this, new MoveEventArgs(offset, _pos));
+    } 
+} 
+public class Inventory : IInventory 
+{ 
+    private bool OnMoveEvent(IComponent sender, MoveEventArgs e) 
+    { 
+        // 处理事件 
+        ... 
+        return true; 
+    } 
+    public static bool MoveEventDispatcher(IComponent receiver, IComponent sender, ComponentEventArgs e) 
+    { 
+        return receiver->OnMoveEvent(sender, e);
+    } 
+} 
+objectManager->SubscribeEvent(EVENT_MOVE, IIventory, Inventory.MoveEventDispatcher); 
+... 
+IMovable movable = (IMovable)objectManager(oid, typeof(IMovable)); 
+movable.Move(new Vector3(10, 100, 1000));  // 这将触发EVENT_MOVE事件，从而调用Inventory组件注册的处理函数。 
+    到目前为止，我们已经基本覆盖了一个基于组件的对象系统的实现和实际用例。它已经完全胜任对象生成、组件注册、组件接口查询、以及注册事件响应、生成事件等工作。此外我们还能在这之上添加数据驱动的方法，可以让系统直接从外部文件、外部输入中获得类型组合。拜动态类型查询的机制所赐，它还能很方便地在游戏编辑器中实现一个对象debugger。这些额外的实现工作就留由有兴趣的读者自己实现了。本文附带的示例代码可以作为实现的一份参考。
+
+
+　四、实施中的阻力 
+
+    可以预见的是，如此翻云覆雨的架构变更将会在程序团队中引起怎样的轰动。可以保证的是，实施这种做法一定会遇到阻力，除非你的程序团队只有你一人——即使如此你恐怕还要先说服自己。就像一些方法学的先锋们尝试SCRUM一样，先考虑在私下里和一些资深的程序员讨论这个架构，让大家了解这个系统并让之后的讨论可以建立在一个统一的平台上。如果存在现存的代码需要迁移至这个系统，那么可以先在小范围内修改，证明概念可行之后，再设法将其扩大到整个游戏。当然如果你现在游戏层的代码一无所有，那就再好不过了！ 
+
+　五、结语纷言 
+
+    本文描述的基于组件的对象系统，适合在游戏开发中经常反复的过程。由于对象没有固定的类型概念，所有的对象都是动态地由组件组合而成，而这些组件都统一由一个管理器来进行约束。相比传统的基于继承的方法，这种方法带来三大优势：一是方便创建和修改复杂的类型，由于不再需要改动庞大的继承树，绕开了语言的静态限制，客户端可以在不修改代码的前提下，创建任意类型的对象。二是由于组件是对于接口设计的，这就强迫设计者实现一些高内聚低耦合的组件，也有助于游戏层的整体设计。最后由于可以动态地查询组件类型信息，做一个拥有图形界面的、支持游戏内容的debugger变得可能了——摆弄对象的企划可以实时查阅对象的能力、状况，在传统方式下要实现类似的功能恐怕是相当繁琐的。有得必有失，基于组件的方法由于必须实现一个基类，定义虚接口，在某些无需vtable的简单情况下造成了一定的性能开销。此外，每次查询接口引起的开销也值得引起重视。
+
+　六、参考资料 
+
+[GoF 94 Design Patterns: Elements of Reusable Object-Oriented Software] 
+[Bjarne Rene. Component Based Object System, Game Programming Gems 5] 
+[Scott Ratterson, An Object-Composition Game Framework, Game Programming Gems 3] 
+[Mick West. Evolve Your Hierarchy, http://cowboyprogramming.com/2007/01/05/evolve-your-heirachy/] 
+[Scott Bilas: GDC 2002 Presentation: A Data-Driven Game Object System, http://www.drizzle.com/~scottb/gdc/game-objects.htm] 
+[注1] 原文第20页：“…our experience is that designers overuse inheritance as a reuse technique, and designs are often made more reusable (and simpler) by depending more on object composition.” 
+[注2]实现代码转由C#编写。读者可以很容易地将其移植到C++或其他面向对象语言上。
+
+【作者简介】
+    封烨，图形程序员，曾任职于大宇软星和科乐美，对实时图形学技术稍有研究。
+
