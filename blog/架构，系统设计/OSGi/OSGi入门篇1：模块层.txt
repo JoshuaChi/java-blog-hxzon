@@ -1,0 +1,232 @@
+﻿OSGi入门篇1：模块层
+由  Gou Rui 发布
+标签：模块化 分层 粒度
+http://osgi.com.cn/article/7289219
+
+=======
+1 什么是模块化
+
+模块层是OSGi框架中最基础的一部分，其中Java的模块化特性在这一层得到了很好的实现。
+但是这种实现与Java本身现有的一些模块化特性又有明显的不同。
+本文介绍模块层的一些基础知识，以及OSGi联盟在设计模块层时所做的一些考虑。
+OSGi标准走到今天，并不是凭空想出来的，它的产生恰恰是为了弥补之前一些技术的缺陷。
+
+模块化其实就是计算机科学中常见的一个概念： “将一个大型系统分解为多个较小的互相协作的逻辑单元，
+通过强制设定模块之间的逻辑边界来改善系统的维护性和封装性”。
+
+在OSGi中模块的定义可以参考下图：
+
+模块化
+
+也就是说一个模块（module）定义了一个逻辑边界，
+这种模块本身精确的控制了哪些类是完全被封装起来的，而哪些类需要暴露出来作为外部使用。
+这样我们就可以轻松的将实现屏蔽在模块的内部，而将公共API暴露在外部。
+
+========
+2 为什么需要模块化
+
+2.1 OSGi中模块化与面向对象的联系与区别
+
+按照以上模块化的定义，可能有的人会问：“在面向对象里面，不是也有对模块化的支持吗？”
+没错，面向对象的概念可以说也在一定程度上支持模块化编程，那为什么还需要OSGi提供的模块化特性呢？
+这涉及到“逻辑边界”的不同粒度。
+
+在用Java编写面向对象程序的时候，一个了解面向对象概念的人是不会把所有功能都塞到同一个类里面去的，
+面向对象让你从问题域中发现多个事物，并且每个事物负责不同的功能，尽量做到高内聚和低耦合。
+在这里，我们可以说面向对象的模块化粒度是在“类”这个级别上。 
+
+而OSGi的模块化，则是通过为JAR包添加metadata来定义哪些类应该暴露哪些类又隐藏在包中，
+其控制可见性的粒度是在bundle（JAR包）这一层面上的。
+
+所以，它们所带来的能力都是通过控制可见性和可用性来保证高内聚和低耦合的，
+但是粒度不同，一个是对象层面上的，一个是模块层面上的。
+既然负责的是不同的粒度，那么两者并不相互冲突，各有各的作用在里面。
+
+====
+2.2 Java在模块化方面的局限性
+
+2.2.1 底层代码可见性控制
+
+Java提供了private，public，protected和package private（无修饰符）这四种访问控制级别，
+不过这仅仅提供了底层的OO数据封装特性。
+包这个概念确实是起到了分割代码的作用，但是如果包中的代码需要对包外可见，
+那么必须设置为public（或者protected，如果是使用了继承的话）。
+这样的话就可能出现一个问题：
+
+首先大家看看下面的例子，其中有三个java文件： 
+
+org.serc.helloworld.Hello.java：定义了一个接口
+
+package org.serc.helloworld;  
+
+public interface Hello {  
+void sayHello();  
+}
+
+org.serc.helloworld.impl.HelloImpl.java：实现了Hello接口
+
+package org.serc.helloworld.impl;
+
+import org.serc.helloworld.Hello;
+
+public class HelloImpl implements Hello{
+final String helloString;
+
+public HelloImpl(String helloString){
+    this.helloString = helloString;
+}
+
+public void sayHello(){
+    System.out.println(this.helloString);
+}
+}
+
+org.serc.helloworld.main.Main.java    
+package org.serc.helloworld.main;
+
+import org.serc.helloworld.Hello;
+import org.serc.helloworld.HelloImpl;
+
+public class Main{
+final String helloString;
+
+public static void main(String[] args){
+    Hello hello = new HelloImpl(“Hello,SERC!”);
+    hello.sayHello();
+}
+}
+
+这三个文件分别在不同的包中。
+按理说，HelloImpl这个实现细节是不应该暴露给其他包的，但是从Main.java的main方法中我们可以明显的看出，
+为了创建Hello 的实例，我们不得不引入HelloImpl类，
+但是HelloImpl作为接口的实现细节，是不应该暴露给使用者的，这违反了封装的原则，显然不太好。
+
+但是，如果我们不想让HelloImpl暴露出来的话，就需要做额外的工作来保证“既隐藏了实现细节，又能简单的创建一个实现了Hello接口的实例”。
+达到这一目的的方法不止一种（比如工厂模式），有些至今也是很常用的，
+但是这增加了与应用本身功能无关的多余工作，想想如果你每次想开发一个应用都要为了达到上述目的而做出多余工作，
+不得不说是有点繁琐的，所以这可以说是Java的一大局限。
+
+2.2.2 classpath的局限
+
+我们在classpath中加入jar包的时候，只是简单的给出文件路径，而这个jar包的版本和一致性，它所依赖的jar包是什么，
+我们都无法在classpath中明确的设置或是从classpath中看出这些属性。
+
+并且classpath中的jar包是按序加载的，例如：
+
+classpath＝c:\servlet2.2\servlet.jar；c:\servlet2.3\servlet.jar，
+
+那么在实际应用的过程中，Java让你使用的是servlet2.2，而不是servlet2.3。
+这种情况下我们还能看出来使用的是哪个版本，如果在大型系统中大家分开开发的时候各用各的servlet包，并且版本号不一样，
+那么在最后将开发结果合并的时候，到时候用的是哪个版本的servlet包就很难搞清楚了，也就说不可控性是比较强的。 
+即使classpath能注意到版本的问题，也没法精确指出依赖。
+试着回想你在设置classpath的过程中出现过情况：
+在你以为classpath已经设置完毕以后，你尝试启动程序，结果虚拟机抛出异常告诉你缺包，然后你再加上你觉得缺少的那些包，然后再启动程序，
+如此反复直到虚拟机不运行到缺包异常为止。
+
+====
+2.3 OSGi对这些局限性的改善
+
+对于上一小节提到的Java的局限，在OSGi中都得到了很好的解决。
+
+包的可见性：
+OSGi通过引入包的可见性机制，能够完全控制一个包中的代码对哪些模块可见，
+而不仅仅局限于无差别的可见性，从而完善了Java的代码访问控制机制。
+
+包的版本： OSGi通过为包增加版本信息，可以精确控制代码的依赖，保证代码的版本一致性，弥补了classpath的缺点。
+
+========
+3 OSGi模块层基础
+
+3.1 Bundle的概念
+
+这是模块层最核心的概念，也是模块（module）这个概念在OSGi中的具象表现。
+接下来你将会在OSGi的世界中创建和使用数不胜数的bundle。 
+
+什么是bundle？
+——bundle是以jar包形式存在的一个模块化物理单元，里面包含了代码，资源文件和元数据（metadata），
+并且jar包的物理边界也同时是运行时逻辑模块的封装边界。
+
+bundle
+
+一个更为直观的说明：
+在标准的jar包的manifest文件中添加一些bundle的模块化特征（就是前面提到的metadata）后，这个jar包就变成了一个bundle。 
+那么有了上面的描述，你大概也能想到，bundle和普通jar包最大的区别就在于元数据。
+
+====
+3.2 使用元数据来定义bundle
+
+Bundle元数据的目的在于准确描述模块化相关的bundle特征，
+这样才能让OSGi框架恰当的对bundle进行各种处理工作（比如依赖解析，强制封装等），这些元数据主要有这三个部分：
+
+可读的信息（可选）：帮助更好地理解和使用bundle
+bundle的标识符（必须）：唯一的标识一个bundle
+代码可见性（必须）：定义内部与外部代码
+
+3.2.1 可读的信息
+
+这些内容可以帮助人们直观的了解这个bundle是做什么的，从哪里来。
+OSGi标准定义了几个元数据条目来达到这个目的，但是所有的条目都不是必须的，并且也不对模块化特性产生任何的影响，OSGi框架会完全无视这些内容。 
+
+下面就是一个这类信息的例子：
+
+Bundle-Name: SERC Helloworld
+Bundle-Vendor: GR, SERC
+Bundle-DocURL: http://elevenframework.org
+Bundle-Category: example
+Bundle-Copyright: SERC  
+
+==
+3.2.2 bundle的标识符
+
+在上个小节提到的可读信息中，有些似乎也能用来唯一标识一个bundle，比如Bundle-Name，
+但是事实上，他并没有被用来标识一个bundle。
+早期的OSGi标准中并没有提供标识一个已知bundle的方法，直到OSGi R4标准“唯一bundle标识符”这个东西才被提出来。
+为了向后兼容，Bundle-Name就不能用来作为标识符了，否则就会增加维护向后兼容的工作，所以新的manifest属性就诞生了：Bundle-SymbolicName
+
+Bundle-SymbolicName: org.serc.helloworld 
+
+两者相比，Bundle-Name是给用户读的，而Bundle-SymbolicName是给OSGi框架读的，让OSGi框架能够唯一标识一个bundle。
+
+只用一个Bundle-SymbolicName肯定是可以唯一标识一个bundle了，
+但是随着时间的推移，你的bundle可能会有新版本，这时候加入版本属性会让你的bundle的信息更加准确。
+
+Bundle-Name: SERC Helloworld
+Bundle-Vendor: GR, SERC
+Bundle-DocURL: http://elevenframework.org
+Bundle-Category: example
+Bundle-Copyright: SERC  
+
+==
+3.2.3 代码可见性
+
+在JavaSE中的jar包如果放在了classpath里面，那么它对这个classpath下的所有程序都是可见的，并且这种可见性不能改变，
+而OSGi标准定义了如下的属性用于描述代码的可见性：
+
+Bundle-ClassPath
+—它定义了形成这个bundle的所有代码所在的位置，和Java的classath的概念相近，
+不同点在于，Java中的classpath是定义的jar包的位置，而这个属性描述的是bundle内部的类在bundle中的路径。
+有例子如下：
+
+Bundle-ClassPath:.,other-classes/,embedded.jar  
+
+Export-Package
+—显式暴露需要和其他bundle共享的代码，每个包之间用逗号分隔，每个包可用修饰词来修饰包的其他特征。
+
+Export-Package: org.serc.hellworld; vendor=”SERC”,
+org.serc.hellworld.impl; vendor=”Gou Rui”  
+
+Import-Package
+—定义该bundle所依赖的外部代码，其格式和Export-Package相同，并且也可以使用修饰词来修饰包。
+不过这里的修饰词是用来限制所依赖包的范围的，像是一个过滤器，而不像Export-Package中用来声明包的特征。
+例如如下语句：
+
+Import-Package: org.serc.helloworld; vendor=”SERC”
+
+========
+4 总结
+
+通过这一章，希望读者们能够对OSGi模块层有一个初步的了解，明白这一层着重解决的是一些什么问题，
+并且在这之后配合着《OSGi开发环境的建立和HelloWorld》这一章可以尝试着自己创建一个bundle，
+通过在MANIFEST文件中填写元数据来暴露一些包，引入一些包。
+在下一篇入门篇中，我们将讲解OSGi的生命周期层。
+

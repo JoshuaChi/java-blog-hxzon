@@ -1,0 +1,206 @@
+﻿OSGi入门篇3：服务层
+由  Gou Rui 发布
+标签：分层 交互 服务      
+http://osgi.com.cn/article/7289220
+
+========
+OSGi入门篇：服务层
+
+前言
+
+到现在为止，我们已经了解了OSGi框架的下面两层，而作为OSGi框架中最上面的一层，
+服务层带给了我们更多的动态性，并且使用了大家或多或少都曾了解过的面向服务编程模型，其好处是显而易见的。
+
+这里我们依然会讲解什么是服务层和服务层对于OSGi框架的意义，
+此外，还将告诉大家什么时候应该使用服务，什么时候不应该使用。
+最后将会是OSGi服务层的一些基础，包括如何定义、注册和发现服务。
+
+====
+1 什么是服务
+
+简单的说，服务就是“为别人所做的工作”，比如两个对象互相调用方法，那么被调用者就是在为调用者做工作。
+也许有的人会觉得服务是从网络上获取的，但是经典的看法其实并没有这个限制，有时候即使是完全本地的应用，也能从面向服务的编程中得到好处。
+
+那么如何将服务和一次普通的方法调用区别开来呢？
+其实一个服务可以看作是在服务的提供者和使用者之间的一个契约。
+使用者一般不关心其实现的细节，甚至连谁提供的都不想知道，只要满足这个契约（服务应该提供什么功能，满足什么格式）就好了。
+使用服务的过程也包含了发现服务和达成协议的形式，也就是说我们需要通过服务的标志性特征来找到对应的服务。
+
+其实，Java的接口可以说提供了一种契约的提供方式，我们能通过修改classpath来替换接口的不同的具体实现。
+但是OSGi能够为找到服务提供更加高层的抽象并且在应用的执行时动态替换服务的实现，这些特性在稍后将会提到。
+
+====
+2 为什么要使用服务
+
+服务（更准确的说是面向服务的编程模型）给予了我们一种即插即用的软件开发方法，意味着更强的灵活性。这种灵活性是如何体现的呢？
+
+低耦合，利于组件复用：
+通过服务我们能够清晰的定义组件的边界，从而将服务的使用者和提供者之间的耦合度降到很低。
+
+更加强调接口而不是在具体的实现：
+Java的interface提供了一种形式的契约，在OSGi的服务层中充分利用了接口特性的优势，
+这样使得无论有多少个类实现了这个接口，只要满足对这个接口的功能需要，就可以被使用者使用。
+
+对于依赖有比较清晰地描述：
+单是接口本身只包含服务的名称和参数类型，并不足以清楚的描述服务的所有特征，
+而面向服务的编程模型中要求了更加清晰的描述使得这些特征能够唯一标识一个服务。
+
+支持对多个竞争实现（多个实现同一个接口的类）的筛选：
+服务框架会帮助你记录服务的元数据，可以据此帮助使用者查询和筛选服务，使用者更加的主动，这一点和传统的依赖注入框架不同。
+
+====
+3 什么时候使用/不使用服务
+
+可以考虑使用的时候： 
+当你常常想要对主要的组件进行替换和升级而不想重写应用的其他部分，或者当你在程序中想要查找和选择不同的接口实现的时候。
+
+不应该使用的时候： 
+服务的加入和维护往往持续的增加框架的开销，所以当你开发的代码对性能需求敏感的时候，不要使用服务。 
+显然它也不应该出现在两段经常一起开发和更新的紧耦合代码之间，除非你真的需要在自己写的代码中得到“一个接口多个实现”的选择权。
+最后，如果不确定是否应该使用服务，可以先用面向接口的方式实现，这至少是和使用服务很接近了，并且它也能简化你的开发。
+如果哪天你下定决心想把他们移植到服务层了，在面向接口的基础上这个一直工作也会变得非常容易。
+
+=======
+4 OSGi服务层基础
+
+首先，需要说明的是，OSGi的服务层除开前面提到的面向服务的编程模型，
+还有一个区别于其他很多类似模型的特性，那就是服务的“完全动态性”。
+也就是说，当一个bundle发现并开始使用OSGi中的一个服务了以后，这个服务可能在任何的时候改变或者是消失。
+这方面的内容将在以后更加深入的讲解。 
+
+OSGi框架有一个中心化的注册表，这个注册表遵从publish-find-bind模型：
+
+http://assets.osgi.com.cn/article/7289220/service1.PNG
+
+一个提供服务的bundle可以发布POJO作为服务的实体；
+一个使用服务的bundle可以通过这个注册表找到和绑定服务。 
+
+我们可以通过BundleContext接口来完成上述的工作，下面就是含有这方面功能的接口列表：
+
+public interface BundleContext {  
+...  
+void addServiceListener(ServiceListener listener, String filter) throws InvalidSyntaxException;  
+void addServiceListener(ServiceListener listener);  
+void removeServiceListener(ServiceListener listener);  
+ServiceRegistration registerService(String[] clazzes, Object service, Dictionary properties);   
+ServiceRegistration registerService(String clazz, Object service, Dictionary properties);  
+ServiceRegistration[] getServiceReferences(String clazz, String filter) throws InvalidSyntaxException;  
+ServiceRegistration[] getAllServiceReferences(String clazz, String filter) throws InvalidSyntaxException;  
+ServiceReference getServiceReference(String clazz);  
+Object getService(ServiceReference reference);  
+boolean ungetService(ServiceReference reference);  
+...  
+}
+
+==
+4.1 发布服务
+
+为了让别的bundle能发现这个服务，你必须在发布它之前对其进行特征描述。
+这些特征包括接口的名字（可以是名字的数组），接口的实现，和一个可选的java.util.Dictionary类型的元数据信息。
+下面是一个例子：
+
+String[] interfaces =  new String[]{StockListing.class.getName(), StockChart.class.getname()};  
+Dictionary metadata =  new Properties();  
+metadata.setProperty(“name”, “LSE”);  
+metadata.setProperty(“currency”, Currency.getInstance(“GBP”));  
+metadata.setProperty(“country”, “GB”);  
+ServiceRegistration registration = bundleContext.registerService(interfaces, new LSE(), metadata);  
+
+在上面的代码中，我们得到了ServiceRegistration对象，我们可以用这个对象来更新服务的元数据： 
+
+registration.setProperties(newMetadata);
+
+也可以直接就把这个服务移除： 
+
+registration.unregister();
+
+需要注意的是这个对象不能和其他Bundles共享，因为它和发布服务的bundle的生命周期相互依存，
+也就是说，如果这个bundle已经不在框架执行环境中存在，那么这个对象也不应该存在了，“皮之不存毛将焉附”就是这个道理。
+
+试想如果这个ServiceRegistration共享给了其他的bundle（具体的说就是其他bundle中存在对这个对象的引用），
+那么发布服务的那个bundle即使被移除了，由于其他bundle中的引用依然存在，那么垃圾处理机制不会抹去这个对象，
+这样不但于理不合，而且实际上这个对象也是不可用的，因为这个对象所依存的bundle已经不在了。
+
+代码中的参数new LSE()是一个POJO，这个对象不需要实现任何OSGi类型或者使用标注，只要满足服务约定（这里就是接口）就可以了。
+
+此外，如果在删除发布的服务之前bundle停止了，框架会帮助你删除这些服务。
+
+==
+4.2 发现和绑定服务
+
+上一小节我们说明了如何描述和发布一个服务，那么现在我们可以根据服务约定从注册表中找到正确的服务。 
+下面是发现服务并获得其引用的接口：
+
+ServiceReference reference =  
+bundleContext.getServiceReference(StockListing.class.getName());   
+
+这是根据实现的接口名称获得的服务，也是最简单的方法。
+
+注意这里的reference是服务对象的间接引用，可是为什么要用间接引用而不直接返回那个实际的服务对象呢？
+实际上是为了将服务的使用和服务的实现进行解耦，将服务注册表作为两者的中间人，达到跟踪和控制服务的目的，同时还可以在服务消失了以后通知使用者。
+
+这个方法的返回类型是ServiceReference，它可以在bundle之间互享，因为它和使用服务的bundle的生命周期无关。
+
+4.2.1 选择最适合你的服务
+
+在getServiceReference这个方法中，选择service的默认优先级是先选择service.rank最高的，在rank相等的情况下选择最早在框架中注册的。
+除了这个默认的规则，我们还可以在 getServiceReferences中通过添加过滤参数（作为调用该方法的第二个参数）来做一些筛选。
+
+ServiceReference[] references = 
+bundleContext.getServiceReferences(StockListing.class.getName(), “(&(currency=GBP)(objectClass=org.example.StockChart))”);    
+
+在这里的匹配参数是一个字符串，这个字符串的格式属于LDAP查询格式，在RFC 1960标准中有完整的描述。
+
+上面的字符串中等号左边的内容就是前面提到的元数据（Dictionary）中的左值，
+通过这个左值对应的右值来与服务所带有的元数据进行匹配。一些简单的匹配示例如下： 
+
+属性匹配: 
+(name=John Smith) 
+(age>=20) 
+(age<=65) 
+
+模糊匹配: 
+(name~=johnsmith) 
+
+通配符匹配: 
+(name=Jo*n*Smith*) 
+
+判断某个属性是否存在: 
+(name=) 
+条件与: 
+(&(name=John Smith)(occupation=doctor)) 
+条件或: 
+(|(name~=John Smith)(name~=Smith John)) 
+*条件非: ** 
+(!(name=John Smith))
+
+4.2.2 绑定和使用服务
+
+在你发现了服务之后，使用服务之前，你必须从注册表中绑定实现的服务。
+
+StockListing listing = 
+(StockListing) bundleContext.getService(reference);
+
+这个方法返回的POJO实例和之前在注册表中注册的实例是同一个。
+
+每次使用getService方法的时候，注册表会将对应服务的使用次数加1，同时会记录谁在使用这个服务。
+所以当你不在想使用这服务的时候，最好告诉注册表一声。
+
+bundleContext.ungetService(reference);  
+listing = null;    
+
+给出第二条语句的目的并不是为了通知注册表，而是为了让java的垃圾处理机制安全运作。
+因为这里我们用了一个局部变量listing来作为服务对象的一个引用，（不妨假设listing是最后一个引用这个对象的变量），
+如果我们不设为null，那么在这个listing消亡之前，
+那个服务对象有可能不会被垃圾处理掉（即使在程序逻辑上这个服务对象已经是“垃圾”了），这可能会引发一些问题。
+
+不过，这种用局部变量引用服务对象的方式本来就不对。
+一般来说，还是应该在每次需要使用的时候临时从ServiceReference获得，并且要考虑到这个服务在任何时候都有可能消亡。
+
+====
+5 总结
+
+至此，三个层次的基础性讲解已经全部结束了。
+三篇入门级文档以后，相信读者对OSGi框架已经有了一个大致的了解，
+接下来建议大家配合《OSGi开发环境的建立和HelloWorld》这篇文档自己实际操作一下之前讲到的一些内容，巩固一下这个系列的知识，为接下来的进阶篇内容做好准备。
+

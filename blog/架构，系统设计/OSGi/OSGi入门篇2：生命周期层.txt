@@ -1,0 +1,172 @@
+﻿OSGi入门篇2：生命周期层
+由  Gou Rui 发布
+标签：分层 交互 服务 动态性      
+http://osgi.com.cn/article/7289216
+
+=======
+前言
+
+生命周期层在OSGi框架中属于模块层上面的一层，它的运作是建立在模块层的功能之上的。
+生命周期层一个主要的功能就是让你能够从外部管理应用或者建立能够自我管理的应用（或者两者的结合），并且给了应用本身很大的动态性。 
+这一章里，我们介绍生命周期层的基本特性和如何有效的使用这些特性。
+当然按照惯例，我们依然会先讲清楚什么是生命周期管理以及OSGi需要生命周期管理的原因，然后再讲解生命周期层的一些基本内容。
+
+====
+1 什么是生命周期管理
+
+一般来说，程序（或者程序的一部分）都一定服从某种生命周期。
+软件的生命周期有4个典型的阶段，如下图：
+
+http://assets.osgi.com.cn/article/7289216/lifecycle1.png
+
+如果你正在创建一个应用，首先你得安装(install)它；
+然后当这个应用的所有依赖都满足了，我们就可以执行（execute）这个应用；
+如果这个应用不需要了，我们可以停止（stop）它；
+过了一段时间，我们可能需要更新（update）这个应用的版本；
+最后，我们可能会移除（remove）这个应用，因为再也用不着了。
+
+我们通过在外部或者内部对应用进行这些操作，完成对应用的“生命周期管理”过程。
+对于非模块化应用，这些操作就是以整个应用为对象的；
+如果是对于模块化应用，那么我们就可以有更细粒度（针对应用中的某个模块）的生命周期管理了。
+
+无论是标准的Java还是servlet，JavaEE，他们都有不同的生命周期管理机制，那么为什么我们都需要生命周期管理应用呢？
+
+==
+2 为什么要管理应用的生命周期
+
+上一章我们讲解了如何通过加入metadata来完成应用的模块化定义，
+但是这些元数据中只有对bunlde静态属性的介绍，而并没有提到一个应用的动态特征，比如某个特定的类或者对象在什么时候被需要和使用。
+
+一般情况下，要想管理应用的生命周期，就得通过框架提供的API来完成。
+一套清晰明确的生命周期API使得你的应用可以对一段代码进行配置、初始化和维护。
+而OSGi标准就定义了这样的一套API，使得你能在bundle生命周期的各种阶段对其进行多种外部或内部操作，从而达到对bundle进行功能控制的目的。
+
+由于你构建的应用被模块化为若干个部分，并且有了这些API之后你能对其中任意一个部分的去留和动作进行精确和即时的控制，
+那么你所构建的这个应用的灵活性就大大的提升了。如果没有生命周期管理，别人给你什么样的应用，你就只能使用什么样的应用，可控制性很低；而一旦有了生命周期管理，无论别人给你什么样的应用，你也能通过生命周期管理对这个已经模块化应用的行为（无论是启动、更新还是停止等等）进行精确控制。把应用每个部分都控制在自己的手中，是不是感觉非常棒？
+
+========
+3 OSGi bundle的生命周期
+
+模块层的介绍中我们已经知道如何定义一个bundle，但是要想使用bundle，就得使用生命周期层的API，和OSGi框架的生命周期层进行交互。
+逐条详细介绍API会显得过于冗长（去看看OSGi标准吧），所以接下来会通过一个例子来大致讲解一下API提供给使用者的一些功能。
+
+需要注意的是，OSGi框架的核心并没有强制使用任何特定的API交互机制（比如命令行，GUI，或者XML配置文件等），
+只是单纯的Java API而已，所以开发者可以任意创造出自己想要的交互模式，保证了框架的灵活性。
+
+在标准的Java编程中，你会通过将jar包放到classpath中来使用它，而bundle则不是这样。
+Bundle只有在被安装（install）到一个OSGi框架的运行实例中才能用起来。
+并且OSGi框架支持对这些bundle完整的生命周期管理，并且支持这些管理操作在应用执行完成，其动态性可见一斑。
+
+==
+3.1 Bundle生命周期的状态转移图
+http://assets.osgi.com.cn/article/7289216/lifecycle2.png
+
+这个图清晰的展现了bundle在生命周期中的各个状态和状态间的转移条件。 
+我们可以通过Bundle的getState方法来获得bundle的当前状态。 
+在这里需要说明的是Starting和Stopping状态，这两个状态是暂态，也就是说这两个状态在持续一会以后就会自动转移到下一个状态，不需要转移条件。
+
+====
+3.2 框架提供的三个重要接口
+
+生命周期层的API主要是由以下三个核心接口来组成的：BundleActivator，BundleContext和Bundle。
+
+• BundleActivator：让你能够捕捉bundle的start和stop事件，并对这两个事件作出自定义的反应。 
+• BundleContext：一个bundle在框架中的执行时上下文，这个上下文提供了和框架进行交互的方法。 
+• Bundle：在逻辑上表示了一个bundle，OSGi环境中的一个物理bundle对应了一个bundle对象。
+该对象中包含了bundle的基本信息和bundle声明周期的控制接口。
+
+3.2.1 BundleActivator
+
+BundleActivator的接口是如下定义的：
+
+public interface BundleActivator {
+	public void start(BundleContext context) throws Exception;
+	public void stop(Bundlecontext context) throws Exception;
+}
+
+如果一个类实现了这个接口，那么这个类就成为了一个Activator。
+但是有实现是不够的，你要让OSGi框架知道这个Activator的存在。
+所以你还需要在MANIFEST文件中添加如下一项属性（假设你定义的activator的类叫做org.foo.Activator）：
+
+Bundle-Activator：org.foo.Activator
+
+这样一来，当这个bundle启动（start）的时候，OSGi框架就会调用这个Activator的start方法，同样的也适用与stop方法。
+
+需要注意的是，并不是每个bundle都需要一个activator，
+有时候你的bundle只是为了和其他bundle分享代码，而并不需要在启动和停止的时候做出多余的动作，
+所以是否使用这个借口，还得具体问题具体分析。
+
+3.2.2 BundleContext
+
+不知道细心的同学注意到没有，其实在BundleActivator接口中start和stop两个方法中，传入的参数都是BundleContext。
+这个接口中的方法的功能主要分为两个部分： 
+
+• 一部分是和部署与生命周期管理相关 
+• 另一部分则是关于利用服务层进行bundle间交互的方法 
+
+我们在这里主要关注第一部分的方法，其中主要的方法列表如下：
+
+public interface BundleContext {
+	...
+	String getProperty(String key);
+	Bundle getBundle();
+	Bundle installBundle(String location, InputStream input) throws BundleException;
+	Bundle installBundle(String location) throws BundleException;
+	Bundle getBundle(long id);
+	Bundle[] getBundles();
+	void addBundleListener(BundleListener listener);
+	void removeBundleListener(BundleListener listener);
+	void addFrameworkListener(FrameworkListener listener);
+	void removeFrameworkListener(FrameworkListener listener);
+	...
+}  
+
+bundle context对于与其相关的bundle来说都是唯一的执行上下文，
+并且只有在该bundle是属于active状态的时候执行时上下文才是有意义的，
+对这个时段准确的描述就是在start方法被调用和stop方法被调用的两个时间点之间。
+所以如果一个bundle并没有处于这个时间段里面，但是他的bundlecontext对象却被使用了，那么框架就会抛出异常。
+
+框架使用这个上下文对象还有一个目的就是为了bundle的安全和资源分配，
+所以BundleContext对象应该被当做私有对象，不应该被随意在bundle之间传递。
+
+3.2.3 Bundle
+
+在BundleContext接口中，我们发现有名为getBundle的方法，我们可以从中得到Bundle对象。
+
+对于每个被安装到框架中的bundle，框架都创建了一个Bundle对象在逻辑上表达之。
+这个接口中定义了bundle生命周期管理的方法，下面是这个接口的片段，这个接口的方法所带来的功能都是显而易见的：
+
+public interface Bundle {
+	...
+	BundleContext getBundleContext();
+	long getBundleId();
+	Dictionary getHeaders();
+	Dictionary getHeaders(String locale);
+	String getLocation();
+	int getState();
+	String getSymbolicName();
+	Version getVersion();
+	void start(int options) throws BundleException;
+	void start() throws BundleException;
+	void stop(int options) throws BundleException;
+	void stop() throws BundleException;
+	void update(InputStream input) throws BundleException;
+	void update() throws BundleException;
+	void uninstall() throws BundleException;
+	...
+}
+
+稍微需要说明一下的是getLocation方法，大部分OSGi框架的实现都是将locatioin解释为指向OSGi bundle的一个URL，
+在需要的时候就会通过URL将bundle下载到框架中来安装使用。
+但是OSGi标准没有规定location的形式必须是URL，而且URL也并不是非要不可的，
+因为我们还可以通过输入流（Input Stream）来安装bundle。
+
+此外，bundle不能自己改变自己的状态，比如说一个active的bundle不能stop自己，stop自己就会抛出异常。
+
+====
+4 总结
+
+继模块层之后，我们又介绍了OSGi的生命周期层，
+这里主要是介绍了一些核心接口，具体的使用示例依然会在《OSGi开发环境的建立和HelloWorld》中为大家展示。
+这一章的内容依然是比较基础的，其中还有很多的细节和更加深入的内容没有在这里提出来，那些内容将在进阶篇中为大家讲解。
+

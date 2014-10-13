@@ -1,0 +1,328 @@
+﻿Java安全层与OSGi
+由  Gou Rui 发布
+http://osgi.com.cn/article/7289368
+
+=======
+前言
+
+当我们在享受java所带来的方便快捷的同时，很少人会关注java在安全方面所做的努力。
+但事实上，java在安全方面为我们做了很多的事情。
+这里，我们将为大家简单的介绍java的安全层以及OSGi的安全层。
+
+====
+1 Java安全层为我们做了什么
+
+从资源管理方面来看，java为我们提供了完善的资源管理机制，什么程序拥有对什么资源的什么权限，都可以通过配置文件进行方便的设置。
+其次，从代码安全方面来看，通过证书、密钥等机制，保证了代码来源可靠，并且保证传播途中不会被他人恶意篡改。
+再次，从权限管理方面来看，java有一套成熟的权限管理机制，每位用户可以根据自己的需求定制自己所需要的安全策略。
+最后，从运行安全方面来看，java程序的运行从类的加载开始，就在处于java机制的保护之下，这些机制可以保证程序安全有序的运行。
+
+====
+2 安全模型：从最初版到进阶版的沙盒模型
+
+说到java安全模型，就不得不提到经典的沙盒模型。
+我们先来看看下面两个图：
+
+http://assets.osgi.com.cn/article/7289368/sm1.0.jpg
+
+http://assets.osgi.com.cn/article/7289368/sm2.0.jpg
+
+图一所示便是最初版沙盒模型，显然，最初版沙盒模型机制特别简单，将所有代码分为本地代码和远程代码，
+本地代码拥有所有权限，而远程代码只拥有很小一部分权限，只能在一个极为狭小的区域内运行，
+于是，我们就将这个狭小的区域称作为沙盒。
+
+显然，最初版沙盒模型存在着许多问题：
+本地代码不一定都是可信的，可能导致系统不安全；需要通过远程代码控制本地资源，比如远程管理系统文件等等，
+为了解决这些问题，java在最初版沙盒模型的基础上进行了改进，于是便有了如图二所示的进阶版沙盒模型。
+
+如图所示，进阶版沙盒模型完全放弃了“可信任的代码“这一概念，
+将所有代码通过安全策略授予不同的权限，以此进行安全控制，这样便解决了很多最初的沙盒模型所不能解决的问题。
+并且，与最初的沙盒模型相比，进阶版沙盒模型还具有访问控制更加细粒度、安全策略更容易配置、访问控制结构更容易扩展等优点。
+
+====
+3 安全模型相关的类
+
+上一章介绍了安全模型，接下来我们来探究它是如何工作的。
+我们先来看看java安全模型所涉及到的类。
+
+http://assets.osgi.com.cn/article/7289368/security-classes.png
+
+如图所示，当java加载一个类时，java为每一个类生成了一个相应的ProtectionDomain类，通过该类，
+java能够获取该类的代码来源信息（URL）、证书信息（Certificate）以及权限信息（Permissions）。
+当调用AccessController或SecurityManager的checkPermission方法时，便可以获知某个类是否有该权限，以达到访问控制的目的。
+
+====
+4 数字签名
+
+Java是通过上图中的URL以及Certificate来保证代码的可靠性的。
+那么我们如何给我们的程序进行签名，客户端又需要什么配置来验证通过有我们签名的程序呢？
+
+4.1 数字签名原理
+
+我们先来看看数字签名的原理，数字签名的原理很简单，对java程序（class文件及资源）进行散列计算，将计算结果用私钥加密得到一个散列值，
+将散列值与证书一起放到jar包中即可。
+用户运行程序时，发现数字证书，同样对java程序（class文件及资源）进行散列计算得到散列值D1，
+并用公钥将签名后的散列值进行解密得到散列值D2，将D1与D2进行对比，若一致，则通过签名验证，否则失败。
+
+4.2 如何为程序签名
+
+接下来我们来介绍如何利用java提供的工具为程序进行签名。
+
+首先，为程序签名需要拥有安全证书，安全证书可以通过向颁发和管理数字证书的公司或机构进行申请来获得，也可以自己制作，
+在这里，我们来了解如何通过java提供的工具来生成自己的安全证书。
+我们先来看看下面几幅截图：
+
+http://assets.osgi.com.cn/article/7289368/cert1.png
+
+http://assets.osgi.com.cn/article/7289368/cert2.png
+
+如图所示，在命令行模式下输入keytool –genkey –keystore test.keystore –alias person.xr，
+然后按照提示输入，即可生成密钥库，密钥库存储了与验证和证明个人或应用的身份相关的所有证书信息。
+密钥库是生成安全证书的必备选项。
+然后，在命令行中输入keytool –export –keystore test.keystore –alias person.xr –file test.cer，输入密码后即可生成最后的安全证书，密钥库和安全证书的截图如下图所示：
+
+http://assets.osgi.com.cn/article/7289368/cert3.jpg
+
+生成安全证书后，需要对java程序进行加密并对其进行签名，下面是加密和签名的两个简单例子：
+
+public static void sig(byte[] sigText, String outFileName, String KeyPassword, String KeyStorePath) {
+    char[] kpass;
+    int i;
+    try {
+        KeyStore ks = KeyStore.getInstance("JKS");
+        FileInputStream ksfis = new FileInputStream(KeyStorePath);
+        BufferedInputStream ksbufin = new BufferedInputStream(ksfis);
+        kpass = new char[KeyPassword.length()];
+        for (i = 0; i < KeyPassword.length(); i++)
+            kpass[i] = KeyPassword.charAt(i);
+        ks.load(ksbufin, kpass);
+        PrivateKey priv = (PrivateKey) ks.getKey(KeystoreAlias, kpass);
+        Signature rsa = Signature.getInstance("MD5withRSA");
+        rsa.initSign(priv);
+        rsa.update(sigText);
+        byte[] sig = rsa.sign();
+        System.out.println("sig is done");
+        try {
+            FileOutputStream out = new FileOutputStream(outFileName);
+            out.write(sig);
+            out.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    } catch (Exception e) {
+        e.printStackTrace();
+    }
+}
+
+将签名文件与证书都加入到jar包当中，签名就完成了。
+这里只是一个简单的例子，实际应用当中更加复杂，可利用更加丰富的工具，但基本原理都是一样：
+在密钥库中存储各种信息，生成包含公钥及公司信息的安全证书，计算java程序的散列值，最后用私钥加密放入签名文件，证书、签名文件、程序三者就构成了一个已签名程序。
+
+需要注意的是，实际运中上证书包含的公钥是经过颁发和管理数字证书的公司或机构的私钥加密的，
+说明颁发和管理数字证书的公司或机构对该证书进行担保，该证书是可信的。
+
+4.3用户如何验证签名
+
+当用户试图运行一个java程序时，JVM会按照下列步骤进行运行：
+
+JVM解压JAR包，发现里面有数字证书，然后根据中的数字证书信息，在用户的系统中查找数字证书机构的公钥，如果找到直接进入第三步，否则进入第二步。
+
+JVM就从数字证书机构中提取的机构公钥地址，告诉用户程序/JAR包需要机构公钥并询问用户是在其地址否下载它。
+如果用户不信任该地址而不同意，试图运行程序/JAR包失败。
+如果用户同意下载，但是下载失败的话，试图运行程序/JAR包也失败。
+如果下载成功就进入下一步。
+
+JVM用机构公钥对数字证书中的公钥进行解密计算得到最终的公钥，然后用最终的公钥对散列值进行解密计算得到散列值。
+将计算得到的散列值与签名文件中的散列值进行比较，若一致，则验证成功，否则，验证失败，程序将中断。
+
+=======
+5 Permission类
+
+5.1 Permission类的作用
+
+知道了如何通过数字签名保证代码的可靠性之后，这一节我们将介绍安全层的核心类——Permission类。
+前面我们说到，每一个类都包含Permissions属性，它存储了该类所有的Permission，这些Permission便描述了该类所有有权限的操作。
+在运行时，每进行一个操作，JVM都会判断该类是否有相应的Permission来进行该操作，
+若有，则继续运行，否则，将抛出java.security.AccessControlException错误。
+
+5.2 java内置的Permission类
+
+为了方便大家的使用，java内部包含了一些常用的Permission类，包括文件读取、使用网络资源等等，以下为常用的Permission类：
+
+java.security.AllPermission
+java.io.FilePermission
+java.net.SocketPermission
+java.security.BasicPermission
+java.util.PropertyPermission
+java.lang.RuntimePermission
+java.awt.AWTPermission
+java.net.NetPermission
+java.lang.reflect.ReflectPermission
+java.io.SerializablePermission
+java.security.SecurityPermission
+
+5.3 自定义Permission类
+
+java.security.Permission是所有Permission类的基类，java内置的类都是它的子类，
+同样，若是我们想自定义Permission类的话，我们就需要继承并且实现它。
+需要注意的是，继承的子类必须包含implies方法，该方法将某个Permission作为参数，
+判断其是否包含该Permission即用户是否拥有该Permission的权限，若包含返回true，否则，返回false。
+
+========
+6 安全策略
+
+6.1 什么是安全策略
+
+通过以上介绍，我们知道了通过签名确定某个类唯一的CodeSource，以保证其可靠性，
+同时，我们还可以自定义Permission类，以满足我们不同的权限管理需求。
+但是，我们如何将那些Permission类与我们的代码相对应，或者说，我们如何对类进行授权，java虚拟机依据什么来确定某个类是否有某种权限呢？
+
+答案当然是安全策略的管理。
+在Java\jre6\lib\security 目录下有着两个文件，java.policy 以及java.security，这个文件便是java虚拟机默认的安全策略文件。
+通过这两个文件，java虚拟机便能通过代码的codeSoure信息获取其相应的Permission。
+
+6.2 java.security与java.policy
+
+java.security是安全策略管理中最为核心的配置文件，其中配置了与java安全有关的参数，包括密钥库的地址、策略文件地址等。
+通过这些配置，我们就能建立起一套完善的安全管理体系。
+其位置是${java.home}/lib/security/java.policy，有兴趣的可以自行查阅，这里就不一一列举了。
+
+接下来我们来介绍java.policy，以下为java.policy里的一段代码：
+
+  grant { 
+      permission java.util.PropertyPermission "java.version", "read";
+      permission java.util.PropertyPermission "java.vendor", "read";
+      permission java.util.PropertyPermission "os.name", "read";
+      permission java.util.PropertyPermission "os.version", "read";
+  };
+
+以上代码表示对所有的代码赋予以上的Permission。
+那么，我们便可以通过该配置文件赋予特定代码特定权限，已达到访问控制的目的。
+该配置的语法如下：
+
+  grant [SigedBy “signer_name”] [, CodeBase “URL”] {
+      Permission Permission_class_name [“target_name”] [, “action”]
+          [, SignedBy “signer_names”];
+      Permission ……
+  };
+
+其中[ ]内为可选项。
+
+将java.security 与java.policy配置完成后，我们便能够保证我们的java代码在安全可靠的环境下运行了。
+
+但是，可能很多人会有这样的疑问，当我们运行自己的java程序时，进行读写或其他任何操作都是可以的，并未触发安全策略。
+其实，这是因为我们运行程序时并未启用安全策略，此时，安全策略并不起作用，因此我们才能任意的运行这些“危险代码”。
+那么，为了保证计算机资源的安全，如何启用我们所配置的安全策略文件呢？
+答案很简单，只需要在运行时使用下列命令
+java -Djava.security.manager [-Djava.security.policy=pURL] SomeApp，
+其中，pURL为指定策略文件地址，为可选项，默认为前文介绍的java.policy文件；
+SomeApp为想要运行的java程序。在该模式下运行的java程序，将严格受到安全策略的管理，保证计算机的安全。
+
+========
+7 SecurityManager与AccessController
+
+为了保证代码运行的安全，我们有时候需要在代码中确认权限，此时就需要SecurityManager与AccessController了。
+
+SecurityManager与AccessController是java虚拟机进行访问控制的两个类，
+两者都包含checkPermission方法，用于验证该类是否有权限进行该操作。
+当我们需要进行访问时，只需调用checkPermission方法，JVM便会根据现在的安全策略对权限进行验证，让我们来看看下面两段代码：
+
+  FilePermission perm = new FilePermission(“file”, “read”);
+  AccessController.checkPermission(perm);
+
+  SecurityManager security = System.getSecurityManager();
+  If(security != null){
+      FilePermission perm = new FilePermission(“file”, “read”);
+      Security.checkPermission(perm);
+  }
+
+这两个代码片段的作用都是验证目前是否有对file文件的读取权限，若有该权限，将继续运行，否则，将抛出错误：
+
+http://assets.osgi.com.cn/article/7289368/sec-exception.png
+
+并且，从代码中我们可以看出，AccessController不需要进行为空验证，而SecurityManager需要。
+这是因为当配置文件启用时，JVM会根据策略文件对AccessController进行配置并生成对应的System.SecurityManager。
+此时，AccessController与SecurityManager的行为是一致的，只需调用checkPermission方法即可进行权限验证。
+而当策略文件未启用时，AccessController默认赋予每个类跟目录的读写权限以及退出JVM的权限
+（此时若不主动调用checkPermission方法JVM不会进行权限验证）；
+并且，JVM不会生成System.SecurityManager实例，此时System.SecurityManager为空。
+
+需要注意的是，权限验证将采取如下策略，
+首先JVM会根据其调用关系生成一个调用链，包含涉及该调用的所有类，
+然后，AccessController将会从最近的调用者开始验证，一层一层向上验证，验证规则如下：
+
+若其没有该权限，抛出错误
+若其有权限，且标记为privileged，返回，什么都不做
+若其有权限，且未标记为privileged，继续沿调用链向上进行验证。
+
+从验证规则中我们可以看出，若是所有类都未被标记为privileged，需要所有的类都具有该权限，否则验证将不通过。
+在某些场景下，这可能会使得我们的安全策略变得更加复杂。
+因此，我们需要通过将某个类标记为privileged来使得我们的安全策略更加灵活。
+那么如何将某个类标记为privileged呢？
+我们来看看下面的例子：
+
+  Somemethod(){
+      . . . code . . .
+      String user = (String) AccessController.doPrivileged(
+          new PrivilegedAction(){
+              public Object run() {
+                  return System.getProperty(“user.name”);
+              }
+          }
+      );
+      . . . code . . . 
+  }
+
+其中，run()函数里的代码便是那些需要权限才能进行的操作。
+
+====
+8 Java安全层小结
+
+现在让我们来总结一下，java会给每个class定义两个属性，CodeSource和Permissions。
+其中，CodeSource 可以通过安全证书及签名来保证代码的安全性和可靠性；
+同时，通过策略文件的配置，我们可以为class指定特定的Permission，这些Permission就是我们赋予给代码的权限。
+最后，我们可以在代码中通过SecurityManager与AccessController对权限进行验证，以保证代码的安全。
+
+====
+9 OSGi安全层
+
+说完java的安全层，让我们来看看OSGi的安全层。
+
+http://assets.osgi.com.cn/article/7289368/osgi-sec.png
+
+OSGi安全层是OSGi服务框架的一个可选的层。
+它基于Java 2 安全体系结构，提供了对运行在细颗粒度受控环境里面的应用部署和管理的基础架构。
+
+OSGi安全层具有下列特性：
+
+细颗粒度(fine grained)—在OSGi框架里边运行的应用控制必须考虑到对这些应用的详细的控制
+可管理性—安全层本身没有定义API来控制应用，对安全层的管理交由生命周期层
+可选性—安全层是可选的
+
+接下来我们具体看看OSGi安全层的特殊之处。
+
+==
+9.1 代码验证
+
+OSGi 安全层支持通过位置和签名进行代码验证。
+基于代码验证，OSGI安全层提供了两项服务来管理与权限相关的代码：
+
+权限管理服务（Permission Admin service）：基于完整的位置字符串的权限管理
+条件权限管理服务（Conditional Permission Admin service）：基于综合条件模型 的权限管理，可以使用位置或签名来验证条件。
+通过上述服务，可以灵活的对代码进行权限相关的操作。
+
+==
+9.2 数字签名JAR文件
+
+在OSGi框架中，同样涉及到JAR文件的数字签名，通过数字签名，OSGi可实现对JAR的授权，并通过对bundle集合授予权限来操作其中的这些bundle。
+
+需要注意的是，OSGi安全规范中规定：
+OSGi的JAR文件必须对所有的资源进行签名，除了META-INF文件夹下的资源。
+也就是说，OSGi规范只支持完整签名的bundles。
+这样做是由于部分的签名会破坏包的私有性，同时由于一个bundle的所有代码都使用了同样的保护域，也简化了安全API的处理。
+
+9.3 小结
+
+在OSGi安全层中，OSGi为我们提供了权限相关的服务，方便了我们对于bundle级别代码权限的管理。
+同时，OSGi还制定了bundle的签名规范，使我们对于bundle的签名更加合理。
+

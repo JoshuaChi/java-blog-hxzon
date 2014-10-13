@@ -1,0 +1,271 @@
+﻿OSGi环境下建立Web工程的Hello World
+由  YiFei 发布
+标签：Equinox OSGi Web
+http://osgi.com.cn/article/7289380
+
+=========
+有了osgi下建立hello world的基础，再来讲搭建Web环境，会相对容易一些。
+一般来说，有两种建立Web环境的方式：将HTTP服务器嵌入OSGi框架和将OSGi框架嵌入Servlet容器。
+
+====
+HTTP服务器嵌入OSGi框架
+
+首先，除了下载Equinox框架，还要去下载下列这些bundle： （需要注意其版本）
+
+javax.servlet
+org.apache.commons.logging
+org.eclipse.equinox.http.jetty
+org.eclipse.equinox.http.servlet
+org.eclipse.osgi.services
+org.mortbay.jetty.server
+org.mortbay.jetty.util
+
+本人下载的jar包版本截图如下：
+
+http://assets.osgi.com.cn/article/7289380/1.jpg
+
+其中org.eclipse.osgi_3.7.0.v20110613.jar是Equinox框架的Jar包。
+然后在Eclipse的Window->Preferences->Plug-in Development->Target Platform中，
+将以上的Jar放置在New Target之中，并选中它作为运行平台，如下图所示：
+
+http://assets.osgi.com.cn/article/7289380/2.jpg
+
+经过上面，步骤，基本搭建好Web的运行环境。
+然后在Run->Run Configurations中，OSGi Framwork下新建一个运行实例，选中刚刚加载进来的搜有Bundle，点击Run，如图所示：
+
+http://assets.osgi.com.cn/article/7289380/3.jpg
+
+如果没有异常，运行效果如下（ss命令是本人额外输入的）：
+
+http://assets.osgi.com.cn/article/7289380/4.jpg
+
+下面，我描述下简单写的一个Web应用，前端一个Form表单，后台使用Servlet简单处理。
+参照“OSGi开发环境建立和Hello World”，建立OSGi工程。
+在Manifest.MF文件中，加入几个Imported Packges：
+
+http://assets.osgi.com.cn/article/7289380/5.jpg
+
+上图左边是项目结构图，右边是Manifest.MF文件中引入的包。
+先看一下WeatherSerlvet的代码，很简单，就根据前端传来的城市名字，返回天气情况：
+
+public class WeatherServlet extends HttpServlet {
+
+private static final long serialVersionUID = 1L;
+
+private BundleContext context;
+
+public WeatherServlet(BundleContext context) {
+    this.context = context;
+}
+
+public void doPost(HttpServletRequest request, HttpServletResponse response)
+        throws IOException {
+    doGet(request, response);
+}
+
+
+public void doGet(HttpServletRequest request, HttpServletResponse response)
+        throws IOException {        
+
+    String queryWord = request.getParameter("query_word");
+    response.setContentType("text/html");
+    ServletOutputStream output = response.getOutputStream();
+
+
+    try {
+        output.println("Result is " + queryWeather(queryWord));
+        output.close();
+        return;
+    } catch (Exception e) {
+        output.println("Error occurs");
+        output.println(e.toString());
+        output.close();
+        return;
+    }
+}
+
+private String queryWeather(String city) {
+
+    if(city.equals("SZ"))
+        return "cool";
+    return "hot";
+}
+}
+
+然后再看一下Activator的代码：
+
+public class Activator implements BundleActivator, ServiceListener { 
+private BundleContext bundleContext;
+
+private ServiceReference ref;
+
+private Servlet servlet;
+
+public void start(BundleContext context) throws Exception {
+    bundleContext = context;
+
+    servlet = new WeatherServlet(bundleContext);
+
+    registerServlet();
+
+    context.addServiceListener(this, "(objectClass=" + HttpService.class.getName() + ")");
+}
+
+public void stop(BundleContext context) throws Exception {
+    try {           
+        unregisterServlet();
+    } catch (Throwable t) {
+        t.printStackTrace();
+    }
+
+    servlet = null;
+    bundleContext = null;
+    ref = null;
+}
+
+public void serviceChanged(ServiceEvent event) {
+    switch (event.getType()){
+                      case ServiceEvent.REGISTERED:             
+                              registerServlet();
+                              break;
+
+                     case ServiceEvent.UNREGISTERING:               
+                             unregisterServlet();
+                             break;
+          }
+}
+
+private void registerServlet(){
+        if (ref == null){
+                          ref = bundleContext.getServiceReference(HttpService.class.getName());
+               }
+
+        if (ref != null){
+            try {
+                     HttpService http = (HttpService) bundleContext.getService(ref);
+                     if(null != http){
+                
+                http.registerServlet("/osgicn/index", servlet, null, null);
+
+                http.registerResources("/osgicn/page","page",null);
+                System.out.println("Html页面已经注册，可以访问了！");
+                      }
+               } 
+        catch (Exception e) {
+        e.printStackTrace();
+        }
+        }
+}
+
+/*
+ * 卸载Web应用
+ */
+private void unregisterServlet(){
+    if (ref != null) {
+        try {
+            HttpService http = (HttpService) bundleContext.getService(ref);
+            if(null != http){
+                http.unregister("/osgicn/index");
+                http.unregister("/osgicn/page");                    
+            }
+        }
+        catch(Exception e){
+            e.printStackTrace();
+        }
+    }
+}
+}
+
+与一般的Bundle代码不同的是，这里需要将Html与Servlet资源注册。
+对应这两行代码：
+
+http.registerServlet("/osgicn/index", servlet, null, null);
+
+http.registerResources("/osgicn/page","page",null);
+
+第一句是注册servlet，第二句是将page目录下的静态资源映射到/osgicn/page的URL空间之下。
+在浏览器中，输入http://localhost/osgicn/page/index.html,可以看到这样的页面：
+
+http://assets.osgi.com.cn/article/7289380/6.jpg
+
+输入SZ，可以看到结果cool，输入其他的结果为hot。
+
+http://assets.osgi.com.cn/article/7289380/7.jpg
+
+在Equinox官网，提供了另外一种注册资源的方式，
+需要加入 org.eclipse.equinox.http.registry到Target Platform，然后将资源的映射关系写在XML文件中。
+其实这两种方法没有什么本质区别，只是将映射关系的硬编码换成了XML配置文件。
+具体可以参见这里 以上工程对应代码，我已经上传CSDN 和 GitHub
+
+====
+OSGi框架嵌入Servlet容器
+
+在Equinox官网的示例，参见blog。
+我这里讲的是另一种方式，将OSGi的Web Bundle部署到Virgo容器，也属于OSGi框架嵌入Servlet容器的范畴。
+为什么不介绍官网的方式，而是介绍部署到Virgo的方式？
+第一，我们一直使用这种方式开发Web应用，很熟悉Virgo；
+第二，这种方式已经有了对Web企业级开发的支持；
+第三，入门相对简单，也对我们社区之后陆续介绍Web企业及框架起铺垫作用。
+
+首先，在该网址，下载Virgo的zip包。我们使用的是3.5版本的，点击下载即可，如下图：
+
+http://assets.osgi.com.cn/article/7289380/2_1.png
+
+关于Virgo的介绍，可以参见Virgo简介。
+然后，我们在项目中使用了Maven，所以最好配置一下，方便管理依赖和编译工程。
+关于安装Maven和Maven的Eclipse插件这里就不多说，网上很多教程，相对简单。
+当然，不使用Maven也可以，在这里，只是下载管理依赖包麻烦一些。
+然后是一些依赖包，下面列出常用的，均放置到Virgo的repository/usr目录下，如下：
+
+http://assets.osgi.com.cn/article/7289380/2_2.jpg
+
+这些Jar包，在我们demo中，用到的很少，我也偷一次懒，将我们项目所用的所有包都扔上来。
+（在开发时候，很多jar包都会用到）
+与基础的Hello World教程一样，需要下载eclipse，最好较新的版本。
+然后安装Virgo的Eclipse插件——Eclipse Virgo Tools，安装插件的update site为：http://download.eclipse.org/virgo/release/tooling。
+我们新建工程是使用Maven的Archetype插件，这样可以快速生成项目骨架。
+可以参见社区的另一篇文章。
+按照该文章，我们可以建立如下的demo工程。
+（如果不想安装插件，可以直接下载我们的代码，import到Eclipse即可。）
+
+http://assets.osgi.com.cn/article/7289380/3.jpg
+
+在XML文件中做好Spring MVC的配置，我给的示例是使用Spring MVC的转发请求功能，在HomeController里面：
+
+public class HomeController {
+
+public static final Logger logger = LoggerFactory.getLogger(HomeController.class);
+
+@RequestMapping(value = "/", method = RequestMethod.GET)
+public String home(Model model) {
+    
+    return "Index";
+}
+
+@RequestMapping(value = "/Target", method = RequestMethod.GET)
+public String transfer(Model model) {
+    
+    return "Target";
+}
+}
+
+访问localhost:8080，会跳转到Index.jsp，在Index.jsp点击/Target链接，Controller会将请求跳转到Target.jsp。
+
+http://assets.osgi.com.cn/article/7289380/2_4.jpg
+
+http://assets.osgi.com.cn/article/7289380/2_5.jpg
+
+以上的跳转是经过Spring MVC的dispatcher Servlet拦截转发的，在OSGi环境能够引入Spring MVC，可以极大地方便开发者搭建企业级Web系统。
+
+对上面的样例，做一些简单说明：
+1.这个工程展示的是将Web逻辑全部放在一个Bundle之中，OSGi支持多个Web Bundle构建成一个Web应用。
+多个Web Bundle的时候，需要引入Virgo Snaps。
+关于Snaps的介绍可以参见这篇文章。
+
+2.本文的第二部分，读者可以看出，已经引入了Spring，在此基础之上，再嵌入数据层，一个开发框架的原型已经出来了。
+我们之后会很详细地介绍本小组使用的框架，欢迎关注。
+
+3.本文设计代码已经放在GitHub 关于文中提到的依赖jar，也全部放在GitHub
+
+由于涉及到很多配置，如Maven、Virgo插件等，加上本人水平有限，读者有可能会遇到不少一些问题。可以在本文留言。
+
