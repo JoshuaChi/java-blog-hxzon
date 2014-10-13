@@ -16,12 +16,17 @@ Contents
 
 2.1 – Values and Types
 2.2 – Environments and the Global Environment
+
 2.3 – Error Handling
+
 2.4 – Metatables and Metamethods
+
 2.5 – Garbage Collection
 2.5.1 – Garbage-Collection Metamethods
 2.5.2 – Weak Tables
+
 2.6 – Coroutines
+协程
 
 ====
 3 – The Language
@@ -76,15 +81,22 @@ c接口
 标准库
 
 6.1 – Basic Functions
+
 6.2 – Coroutine Manipulation
+
 6.3 – Modules
+
 6.4 – String Manipulation
 6.4.1 – Patterns
+
 6.5 – Table Manipulation
+
 6.6 – Mathematical Functions
 6.7 – Bitwise Operations
+
 6.8 – Input and Output Facilities
 6.9 – Operating System Facilities
+
 6.10 – The Debug Library
 
 ====

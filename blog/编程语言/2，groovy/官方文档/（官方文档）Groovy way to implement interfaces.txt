@@ -4,7 +4,9 @@ http://groovy.codehaus.org/Groovy+way+to+implement+interfaces
 注释by hxzon
 =======
 Groovy provides some very convenient ways to implement interfaces.
+实现接口的便捷方式
 
+====
 Implement interfaces with a closure
 用闭包实现接口
 
@@ -18,11 +20,13 @@ def readable = { it.put("12 34".reverse()); 5 } as Readable
 def s = new Scanner(readable)
 assert s.nextInt() == 43
 
+==
+有多个方法的接口
+
 You can also use a closure to implement an interface with more than one method. 
 The closure will be invoked for each method on the interface. 
 Since you need a closure whose parameter list matches that of all of the methods you typically will want to use an array as the sole parameter. 
 This can be used just as it is for any Groovy closure and will collect all of the arguments in an array. For example:
-有多个方法的接口
 
 interface X {??
     void f()
@@ -37,7 +41,7 @@ x.h("hello",2)
 
 ====
 Implement interfaces with a map
-使用map语法
+使用map语法（注意，使用的是方括号。）
 
 More commonly an interface with multiple methods would be implemented with a map like so:
 
@@ -55,6 +59,7 @@ Note this is a rather contrived example, but illustrates the concept.
 
 You only need to implement those methods that are actually called, 
 but if a method is called that doesn't exist in the map a NullPointerException is thrown. For example:
+你只需要实现那些实际会被调用的方法。
 
 interface X
 { void f(); void g(int n); void h(String s, int n); }
@@ -65,6 +70,8 @@ x.f()
 
 Be careful that you don't accidentally define the map with { }. 
 Can you guess what happens with the following?
+注意实现接口使用的是方括号。
+如果使用花括号，则变成定义一个闭包。
 
 x = { f: {println "f called"} } as X
 x.f()
@@ -72,7 +79,8 @@ x.g(1)
 
 What we've defined here is a closure with a label and a block. 
 Since we've just defined a single closure every method call will invoke the closure. 
-Some languages use { } to define maps so this is an easy mistake until you get used to using [:] to define maps in Groovy.
+Some languages use { } to define maps so this is an easy mistake 
+until you get used to using [:] to define maps in Groovy.
 
 Note that using the "as" operator as above requires that 
 you have a static reference to the interface you want to implement with a map. 

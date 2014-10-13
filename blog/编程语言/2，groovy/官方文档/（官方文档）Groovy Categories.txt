@@ -1,0 +1,210 @@
+﻿（官方文档）Groovy Categories
+http://groovy.codehaus.org/Groovy+Categories
+
+注释by hxzon
+=======
+There are many situations where you might find that it would be useful 
+if a class not under your control had additional methods that you define. 
+In order to enable this capability, Groovy implements a feature borrowed from Objective-C , called Categories. 
+There are a few categories that are included in the system for adding functionality to classes 
+that make them more usable within the Groovy environment.
+
+DOMCategory
+ServletCategory
+
+====
+The first category allows you to treat DOM objects as arrays and maps 
+so that you can use them in conjunction with the Groovy path expression language and treat them like JavaBeans. 
+Here is an example from the tests of using the DOMCategory:
+将dom对象视为数组或映射。
+
+DOMTest.groovy
+
+import groovy.xml.*
+
+def html = DOMBuilder.newInstance().html {
+  head {
+    title (class:'mytitle', 'Test')
+  }
+  body {
+    p (class:'mystyle', 'This is a test.')
+  }
+}
+
+use (groovy.xml.dom.DOMCategory) {
+  assert html.head.title.text() == 'Test'
+  assert html.body.p.text() == 'This is a test.'
+  assert html.find{ it.tagName == 'body' }.tagName == 'body'
+  assert html.getElementsByTagName('*').grep{ it.'@class' }.size() == 2
+}
+
+try {
+  html.head
+} catch(MissingPropertyException mpe) {
+  println "Categories wear off"
+}
+
+====
+As you can see here we are treating DOM objects just as if they were JavaBeans and are accessing them with GPath. 
+The ServletCategory is similarly used when we want to treat the attributes of Servlet API objects 
+as if they were properties since they don't follow the typical conventions for JavaBeans or Maps either. 
+In the GroovyServlet that lets you use scripts as servlets we call GroovyCategorySupport from Java 
+in order to make it possible to use property accessors against the request:
+像javabean属性一样获取session或request的属性值。
+
+GroovyServlet.java
+
+Closure closure = new Closure(gse) {
+   public Object call() {
+       try {
+           return ((GroovyScriptEngine) getDelegate()).run(scriptUri, binding);
+       } catch (ResourceException e) {
+           throw new RuntimeException(e);
+       } catch (ScriptException e) {
+           throw new RuntimeException(e);
+       }
+   }
+};
+
+GroovyCategorySupport.use(ServletCategory.class, closure);
+
+This allows users to access things like Session attributes and request Attributes by name 
+instead of through the API within their Groovy servlet scripts. 
+For example, without this you would have to do:
+
+
+if (session.getAttribute("count") == null) then session.setAttribute("count", 1);
+
+With this you can say it more tersely as:
+
+if (session.count == null) session.count = 1;
+
+====
+In order to create your own Categories and extend classes yourself 
+you'll need to understand what the "use" keyword expects to be defined within the class you pass to it. 
+To add a method to a class T, simply define a new class with a static method whose first parameter is of type T. 
+Here is a simple example from the tests:
+使用 use 关键字。
+
+CategoryTest.groovy
+
+class StringCategory {
+    static String lower(String string) {
+        return string.toLowerCase()
+    }
+}
+
+use (StringCategory) {
+    assert "test" == "TeSt".lower()
+}
+
+This code will print out the string "test". 
+This facility is extremely powerful and essentially lets you change the way any class in the system works when it is called from Groovy code. 
+Note though that you can't add methods to classes, pass them to Java code, and expect the Java code to be able to call them. 
+Since most people use statically typed Java with little reflection I doubt this case would come up much anyway.
+
+Here is an example of using this as an end user in order to add methods to Apple's own NSDictionary and NSArray class 
+in order to manipulate their Cocoa objects as if they were native Groovy objects:
+
+bookmarks.groovy
+
+#!/Users/sam/bin/groovy
+// Put /System/Library/Java in your CLASSPATH
+import groovy.xml.*;
+import groovy.xml.dom.*;
+import java.io.*;
+import com.apple.cocoa.foundation.*;
+
+class PropertyListCategory {
+        static Object get(NSDictionary dictionary, String key) {
+                return dictionary.objectForKey(key);
+        }
+        static Object getAt(NSArray array, int i) {
+                return array.objectAtIndex(i);
+        }
+        static void each(NSArray array, Closure closure) {
+                for (i in 0..array.count()-1) {
+                        closure.call(array[i]);
+                }
+        }
+}
+
+filename = "${System.getProperty("user.home")}/Library/Safari/Bookmarks.plist";
+data = new NSData(new File(filename));
+errorString = new String[1];
+format = new int[1];
+plist = NSPropertyListSerialization.propertyListFromData(data,
+            NSPropertyListSerialization.PropertyListImmutable, format, errorString);
+
+if (errorString[0]) {
+        println "Error: ${errorString[0]}";
+        System.exit(1);
+}
+
+def getURLs(NSArray array, list) {
+        array.each {
+                getURLs(it, list);
+        }
+}
+
+def getURLs(NSDictionary dict, list) {
+        if (dict.Children != null) getURLs(dict.Children, list);
+        if (dict.URIDictionary != null) {
+                list.add([title:dict.URIDictionary.title, url:dict.URLString]);
+        }
+}
+
+def getURLs(NSDictionary dict) {
+        use (PropertyListCategory) {
+                def list = [];
+                getURLs(dict, list);
+                return list;
+       }
+}
+
+println getURLs(plist);
+
+==
+Notice how we can even create Category classes in Groovy code. 
+They essentially look just like built-in ones within DefaultGroovyMethods. 
+Define them by creating a static method that takes the type you want to extend, 
+then the additional parameters that the new method will take. 
+
+====
+Advanced Usage
+
+A category needs not to be directly exposed to the user code, the following will also do:
+
+Closure, Category and JPA example
+
+class JPACategory{
+  // Let's enhance JPA EntityManager without getting into the JSR committee
+  static void persistAll(EntityManager em , Object[] entities) { //add an interface to save all
+    entities?.each { em.persist(it) }
+  }
+}
+
+def transactionContext = { 
+  EntityManager em, Closure c ->
+  def tx = em.transaction
+  try {
+    tx.begin()
+    use(JPACategory) {
+      c()
+    }
+    tx.commit()
+  } catch (e) {
+    tx.rollback()
+  } finally {
+    //cleanup your resource here
+  }
+}
+
+// user code, they always forget to close resource in exception, some even forget to commit, let's not rely on them.
+EntityManager em; //probably injected
+transactionContext (em) {
+ em.persistAll(obj1, obj2, obj3)
+ // let's do some logics here to make the example sensible
+ em.persistAll(obj2, obj4, obj6)
+}
+

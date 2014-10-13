@@ -37,16 +37,21 @@ before your app starts such as in the main method or servlet bootstrap
 Further Reading:
 
 ExpandoMetaClass - Borrowing Methods — Borrowing methods from other classes
+借用方法
 ExpandoMetaClass - Constructors — Adding or overriding constructors
+添加构造函数
 ExpandoMetaClass Domain-Specific Language
 ExpandoMetaClass - Dynamic Method Names — Dynamically creating method names
+“动态创建方法”
 ExpandoMetaClass - GroovyObject Methods — Overriding invokeMethod, getProperty and setProperty
 ExpandoMetaClass - Interfaces — Adding methods on interfaces
+给接口添加方法
 ExpandoMetaClass - Methods — Adding or overriding instance methods
 ExpandoMetaClass - Overriding static invokeMethod — Overriding invokeMethod for static methods
 ExpandoMetaClass - Properties — Adding or overriding properties
 ExpandoMetaClass - Runtime Discovery — Overriding invokeMethod for static methods
 ExpandoMetaClass - Static Methods — Adding or overriding static methods
+添加静态方法
 
 ========
 ExpandoMetaClass - Borrowing Methods from other classes
@@ -404,6 +409,7 @@ To do this however, it MUST be enabled globally using the ExpandoMetaClass.enabl
 必须在程序启动时调用 ExpandoMetaClass.enableGlobally() 方法。
 
 As an example this code adds a new method to all implementors of java.util.List:
+给List接口添加方法：
 
 List.metaClass.sizeDoubled = {-> delegate.size() * 2 }
 
@@ -414,6 +420,7 @@ list << 2
 
 assert 4 == list.sizeDoubled()
 
+==
 Another example taken from Grails, this code allows access to session attributes 
 using Groovy's subscript operator to all implementors of the HttpSession interface:
 示例：
@@ -435,7 +442,7 @@ http://groovy.codehaus.org/ExpandoMetaClass+-+Methods
 
 ExpandoMetaClass - Adding & Overriding instance methods
 Once you have an ExpandoMetaClass to add new methods to it is trivial:
-添加或覆盖实例方法
+添加或覆盖实例方法（<< 添加方法，= 覆盖方法。）
 
 class Book {
    String title

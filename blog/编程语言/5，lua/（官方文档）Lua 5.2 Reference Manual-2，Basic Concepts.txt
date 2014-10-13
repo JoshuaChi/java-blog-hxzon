@@ -1,0 +1,535 @@
+﻿（官方文档）Lua 5.2 Reference Manual-2，Basic Concepts
+基础概念
+
+注释by hxzon
+=========
+This section describes the basic concepts of the language.
+
+2.1 – Values and Types
+2.2 – Environments and the Global Environment
+
+2.3 – Error Handling
+
+2.4 – Metatables and Metamethods
+元表和元方法（hxzon：重点）
+
+2.5 – Garbage Collection
+垃圾回收
+2.5.1 – Garbage-Collection Metamethods
+2.5.2 – Weak Tables
+
+2.6 – Coroutines
+协程
+
+========
+2.1 – Values and Types
+
+Lua is a dynamically typed language. 
+This means that variables do not have types; only values do. 
+There are no type definitions in the language. 
+All values carry their own type.
+没有类型，只有值。值本身带有自己的类型。
+
+All values in Lua are first-class values. 
+This means that all values can be stored in variables, passed as arguments to other functions, and returned as results.
+
+There are eight basic types in Lua: 
+nil, boolean, number, string, function, userdata, thread, and table. 
+八种基本类型。
+
+Nil is the type of the value nil, whose main property is to be different from any other value; 
+it usually represents the absence of a useful value. 
+
+Boolean is the type of the values false and true. 
+Both nil and false make a condition false; any other value makes it true. 
+
+Number represents real (double-precision floating-point) numbers. 
+Operations on numbers follow the same rules of the underlying C implementation, 
+which, in turn, usually follows the IEEE 754 standard. 
+(It is easy to build Lua interpreters that use other internal representations for numbers, 
+such as single-precision floats or long integers; see file luaconf.h.) 
+
+String represents immutable sequences of bytes. 
+Lua is 8-bit clean: strings can contain any 8-bit value, including embedded zeros ('\0').
+字符串为不可变的字节序列。
+
+Lua can call (and manipulate) functions written in Lua and functions written in C (see §3.4.9).
+
+The type userdata is provided to allow arbitrary C data to be stored in Lua variables. 
+A userdata value is a pointer to a block of raw memory. 
+There are two kinds of userdata: full userdata, where the block of memory is managed by Lua, 
+and light userdata, where the block of memory is managed by the host. 
+Userdata has no predefined operations in Lua, except assignment and identity test. 
+By using metatables, the programmer can define operations for full userdata values (see §2.4). 
+Userdata values cannot be created or modified in Lua, only through the C API. 
+This guarantees the integrity of data owned by the host program.
+用户数据只能通过c来创建或修改。
+
+The type thread represents independent threads of execution and it is used to implement coroutines (see §2.6). 
+Do not confuse Lua threads with operating-system threads. 
+Lua supports coroutines on all systems, even those that do not support threads.
+
+The type table implements associative arrays, that is, arrays that can be indexed not only with numbers, 
+but with any Lua value except nil and NaN 
+(Not a Number, a special numeric value used to represent undefined or unrepresentable results, such as 0/0). 
+Tables can be heterogeneous; that is, they can contain values of all types (except nil). 
+Any key with value nil is not considered part of the table. 
+Conversely, any key that is not part of a table has an associated value nil.
+表，即关联数组。
+
+Tables are the sole data structuring mechanism in Lua; 
+they can be used to represent ordinary arrays, sequences, symbol tables, sets, records, graphs, trees, etc. 
+To represent records, Lua uses the field name as an index. 
+The language supports this representation by providing a.name as syntactic sugar for a["name"]. 
+There are several convenient ways to create tables in Lua (see §3.4.8).
+表的语法糖。
+
+We use the term sequence to denote a table where the set of all positive numeric keys is equal to {1..n} for some integer n, 
+which is called the length of the sequence (see §3.4.6).
+
+Like indices, the values of table fields can be of any type. 
+In particular, because functions are first-class values, table fields can contain functions. 
+Thus tables can also carry methods (see §3.4.10).
+因为函数也是值，所以表也能放函数。
+
+The indexing of tables follows the definition of raw equality in the language. 
+The expressions a[i] and a[j] denote the same table element if and only if i and j are raw equal (that is, equal without metamethods).
+
+Tables, functions, threads, and (full) userdata values are objects: 
+variables do not actually contain these values, only references to them. 
+Assignment, parameter passing, and function returns always manipulate references to such values; 
+these operations do not imply any kind of copy.
+表，函数，线程，用户数据，都是对象，即引用类型。
+
+The library function type returns a string describing the type of a given value (see §6.1).
+
+========
+2.2 – Environments and the Global Environment
+环境和全局环境
+
+As will be discussed in §3.2 and §3.3.3, any reference to a global name var is syntactically translated to _ENV.var. 
+Moreover, every chunk is compiled in the scope of an external local variable called _ENV (see §3.3.2), 
+so _ENV itself is never a global name in a chunk.
+
+Despite the existence of this external _ENV variable and the translation of global names, _ENV is a completely regular name. 
+In particular, you can define new variables and parameters with that name. 
+Each reference to a global name uses the _ENV that is visible at that point in the program, following the usual visibility rules of Lua (see §3.5).
+
+Any table used as the value of _ENV is called an environment.
+
+Lua keeps a distinguished environment called the global environment. 
+This value is kept at a special index in the C registry (see §4.5). 
+In Lua, the variable _G is initialized with this same value.
+
+When Lua compiles a chunk, it initializes the value of its _ENV upvalue with the global environment (see load). 
+Therefore, by default, global variables in Lua code refer to entries in the global environment. 
+Moreover, all standard libraries are loaded in the global environment and several functions there operate on that environment. 
+You can use load (or loadfile) to load a chunk with a different environment. 
+(In C, you have to load the chunk and then change the value of its first upvalue.)
+
+If you change the global environment in the registry (through C code or the debug library), 
+all chunks loaded after the change will get the new environment. 
+Previously loaded chunks are not affected, 
+however, as each has its own reference to the environment in its _ENV variable. 
+Moreover, the variable _G (which is stored in the original global environment) is never updated by Lua.
+如果你替换全局环境，则已加载的代码单元不受影响。
+
+========
+2.3 – Error Handling
+错误处理
+
+Because Lua is an embedded extension language, all Lua actions start from C code in the host program calling a function from the Lua library (see lua_pcall). Whenever an error occurs during the compilation or execution of a Lua chunk, control returns to the host, which can take appropriate measures (such as printing an error message).
+
+Lua code can explicitly generate an error by calling the error function. If you need to catch errors in Lua, you can use pcall or xpcall to call a given function in protected mode.
+
+Whenever there is an error, an error object (also called an error message) is propagated with information about the error. Lua itself only generates errors where the error object is a string, but programs may generate errors with any value for the error object.
+
+When you use xpcall or lua_pcall, you may give a message handler to be called in case of errors. This function is called with the original error message and returns a new error message. It is called before the error unwinds the stack, so that it can gather more information about the error, for instance by inspecting the stack and creating a stack traceback. This message handler is still protected by the protected call; so, an error inside the message handler will call the message handler again. If this loop goes on, Lua breaks it and returns an appropriate message.
+
+=========
+2.4 – Metatables and Metamethods
+元表和元方法（hxzon：重点）
+
+Every value in Lua can have a metatable. 
+This metatable is an ordinary Lua table that defines the behavior of the original value under certain special operations. 
+You can change several aspects of the behavior of operations over a value by setting specific fields in its metatable. 
+For instance, when a non-numeric value is the operand of an addition, Lua checks for a function in the field "__add" of the value's metatable. 
+If it finds one, Lua calls this function to perform the addition.
+
+The keys in a metatable are derived from the event names; 
+the corresponding values are called metamethods. 
+In the previous example, the event is "add" and the metamethod is the function that performs the addition.
+
+You can query the metatable of any value using the getmetatable function.
+
+You can replace the metatable of tables using the setmetatable function. 
+You cannot change the metatable of other types from Lua (except by using the debug library); 
+you must use the C API for that.
+
+Tables and full userdata have individual metatables (although multiple tables and userdata can share their metatables). 
+Values of all other types share one single metatable per type; 
+that is, there is one single metatable for all numbers, one for all strings, etc. 
+By default, a value has no metatable, but the string library sets a metatable for the string type (see §6.4).
+除了字符串，其它值默认没有元表。
+
+A metatable controls how an object behaves in arithmetic operations, order comparisons, concatenation, length operation, and indexing. 
+A metatable also can define a function to be called when a userdata or a table is garbage collected. 
+When Lua performs one of these operations over a value, it checks whether this value has a metatable with the corresponding event. 
+If so, the value associated with that key (the metamethod) controls how Lua will perform the operation.
+
+Metatables control the operations listed next. 
+Each operation is identified by its corresponding name. 
+The key for each operation is a string with its name prefixed by two underscores, '__'; 
+for instance, the key for operation "add" is the string "__add".
+
+The semantics of these operations is better explained by a Lua function describing how the interpreter executes the operation. 
+The code shown here in Lua is only illustrative; 
+the real behavior is hard coded in the interpreter and it is much more efficient than this simulation. 
+All functions used in these descriptions (rawget, tonumber, etc.) are described in §6.1. 
+In particular, to retrieve the metamethod of a given object, we use the expression
+
+     metatable(obj)[event]
+
+This should be read as
+
+     rawget(getmetatable(obj) or {}, event)
+
+This means that the access to a metamethod does not invoke other metamethods, 
+and access to objects with no metatables does not fail (it simply results in nil).
+
+For the unary - and # operators, the metamethod is called with a dummy second argument. 
+This extra argument is only to simplify Lua's internals; 
+it may be removed in future versions and therefore it is not present in the following code. 
+(For most uses this extra argument is irrelevant.)
+
+"add": the + operation.
+
+The function getbinhandler below defines how Lua chooses a handler for a binary operation. 
+First, Lua tries the first operand. 
+If its type does not define a handler for the operation, then Lua tries the second operand.
+
+     function getbinhandler (op1, op2, event)
+       return metatable(op1)[event] or metatable(op2)[event]
+     end
+
+By using this function, the behavior of the op1 + op2 is
+
+     function add_event (op1, op2)
+       local o1, o2 = tonumber(op1), tonumber(op2)
+       if o1 and o2 then  -- both operands are numeric?
+         return o1 + o2   -- '+' here is the primitive 'add'
+       else  -- at least one of the operands is not numeric
+         local h = getbinhandler(op1, op2, "__add")
+         if h then
+           -- call the handler with both operands
+           return (h(op1, op2))
+         else  -- no handler available: default behavior
+           error(···)
+         end
+       end
+     end
+
+"sub": the - operation. Behavior similar to the "add" operation.
+
+"mul": the * operation. Behavior similar to the "add" operation.
+
+"div": the / operation. Behavior similar to the "add" operation.
+
+"mod": the % operation. 
+Behavior similar to the "add" operation, with the operation o1 - floor(o1/o2)*o2 as the primitive operation.
+
+"pow": the ^ (exponentiation) operation. 
+Behavior similar to the "add" operation, with the function pow (from the C math library) as the primitive operation.
+
+"unm": the unary - operation.
+     function unm_event (op)
+       local o = tonumber(op)
+       if o then  -- operand is numeric?
+         return -o  -- '-' here is the primitive 'unm'
+       else  -- the operand is not numeric.
+         -- Try to get a handler from the operand
+         local h = metatable(op).__unm
+         if h then
+           -- call the handler with the operand
+           return (h(op))
+         else  -- no handler available: default behavior
+           error(···)
+         end
+       end
+     end
+
+"concat": the .. (concatenation) operation.
+     function concat_event (op1, op2)
+       if (type(op1) == "string" or type(op1) == "number") and
+          (type(op2) == "string" or type(op2) == "number") then
+         return op1 .. op2  -- primitive string concatenation
+       else
+         local h = getbinhandler(op1, op2, "__concat")
+         if h then
+           return (h(op1, op2))
+         else
+           error(···)
+         end
+       end
+     end
+
+"len": the # operation.
+     function len_event (op)
+       if type(op) == "string" then
+         return strlen(op)      -- primitive string length
+       else
+         local h = metatable(op).__len
+         if h then
+           return (h(op))       -- call handler with the operand
+         elseif type(op) == "table" then
+           return #op              -- primitive table length
+         else  -- no handler available: error
+           error(···)
+         end
+       end
+     end
+
+See §3.4.6 for a description of the length of a table.
+
+"eq": the == operation. 
+The function getequalhandler defines how Lua chooses a metamethod for equality. 
+A metamethod is selected only when both values being compared have the same type and the same metamethod for the selected operation, 
+and the values are either tables or full userdata.
+
+     function getequalhandler (op1, op2)
+       if type(op1) ~= type(op2) or
+          (type(op1) ~= "table" and type(op1) ~= "userdata") then
+         return nil     -- different values
+       end
+       local mm1 = metatable(op1).__eq
+       local mm2 = metatable(op2).__eq
+       if mm1 == mm2 then return mm1 else return nil end
+     end
+
+The "eq" event is defined as follows:
+
+     function eq_event (op1, op2)
+       if op1 == op2 then   -- primitive equal?
+         return true   -- values are equal
+       end
+       -- try metamethod
+       local h = getequalhandler(op1, op2)
+       if h then
+         return not not h(op1, op2)
+       else
+         return false
+       end
+     end
+
+Note that the result is always a boolean.
+
+"lt": the < operation.
+     function lt_event (op1, op2)
+       if type(op1) == "number" and type(op2) == "number" then
+         return op1 < op2   -- numeric comparison
+       elseif type(op1) == "string" and type(op2) == "string" then
+         return op1 < op2   -- lexicographic comparison
+       else
+         local h = getbinhandler(op1, op2, "__lt")
+         if h then
+           return not not h(op1, op2)
+         else
+           error(···)
+         end
+       end
+     end
+
+Note that the result is always a boolean.
+
+"le": the <= operation.
+     function le_event (op1, op2)
+       if type(op1) == "number" and type(op2) == "number" then
+         return op1 <= op2   -- numeric comparison
+       elseif type(op1) == "string" and type(op2) == "string" then
+         return op1 <= op2   -- lexicographic comparison
+       else
+         local h = getbinhandler(op1, op2, "__le")
+         if h then
+           return not not h(op1, op2)
+         else
+           h = getbinhandler(op1, op2, "__lt")
+           if h then
+             return not h(op2, op1)
+           else
+             error(···)
+           end
+         end
+       end
+     end
+
+Note that, in the absence of a "le" metamethod, Lua tries the "lt", assuming that a <= b is equivalent to not (b < a).
+
+As with the other comparison operators, the result is always a boolean.
+
+"index": The indexing access table[key]. 
+Note that the metamethod is tried only when key is not present in table. 
+(When table is not a table, no key is ever present, so the metamethod is always tried.)
+
+     function gettable_event (table, key)
+       local h
+       if type(table) == "table" then
+         local v = rawget(table, key)
+         -- if key is present, return raw value
+         if v ~= nil then return v end
+         h = metatable(table).__index
+         if h == nil then return nil end
+       else
+         h = metatable(table).__index
+         if h == nil then
+           error(···)
+         end
+       end
+       if type(h) == "function" then
+         return (h(table, key))     -- call the handler
+       else return h[key]           -- or repeat operation on it
+       end
+     end
+
+"newindex": The indexing assignment table[key] = value. 
+Note that the metamethod is tried only when key is not present in table.
+
+     function settable_event (table, key, value)
+       local h
+       if type(table) == "table" then
+         local v = rawget(table, key)
+         -- if key is present, do raw assignment
+         if v ~= nil then rawset(table, key, value); return end
+         h = metatable(table).__newindex
+         if h == nil then rawset(table, key, value); return end
+       else
+         h = metatable(table).__newindex
+         if h == nil then
+           error(···)
+         end
+       end
+       if type(h) == "function" then
+         h(table, key,value)           -- call the handler
+       else h[key] = value             -- or repeat operation on it
+       end
+     end
+
+"call": called when Lua calls a value.
+
+     function function_event (func, ...)
+       if type(func) == "function" then
+         return func(...)   -- primitive call
+       else
+         local h = metatable(func).__call
+         if h then
+           return h(func, ...)
+         else
+           error(···)
+         end
+       end
+     end
+
+=============
+2.5 – Garbage Collection
+垃圾回收
+
+Lua performs automatic memory management. This means that you have to worry neither about allocating memory for new objects nor about freeing it when the objects are no longer needed. Lua manages memory automatically by running a garbage collector to collect all dead objects (that is, objects that are no longer accessible from Lua). All memory used by Lua is subject to automatic management: strings, tables, userdata, functions, threads, internal structures, etc.
+
+Lua implements an incremental mark-and-sweep collector. It uses two numbers to control its garbage-collection cycles: the garbage-collector pause and the garbage-collector step multiplier. Both use percentage points as units (e.g., a value of 100 means an internal value of 1).
+
+The garbage-collector pause controls how long the collector waits before starting a new cycle. Larger values make the collector less aggressive. Values smaller than 100 mean the collector will not wait to start a new cycle. A value of 200 means that the collector waits for the total memory in use to double before starting a new cycle.
+
+The garbage-collector step multiplier controls the relative speed of the collector relative to memory allocation. Larger values make the collector more aggressive but also increase the size of each incremental step. Values smaller than 100 make the collector too slow and can result in the collector never finishing a cycle. The default is 200, which means that the collector runs at "twice" the speed of memory allocation.
+
+If you set the step multiplier to a very large number (larger than 10% of the maximum number of bytes that the program may use), the collector behaves like a stop-the-world collector. If you then set the pause to 200, the collector behaves as in old Lua versions, doing a complete collection every time Lua doubles its memory usage.
+
+You can change these numbers by calling lua_gc in C or collectgarbage in Lua. You can also use these functions to control the collector directly (e.g., stop and restart it).
+
+As an experimental feature in Lua 5.2, you can change the collector's operation mode from incremental to generational. A generational collector assumes that most objects die young, and therefore it traverses only young (recently created) objects. This behavior can reduce the time used by the collector, but also increases memory usage (as old dead objects may accumulate). To mitigate this second problem, from time to time the generational collector performs a full collection. Remember that this is an experimental feature; you are welcome to try it, but check your gains.
+
+====
+2.5.1 – Garbage-Collection Metamethods
+
+You can set garbage-collector metamethods for tables and, using the C API, for full userdata (see §2.4). These metamethods are also called finalizers. Finalizers allow you to coordinate Lua's garbage collection with external resource management (such as closing files, network or database connections, or freeing your own memory).
+
+For an object (table or userdata) to be finalized when collected, you must mark it for finalization. You mark an object for finalization when you set its metatable and the metatable has a field indexed by the string "__gc". Note that if you set a metatable without a __gc field and later create that field in the metatable, the object will not be marked for finalization. However, after an object is marked, you can freely change the __gc field of its metatable.
+
+When a marked object becomes garbage, it is not collected immediately by the garbage collector. Instead, Lua puts it in a list. After the collection, Lua does the equivalent of the following function for each object in that list:
+
+     function gc_event (obj)
+       local h = metatable(obj).__gc
+       if type(h) == "function" then
+         h(obj)
+       end
+     end
+At the end of each garbage-collection cycle, the finalizers for objects are called in the reverse order that they were marked for collection, among those collected in that cycle; that is, the first finalizer to be called is the one associated with the object marked last in the program. The execution of each finalizer may occur at any point during the execution of the regular code.
+
+Because the object being collected must still be used by the finalizer, it (and other objects accessible only through it) must be resurrected by Lua. Usually, this resurrection is transient, and the object memory is freed in the next garbage-collection cycle. However, if the finalizer stores the object in some global place (e.g., a global variable), then there is a permanent resurrection. In any case, the object memory is freed only when it becomes completely inaccessible; its finalizer will never be called twice.
+
+When you close a state (see lua_close), Lua calls the finalizers of all objects marked for finalization, following the reverse order that they were marked. If any finalizer marks new objects for collection during that phase, these new objects will not be finalized.
+
+====
+2.5.2 – Weak Tables
+
+A weak table is a table whose elements are weak references. A weak reference is ignored by the garbage collector. In other words, if the only references to an object are weak references, then the garbage collector will collect that object.
+
+A weak table can have weak keys, weak values, or both. A table with weak keys allows the collection of its keys, but prevents the collection of its values. A table with both weak keys and weak values allows the collection of both keys and values. In any case, if either the key or the value is collected, the whole pair is removed from the table. The weakness of a table is controlled by the __mode field of its metatable. If the __mode field is a string containing the character 'k', the keys in the table are weak. If __mode contains 'v', the values in the table are weak.
+
+A table with weak keys and strong values is also called an ephemeron table. In an ephemeron table, a value is considered reachable only if its key is reachable. In particular, if the only reference to a key comes through its value, the pair is removed.
+
+Any change in the weakness of a table may take effect only at the next collect cycle. In particular, if you change the weakness to a stronger mode, Lua may still collect some items from that table before the change takes effect.
+
+Only objects that have an explicit construction are removed from weak tables. Values, such as numbers and light C functions, are not subject to garbage collection, and therefore are not removed from weak tables (unless its associated value is collected). Although strings are subject to garbage collection, they do not have an explicit construction, and therefore are not removed from weak tables.
+
+Resurrected objects (that is, objects being finalized and objects accessible only through objects being finalized) have a special behavior in weak tables. They are removed from weak values before running their finalizers, but are removed from weak keys only in the next collection after running their finalizers, when such objects are actually freed. This behavior allows the finalizer to access properties associated with the object through weak tables.
+
+If a weak table is among the resurrected objects in a collection cycle, it may not be properly cleared until the next cycle.
+
+=========
+2.6 – Coroutines
+协程
+
+Lua supports coroutines, also called collaborative multithreading. A coroutine in Lua represents an independent thread of execution. Unlike threads in multithread systems, however, a coroutine only suspends its execution by explicitly calling a yield function.
+
+You create a coroutine by calling coroutine.create. Its sole argument is a function that is the main function of the coroutine. The create function only creates a new coroutine and returns a handle to it (an object of type thread); it does not start the coroutine.
+
+You execute a coroutine by calling coroutine.resume. When you first call coroutine.resume, passing as its first argument a thread returned by coroutine.create, the coroutine starts its execution, at the first line of its main function. Extra arguments passed to coroutine.resume are passed on to the coroutine main function. After the coroutine starts running, it runs until it terminates or yields.
+
+A coroutine can terminate its execution in two ways: normally, when its main function returns (explicitly or implicitly, after the last instruction); and abnormally, if there is an unprotected error. In the first case, coroutine.resume returns true, plus any values returned by the coroutine main function. In case of errors, coroutine.resume returns false plus an error message.
+
+A coroutine yields by calling coroutine.yield. When a coroutine yields, the corresponding coroutine.resume returns immediately, even if the yield happens inside nested function calls (that is, not in the main function, but in a function directly or indirectly called by the main function). In the case of a yield, coroutine.resume also returns true, plus any values passed to coroutine.yield. The next time you resume the same coroutine, it continues its execution from the point where it yielded, with the call to coroutine.yield returning any extra arguments passed to coroutine.resume.
+
+Like coroutine.create, the coroutine.wrap function also creates a coroutine, but instead of returning the coroutine itself, it returns a function that, when called, resumes the coroutine. Any arguments passed to this function go as extra arguments to coroutine.resume. coroutine.wrap returns all the values returned by coroutine.resume, except the first one (the boolean error code). Unlike coroutine.resume, coroutine.wrap does not catch errors; any error is propagated to the caller.
+
+As an example of how coroutines work, consider the following code:
+
+     function foo (a)
+       print("foo", a)
+       return coroutine.yield(2*a)
+     end
+     
+     co = coroutine.create(function (a,b)
+           print("co-body", a, b)
+           local r = foo(a+1)
+           print("co-body", r)
+           local r, s = coroutine.yield(a+b, a-b)
+           print("co-body", r, s)
+           return b, "end"
+     end)
+     
+     print("main", coroutine.resume(co, 1, 10))
+     print("main", coroutine.resume(co, "r"))
+     print("main", coroutine.resume(co, "x", "y"))
+     print("main", coroutine.resume(co, "x", "y"))
+When you run it, it produces the following output:
+
+     co-body 1       10
+     foo     2
+     main    true    4
+     co-body r
+     main    true    11      -9
+     co-body x       y
+     main    true    10      end
+     main    false   cannot resume dead coroutine
+
+You can also create and manipulate coroutines through the C API: see functions lua_newthread, lua_resume, and lua_yield.
+
