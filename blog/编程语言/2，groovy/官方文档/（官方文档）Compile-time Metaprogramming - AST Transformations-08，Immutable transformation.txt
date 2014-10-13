@@ -1,0 +1,25 @@
+﻿（官方文档）Compile-time Metaprogramming - AST Transformations-08，Immutable transformation
+http://groovy.codehaus.org/Immutable+transformation
+
+Immutable objects are ones which don't change after initial creation. Such objects are frequently desirable because they are simple and can be safely shared even in multi-threading contexts. This makes them great for functional and concurrent scenarios. The rules for creating such objects are well-known:
+
+No mutators (methods that modify internal state)
+Class must be final
+Fields must be private and final
+Defensive copying of mutable components
+equals(), hashCode() and toString() must be implemented in terms of the fields if you want to compare your objects or use them as keys in e.g. maps
+Instead of writing a very long Java or Groovy class mimicking this immutability behavior, Groovy lets you just write an immutable class as follow:
+
+
+@Immutable final class Coordinates {
+    Double latitude, longitude
+}
+
+def c1 = new Coordinates(latitude: 48.824068, longitude: 2.531733)
+def c2 = new Coordinates(48.824068, 2.531733)
+
+assert c1 == c2
+All the boiler-plate code is generated at compile-time for you! The example shows that to instantiate such immutable coordinates, you can use one of the two constructors created by the transformation, one taking a map whose keys are the properties to set to the values associated with those keys, and the other taking the values of the properties as parameters. The assert also shows that equals() was implemented and allows us to properly compare such immutable objects.
+
+You can have a look at the details of the implementation of this transformation. For the record, the Groovy example above using the @Immutable transformation is over 50 lines of equivalent Java code.
+

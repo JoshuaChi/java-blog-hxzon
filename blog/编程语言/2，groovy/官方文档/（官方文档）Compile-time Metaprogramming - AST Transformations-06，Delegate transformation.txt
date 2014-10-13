@@ -1,0 +1,77 @@
+﻿（官方文档）Compile-time Metaprogramming - AST Transformations-06，Delegate transformation
+http://groovy.codehaus.org/Delegate+transformation
+
+Java doesn't provide any built-in delegation mechanism, and so far Groovy didn't either. But with the @Delegate transformation, a class field or property can be annotated and become an object to which method calls are delegated. In the following example, an Event class has a date delegate, and the compiler will delegate all of Date's methods invoked on the Event class to the Date delegate. As shown in the latest assert, the Event class has got a before(Date) method, and all of Date's methods.
+
+
+import java.text.SimpleDateFormat
+
+class Event {
+    @Delegate Date when
+    String title, url
+}
+
+def df = new SimpleDateFormat("yyyy/MM/dd")
+
+def gr8conf = new Event(title: "GR8 Conference",
+                          url: "http://www.gr8conf.org",
+                         when: df.parse("2009/05/18"))
+def javaOne = new Event(title: "JavaOne",
+                          url: "http://java.sun.com/javaone/",
+                         when: df.parse("2009/06/02"))
+
+assert gr8conf.before(javaOne.when)
+The Groovy compiler adds all of Date's methods to the Event class, and those methods simply delegate the call to the Date field. If the delegate is not a final class, it is even possible to make the Event class a subclass of Date simply by extending Date, as shown below. No need to implement the delegation ourselves by adding each and every Date methods to our Event class, since the compiler is friendly-enough with us to do the job itself.
+
+
+class Event extends Date {
+    @Delegate Date when
+    String title, url
+}
+In the case you are delegating to an interface, however, you don't even need to explictely say you implement the interface of the delegate. The @Delegate transformation will take care of this and implement that interface. So the instances of your class will automatically be instanceof the delegate's interface.import java.util.concurrent.locks.*
+
+
+class LockableList {
+    @Delegate private List list = \[\]
+    @Delegate private Lock lock = new ReentrantLock()
+}
+
+def list = new LockableList()
+
+list.lock()
+try {
+    list << 'Groovy'
+    list << 'Grails'
+    list << 'Griffon'
+} finally {
+    list.unlock()
+}
+
+assert list.size() == 3
+assert list instanceof Lock
+assert list instanceof List
+In this example, our LockableList is now a composite of a list and a lock and is instanceof of List and Lock. However, if you didn't intend your class to be implementing these interfaces, you would still be able to do so by specifying a parameter on the annotation:@Delegate(interfaces = false) private List list = []
+
+Let's have a look at another simple usage of @Delegate, for wrapping an existing class, delegating all calls to the delegate:
+
+
+class Photo {
+    int width
+    int height
+}
+
+class PhotoSelection {
+    @Delegate Photo photo
+
+    String title
+    String caption
+}
+
+def photo = new Photo(width: 640, height: 480)
+def selection = new PhotoSelection(title: "Groovy", caption: "Groovy", photo: photo)
+
+assert selection.title == "Groovy"
+assert selection.caption == "Groovy"
+
+assert selection.width == 640
+assert selection.height == 480

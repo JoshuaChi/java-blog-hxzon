@@ -1,0 +1,55 @@
+﻿（官方文档）Dynamic Groovy-6，Per-Instance MetaClass
+http://groovy.codehaus.org/Per-Instance+MetaClass
+
+Adding Methods to an Instance
+
+Normally when you add a MetaMethod, it is added for all instances of that class. However, you can dynamically add methods to individual instances by giving that instance its own MetaClass.
+
+For Groovy version 1.6 and higher - any Groovy or Java object
+
+def str = "hello"
+str.metaClass.test = { "test" }
+assert "test" == str.test()
+For Groovy prior to version 1.6 - GroovyObjects only!
+
+def test = "test"
+def gstr = "hello $test"     // this is a GString, which implements GroovyObject
+
+def emc = new ExpandoMetaClass( gstr.class, false )
+emc.test = { println "test" }
+emc.initialize()
+
+gstr.metaClass = emc
+gstr.test()                  // prints "test"
+Note that you cannot do this:
+
+
+gstr.metaClass = new ExpandoMetaClass( gstr.class )
+gstr.metaClass.test = { println "test" }
+because you must call emc.initialize() before making any method calls on the instance. But you can't add MetaMethods after calling initialize()! This is bit of a catch 22 because the ExpandoMetaClass is intercepting methods to itself. The solution is (as shown in the first example) to simply add the MetaMethods before assigning the new MetaClass to your instance.
+
+The other option is to set the set emc.allowChangesAfterInit = true. This will allow you to add additional methods on the MetaClass after it is in use.
+
+Note
+
+Icon
+Be sure to use the proper constructor, new ExpandoMetaClass(MyClass,false). The false parameter keeps the MetaClass from being inserted into the Registry. Otherwise your new MetaClass will be used for all instances of MyClass, not just the instance it is assigned to.
+
+Compatibility
+
+Icon
+Only works in Groovy 1.1-beta-3 and above. Use the Proxy class in older versions to achieve a per-instance behaviour change.
+
+If your Instance is not a GroovyObject
+If your instance is a plain Java type, it will not implement GroovyObject, and consequently, will not have a metaClass property. In this case you must wrap your instance in a groovy.util.Proxy:
+
+
+ExpandoMetaClass emc = new ExpandoMetaClass( Object, false )
+emc.boo = { "Surprise!" }
+emc.initialize()
+
+def obj = new groovy.util.Proxy().wrap( new Object() )
+obj.setMetaClass( emc )
+assert obj.boo() == "Surprise!"
+Note that this example is calling the setMetaClass(..) method rather than using the property notation in the previous example. This is because Proxy intercepts method calls only, not property access.
+

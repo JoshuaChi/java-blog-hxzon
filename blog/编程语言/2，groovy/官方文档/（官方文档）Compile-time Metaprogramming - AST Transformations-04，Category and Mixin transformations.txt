@@ -1,0 +1,79 @@
+﻿（官方文档）Compile-time Metaprogramming - AST Transformations-04，Category and Mixin transformations
+http://groovy.codehaus.org/Category+and+Mixin+transformations
+
+If you've been using Groovy for a while, you're certainly familiar with the concept of Categories. It's a mechanism to extend existing types (even final classes from the JDK or third-party libraries), to add new methods to them. This is also a technique which can be used when writing Domain-Specific Languages. Let's consider the example below:
+
+
+final class Distance {
+    def number
+    String toString() { "${number}m" }
+}
+
+class NumberCategory {
+    static Distance getMeters(Number self) {
+        new Distance(number: self)
+    }
+}
+
+use(NumberCategory) {
+    def dist = 300.meters
+
+    assert dist instanceof Distance
+    assert dist.toString() == "300m"
+}
+We have a simplistic and fictive Distance class which may have been provided by a third-party, who had the bad idea of making the class final so that nobody could ever extend it in any way. But thanks to a Groovy Category, we are able to decorate the Distance type with additional methods. Here, we're going to add a getMeters() method to numbers, by actually decorating the Number type. By adding a getter to a number, you're able to reference it using the nice property syntax of Groovy. So instead of writing 300.getMeters(), you're able to write 300.meters.
+
+The downside of this category system and notation is that to add instance methods to other types, you have to create static methods, and furthermore, there's a first argument which represents the instance of the type we're working on. The other arguments are the normal arguments the method will take as parameters. So it may be a bit less intuitive than a normal method definition we would have added to Distance, should we have had access to its source code for enhancing it. Here comes the @Category annotation, which transforms a class with instance methods into a Groovy category:
+
+
+@Category(Number)
+class NumberCategory {
+    Distance getMeters() {
+        new Distance(number: this)
+    }
+}
+No need for declaring the methods static, and the this you use here is actually the number on which the category will apply, it's not the real this of the category instance should we create one. Then to use the category, you can continue to use the use(Category) {} construct. What you'll notice however is that these kind of categories only apply to one single type at a time, unlike classical categories which can be applied to any number of types.
+
+Now, pair @Category extensions to the @Mixin transformation, and you can mix in various behavior in a class, with an approach similar to multiple inheritance:
+
+
+@Category(Vehicle) class FlyingAbility {
+    def fly() { "I'm the ${name} and I fly!" }
+}
+
+@Category(Vehicle) class DivingAbility {
+    def dive() { "I'm the ${name} and I dive!" }
+}
+
+interface Vehicle {
+    String getName()
+}
+
+@Mixin(DivingAbility)
+class Submarine implements Vehicle {
+    String getName() { "Yellow Submarine" }
+}
+
+@Mixin(FlyingAbility)
+class Plane implements Vehicle {
+    String getName() { "Concorde" }
+}
+
+@Mixin([DivingAbility, FlyingAbility])
+class JamesBondVehicle implements Vehicle {
+    String getName() { "James Bond's vehicle" }
+}
+
+assert new Plane().fly() ==
+       "I'm the Concorde and I fly!"
+assert new Submarine().dive() ==
+       "I'm the Yellow Submarine and I dive!"
+
+assert new JamesBondVehicle().fly() ==
+       "I'm the James Bond's vehicle and I fly!"
+assert new JamesBondVehicle().dive() ==
+       "I'm the James Bond's vehicle and I dive!"
+You don't inherit from various interfaces and inject the same behavior in each subclass, instead you mixin the categories into your class. Here, our marvelous James Bond vehicle gets the flying and diving capabilities through mixins.
+
+An important point to make here is that unlike @Delegate which can inject interfaces into the class in which the delegate is declared, @Mixin just does runtime mixing — as we shall see in the metaprogramming enhancements further down in this article.
+

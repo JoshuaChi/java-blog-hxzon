@@ -1,0 +1,91 @@
+﻿（官方文档）Dynamic Groovy-5，Local AST Transformations
+http://groovy.codehaus.org/Local+AST+Transformations
+
+Groovy 1.6 provides two options for hooking into the Groovy compiler for compile-time metaprogramming: local and global AST transformations. This page explains how to write and debug a local AST transformation.
+
+As a naive and simple example, consider wanting to write a @WithLogging annotation that would add console messages at the start and end of a method invocation. So the following "Hello World" example would actually print "Hello World" along with a start and stop message:
+
+
+@WithLogging
+def greet() {
+    println "Hello World"
+}
+
+greet()
+A poor man's aspect oriented programming, if you will.
+
+A local AST transformation is an easy way to do this. It requires two things: a definition of the @WithLogging annotation and an implementation of ASTTransformation that adds the logging expressions to the method.
+
+An ASTTransformation is a callback that gives you access to the SourceUnit, through which you can get a reference to the AST. The AST is a tree structure of Expression objects that the source code has been transformed into. An easy way to learn about the AST is to explore it in a debugger, which will be shown shortly. Once you have the AST, you can analyze it to find out information about the code or rewrite it to add new functionality.
+
+The local transformation annotation is the simple part. Here is the @WithLogging one:
+
+
+import org.codehaus.groovy.transform.GroovyASTTransformationClass
+
+@Retention(RetentionPolicy.SOURCE)
+@Target([ElementType.METHOD])
+@GroovyASTTransformationClass(["gep.LoggingASTTransformation"])
+public @interface WithLogging {
+}
+The annotation retention can be SOURCE, you won't need the annotation past that. The element type here is METHOD, the @WithLogging annotation applies to methods. But the most important part is the @GroovyASTTransformationClass annotation. This links the @WithLogging annotation to the ASTTransformation subclass you will write. gep.LoggingTransformation is the full package and class of my ASTTransformation. This line wires the annotation to the transformation.
+
+With this in place, the Groovy compiler is going to try to invoke gep.LoggingASTTransformation every time an @WithLogging is found in a source unit. Any breakpoint set within LoggingASTTransformation will now be hit within the IDE when running the sample script.
+
+The ASTTransformation subclass is a little more complex. Here is the very simple, and very naive, transformation to add a method start and stop message for @WithLogging:
+
+
+@GroovyASTTransformation(phase=CompilePhase.SEMANTIC_ANALYSIS)
+public class LoggingASTTransformation implements ASTTransformation {
+
+    public void visit(ASTNode[] nodes, SourceUnit sourceUnit) {
+        List methods = sourceUnit.getAST()?.getMethods()
+        // find all methods annotated with @WithLogging
+        methods.findAll { MethodNode method ->
+            method.getAnnotations(new ClassNode(WithLogging))
+        }.each { MethodNode method ->
+            Statement startMessage = createPrintlnAst("Starting $method.name")
+            Statement endMessage = createPrintlnAst("Ending $method.name")
+
+            List existingStatements = method.getCode().getStatements()
+            existingStatements.add(0, startMessage)
+            existingStatements.add(endMessage)
+        }
+    }
+
+    private Statement createPrintlnAst(String message) {
+        return new ExpressionStatement(
+            new MethodCallExpression(
+                new VariableExpression("this"),
+                new ConstantExpression("println"),
+                new ArgumentListExpression(
+                    new ConstantExpression(message)
+                )
+            )
+        )
+    }
+}
+Starting at the top...
+
+The @GroovyASTTransformation(phase=CompilePhase.SEMANTIC_ANALYSIS) line tells the Groovy compiler that this is a local transformation that applies to the SEMANTIC_ANALYSIS CompilePhase. Local transformations can only be applied at semantic analysis or later phases, and this line is required!
+
+The public visit(ASTNode[], SourceUnit) method is called once per annotated node (class, method, or field; method parameters don't seem to be supported). The first element in the ASTNode array holds the annotation, the second one the annotated node. The AST you receive is not for the @WithLogging annotated method, it is for the entire file that contains @WithLogging. This example is just using findAll to locate methods that are annotated with @WithLogging, then using an each statement to wrap any annotated method with print lines. A method to the compiler is simply a list of Statement objects, so the example adds a statement zero logging the start message and appending a statement to the list with the end message.
+
+Note the creation of the new println statements in the createPrintlnAst(String) method. Creating AST for code is not always simple. In this case we need to construct a new method call, passing in the receiver/variable, the name of the method, and an argument list. When creating AST, it might be helpful to write the code you're trying to create in a Groovy file and then inspect the AST of that code in the debugger to learn what to create. Then write a function like createPrintlnAst using what you learned through the debugger.
+
+The final result:
+
+
+@WithLogging
+def greet() {
+    println "Hello World"
+}
+
+greet()
+Produces:
+
+
+Starting greet
+Hello World
+Ending greet
+

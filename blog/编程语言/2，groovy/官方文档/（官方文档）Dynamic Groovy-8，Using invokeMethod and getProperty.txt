@@ -1,0 +1,66 @@
+﻿（官方文档）Dynamic Groovy-8，Using invokeMethod and getProperty
+http://groovy.codehaus.org/Using+invokeMethod+and+getProperty
+
+Using invokeMethod & getProperty
+
+Since 1.0, Groovy supports the ability to intercept all method and property access via the invokeMethod and get/setProperty hooks. If you only want to intercept failed method/property access take a look at Using methodMissing and propertyMissing.
+
+Overriding invokeMethod
+In any Groovy class you can override invokeMethod which will essentially intercept all method calls (to intercept calls to existing methods, the class additionally has to implement the GroovyInterceptable interface). This makes it possible to construct some quite interesting DSLs and builders.
+
+For example a trivial XmlBuilder could be written as follows (note Groovy ships with much richer XML APIs and this just serves as an example):
+
+
+class XmlBuilder {
+   def out
+   XmlBuilder(out) { this.out = out }
+   def invokeMethod(String name, args) {
+       out << "<$name>"
+       if(args[0] instanceof Closure) {
+            args[0].delegate = this
+            args[0].call()
+       }
+       else {
+           out << args[0].toString()
+       }
+       out << "</$name>"
+   }
+}
+def xml = new XmlBuilder(new StringBuffer())
+xml.html {
+    head {
+        title "Hello World"
+    }
+    body {
+        p "Welcome!"
+    }
+}
+Another simple usage of invokeMethod is to provide simple AOP style around advice to existing methods. Here is a simple logging example implemented with invokeMethod:
+
+
+class MyClass implements GroovyInterceptable {
+    def invokeMethod(String name, args) {
+????????
+        System.out.println ("Beginning $name")
+????      def metaMethod = metaClass.getMetaMethod(name, args)
+        def result = metaMethod.invoke(this, args)
+??????     System.out.println ("Completed $name")
+        return result??
+    }
+}
+Overriding getProperty and setProperty
+You can also override property access using the getProperty and setProperty property access hooks. For example it is possible to write a trival "Expandable" object using this technique:
+
+
+class Expandable {
+    def storage = [:]
+    def getProperty(String name) { storage[name] }
+    void setProperty(String name, value) { storage[name] = value }
+}
+
+def e = new Expandable()
+e.foo = "bar"
+println e.foo
+
+
+

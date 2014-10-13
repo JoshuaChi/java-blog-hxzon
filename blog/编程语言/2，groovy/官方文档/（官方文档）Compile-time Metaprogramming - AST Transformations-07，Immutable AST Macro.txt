@@ -1,0 +1,95 @@
+﻿（官方文档）Compile-time Metaprogramming - AST Transformations-07，Immutable AST Macro
+http://groovy.codehaus.org/Immutable+AST+Macro
+
+The @Immutable Annotation
+Immutable objects are ones which don't change after initial creation. Such objects are frequently desirable because they are simple and can be safely shared even in multi-threading contexts. This makes them great for functional and concurrent scenarios. The rules for creating such objects are well-known:
+
+No mutators (methods that modify internal state)
+Class must be final
+Fields must be private and final
+Defensive copying of mutable components
+equals, hashCode and toString must be implemented in terms of the fields if you want to compare your objects or use them as keys in e.g. maps
+Writing classes that follow these rules is not hard but does involve a fair bit of boiler plate code and is prone to error. Here is what such a class might look like in Java:
+
+
+// Java
+public final class Punter {
+    private final String first;
+    private final String last;
+
+    public Punter(String first, String last) {
+        this.first = first;
+        this.last = last;
+    }
+
+    public String getFirst() {
+        return first;
+    }
+
+    public String getLast() {
+        return last;
+    }
+
+    @Override
+    public int hashCode() {
+        final int prime = 31;
+        int result = 1;
+        result = prime * result + ((first == null)
+            ? 0 : first.hashCode());
+        result = prime * result + ((last == null)
+            ? 0 : last.hashCode());
+        return result;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj)
+            return true;
+        if (obj == null)
+            return false;
+        if (getClass() != obj.getClass())
+            return false;
+        Punter other = (Punter) obj;
+        if (first == null) {
+            if (other.first != null)
+                return false;
+        } else if (!first.equals(other.first))
+            return false;
+        if (last == null) {
+            if (other.last != null)
+                return false;
+        } else if (!last.equals(other.last))
+            return false;
+        return true;
+    }
+
+    @Override
+    public String toString() {
+        return "Punter(first:" + first
+            + ", last:" + last + ")";
+    }
+
+}
+Groovy makes it easier to create such classes using the @Immutable annotation. You only need this:
+
+
+@Immutable final class Punter {
+    String first, last
+}
+The "other code" shown above is added at compile time. All of the methods you see above will be there (and you can use them from Java of course). You just don't need to develop and maintain them.
+
+The Details
+A class created using @Immutable has the following characteristics:
+
+Properties automatically have private, final backing fields with getters.
+Attempts to update the property will result in a ReadOnlyPropertyException.
+A map-based constructor is provided which allows you to set properties by name.
+A tuple-style constructor is provided which allows you to set properties in the same order as they are defined.
+Default equals, hashCode and toString methods are provided based on the property values.
+Date objects, Cloneable objects and arrays are defensively copied on the way in (constructor) and out (getters).
+Arrays and cloneable objects use the clone method. For your own classes, it is up to you to define this method and use deep cloning if appropriate.
+Collection objects and Map objects are wrapped by immutable wrapper classes (but not deeply cloned!).
+Attempts to update them will result in an UnsupportedOperationException.
+Fields that are enums or other @Immutable classes are allowed but for an otherwise possible mutable property type, an error is thrown.
+You don't have to follow Groovy's normal property conventions, e.g. you can create an explicit private field and then you can write explicit get and set methods. Such an approach, isn't currently prohibited (to give you some wiggle room to get around these conventions) but any fields created in this way are deemed not to be part of the significant state of the object and aren't factored into the equals or hashCode methods. Use at your own risk!
+

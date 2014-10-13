@@ -1,0 +1,120 @@
+﻿（官方文档）Compile-time Metaprogramming - AST Transformations-03，Building AST Guide
+http://groovy.codehaus.org/Building+AST+Guide
+
+Building AST in Groovy 1.6 and Prior
+
+In Groovy 1.6 (and prior) there is one way to build Abstract Syntax Trees (AST) in code: using the constructors on the ASTNode subclasses.
+
+Here is an example of building a block of code that returns the String 'Hello'. A use case for this would be to create a method body implementation that simply returns 'Hello':
+
+
+AstNode node = new BlockStatement(
+    [new ReturnStatement(
+        new ConstantExpression("Hello")
+    )],
+    new VariableScope())
+Advantages
+Documentation is available in Javadoc/Groovydoc
+Supports being invoked from Java
+Supported in all Groovy versions
+Some IDEs support code completion and parameter lookup
+Disadvantages
+It can be difficult to determine what AST you need to write
+Verbose - does not communicate the source being created
+Fragile - AST may need to change between major releases
+Author must know what AST looks like in a particular CompilePhase
+Building AST in Groovy 1.7
+
+Groovy 1.7 introduces three new ways to build AST:
+
+From Strings
+From Code
+From a DSL-like Specification
+AstBuilder.buildFromString
+The AstBuilder object provides an API to build AST from Strings of Groovy source code. The original example using buildFromString is:
+
+
+List<ASTNode> nodes = new AstBuilder().buildFromString("\"Hello\"")
+Advantages
+Does not require author to understand ASTNode subtypes
+Allows author to target a CompilePhase
+Communicates source code being generated
+Robust - Should need no changes even if AST is updated in a release
+Disadvantages
+IDE cannot check syntax or grammar
+IDE cannot refactor across String
+Some entities cannot be created, like the AST for a field declaration
+AstBuilder.buildFromCode
+The AstBuilder object also provides an API to create AST from source code. The original example using buildFromCode is:
+
+
+List<ASTNode> nodes = new AstBuilder().buildFromCode { "Hello" }
+Advantages
+Clearly communicates source being generated
+Does not require author to understand ASTNode subtypes
+Allows author to target a CompilePhase
+Robust - Should need no changes even if AST is updated in a release
+IDE supports syntax checking and refactoring in Closure
+Disadvantages
+Some entities cannot be created, like the AST for a field declaration
+buildFromCode requires that the left hand side of the invocation be of type AstBuilder. The best way to ensure this is to invoke it with:
+
+new AstBuilder().buildFromCode { ... }
+rather than having a local variable or field of type AstBuilder.
+
+AstBuilder.buildFromSpec
+The AstBuilder object also provides a DSL like API for building AST. The original example using buildFromSpec is:  
+
+
+List<ASTNode> nodes = new AstBuilder().buildFromSpec {
+    block {
+        returnStatement {
+            constant "Hello"
+        }
+    }
+}
+Advantages
+Allows conditionals (or any Groovy code) to be executed during the AST building process.
+Allows any ASTNode subtype to be created
+Fully documented with lengthy examples in TestCase
+Disadvantages
+It can be difficult to determine what AST you need to write
+Verbose - does not always communicate the source being created
+Fragile - AST may need to change between major releases
+Author must know what AST looks like in a particular CompilePhase
+IDE does not <i>yet</i> provide code tips
+Mixing Methods
+
+Sometimes the best solution is to mix several types of the AST Builders. For instance, consider the following method:
+
+
+public String myMethod(String parameter) {
+    println 'Hello from a synthesized method!'
+    println "Parameter value: $parameter"
+}
+It might be best to use buildFromSpec to build the method declaration and buildFromCode to create the method body:
+
+
+List<ASTNode> result = new AstBuilder().buildFromSpec {
+    method('myMethod', Opcodes.ACC_PUBLIC, String) {
+        parameters {
+            parameter 'parameter': String.class
+        }
+        exceptions {}
+        block {
+            owner.expression.addAll new AstBuilder().buildFromCode {
+                println 'Hello from a synthesized method!'
+                println "Parameter value: $parameter"
+            }
+        }
+        annotations {}
+    }
+}
+Further Resources
+
+The test cases shipping with Groovy are an excellent resource.
+
+More examples can be found in GEP-2, the original proposal. http://docs.codehaus.org/display/GroovyJSR/GEP+2+-+AST+Builder+Support
+
+Examples and questions can be found on the groovy-user and groovy-dev mailing lists.
+

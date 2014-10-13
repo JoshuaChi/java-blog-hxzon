@@ -1,0 +1,42 @@
+﻿（官方文档）Compile-time Metaprogramming - AST Transformations-12，Singleton transformation
+http://groovy.codehaus.org/Singleton+transformation
+
+Whether the singleton is pattern or an anti-pattern, there are still some cases where we need to create singletons. We're used to create a private constructor, a getInstance() method for a static field or even an initialized public static final field. So instead of writing code like this in Java:
+
+
+public class T {
+    public static final T instance = new T();
+    private T() {}
+}
+You just need to annotate your type with the @Singleton annotation:
+
+
+@Singleton class T {}
+The singleton instance can then simply be accessed with T.instance (direct public field access).
+
+You can also have the lazy loading approach with an additional annotation parameter:
+
+
+@Singleton(lazy = true) class T {}
+Would become more or less equivalent to this Groovy class:
+
+
+class T {
+    private static volatile T instance
+    private T() {}
+    static T getInstance () {
+        if (instance) {
+            instance
+        } else {
+            synchronized(T) {
+                if (instance) {
+                    instance
+                } else {
+                    instance = new T ()
+                }
+            }
+        }
+    }
+}
+Lazy or not, once again, to access the instance, simply do T.instance (property access, shorcut for T.getInstance()).
+

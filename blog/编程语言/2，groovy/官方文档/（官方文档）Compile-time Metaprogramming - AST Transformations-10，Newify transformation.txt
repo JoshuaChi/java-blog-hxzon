@@ -1,0 +1,60 @@
+﻿（官方文档）Compile-time Metaprogramming - AST Transformations-10，Newify transformation
+http://groovy.codehaus.org/Newify+transformation
+
+The @Newify transformation proposes two new ways of instantiating classes. The first one is providing Ruby like approach to creating instances with a new() class method:
+
+
+@Newify rubyLikeNew() {
+    assert Integer.new(42) == 42
+}
+
+rubyLikeNew()
+But it is also possible to follow the Python approach with omitting the new keyword. Imagine the following tree creation:
+
+
+class Tree {
+    def elements
+    Tree(Object... elements) { this.elements = elements as List }
+}
+
+class Leaf {
+    def value
+    Leaf(value) { this.value = value }
+}
+
+def buildTree() {
+    new Tree(new Tree(new Leaf(1), new Leaf(2)), new Leaf(3))
+}
+
+buildTree()
+The creation of the tree is not very readable because of all those new keywords spread across the line. The Ruby approach wouldn't be more readable, since a new() method call for creating each element is needed. But by using @Newify, we can improve our tree building slightly to make it easier on the eye:
+
+
+@Newify([Tree, Leaf]) buildTree() {
+    Tree(Tree(Leaf(1), Leaf(2)), Leaf(3))
+}
+You'll also notice that we just allowed Tree and Leaf to be newified. By default, under the scope which is annotated, all instantiations are newified, but you can limit the reach by specifying the classes you're interested in. Also, note that for our example, perhaps a Groovy builder may have been more appropriate, since its purpose is to indeed create any kind of hierarchical / tree strucutre.
+
+If we take another look at our coordinates example from a few sections earlier, using both @Immutable and @Newify can be interesting for creating a path with a concise but type-safe manner:
+
+
+@Immutable final class Coordinates {
+    Double latitude, longitude
+}
+
+@Immutable final class Path {
+    Coordinates[] coordinates
+}
+
+@Newify([Coordinates, Path])
+def build() {
+    Path(
+        Coordinates(48.824068, 2.531733),
+        Coordinates(48.857840, 2.347212),
+        Coordinates(48.858429, 2.342622)
+    )
+}
+
+assert build().coordinates.size() == 3
+A closing remark here: since a Path(Coordinates[] coordinates) was generated, we can use that constructor in a varargs way in Groovy, just as if it had been defined as Path(Coordinates... coordinates).
+

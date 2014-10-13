@@ -1,0 +1,102 @@
+﻿（官方文档）Compile-time Metaprogramming - AST Transformations-02，Bindable and Vetoable transformation
+http://groovy.codehaus.org/Bindable+and+Vetoable+transformation
+
+To wrap up our overview of AST transformations, let's finish by speaking about two transformations very useful to Swing developers: @Bindable and @Vetoable. When creating Swing UIs, you're often interested in monitoring the changes of value of certain UI elements. For this purpose, the usual approach is to use JavaBeans PropertyChangeListeners to be notified when the value of a class field changes. You then end up writing this very common boiler-plate code in your Java beans:
+
+
+import java.beans.PropertyChangeSupport;
+import java.beans.PropertyChangeListener;
+
+public class MyBean {
+    private String prop;
+
+    PropertyChangeSupport pcs = new PropertyChangeSupport(this);
+
+    public void addPropertyChangeListener(PropertyChangeListener l) {
+        pcs.add(l);
+    }
+
+    public void removePropertyChangeListener(PropertyChangeListener l) {
+        pcs.remove(l);
+    }
+
+    public String getProp() {
+        return prop;
+    }
+
+    public void setProp(String prop) {
+        pcs.firePropertyChanged("prop", this.prop, this.prop = prop);
+    }
+}
+Fortunately, with Groovy and the @Bindable annotation, this code can be greatly simplified:
+
+
+class MyBean {
+    @Bindable String prop
+}
+Now pair that with Groovy's Swing builder new bind() method, define a text field and bind its value to a property of your data model:
+
+
+textField text: bind(source: myBeanInstance, sourceProperty: 'prop')
+Or even:
+
+
+textField text: bind { myBeanInstance.prop }
+The binding also works with simple expressions in the closure, for instance something like this is possible too:
+
+
+bean location: bind { pos.x + ', ' + pos.y }
+You may also be interested in having a look at ObservableMap and ObservableList, for a similar mechanism on maps and lists.
+
+Along with @Bindable, there's also a @Vetoable transformation for when you need to be able to veto some property change. Let's consider a Trompetist class, where the performer's name is not allowed to contain the letter 'z':
+
+
+import java.beans.*
+import groovy.beans.Vetoable
+
+class Trumpetist {
+    @Vetoable String name
+}
+
+def me = new Trumpetist()
+me.vetoableChange = { PropertyChangeEvent pce ->
+    if (pce.newValue.contains('z'))
+        throw new PropertyVetoException("The letter 'z' is not allowed in a name", pce)
+}
+
+me.name = "Louis Armstrong"
+
+try {
+    me.name = "Dizzy Gillespie"
+    assert false: "You should not be able to set a name with letter 'z' in it."
+} catch (PropertyVetoException pve) {
+    assert true
+}
+Looking at a more thorough Swing builder example with binding:
+
+
+import groovy.swing.SwingBuilder
+import groovy.beans.Bindable
+import static javax.swing.JFrame.EXIT_ON_CLOSE
+
+class TextModel {
+    @Bindable String text
+}
+
+def textModel = new TextModel()
+
+SwingBuilder.build {
+    frame( title: 'Binding Example (Groovy)', size: [240,100], show: true,
+          locationRelativeTo: null, defaultCloseOperation: EXIT_ON_CLOSE ) {
+        gridLayout cols: 1, rows: 2
+        textField id: 'textField'
+        bean textModel, text: bind{ textField.text }
+        label text: bind{ textModel.text }
+    }
+}
+Running this script shows up a frame with a text field and a lable below, and the label's text is bound on the text field's content.
+
+SwingBuilder has evolved so nicely in the past year that the Groovy Swing team decided to launch a new project based on it, and on the Grails foundations: project Griffon was born. Griffon proposes to bring the Convention over Configuration paradigm of Grails, as well as all its project structure, plugin system, gant scripting capabilities, etc.
+
+If you are developing Swing rich clients, make sure to have a look at Griffon.
+

@@ -1,0 +1,43 @@
+﻿（官方文档）Compile-time Metaprogramming - AST Transformations-05，Compiler Phase Guide
+http://groovy.codehaus.org/Compiler+Phase+Guide
+
+Groovy AST transformations must be performed in one of the nine defined compiler phases.
+
+Global transformations may be applied in any phase, but local transformations may only be applied in the semantic analysis phase or later. Briefly, the compiler phases are:
+
+Initialization: source files are opened and environment configured
+Parsing: the grammar is used to to produce tree of tokens representing the source code
+Conversion: An abstract syntax tree (AST) is created from token trees.
+Semantic Analysis: Performs consistency and validity checks that the grammar can't check for, and resolves classes.
+Canonicalization: Complete building the AST
+Instruction Selection: instruction set is chosen, for example java5 or pre java5
+Class Generation: creates the binary output in memory
+Output: write the binary output to the file system
+Finalization: Perform any last cleanup
+Generally speaking, there is more type information available later in the phases. If your transformation is concerned with reading the AST, then a later phase where information is more plentiful might be a good choice. If your transformation is concerned with writing AST, then an earlier phase where the tree is more sparse might be more convenient.
+
+Static Property Transformations
+As a particular example, Groovy aggressively and statically types the static properties of a class, as demonstrated here: 
+
+
+
+class Foo {
+	static doLog() { log.info("This won't even compile!") }
+}
+Foo.metaClass.static.log = [info:{ println it }] // Intended to enable the above code to work (but doesn't work)
+/*
+org.codehaus.groovy.control.MultipleCompilationErrorsException: startup failed, /Users/robert/dev/workspace/Groovy-WithLog/test/Bogus.groovy: 2: Apparent variable 'log' was found in a static scope but doesn't refer to a local variable, static field or class. Possible causes:
+You attemped to reference a variable in the binding or an instance variable from a static context.
+You mispelled a classname or statically imported field. Please check the spelling.
+You attempted to use a method 'log' but left out brackets in a place not allowed by the grammar.
+ @ line 2, column 19.
+   	static doLog() { log.info("This won't even compile!") }
+                     ^
+
+1 error
+*/
+So if you want to create an AST transform that creates a static property, you have to hook in before this check is performed: in practice, this means the Conversion phase (Semantic Analysis is where you get busted).  In using a phase that early, though, most types won't be resolved, and so insofar as type resolution is significant (e.g. in checking for annotations of a particular class), it will have to be hand-rolled.
+
+Further Information
+To learn more about what AST is produced in each phase, you can use the AST viewer in Groovy console to explore the output in different phases.
+

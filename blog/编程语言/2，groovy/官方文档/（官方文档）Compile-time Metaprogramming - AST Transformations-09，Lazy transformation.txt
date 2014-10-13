@@ -1,0 +1,29 @@
+﻿（官方文档）Compile-time Metaprogramming - AST Transformations-09，Lazy transformation
+http://groovy.codehaus.org/Lazy+transformation
+
+Another transformation is @Lazy. Sometimes, you want to handle the initialization of a field of your class lazily, so that its value is computed only on first use, often because it may be time-consuming or memory-expensive to create. The usual approach is to customize the getter of said field, so that it takes care of the initialization when the getter is called the first time. But in Groovy 1.6, you can now use the @Lazy annotation for that purpose:
+
+class Person {
+    @Lazy pets = ['Cat', 'Dog', 'Bird']
+}
+
+def p = new Person()
+assert !(p.dump().contains('Cat'))
+
+assert p.pets.size() == 3
+assert p.dump().contains('Cat')
+In the case of complex computation for initializing the field, you may need to call some method for doing the work, instead of a value like our pets list. It is then possible to have the lazy evaluation being done by a closure call, as the following example shows:
+
+class Person {
+    @Lazy List pets = { /* complex computation here */ }()
+}
+There is also an option for leveraging Soft references for garbage collection friendliness for expensive data structures that may be contained by such lazy fields:
+
+class Person {
+    @Lazy(soft = true) List pets = ['Cat', 'Dog', 'Bird']
+}
+
+def p = new Person()
+assert p.pets.contains('Cat')
+The internal field created by the compiler for pets will actually be a Soft reference, but accessing p.pets directly will return the value (ie. the list of pets) held by that reference, making the use of the soft reference transparent to the user of that class.
+
