@@ -1,0 +1,48 @@
+﻿（hxzon学习笔记）clojure学习摘要
+
+1，定义函数
+
+(fn [p1 p2] s1 s2)
+
+(defn xxx [^long p1 ^String p2] s1 s2)
+
+注意，只有long和double两种类型。
+
+====
+2，宏
+
+~'，波浪号和单引号是一种常见的搭配，如下。
+~'session，外层已经阻止求值，为什么不直接使用 session ？
+因为直接使用session，会加上当前的命名空间，见下。
+let绑定是不允许有名字空间的。
+
+==
+引述（单引号'）：返回参数的不求值形式。
+
+语法引述（反引号`）：跟引述很像，但语法引述把无命名空间限定的符号求值成当前命名空间的符号。
+符号的默认空间化对于产生正确的代码非常关键。
+它使我们不会因为疏忽而重定义一个已经定义过的值。这被称为“宏卫生”。
+另，语法引述里面允许“反引述”。
+
+反引述（波浪号~）。在语法引述里面，表示求值。
+
+编接反引述（波浪地址号~@）。在语法引述里面，表示求值成一个列表，再嵌入外层。
+
+====
+3，常用
+
+(import 'io.netty.buffer.ByteBuf)
+
+(def cmdHandles (ref {}))
+
+(defmacro def-cmd [cmd & body]
+	`(dosync (alter cmdHandles assoc ~cmd (fn [ ~'byteBuf  ~'ctx] ~@body))))
+
+(defn remove-client [^Channel channel]
+	(dosync (alter dissoc clientChannels channel)))
+
+====
+4，(with-out-str & body)
+将“打印输出”绑定到一个StringWriter，返回这个字符串。
+
+

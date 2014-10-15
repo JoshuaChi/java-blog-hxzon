@@ -36,7 +36,7 @@ hxzon：还有一个问题，“求值顺序”，见《On Lisp》。
 ;= (clojure.core/println "x:" user/x))
 
 所有对x的引用都被扩展成user/x，但是let需要的名字是没有命名空间限定的。
-可以通过引述、反引述来“聪明”的避免这个错误，
+可以通过引述、反引述来“聪明”的避免这个错误，（hxzon：重点）
 
 (defmacro   still-unhygienic
             [& body]
