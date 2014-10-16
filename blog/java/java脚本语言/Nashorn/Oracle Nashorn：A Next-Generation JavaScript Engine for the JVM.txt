@@ -1,0 +1,782 @@
+﻿Oracle Nashorn: A Next-Generation JavaScript Engine for the JVM
+by Julien Ponge
+Originally published in the January/February 2014 issue of Java Magazine. Subscribe today.
+http://www.oracle.com/technetwork/articles/java/jf14-nashorn-2126515.html
+
+注释by hxzon
+
+java8
+=============
+Scenarios for using Oracle Nashorn as a command-line tool and as an embedded interpreter in Java applications
+
+Until Java SE 7, JDKs shipped with a JavaScript scripting engine based on Mozilla Rhino. 
+Java SE 8 will instead ship with a new engine called Oracle Nashorn, which is based on JSR 292 and invokedynamic. 
+It provides better compliance with the ECMA normalized JavaScript specification 
+and better runtime performance through invokedynamic-bound call sites.
+
+This article is an introduction to using Oracle Nashorn in several ways. 
+It covers using the standalone engine through the jjs command-line tool as well as 
+using Oracle Nashorn as an embedded scripting engine inside Java applications. 
+It shows the Java-to-JavaScript interoperability 
+and how Java types can be implemented and extended from JavaScript, 
+providing a seamless integration between the two languages.
+
+The examples can be run using a recent JDK 8 early-access release. 
+You can also use a custom build of OpenJDK 8. 
+This is very simple to do thanks to the new OpenJDK build infrastructure 
+(for example, sh configure && make images on a Mac OS X operating system with the XCode command-line tools installed).
+
+[Editor's Note: Java SE 8 is now available from the OTN download page.]
+
+============
+It’s Just JavaScript
+命令行运行
+
+A simple way to get started with Oracle Nashorn is to run JavaScript programs from the command line. 
+To do so, builds of Oracle’s JDK or OpenJDK include a command-line tool called jjs. 
+It can be found in the bin/ folder of a JDK installation along with the well-known java, javac, or jar tools.
+
+The jjs tool accepts a list of JavaScript source code files as arguments. 
+Consider the following hello.js file:
+
+Listing 1
+var hello = function() {
+  print("Hello Nashorn!");
+};
+
+hello(); 
+
+Evaluating it is as simple as this: 
+
+$ jjs hello.js
+Hello Nashorn!
+$
+ 
+
+var data = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+
+var filtered = data.filter(function(i) {
+  return i % 2 == 0;
+});
+print(filtered);
+
+var sumOfFiltered = filtered.reduce(function(acc, next) {
+  return acc + next;
+}, 0);
+print(sumOfFiltered); 
+
+
+Oracle Nashorn is an ECMA-compliant implementation of the language; 
+hence, we can run more-elaborate snippets, such as the one shown in Listing 1, 
+which prints a filtered list in which only the even numbers remain from the original list. 
+It also prints the sum of those even numbers:  
+
+2,4,6,8,10
+30 
+
+While Oracle Nashorn runs ECMA-compliant JavaScript, 
+it is important to note that objects normally accessible in a web browser are not available, 
+for example, console, window, and so on.
+
+====
+Scripting Extensions
+脚本扩展
+
+If you run jjs -help to get a comprehensive list of the jjs command-line tool commands, you will notice a few interesting features: 
+
+It can run scripts as JavaFX applications.
+可以作为javafx程序运行。
+
+JavaScript strict mode can be activated.
+可激活严格模式。
+
+Additional classpath elements can be specified for the Java Virtual Machine (JVM).
+
+An intriguing scripting mode can be enabled. 
+
+The scripting mode is interesting if you plan to take advantage of jjs to run system scripts written in JavaScript, 
+just as you would do in Python, Ruby, or Bash. 
+The scripting mode mainly consists of two language extensions: heredocs and shell invocations. 
+
+A simple way to get started with Oracle Nashorn is to run JavaScript programs from the command line.
+
+==
+Heredocs.
+跨行字符串
+ 
+Heredocs are simply multiline strings, and they use a syntax that is familiar to Bash, Perl, and Ruby programmers (see Listing 2). 
+Text begins with << followed by a special termination marker, which is EOF in our case. 
+The formatting is left intact until the termination marker. 
+Also, JavaScript expressions can be embedded in ${...} expressions. 
+Running this program yields the output shown in Listing 3. 
+可以使用${...}嵌入表达式。
+
+Listing 2 
+var data = {
+ foo: “bar”,
+ time: new Date()
+};
+
+print(<So...       foo = ${data.foo} and the current time is       ${data.time} EOF);  
+
+
+Listing 3
+$  jjs -scripting heredocs.js
+So...
+      foo = bar
+and the current time is
+      Thu Aug 01 2013 16:21:16 GMT+0200 (CEST)
+$ 
+
+
+Note that in scripting mode, double-quoted strings can embed expressions that will be evaluated: 
+"Hello ${name}" will evaluate against the value of name, while 'Hello ${name}' will not.
+
+==
+Shell invocations. 
+调用shell命令
+
+Shell invocations allow the invocation of external programs in which the command is put between back-tick characters. 
+Consider the following example: 
+
+var lines = 
+'ls -lsa'.split("\n");
+for each (var line in lines) {
+  print("|> " + line);
+} 
+
+It runs the ls -lsa command. 
+A shell invocation returns the standard console output as a string, 
+which enables us to split lines and print them prepended with "|> ", as shown in Listing 4. 
+If you need more-elaborate control over invoked processes, 
+you should know that a $EXEC function exists, 
+which provides access to the standard input, output, and error streams. 
+
+Listing 4
+jjs -scripting dir.js
+|> total 72
+|>  0 drwxr-xr-x  2 jponge  staff    238 Aug  1 16:12 .
+|>  0 drwxr-xr-x  5 jponge  staff    170 Aug  1 12:15 ..
+|>  8 -rw-r--r--  1 jponge  staff     90 Jul 31 23:36 dir.js
+|>  8 -rw-r--r--  1 jponge  staff    304 Aug  1 15:56 hello.js
+|>  8 -rw-r--r--  1 jponge  staff    143 Aug  1 16:12 heredocs.js
+|>
+$ 
+
+==
+Other goodies. The scripting mode provides further goodies: 
+
+The $ENV variable provides the shell environment variables.
+
+The $ARG variable is an array of the program command-line arguments.
+
+Comments can start with #, which is useful for making scripts executable on UNIX-like systems. 
+exit(code) and quit() functions can terminate the current JVM process. 
+
+Consider the following executable.js file: 
+
+#!/usr/bin/env jjs -scripting
+print(
+"Arguments (${$ARG.length})");
+for each (arg in $ARG) {
+  print("- ${arg}")
+} 
+
+We can make it executable and invoke it (arguments are passed after --), as shown in Listing 5. 
+
+Listing 5
+$ chmod +x executable.js
+$ ./executable.js
+Arguments (0)
+$ ./executable.js -- hello world !
+Arguments (3)
+- hello
+- world
+- !
+$ 
+
+=========
+Embedding Oracle Nashorn
+嵌入js引擎
+
+The public API to embed Oracle Nashorn is simply javax.script. 
+When Oracle Nashorn is available, its scripting engine is accessible through the nashorn identifier.
+
+Listing 6 shows how you can access Oracle Nashorn from a Java application 
+to define a sum function, call it, and then display the result. 
+
+Listing 6 
+package sample1;
+
+import javax.script.ScriptEngine;
+import javax.script.ScriptEngineManager;
+
+public class Hello {
+
+  public static void main(String... args) throws Throwable {
+    ScriptEngineManager engineManager = 
+new ScriptEngineManager();
+    ScriptEngine engine = 
+engineManager.getEngineByName("nashorn");
+    engine.eval("function sum(a, b) { return a + b; }");
+    System.out.println(engine.eval("sum(1, 2);"));
+  }
+}
+
+
+The scripting engine object is the sole entry point to the Oracle Nashorn interpreter. 
+It can be cast to the javax.script.Invocable interface, too: 
+
+Invocable invocable = (Invocable) engine;
+System.out.println(
+invocable.invokeFunction("sum", 10, 2)); 
+
+The Invocable interface also provides a method to convert evaluated code to a reference on a Java interface. 
+Suppose that there exists some interface Adder as follows: 
+
+public interface Adder {
+  int sum(int a, int b);
+} 
+
+The evaluated code defines a sum function with two arguments; 
+hence, we can use it as an implementation as follows: 
+
+Adder adder = invocable.getInterface(  Adder.class);
+System.out.println(  adder.sum(2, 3)); 
+
+This is a convenient way to extend Java types from JavaScript, 
+but fortunately it’s not the only one, as we will see in the next sections.
+
+Not every JavaScript code is to be evaluated from a String: java.io.Reader; instances can be used, too, as shown in Listing 7. 
+
+Listing 7 
+engine.eval(new FileReader("src/sample1/greeter.js"));
+System.out.println(invocable.invokeFunction("greet", "Julien"));
+
+You should consult the complete javax.script APIs for more details, 
+including the information about the ability to define scopes and bindings of script engines.
+
+mustache.js
+Let’s now call a real-world JavaScript library from a Java application. 
+To do so, let’s use the popular mustache.js template library, 
+示例：使用一个模板js库。
+which is commonly used to render view fragments in HTML applications. 
+Briefly, given a JSON data object {"name":"Bean"} and a template "Hello {{name}}", Mustache renders "Hello Bean". 
+The template engine can do more than that, though, because it also supports conditions, collection iteration, and more.
+
+Suppose that we downloaded mustache.js. Listings 8a and 8b show our Java integration example. 
+
+Listing 8a  
+package sample2;
+
+import javax.script.Invocable;
+import javax.script.ScriptEngine;
+import javax.script.ScriptEngineManager;
+import java.io.FileReader;
+
+public class Mustache {
+
+  public static void main(String... args) throws Throwable {
+    ScriptEngineManager engineManager = 
+new ScriptEngineManager();
+    ScriptEngine engine = 
+engineManager.getEngineByName("nashorn");
+    engine.eval(new FileReader("src/sample2/mustache.js"));
+    Invocable invocable = (Invocable) engine;
+
+    String template = "Email addresses of {{contact.name}}:\n" +
+        "{{#contact.emails}}\n" +
+        "- {{.}}\n" +
+        "{{/contact.emails}}";
+
+    String contactJson = "{" +
+        "\"contact\": {" +
+        "\"name\": \"Mr A\", \"emails\": [" +
+        "\"contact@some.tld\", \"sales@some.tld\"" +
+        "]}}";
+
+
+Listing 8b
+Object json = engine.eval("JSON");
+    Object data = 
+invocable.invokeMethod(json, "parse", contactJson);
+
+    Object mustache = engine.eval("Mustache");
+    System.out.println(invocable.invokeMethod(
+mustache, "render", template, data));
+  }
+} 
+
+
+After getting a scripting engine reference for Oracle Nashorn, we evaluate the mustache.js code. 
+We then define the Mustache template as a String. 
+The data model needs to be a JSON object. 
+In our case, we first have to define it as a String and call JSON.parse to have it as a JSON object. 
+We can then call Mustache.render. 
+Running this program yields the following output, calling mustache.js for template rendering: 
+
+$ java sample2.Mustache 
+Email addresses of Mr A:
+- contact@some.tld
+- sales@some.tld
+
+$ 
+
+================
+Java Seen from Oracle Nashorn
+js中访问java
+
+In most cases, calling Java APIs from Oracle Nashorn is straightforward, with the resulting code being Java written in JavaScript. 
+调用java api是直接的。
+
+print(java.lang.System.currentTimeMillis());
+
+Java objects can be instantiated using the new operator:
+
+Listing 9
+var file = new java.io.File("sample.js");
+print(file.getAbsolutePath());
+print(file.absolutePath); 
+
+
+Basic example. We can call the System.currentTimeMillis() static method, as shown in Listing 9. 
+And Java objects can be instantiated using the new operator: 
+
+Note that although java.io.File does not define an absolutePath method or public field, 
+Oracle Nashorn inferred a property for it, so the expression file.absolutePath is equivalent to file.getAbsolutePath(). 
+In fact, Oracle Nashorn treats the getXY() and setXY(value) methods as properties.
+自动视为bean属性。
+
+====
+Dealing with arrays. 
+处理数组
+The following snippet populates a queue as an instance of java.util.LinkedList: 
+
+var stack = new java.util.LinkedList();
+[1, 2, 3, 4].forEach(function(item) {
+  stack.push(item);
+});
+
+print(stack);
+print(stack.getClass()); 
+
+This produces the following output, confirming that we are directly manipulating Java objects from JavaScript: 
+
+[4, 3, 2, 1]
+class java.util.LinkedList 
+
+We can also take a tour through the new Java 8 stream APIs to sort the collection, 
+although in this case, this is not the most efficient way to do so: 
+
+var sorted = stack
+  .stream()
+  .sorted()
+  .toArray();
+print(sorted); 
+
+This time, it prints something like [Ljava.lang.Object;@473b46c3, which indicates a Java native array. 
+However, a Java array is not a JavaScript array. 
+Internally, Oracle Nashorn provides JavaScript arrays using a custom class that also implements java.util.Map. 
+Conversions can be performed using the to and from methods of the Oracle Nashorn–provided Java object: 
+但是java数组不是js数组，可以使用以下api进行转换。
+
+var jsArray = Java.from(sorted);
+print(jsArray);
+
+var javaArray = Java.to(jsArray);
+print(javaArray); 
+
+which prints: 
+
+1,2,3,4
+[Ljava.lang.Object;@23a5fd2 
+
+====
+Imports. 
+导入
+
+By default, all references to Java types need to be fully qualified 
+(for example, java.lang.String, java.util.LinkedHashSet, and so on). 
+Oracle Nashorn does not import the java package by default, 
+because references to String or Object conflict with the corresponding types in JavaScript. 
+Hence, a Java string is java.lang.String, not String.
+默认不导入java包，因为String和Object这两个名字会有冲突。
+
+Mozilla Rhino was the predecessor of Oracle Nashorn as the JavaScript engine implementation 
+provided with Oracle’s JDK releases. 
+It featured a load(path) function to load a third-party JavaScript file. 
+This is still present in Oracle Nashorn. 
+Nashorn的前任，Rhino引擎，提供了load(path)函数来加载第三方js文件。
+这个函数在Nashorn中仍有效。
+You can use it to load a special compatibility module 
+that provides importClass to import a class (like an explicit import in Java) 
+and importPackage to import a package (like a wildcard import in Java): 
+
+load("nashorn:mozilla_compat.js");
+
+importClass(java.util.HashSet);
+var set = new HashSet();
+
+importPackage(java.util);
+var list = new ArrayList(); 
+
+It is important to note that these functions import the symbolic references 
+into the global scope of the JavaScript code being interpreted. 
+While they are still supported for compatibility reasons, 
+the use of mozilla_compat.js and importClass is discouraged. 
+不鼓励使用 mozilla_compat.js 和 importClass 函数。
+Instead, it is recommended that you use another function coming from the Mozilla Rhino heritage
+—JavaImporter—as shown in Listing 10. 
+建议改用 JavaImport 。
+
+Listing 10
+var CollectionsAndFiles = new JavaImporter(
+    java.util,
+    java.io,
+    java.nio);
+
+with (CollectionsAndFiles) {
+  var files = new LinkedHashSet();
+  files.add(new File("Plop"));
+  files.add(new File("Foo"));
+  files.add(new File("w00t.js"));
+} 
+
+JavaImporter takes a variable number of arguments as Java packages, 
+and the returned object can be used in a with statement whose scope includes the specified package imports. 
+The global JavaScript scope is not affected, making JavaImporter a much better alternative to importClass and importPackage.
+全局范围不受影响，是更好的方案。
+
+（hxzon补充：
+使用with，里面定义的函数不是全局的。
+下面的方式更便捷。
+
+var HashMap = Java.type("java.util.HashMap");  
+var mapDef = new HashMap();
+
+）
+
+====
+Overloaded methods. 
+重载方法
+Java allows method overloading, that is, 
+the definition within a single class of several methods that have the same names but different signatures. 
+The java.io.PrintStream class is a good example, 
+providing many print and println methods for objects, strings, arrays, and primitive types.
+
+Oracle Nashorn properly selects the most suitable target at runtime on a per-invocation basis. 
+This means that you should never have to worry about overloaded methods when dealing with Java APIs. 
+会自动选择合适的方法。
+Still, there is a way to precisely select the required target if you need to. 
+This need mainly occurs with ambiguous parameters 
+when you are passing a function object in which different interface types are permitted by overloaded methods, 
+such as with the submit methods of java.util.concurrent executors.
+但有时，参数类型有歧义，你可能需要指定哪个方法。
+
+In the following code, the first call to println will select the println(String) overloaded method. 
+The second call uses a JavaScript object property to access the println(Object) variant. 
+The string to be passed provides a signature that Oracle Nashorn uses at resolution time. 
+Note that as an exception, classes from the java package need not be qualified; 
+hence, we can write println(Object) instead of the valid, but longer, println(java.lang.Object). 
+可以用下面的方式，来明确指定哪个方法，避免重载导致歧义。
+
+var stdout = java.lang.System.out;
+stdout.println("Hello");
+stdout["println(Object)"]("Hello");
+
+====
+Type objects. 
+获取java类型
+
+The Java.type function can be used to obtain references to precise Java types. 
+These include not just objects but also primitive types and arrays: 
+
+var LinkedList = Java.type("java.util.LinkedList");
+var primitiveInt = Java.type("int");
+var arrayOfInts = Java.type("int[]"); 
+
+The returned objects are an Oracle Nashorn–specific representation of mappings to Java types. 
+It is important to note that they differ from instances of java.lang.Class. 
+Type objects are useful as constructors and for instanceof-based comparisons. 
+Let’s look at Listing 11. 
+要注意，返回的对象，不是java.lang.Class对象。
+
+Listing 11
+var list = new LinkedList;
+list.add(1);
+list.add(2);
+print(list);
+print(list instanceof LinkedList);
+
+var a = new arrayOfInts(3);
+print(a.length);
+print(a instanceof arrayOfInts);
+
+It is possible to go back and forth between a type object and a Java class reference. 
+The class property of type objects returns their java.lang.Class counterpart. 
+Similarly, the static property is made available to java.lang.Class instances to get their corresponding type objects. 
+通过class属性，也可以获得java.lang.Class对象。
+
+print(LinkedList.class);
+print(list.getClass().static);
+print(LinkedList.class === list.getClass());
+print(list.getClass().static === LinkedList);
+ 
+The code in Listing 12 would print the following: 
+
+class java.util.LinkedList
+[JavaClass java.util.LinkedList]
+true
+true 
+
+====
+Extending Java Types
+继承java类型
+
+Oracle Nashorn provides simple mechanisms for extending Java types from JavaScript code. 
+It is important to be able to provide interface implementations and concrete subclasses.
+
+==
+Implementing interfaces. 
+实现java接口
+Given a Java interface, a simple way to provide an implementation is to instantiate it, 
+and pass its constructor function a JavaScript object in which the methods to be implemented are given as properties.
+
+Listing 13 provides a concrete implementation of java.util.Iterator, 
+giving implementations of the next and hasNext methods 
+(the remove method is provided by a default method in Java 8). 
+We can run it, and check that it works as expected (see Listing 14). 
+
+Listing 13 
+var iterator = new java.util.Iterator({
+  i: 0,
+  hasNext: function() {
+    return this.i < 10;
+  },
+  next: function() {
+    return this.i++;
+  }
+});
+
+print(iterator instanceof Java.type("java.util.Iterator"));
+while (iterator.hasNext()) {
+  print("-> " + iterator.next());
+} 
+
+Listing 14
+true
+-> 0
+-> 1
+-> 2
+-> 3
+-> 4
+-> 5
+-> 6
+-> 7
+-> 8
+-> 9 
+
+When interfaces consist of a single method, 
+a function object can be directly given with no need to perform an explicit new operator call. 
+The example in Listing 15 illustrates this on collection streams. 
+
+Listing 15
+var list = java.util.Arrays.asList(1, 2, 3, 4, 5, 6, 7, 8);
+var odd = list.stream().filter(function(i) {
+  return i % 2 == 0;
+});
+odd.forEach(function(i) {
+  print(">>> " + i);
+}); 
+
+
+Running the code in Listing 15 prints the following: 
+
+>>> 2
+>>> 4
+>>> 6
+>>> 8 
+
+==
+Note that Oracle Nashorn also provides a language extension in the form of Oracle Nashorn functions, 
+Nashorn提供了一种扩展，一种小lambda语法。
+which provides an abridged syntax for small lambda functions. 
+This works everywhere a single abstract-method type is expected from Java APIs, too. 
+Therefore, we can rewrite the following code from Listing 15: 
+
+var odd = list.stream().filter(
+  function(i) {
+  return i % 2 == 0;
+}); 
+
+Like this: 
+
+var odd = list.stream().filter(
+  function(i) i % 2 == 0);
+ 
+This language extension is useful when dealing with the new Java SE 8 APIs that provide support for lambda expressions, 
+because JavaScript functions can be used wherever a Java lambda is expected. 
+Also, note that this shorter form is to be supported by JavaScript 1.8 engines.
+
+The case of abstract classes is the same as interfaces: 
+you provide a JavaScript object with the required method implementations to its constructor function. 
+Or, directly pass a function when an instance of a single abstract-method class is required.
+
+==
+Using instance-bound implementations.
+ 
+To extend concrete classes, you have to use the Java.extend function. 
+It takes a type object as a first argument to denote the base class to be extended. 
+If the parameter is an interface type, it assumes that the base class is java.lang.Object. 
+Further types can be given as extra parameters to specify a set of implemented interfaces.
+
+Consider the example shown in Listing 16. 
+The Java.extend function returns a type object, also called an extender. 
+It can be invoked to create concrete subclasses; 
+in our case, instance is a subclass of java.lang.Object 
+that implements the two interfaces java.lang .Comparable and java.io.Serializable. 
+Implementations are passed to instances being created through a JavaScript object passed to the constructors. 
+
+Listing 16
+var ObjectType = Java.type("java.lang.Object");
+var Comparable = Java.type("java.lang.Comparable");
+var Serializable = Java.type("java.io.Serializable");
+
+var MyExtender = Java.extend(
+ObjectType, Comparable, Serializable);
+var instance = new MyExtender({
+  someInt: 0,
+  compareTo: function(other) {
+    var value = other["someInt"];
+    if (value === undefined) {
+      return 1;
+    }
+    if (this.someInt < value) {
+      return -1;
+    } else if (this.someInt == value) {
+      return 0;
+    } else {
+      return 1;
+    }
+  }
+});
+
+print(instance instanceof Comparable);
+print(instance instanceof Serializable);
+print(instance.compareTo({ someInt: 10 }));
+print(instance.compareTo({ someInt: 0 }));
+print(instance.compareTo({ someInt: -10 })); 
+
+
+Running the code in Listing 16 yields the following console output: 
+
+true
+true
+-1
+0
+1 
+
+==
+Using class-bound implementations. 
+
+Instances created from the same extender type 
+share the same class although their implementations differ on a per-instance basis (see Listing 17). 
+
+Listing 17
+var anotherInstance = new MyExtender({
+  compareTo: function(other) {
+    return -1;
+  }
+});
+
+// Prints 'true'!
+print(instance.getClass() === anotherInstance.getClass()); 
+
+
+While this is fine in many cases, passing the implementation to each instance might not always be convenient. 
+Indeed, there are cases where objects must be instantiated through some form of inversion-of-control mechanism, 
+such as those found in dependency injection APIs. 
+In such cases, the third-party APIs typically require a reference to the implementation class, 
+which makes the previous extender mechanism unsuitable.
+
+Fortunately, Java.extend allows implementations to be bound to a class definition 
+rather than being specified for each instance. 
+To do so, you simply need to pass an implementation JavaScript object as the last parameter.
+
+Learn More
+ OpenJDK 8 http://openjdk.java.net/projects/jdk8/
+ Project Nashorn http://openjdk.java.net/projects/nashorn/
+
+Consider Listing 18, which defines two extender types: FooCallable and BarCallable. 
+When creating instances foo and bar, there is no need to pass implementations. 
+We can also check that instances do not have the same class definition. 
+In fact, FooCallable.class or BarCallable.class 
+can be passed to third-party Java APIs that need instances of java.lang.Class definitions. 
+
+Listing 18
+var Callable = Java.type("java.util.concurrent.Callable");
+
+var FooCallable = Java.extend(Callable, {
+  call: function() {
+    return "Foo";
+  }
+});
+
+var BarCallable = Java.extend(Callable, {
+  call: function() {
+    return "Bar";
+  }
+});
+
+var foo = new FooCallable();
+var bar = new BarCallable();
+
+// 'false'
+print(foo.getClass() === bar.getClass());
+
+print(foo.call());
+print(bar.call());
+ 
+
+Although not illustrated by this example, 
+classes defined with class-bound implementations provide constructors inherited from their superclass. 
+In this example, our objects implicitly extend java.lang.Object and implement java.util.concurrent.Callable; 
+hence, the corresponding class definition simply has a public no-arguments constructor.
+
+Using instance-bound and class-bound implementations. 
+Last but not least, it is possible to combine both instance-bound and class-bound implementations. 
+You can refine the class-bound implementation of all or some of the methods 
+by passing an implementation object to its constructor, as shown in Listing 19. 
+
+Listing 19
+var foobar = new FooCallable({
+  call: function() {
+    return “FooBar”;
+  }
+});
+
+// ‘FooBar’
+print(foobar.call());
+
+// ‘true’
+print(foo.getClass() === foobar.getClass());  
+
+==============
+Conclusion
+总结
+
+This article covered various scenarios for using Oracle Nashorn as a command-line tool 
+and as an embedded interpreter in Java applications. 
+It also covered the interoperability between Java and JavaScript, 
+including the ability to implement and extend Java types from JavaScript.
+
+Oracle Nashorn is an excellent way to take advantage of a scripting language for polyglot applications on the JVM. 
+JavaScript is a popular language, 
+and the interaction between Java and JavaScript is both seamless and straightforward for a wide range of use cases.
+
+JulienPonge-headshot
+Julien Ponge (@jponge) is a longtime open source craftsman 
+who is currently an associate professor in computer science and engineering at INSA de Lyon. 
+He focuses his research on programming languages, virtual machines, 
+and middleware as part of the CITI Laboratory activities.
+
