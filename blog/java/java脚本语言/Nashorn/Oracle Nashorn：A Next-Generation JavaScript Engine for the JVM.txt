@@ -551,7 +551,7 @@ Listing 13
 var iterator = new java.util.Iterator({
   i: 0,
   hasNext: function() {
-    return this.i < 10;
+    return this.i < 10;    //hxzon:注意使用this
   },
   next: function() {
     return this.i++;

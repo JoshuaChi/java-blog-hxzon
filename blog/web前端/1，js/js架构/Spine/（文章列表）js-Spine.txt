@@ -1,5 +1,7 @@
 ﻿（文章列表）js-Spine
 
+http://spinejs.com
+https://github.com/spine
 ================================
 
 10 reasons why I switched to Spine.js
