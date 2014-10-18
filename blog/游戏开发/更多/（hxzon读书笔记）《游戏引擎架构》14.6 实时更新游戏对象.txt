@@ -1,0 +1,624 @@
+﻿（hxzon读书笔记）《游戏引擎架构》14.6 实时更新游戏对象
+
+注释by hxzon
+========
+14.6. Updating Game Objects in Real Time
+page 757 
+
+Every game engine, from the simplest to the most complex, requires some 
+means of updating the internal state of every game object over time. The state
+of a game object can be defined as the values of all its attributes(sometimes 
+called its properties, and called data membersin the C++ language). For example, 
+the state of the ball in Pongis described by its (x, y) position on the screen 
+and its velocity (speed and direction of travel). Because games are dynamic, 
+time-based simulations, a game object’s state describes its configuration at one 
+specific instant in time. In other words, a game object’s notion of time is discrete
+rather than continuous. (However, as we’ll see, it’s helpful to think of the ob-jects’ states as changing continuously and then being sampled discretely by 
+the engine, because it helps you to avoid some common pitfalls.)
+In the following discussions, we’ll use the symbol S
+i
+(t) to denote the state 
+of object iat an arbitrary time t. The use of vector notation here is not strictly 
+mathematically correct, but it reminds us that a game object’s state acts like 
+a heterogeneous n-dimensional vector, containing all sorts of information of 
+various data types. We should note that this usage of the term “state” is not 
+the same as the states in a finite state machine . A game object may very well 
+be implemented in terms of one—or many—finite state machines, but in that 
+case, a specification of the current state of each FSM would merely be a part of 
+the game object’s overall state vector S(t).
+Most low-level engine subsystems (rendering, animation, collision, 
+physics, audio, and so on) require periodic updating, and the game object 
+system is no exception. As we saw in Chapter 7, updating is usually done via 
+a single master loop called the game loop(or possibly via multiple game loops , 
+each running in a separate thread ). Virtually all game engines update game 
+object states as part of their main game loop—in other words, they treat the 
+game object model as just another engine subsystem that requires periodic 
+servicing.
+Game object updating can therefore be thought of as the process of de-termining the state of each object at the current time S
+i
+(t) given its state at a 
+previous time S
+i
+(t– Δt). Once all object states have been updated, the current 
+time tbecomes the new previous time (t– Δt), and this process repeats for 
+
+as long as the game is running. Usually, one or more clocksare maintained 
+by the engine—one that tracks real time exactly and possibly others that 
+may or may not correspond to real time. These clocks provide the engine 
+with the absolute time tand/or with the change in time Δtfrom iteration 
+to iteration of the game loop. The clock that drives the updating of game 
+object states is usually permitted to diverge from real time. This allows the 
+behaviors of the game objects to be paused, slowed down, sped up, or even 
+run in reverse—whatever is required in order to suit the needs of the game 
+design. These features are also invaluable for debugging and development 
+of the game.
+As we mentioned in Chapter 1, a game object updating system is an ex-ample of what is known as a dynamic, real-time, agent-based computer simulation 
+in computer science. Game object updating systems also exhibit some aspects 
+of discrete event simulations (see Section 14.7 for more details on events). These 
+are well-researched areas of computer science, and they have many appli-cations outside the field of interactive entertainment. Games are one of the 
+more-complex kinds of agent-based simulation—as we’ll see, updating game 
+object states over time in a dynamic, interactive virtual environment can be 
+surprisingly difficult to get right. Game programmers can learn a lot about 
+game object updating by studying the wider field of agent-based and discrete 
+event simulations. And researchers in those fields can probably learn a thing 
+or two from game engine design as well!
+As with all high-level game engine systems, every engine takes a slightly 
+(or sometimes radically) different approach. However, as before, most game 
+teams encounter a common set of problems, and certain design patterns tend 
+to crop up again and again in virtually every engine. In this section, we’ll 
+investigate these common problems and some common solutions to them. 
+Please bear in mind that game engines may exist that employ very differ-ent solutions to the ones described here, and some game designs face unique 
+problems that we can’t possibly cover here.
+14.6.1. A Simple Approach (That Doesn’t Work)
+The simplest way to update the states of a collection of game objects is to 
+iterate over the collection and call a virtual function, named something like 
+Update(), on each object in turn. This is typically done once during each 
+iteration of the main game loop (i.e., once per frame). Game object classes can 
+provide custom implementations of the Update()function in order to per-form whatever tasks are required to advance the state of that type of object 
+to the next discrete time index. The time delta from the previous frame can 
+be passed to the update function so that objects can take proper account of 
+
+the passage of time. At its simplest, then, our Update()function’s signature 
+might look something like this:
+virtual void Update(floatdt);
+For the purposes of the following discussions, we’ll assume that our en-gine employs a monolithic object hierarchy, in which each game object is rep-resented by a single instance of a single class. However, we can easily extend 
+the ideas here to virtually any object-centric design. For example, to update a 
+component-based object model, we could call Update()on every component 
+that makes up each game object, or we could call Update()on the “hub” 
+object and let it update its associated components as it sees fit. We can also ex-tend these ideas to property-centric designs, by calling some sort of Update()
+function on each property instance every frame.
+They say that the devil is in the details, so let’s investigate two important 
+details here. First, how should we maintain the collection of all game objects? 
+And second, what kinds of things should the Update()function be respon-sible for doing?
+14.6.1.1. Maintaining a Collection of Active Game Objects
+The collection of active game objects is often maintained by a singleton 
+manager class, perhaps named something like GameWorldor GameObject
+Manager. The collection of game objects generally needs to be dynamic, be-cause game objects are spawned and destroyed as the game is played. Hence a 
+linked listof pointers, smart pointers, or handles to game objects is one simple 
+and effective approach. (Some game engines disallow dynamic spawning and 
+destroying of game objects; such engines can use a statically-sized arrayof 
+game object pointers, smart pointers, or handles rather than a linked list.) As 
+we’ll see below, most engines use more-complex data structures to keep track 
+of their game objects rather than just a simple, flat linked list. But for the time 
+being, we can visualize the data structure as a linked list for simplicity.
+14.6.1.2. Responsibilities of the Update() Function
+A game object’s Update()function is primarily responsible for determining 
+the state of that game object at the current discrete time index S
+i
+(t) given its 
+previous state S
+i
+(t– Δt). Doing this may involve applying a rigid body dynam-ics simulation to the object, sampling a preauthored animation, reacting to 
+events that have occurred during the current time step, and so on.
+Most game objects interact with one or more engine subsystems. They 
+may need to animate , be rendered, emit particle effects, play audio , collide 
+with other objects and static geometry, and so on. Each of these systems has 
+an internal state that must also be updated over time, usually once or a few 
+
+times per frame. It might seem reasonable and intuitive to simply update all of 
+these subsystems directly from within the game object’s Update()function. 
+For example, consider the following hypothetical update function for a Tank
+object:
+virtual void Tank::Update(float dt)
+{
+//  Update the state of the tank itself.
+MoveTank(dt);
+DeflectTurret(dt);
+FireIfNecessary();
+// Now update low-level engine subsystems on behalf
+// of this tank. (NOT a good idea... see below!)
+m_pAnimationComponent->Update(dt);
+m_pCollisionComponent->Update(dt);
+m_pPhysicsComponent->Update(dt);
+m_pAudioComponent->Update(dt);
+m_pRenderingComponent->draw();
+}
+Given that our Update()functions are structured like this, the game loop 
+could be driven almost entirely by the updating of the game objects, like this:
+while (true)
+{
+PollJoypad();
+float dt = g_gameClock.CalculateDeltaTime();
+for (each gameObject)
+{
+// This hypothetical Update() function updates
+// all engine subsystems!
+gameObject.Update(dt);
+}
+g_renderingEngine.SwapBuffers();
+}
+However attractive the simple approach to object updating shown above 
+may seem, it is usually not viable in a commercial-grade game engine. In the 
+following sections, we’ll explore some of the problems with this simplistic ap-proach and investigate common ways in which each problem can be solved.
+
+14.6.2. Performance Constraints and Batched Updates
+Most low-level engine systems have extremely stringent performance con-straints. They operate on a large quantity of data, and they must do a large 
+number of calculations every frame as quickly as possible. As a result, most 
+engine systems benefit from batched updating. For example, it is usually far 
+more efficient to update a large number of animations in one batch than it is 
+to update each object’s animation interleaved with other unrelated operations, 
+such as collision detection, physical simulation, and rendering.
+In most commercial game engines, each engine subsystem is updated di-rectly or indirectly by the main game loop rather than being updated on a 
+per-game object basis from within each object’s Update()function. If a game 
+object requires the services of a particular engine subsystem, it asks that sub-system to allocate some subsystem-specific state information on its behalf. For 
+example, a game object that wishes to be rendered via a triangle mesh might 
+request the rendering subsystem to allocate a mesh instance for its use. (A mesh 
+instance represents a single instance of a triangle mesh—it keeps track of the 
+position, orientation, and scale of the instance in world space whether or not 
+it is visible, per-instance material data, and any other per-instance information 
+that may be relevant.) The rendering engine maintains a collection of mesh in-stances internally. It can manage the mesh instances however it sees fit in order 
+to maximize its own runtime performance. The game object controls howit is 
+rendered by manipulating the properties of the mesh instance object, but the 
+game object does not control the rendering of the mesh instance directly. In-stead, after all game objects have had a chance to update themselves, the ren-dering engine draws all visible mesh instances in one efficient batch update.
+With batched updating, a particular game object’s Update()function, 
+such as that of our hypothetical tank object, might look more like this:
+virtual void Tank::Update(float dt)
+{
+//  Update the state of the tank itself.
+MoveTank(dt);
+DeflectTurret(dt);
+FireIfNecessary();
+// Control the properties of my various engine 
+// subsystem components, but do NOT update 
+// them here...
+if (justExploded)
+{
+m_pAnimationComponent->PlayAnimation("explode");
+}
+
+if (isVisible)
+{
+m_pCollisionComponent->Activate();
+m_pRenderingComponent->Show();
+}
+else
+{
+m_pCollisionComponent->Deactivate();
+m_pRenderingComponent->Hide();
+}
+// etc. 
+}
+The game loop then ends up looking more like this:
+while (true)
+{
+PollJoypad();
+float dt = g_gameClock.CalculateDeltaTime();
+for (each gameObject)
+{
+gameObject.Update(dt);
+}
+g_animationEngine. Update(dt);
+g_physicsEngine. Simulate(dt);
+g_collisionEngine. DetectAndResolveCollisions(dt);
+g_audioEngine. Update(dt);
+g_renderingEngine. RenderFrameAndSwapBuffers();
+}
+Batched updating provides many performance benefits, including but not 
+limited to:
+z Maximal cache coherency .Batched updating allows an engine subsys-tem to achieve maximum cache coherency because its per-object data 
+is maintained internally and can be arranged in a single, contiguous 
+region of RAM.
+z Minimal duplication of computations.Global calculations can be done once 
+and reused for many game objects rather than being redone for each 
+object.
+
+z Reduced reallocation of resources.Engine subsystems often need to allocate 
+and manage memory and/or other resources during their updates. If 
+the update of a particular subsystem is interleaved with those of other 
+engine subsystems, these resources must be freed and reallocated for 
+each game object that is processed. But if the updates are batched, the 
+resources can be allocated once per frame and reused for all objects in 
+the batch.
+z Efficient pipelining .Many engine subsystems perform a virtually identi-cal set of calculations on each and every object in the game world. When 
+updates are batched, new optimizations become possible, and special-ized hardware resources can be leveraged. For example, the PLAY-STATION 3 provides a battery of high-speed microprocessors known 
+as SPUs, each of which has its own private high-speed memory area. 
+When processing a batch of animations, the pose of one character can be 
+calculated while we simultaneously DMA the data for the next charac-ter into SPU memory. This kind of parallelism cannot be achieved when 
+processing each object in isolation.
+Performance benefits aren’t the only reason to favor a batch updating ap-proach. Some engine subsystems simply don’t work at all when updated on 
+a per-object basis. For example, if we are trying to resolve collisions within 
+a system of multiple dynamic rigid bodies, a satisfactory solution cannot be 
+found in general by considering each object in isolation. The interpenetrations 
+between these objects must be resolved as a group, either via an iterative ap-proach or by solving a linear system.
+14.6.3. Object and Subsystem Interdependencies
+Even if we didn’t care about performance, a simplistic per-object updating ap-proach breaks down when game objects depend on one another. For example, 
+a human character might be holding a cat in her arms. In order to calculate 
+the world-space pose of the cat’s skeleton, we first need to calculate the world-space pose of the human. This implies that the orderin which objects are up-dated is important to the proper functioning of the game.
+Another related problem arises when engine subsystems depend on one 
+another. For example, a rag doll physics simulation must be updated in con-cert with the animation engine. Typically, the animation system produces an 
+intermediate, local-space skeletal pose. These joint transforms are converted 
+to world space and applied to a system of connected rigid bodies that approxi-mate the skeleton within the physics system. The rigid bodies are simulated 
+forward in time by the physics system, and then the final resting places of the 
+
+joints are applied back to their corresponding joints in the skeleton. Finally, 
+the animation system calculates the final world-space pose and skinning ma-trix palette. So once again, the updating of the animation and physics systems 
+must occur in a particular order in order to produce correct results. These 
+kinds of inter-subsystem dependencies are commonplace in game engine de-sign.
+14.6.3.1. Phased Updates
+To account for inter-subsystem dependencies, we can explicitly code our en-gine subsystem updates in the proper order within the main game loop. For 
+example, to handle the interplay between the animation system and rag doll 
+physics, we might write something like this:
+while (true) // main game loop
+{
+// ...
+g_animationEngine. CalculateIntermediatePoses(dt);
+g_ragdollSystem. ApplySkeletonsToRagDolls();
+g_physicsEngine. Simulate(dt); // runs ragdolls too
+g_collisionEngine. DetectAndResolveCollisions(dt);
+g_ragdollSystem. ApplyRagDollsToSkeletons();
+g_animationEngine. FinalizePoseAndMatrixPalette();
+// ...
+}
+We must be careful to update the states of our game objects at the right 
+time during the game loop. This is often not as simple as calling a single Up-date()function per game object per frame. Game objects may depend upon 
+the intermediate results of calculations performed by various engine subsys-tems. For example, a game object might request that animations be played 
+prior to the animation system running its update. However, that same object 
+may also want to procedurally adjust the intermediate pose generated by the 
+animation system prior to that pose being used by the rag doll physics system 
+and/or the final pose and matrix palette being generated. This implies that the 
+object must be updated twice, once before the animation calculates its inter-mediate poses and once afterward.
+Many game engines allow game objects to update at multiple points 
+during the frame. For example, an engine might update game objects three 
+times—once before animation blending, once after animation blending but
+
+prior to final pose generation, and once after final pose generation. This can 
+be accomplished by providing each game object class with three virtual func-tions that act as “hooks.” In such a system, the game loop ends up looking 
+something like this:
+while (true) // main game loop
+{
+// ...
+for (each gameObject)
+{
+gameObject. PreAnimUpdate(dt);
+}
+g_animationEngine. CalculateIntermediatePoses(dt);
+for (each gameObject)
+{
+gameObject. PostAnimUpdate(dt);
+}
+g_ragdollSystem. ApplySkeletonsToRagDolls();
+g_physicsEngine. Simulate(dt); // runs ragdolls too
+g_collisionEngine. DetectAndResolveCollisions(dt);
+g_ragdollSystem. ApplyRagDollsToSkeletons();
+g_animationEngine. FinalizePoseAndMatrixPalette();
+for (each gameObject)
+{
+gameObject. FinalUpdate(dt);
+}
+// ...
+}
+We can provide our game objects with as many update phases as we see 
+fit. But we must be careful, because iterating over all game objects and calling 
+a virtual function on each one can be expensive. Also, not all game objects 
+require all update phases—iterating over objects that don’t require a particu-lar phase is a pure waste of CPU bandwidth. One way to minimize the cost 
+of iteration is to maintain multiple linked lists of game objects—one for each 
+update phase. If a particular object wants to be included in one of the update 
+
+phases, it adds itself to the corresponding linked list. This avoids having to 
+iterate over objects that are not interested in a particular update phase.
+14.6.3.2. Bucketed Updates
+In the presence of inter-objectdependencies, the phased updates technique de-scribed above must be adjusted a little. This is because inter-object dependen-cies can lead to conflicting rules governing the order of updating. For exam-ple, let’s imagine that object B is being held by object A. Further, let’s assume 
+that we can only update object B after A has been fullyupdated, including the 
+calculation of its final world-space pose and matrix palette. This conflicts with 
+the need to batch animation updates of all game objects together in order to 
+allow the animation system to achieve maximum throughput.
+Inter-object dependencies can be visualized as a forest of dependency 
+trees. The game objects with no parents (no dependencies on any other object) 
+represent the roots of the forest. An object that depends directly on one of 
+these root objects resides in the first tier of children in one of the trees in the 
+forest. An object that depends on a first-tier child becomes a second-tier child, 
+and so on. This is illustrated in Figure 14.14.
+One solution to the problem of conflicting update order requirements is 
+to collect objects into independent groups, which we’ll call bucketshere for 
+lack of a better name. The first bucket consists of all root objects in the forest. 
+The second bucket is comprised of all first-tier children. The third bucket con-tains all second-tier children, and so on. For each bucket, we run a complete 
+update of the game objects and the engine systems, complete with all update 
+Figure 14.14.Inter-object update order dependencies can be viewed as a forest of depen-dency trees.
+
+phases. Then we repeat the entire process for each bucket until there are no 
+more buckets.
+In theory, the depths of the trees in our dependency forest are unbounded. 
+However, in practice, they are usually quite shallow. For example, we might 
+have characters holding weapons, and those characters might or might not be 
+riding on a moving platform or a vehicle. To implement this, we only need 
+three tiers in our dependency forest, and hence only three buckets: one for 
+platforms/vehicles, one for characters, and one for the weapons in the charac-ters’ hands. Many game engines explicitly limit the depth of their dependency 
+forest so that they can use a fixed number of buckets (presuming they use a 
+bucketed approach at all—there are of course many other ways to architect a 
+game loop).
+Here’s what a bucketed, phased, batched update loop might look like:
+voidUpdateBucket(Bucketbucket)
+{
+// ...
+for (each gameObject in bucket)
+{
+gameObject.PreAnimUpdate(dt);
+}
+g_animationEngine.CalculateIntermediatePoses
+( bucket, dt);
+for (each gameObject in bucket)
+{
+gameObject.PostAnimUpdate(dt);
+}
+g_ragdollSystem.ApplySkeletonsToRagDolls( bucket);
+g_physicsEngine.Simulate( bucket, dt); // runs 
+// ragdolls too
+g_collisionEngine.DetectAndResolveCollisions
+( bucket, dt);
+g_ragdollSystem.ApplyRagDollsToSkeletons( bucket);
+g_animationEngine.FinalizePoseAndMatrixPalette
+( bucket);
+for (each gameObject in bucket)
+{
+gameObject.FinalUpdate(dt);
+}
+
+// ...
+}
+void RunGameLoop()
+{
+while (true)
+{
+// ...
+UpdateBucket(g_bucketVehiclesAndPlatforms);
+UpdateBucket(g_bucketCharacters);
+UpdateBucket(g_bucketAttachedObjects);
+// ...
+g_renderingEngine.RenderSceneAndSwapBuffers();
+}
+}
+In practice, things might a bit more complex than this. For example, some 
+engine subsystems like the physics engine might not support the concept of 
+buckets, perhaps because they are third-party SDKs or because they cannot 
+be practically updated in a bucketed manner. However, this bucketed update 
+is essentially what we used at Naughty Dog to implement Uncharted: Drake’s 
+Fortuneand are using again for our upcoming title, Uncharted 2: Among Thieves. 
+So it’s a method that has proven to be practical and reasonably efficient.
+14.6.3.3. Object State Inconsistencies and One-Frame-Off Lag
+Let’s revisit game object updating, but this time thinking in terms of each ob-ject’s local notion of time. We said in Section 14.6 that the state of game object i
+at time tcan be denoted by a state vector S
+i
+(t). When we update a game object, 
+we are converting its previous state vector S
+i
+(t
+1
+) into a new current state vector 
+S
+i
+(t
+2
+) (where t
+2
+= t
+1
++ Δt).
+In theory, the states of all game objects are updated from time t
+1
+to time 
+t
+2
+instantaneously and in parallel, as depicted in Figure 14.15. However, in 
+practice, we can only update the objects one by one—we must loop over each 
+game object and call some kind of update function on each one in turn. If 
+we were to stop the program half-way through this update loop, half of our 
+game objects’ states would have been updated to S
+i
+(t
+2
+), while the remaining 
+half would still be in their previous states, S
+i
+(t
+1
+). This implies that if we were 
+to ask two of our game objects what the current time is during the update 
+loop, they may or may not agree! What’s more, depending on where exactly 
+we interrupt the update loop, the objects may all be in a partially updated 
+
+Figure 14.15.In theory, the states of all game objects are updated instantaneously and in 
+parallel during each iteration of the game loop
+
+state. For example, animation pose blending may have been run, but physics 
+and collision resolution may not yet have been applied. This leads us to the 
+following rule:
+The states of all game objects are consistent beforeand afterthe 
+update loop, but they may be inconsistent duringit.
+This is illustrated in Figure 14.16.
+The inconsistency of game object states during the update loop is a major 
+source of confusion and bugs, even among professionals within the game in-dustry. The problem rears its head most often when game objects query one
+
+Figure 14.16.In practice, the states of the game objects are updated one by one. This means 
+that at some arbitrary moment during the update loop, some objects will think the current 
+time is t
+2
+while others think it is still t
+1
+. Some objects may be only partially updated, so their 
+states will be internally inconsistent. In effect, the state of such an object lies at a point be-tween t
+1
+and t
+2
+.
+
+another for state information during the update loop (which implies that there 
+is a dependency between them). For example, if object B looks at the velocity 
+of object A in order to determine its own velocity at time t, then the program-mer must be clear about whether he or she wants to read the previousstate of 
+object A, S
+A
+(t
+1
+), or the newstate, S
+A
+(t
+2
+). If the new state is needed but object A 
+has not yet been updated, then we have an update order problem that can lead 
+to a class of bugs known as one-frame-offlags . In this type of bug, the state of 
+one object lags one frame behind the states of its peers, which manifests itself 
+on-screen as a lack of synchronization between game objects.
+14.6.3.4. Object State Caching
+As described above, one solution to this problem is to group the game ob-jects into buckets (Section 14.6.3.2). One problem with a simple bucketed up-date approach is that it imposes somewhat arbitrary limitations on the way in 
+which game objects are permitted to query one another for state information. 
+If a game object A wants the updatedstate vector S
+B
+(t
+2
+) of another object B, then 
+object B must reside in a previously updated bucket. Likewise, if object A wants 
+the previousstate vector S
+B
+(t
+1
+) of object B, then object B must reside in a yet-to-be-updatedbucket. Object A should never ask for the state vector of an object 
+within its own bucket, because as we stated in the rule above, those state vec-tors may be only partially updated.
+One way to improve consistency is to arrange for each game object to 
+cacheits previous state vector S
+i
+(t
+1
+) while it is calculating its new state vector 
+S
+i
+(t
+2
+) rather than overwritingit in-place during its update. This has two im-mediate benefits. First, it allows any object to safely query the previous state 
+vector of any other object without regard to update order. Second, it guar-antees that a totally consistent state vector (S
+i
+(t
+1
+)) will always be available, 
+even during the update of the new state vector. To my knowledge there is no 
+standard terminology for this technique, so I’ll call it state cachingfor lack of 
+a better name.
+Another benefit of state caching is that we can linearly interpolate be-tween the previous and next states in order to approximate the state of an 
+object at any moment between these two points in time. The Havok physics 
+engine maintains the previous and current state of every rigid body in the 
+simulation for just this purpose.
+The downside of state caching is that it consumes twice the memory of the 
+update-in-place approach. It also only solves half the problem, because while 
+the previous states at time t
+1
+are fully consistent, the new states at time t
+2
+still 
+suffer from potential inconsistency. Nonetheless, the technique can be useful 
+when applied judiciously.
+
+14.6.3.5. Time-Stamping
+One easy and low-cost way to improve the consistency of game object states 
+is to time-stamp them. It is then a trivial matter to determine whether a game 
+object’s state vector corresponds to its configuration at a previous time or the 
+current time. Any code that queries the state of another game object during 
+the update loop can assert or explicitly check the time stamp to ensure that the 
+proper state information is being obtained.
+Time-stamping does not address the inconsistency of states during the 
+update of a bucket. However, we can set a global or static variable to reflect 
+which bucket is currently being updated. Presumably every game object 
+“knows” in which bucket it resides. So we can check the bucket of a queried 
+game object against the currently updating bucket and assert that they are not 
+equal in order to guard against inconsistent state queries.
+14.6.4. Designing for Parallelism
+In Section 7.6, we introduced a number of approaches that allow a game en-gine to take advantage of the parallel processing resources that have become 
+the norm in recent gaming hardware. How, then, does parallelism affect the 
+way in which game object states are updated?
+14.6.4.1. Parallelizing the Game Object Model Itself
+Game object models are notoriously difficult to parallelize, for a few reasons. 
+Game objects tend to be highly interdependent upon one another and upon 
+the data used and/or generated by numerous engine subsystems. Game ob-jects communicate with one another, sometimes multiple times during the up-date loop, and the pattern of communication can be unpredictable and highly 
+sensitive to the inputs of the player and the events that are occurring in the 
+game world. This makes it difficult to process game object updates in mul-tiple threads , for example, because the amount of thread synchronization that 
+would be required to support inter-object communication is usually prohibi-tive from a performance standpoint. And the practice of peeking directly into 
+a foreign game object’s state vector makes it impossible to DMA a game object 
+to the isolated memory of a coprocessor, such as the PLAYSTATION 3’s SPU, 
+for updating.
+That said, game object updating cantheoretically be done in parallel. 
+To make it practical, we’d need to carefully design the entire object model 
+to ensure that game objects never peek directly into the state vectors of oth-er game objects. All inter-object communication would have to be done via 
+message-passing, and we’d need an efficient system for passing messages be-
+
+tween game objects even when those objects reside in totally separate memory 
+spaces or are being processed by different physical CPU cores. Some research 
+has been done into using a distributed programming language, such as Er-icsson’s Erlang (http://www.erlang.org), to code game object models. Such 
+languages provide built-in support for parallel processing and message pass-ing and handle context switching between threads much more efficiently and 
+quickly than in a language like C or C++, and their programming idioms help 
+programmers to never “break the rules” that allow concurrent, distributed, 
+multiple agent designs to function properly and efficiently.
+14.6.4.2. Interfacing with Concurrent Engine Subsystems
+Although sophisticated, concurrent, distributed object models are theoreti-cally feasible and are an area of extremely interesting research, at present 
+most game teams do not use them. Instead, most game teams leave the ob-ject model in a single thread and use an old-fashioned game loop to update 
+them. They focus their attention instead on parallelizing many of the lower-level engine systems upon which the game objects depend. This gives teams 
+the biggest “bang for their buck,” because low-level engine subsystems tend 
+to be more performance-critical than the game object model. This is because 
+low-level subsystems must process huge volumes of data every frame, while 
+the amount of CPU power used by the game object model is often somewhat 
+smaller. This is an example of the 80-20 rule in action.
+Of course, using a single-threaded game object model does not mean that 
+game programmers can be totally oblivious to parallel programming issues. 
+The object model must still interact with engine subsystems that are them-selves running concurrently with the object model. This paradigm shiftre-quires game programmers to avoid certain programming paradigms that may 
+have served them well in the pre-parallel-processing era and adopt some new 
+ones in their place.
+Probably the most important shifta game programmer must make is to 
+begin thinking asynchronously . As described in Section 7.6.5, this means that 
+when a game object requires a time-consuming operation to be performed, it 
+should avoid calling a blocking function—a function that does its work direct-ly in the context of the calling thread, thereby blocking that thread until the 
+work has been completed. Instead, whenever possible, large or expensive jobs 
+should be requested by calling a non-blocking function—a function that sends 
+the request to be executed by another thread, core, or processor and then im-mediately returns control to the calling function. The main game loop can 
+proceed with other unrelated work, including updating other game objects, 
+while the original object waits for the results of its request. Later in the same
+
+frame, or next frame, that game object can pick up the results of its request and 
+make use of them.
+Batching is another shiftin thinking for game programmers. As we men-tioned in Section 14.6.2, it is more efficient to collect similar tasks into batches 
+and perform them en masse than it is to run each task independently. This 
+applies to the process of updating game object states as well. For example, if 
+a game object needs to cast 100 rays into the collision world for various pur-poses, it is best if those ray cast requests can be queued up and executed as 
+one big batch. If an existing game engine is being retrofi tted for parallelism, 
+this often requires code to be rewritten so that it batches requests rather than 
+doing them individually.
+One particularly tricky aspect of converting synchronous, unbatched code 
+to use an asynchronous, batched approach is determining whenduring the 
+game loop (a) to kick offthe request and (b) to wait for and utilize the results. 
+In doing this, it is often helpful to ask ourselves the following questions:
+z How early can we kick offthis request?The earlier we make the request, the 
+more likely it is to be done when we actually need the results—and this 
+maximizes CPU utilization by helping to ensure that the main thread 
+is never idle waiting for an asynchronous request to complete. So for 
+any given request, we should determine the earliest point during the 
+frame at which we have enough information to kick it off, and kick it 
+there.
+z How long can we wait before we need the results of this request?Perhaps we 
+can wait until later in the update loop to do the second half of an opera-tion. Perhaps we can tolerate a one-frame lag and use last frame’s results 
+to update the object’s state this frame. (Some subsystems like AI can 
+tolerate even longer lag times because they update only every few sec-onds.) In many circumstances, code that uses the results of a request can 
+in fact be deferred until later in the frame, given a little thought, some 
+code re-factoring, and possibly some additional caching of intermediate 
+data.
+
+（本节完）
+
+
+
+
+
