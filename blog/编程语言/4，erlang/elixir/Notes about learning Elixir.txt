@@ -1,0 +1,28 @@
+﻿Notes about learning Elixir
+October 8, 2014 by Jan Kronquist
+Jan Kronquist
+http://www.jayway.com/2014/10/08/notes-about-learning-elixir/
+
+=======
+When I first heard about Elixir at Øredev 2012 I thought it was nice, but I didn’t really get it. I remember thinking than Elixir was like Ruby for the Erlang Virtual Machine. However, when I heard Bruce Tate on Functional Geekery talking about macros in Elixir I got interested again. Re-watching the presentation now I how no idea how I could miss this, as lispiness and macros is basically all he talks about! Turns out that Elixir is what would happen if Erlang, Clojure, and Ruby somehow had a baby. If you want to know more about macros and homoiconicity in Elixir have a look at Lispy Elixir. As Elixir v1.0.0 is released it is mature enough to start using it.
+
+My background is with Java and Clojure and here are some of my notes after playing with Elixir for a few days:
+
+Documentation
+The documentation is really good! My ignorance is mostly caused by lack of time reading the documentation than anything else… I also found the site Learn X in Y minutes helpful in general, both for Elixir and Erlang.
+
+Compile and build
+iex is the REPL which I always keep open. Hex is like maven central. mix corresponds to maven/leining/gradle. Mix allows dependencies to github repos and compiles that code locally. This seemed scary at first, but then I discovered the mix.lock file which solves the issue of repeatable builds.
+
+Erlang
+When learning Elixir it is definitely valuable to know some Erlang. I attended Erlang 101 at StrangeLoop which perhaps was a bit too basic, but at least I can read some Erlang. However, as a beginner reading both Erlang and Elixir I tend to be mix up the rules, for example the rules for atoms when converting an Erlang example to Elixir. This is an example where I just need more time.
+
+Web
+Both Erlang and Elixir have a rich ecosystem of libraries and frameworks. Here are some I have seen in the web space compared to the Java and Clojure ecosystem. Please note that the comparisons are not exact and only intended as an analogy to understand how the different pieces fit together.
+
+MochiWeb is a library for lightweight HTTP servers. The Java equivalent would probably be the built-in Java web server.
+Cowbow is a more full featured server, perhaps similar to something like Jetty.
+Think of Webmachine as the REST API, perhaps similar to JAX-RS (but completely different!). The Clojure analogy is liberator
+Plug is “A specification for composable modules in between web applications”, which I think of as Ring in Clojure.
+Phoenix is a web framework similar to Spring MVC or perhaps Play framework. It seems Phoenix have replaced the older web framework Dynamo which now in maintenance mode.
+

@@ -1,0 +1,407 @@
+﻿（hxzon读书笔记）《JavaScript Web Applications》事件
+CHAPTER 2 Events and Observing
+
+注释by hxzon
+========
+Events are at the core of your JavaScript application, powering everything and providing
+the first point of contact when a user interacts with your application. However, this is
+where JavaScript’s unstandardized birth rears its ugly head. At the height of the browser
+wars, Netscape and Microsoft purposely chose different, incompatible event models.
+Although they were later standardized by the W3C, Internet Explorer kept its different
+implementation until its latest release, IE9.
+Luckily, we have great libraries like jQuery and Prototype that smooth over the mess,
+giving you one API that will work with all the event implementations. Still, it’s worth
+understanding what’s happening behind the scenes, so I’m going to cover the W3C
+model here before showing examples for various popular libraries.
+Listening to Events
+Events revolve around a function called addEventListener(), which takes three argu-ments: type(e.g.,  click),  listener(i.e., callback), and  useCapture(we’ll cover  useCap
+turelater). Using the first two arguments, we can attach a function to a DOM element,
+which is invoked when that particular event, such as click, is triggered on the element:
+var button = document.getElementById("createButton");
+button.addEventListener("click", function(){ /* ... */ }, false);
+We can remove the listener using removeEventListener(), passing the same arguments
+we gave addEventListener(). If the listener function is anonymous and there’s no ref-erence to it, it can’t be removed without destroying the element:
+var div = document.getElementById("div");
+var listener = function(event) { /* ... */ };
+div.addEventListener("click", listener, false);
+div.removeEventListener("click", listener, false);
+
+As its first argument, the listener function is passed an event  object, which you can use
+to get information about the event, such as timestamp, coordinates, and target. It also
+contains various functions to stop the event propagation and prevent the default action.
+As for event types, the supported ones vary from browser to browser, but all modern
+browsers have the following:
+• click
+• dblclick
+• mousemove
+• mouseover
+• mouseout
+• focus
+• blur
+• change(for form inputs)
+• submit(for forms)
+Check out Quirksmode, which has a full event compatibility table.
+Event Ordering
+Before we go any further, it’s important to discuss event ordering. If an element and
+one of its ancestors have an event handler for the same event type, which one should
+fire first when the event is triggered? Well, you won’t be surprised to hear that Netscape
+and Microsoft had different ideas.
+Netscape 4 supported event capturing, which triggers event listeners from the top-most
+ancestor to the element in question—i.e., from the outside in.
+Microsoft endorsed event bubbling, which triggers event listeners from the element,
+propagating up through its ancestors—i.e., from the inside out.
+Event bubbling makes more sense to me, and it is likely to be the model used in day-to-day development. The W3C compromised and stipulated support for both event
+models in their specification. Events conforming to the W3C model are first captured
+until they reach the target element; then, they bubble up again.
+You can choose the type of event handler you want to register, capturing or bubbling,
+which is where the useCaptureargument to  addEventListener()comes into the picture.
+If the last argument to addEventListener()is true, the event handler is set for the cap-turing phase; if it is false, the event handler is set for the bubbling phase:
+
+// Use bubbling by passing false as the last argument
+button.addEventListener("click", function(){ /* ... */ }, false);
+The vast majority of the time, you’ll probably be using event bubbling. If in doubt, pass
+falseas the last argument to addEventListener().
+Canceling Events
+When the event is bubbling up, you can stop its progress with the stopPropagation()
+function, located on the  eventobject. Any handlers on ancestor elements won’t be
+invoked:
+button.addEventListener("click", function(e){ 
+e.stopPropagation();
+/* ... */
+}, false);
+Additionally, some libraries like jQuery support a stopImmediatePropagation()func-tion, preventing any further handlers from being called at all—even if they’re on the
+same element.
+Browsers also give default actions to events. For example, when you click on a link, the
+browser’s default action is to load a new page, or when you click on a checkbox,
+the browser checks it. This default action happens after all the event propagation phases
+and can be canceled during any one of those. You can prevent the default action with
+the  preventDefault()function on the  eventobject. Alternatively, you can just return
+falsefrom the handler:
+form.addEventListener("submit", function(e){ 
+/* ... */
+return confirm("Are you super sure?");
+}, false);
+If the call to  confirm()returns false—i.e., the user clicks cancel in the confirmation
+dialog—the event callback function will return false, canceling the event and form
+submission.
+The Event Object
+As well as the aforementioned functions—stopPropagation()and preventDefault()—
+the eventobject contains a lot of useful properties. Most of the properties in the W3C
+specification are documented below; for more information, see the full specification.
+Type of event:
+bubbles
+A boolean indicating whether the event bubbles up through the DOM
+
+Properties reflecting the environment when the event was executed:
+button
+A value indicating which, if any, mouse button(s) was pressed
+ctrlKey
+A boolean indicating whether the Ctrl key was pressed
+altKey
+A boolean indicating whether the Alt key was pressed
+shiftKey
+A boolean indicating whether the Shift key was pressed
+metaKey
+A boolean indicating whether the Meta key was pressed
+Properties specific to keyboard events:
+isChar
+A boolean indicating whether the event has a key character
+charCode
+A unicode value of the pressed key (for keypressevents only)
+keyCode
+A unicode value of a noncharacter key
+which
+A unicode value of the pressed key, regardless of whether it’s a character
+Where the event happened:
+pageX, pageY
+The event coordinates relative to the page (i.e., viewport)
+screenX, screenY
+The event coordinates relative to the screen
+Elements associated with the event:
+currentTarget
+The current DOM element within the event bubbling phase
+target, originalTarget
+The original DOM element
+relatedTarget
+The other DOM element involved in the event, if any
+These  properties vary in browsers, especially among those that are not W3C-compliant.
+Luckily, libraries like jQuery and Prototype will smooth out any differences.
+
+Event Libraries
+In all likelihood you’ll end up using a JavaScript library for event management; other-wise, there are just too many browser inconsistencies. I’m going to show you how to
+use jQuery’s event management API, although there are many other good choices, such
+as  Prototype,  MooTools, and  YUI. Refer to their respective APIs for more in-depth
+documentation.
+jQuery’s API has a bind()function for adding cross-browser event listeners. Call this
+function on jQuery instances, passing in an event name and handler:
+jQuery("#element").bind(eventName, handler);
+For example, you can register a click handler on an element like so:
+jQuery("#element").bind("click", function(event) {
+// ...
+});
+jQuery has some shortcuts for event types like  click,  submit, and  mouseover. It looks
+like this:
+$("#myDiv").click(function(){
+// ...
+});
+It’s important to note that the element must exist before you start adding events to
+it—i.e., you should do so after the page has loaded. All you need to do is listen for the
+window’s loadevent, and then start adding listeners:
+jQuery(window).bind("load", function() {
+$("#signinForm").submit(checkForm);
+});
+However, there’s a better event to listen for than the window’s  load, and that’s
+DOMContentLoaded. It fires when the DOM is ready, but before the page’s images and
+stylesheets have downloaded. This means the event will always fire before users can
+interact with the page.
+The DOMContentLoadedevent isn’t supported in every browser, so jQuery abstracts
+it with a ready()function that has cross-browser support:
+jQuery.ready(function($){
+$("#myForm").bind("submit", function(){ /* ... */ });
+});
+In fact, you can skip the ready()function and pass the handler straight to the jQuery
+object:
+jQuery(function($){
+// Called when the page is ready
+});
+
+Context Change
+One thing that’s often confusing about events is how the context changes when the
+handler is invoked. When using the browser’s native addEventListener(), the context
+is changed from the local one to the targeted HTML element:
+new function(){
+this.appName = "wem";
+document.body.addEventListener("click", function(e){ 
+// Context has changed, so appName will be undefined
+alert(this.appName);
+}, false);
+};
+To preserve the original context, wrap the handler in an anonymous function, keeping
+a reference to it. We covered this pattern in Chapter 1, where we used a proxy function
+to maintain the current context. It’s such a common pattern that jQuery includes a
+proxy()function—just pass in the function and context in which you want it to be
+invoked:
+$("signinForm").submit($.proxy(function(){ /* ... */ }, this));
+Delegating Events
+It may have occurred to you that since events bubble up, we could just add a listener
+on a parent element, checking for events on its children. This is exactly the technique
+that frameworks like  SproutCoreuse to reduce the number of event listeners in the
+application:
+// Delegating events on a ul list
+list.addEventListener("click", function(e){ 
+if (e.currentTarget.tagName == "li") {
+/* ... */
+return false;
+}
+}, false);
+jQuery has a great way of doing this; simply pass the  delegate()function a child se-lector, event type, and handler. The alternative to this approach would be to add a
+clickevent to every  lielement. However, by using  delegate(), you’re reducing the
+number of event listeners, improving performance:
+// Don't do this! It adds a listener to every 'li' element (expensive)
+$("ul li").click(function(){ /* ... */ });
+// This only adds one event listener
+$("ul").delegate("li", "click", /* ... */);
+
+Another advantage to event delegation is that any children added dynamically to the
+element would still have the event listener. So, in the above example, any lielements
+added to the list after the page loaded would still invoke the click handler.
+Custom Events
+Beyond events that are native to the browser, you can trigger and bind them to your
+own custom events. Indeed, it’s a great way of architecting libraries—a pattern a lot of
+jQuery plug-ins use. The W3C spec for custom events has been largely ignored by the
+browser vendors; you’ll have to use libraries like jQuery or Prototype for this feature.
+jQuery lets you fire custom events using the  trigger()function. You can namespace
+event names, but namespaces are separated by full stops and reversed. For example:
+// Bind custom event
+$(".class").bind("refresh.widget", function(){});
+// Trigger custom event
+$(".class").trigger("refresh.widget");
+And to pass data to the event handler, just pass it as an extra parameter to trigger().
+The data will be sent to callbacks as extra arguments:
+$(".class").bind("frob.widget", function(event, dataNumber){
+console.log(dataNumber);
+});
+$(".class").trigger("frob.widget", 5);
+Like native events, custom events will propagate up the DOM tree.
+Custom Events and jQuery Plug-Ins
+Custom events, often used to great effect in jQuery plug-ins, are a great way to architect
+any piece of logic that interacts with the DOM. If you’re unfamiliar with jQuery plug-ins, skip ahead to Appendix B, which includes a jQuery primer.
+If you’re adding a piece of functionality to your application, always consider whether
+it could be abstracted and split out in a plug-in. This will help with decoupling and
+could leave you with a reusable library.
+For example, let’s look at a simple jQuery plug-in for tabs. We’re going to have a ul
+list that will respond to click events. When the user clicks on a list item, we’ll add an
+activeclass to it and remove the activeclass from the other list items:
+<ul id="tabs">
+<li data-tab="users">Users</li>
+<li data-tab="groups">Groups</li>
+</ul>
+<div id="tabsContent">
+
+<div data-tab="users"> ... </div>
+<div data-tab="groups"> ... </div>
+</div>
+In  addition, we have a  tabsContentdiv that contains the actual contents of the tabs.
+We’ll also be adding and removing the activeclass from the div’s children, depending
+on which tab was clicked. The actual displaying and hiding of the tabs will be done by
+CSS—our plug-in just toggles the activeclass:
+jQuery.fn.tabs = function(control){
+var element = $(this);
+control = $(control);
+element.find("li").bind("click", function(){
+// Add/remove active class from the list-item
+element.find("li").removeClass("active");
+$(this).addClass("active");
+// Add/remove active class from tabContent
+var tabName = $(this).attr("data-tab");
+control.find(">[data-tab]").removeClass("active");
+control.find(">[data-tab='" + tabName + "']").addClass("active");
+});
+// Activate first tab
+element.find("li:first").addClass("active"); 
+// Return 'this' to enable chaining
+return this;
+};
+The plug-in is on jQuery’s prototype, so it can be called on jQuery instances:
+$("ul#tabs").tabs("#tabContent");
+What’s wrong with the plug-in so far? Well, we’re adding a clickevent handler onto all
+the list items, which is our first mistake. Instead, we should be using the  delegate()
+function covered earlier in this chapter. Also, that click handler is massive, so it’s dif-ficult to see what’s going on. Furthermore, if another developer wanted to extend our
+plug-in, he’d probably have to rewrite it.
+Let’s see how we can use custom events to clean up our code. We’ll fire a change.tabs
+event when a tab is clicked, and bind several handlers to change the  activeclass as
+appropriate:
+jQuery.fn.tabs = function(control){
+var element = $(this);
+control = $(control);
+element.delegate("li", "click", function(){
+// Retrieve tab name
+var tabName = $(this).attr("data-tab");
+// Fire custom event on tab click
+element.trigger("change.tabs", tabName);
+
+});
+// Bind to custom event
+element.bind("change.tabs", function(e, tabName){
+element.find("li").removeClass("active");
+element.find(">[data-tab='" + tabName + "']").addClass("active");
+});
+element.bind("change.tabs", function(e, tabName){
+control.find(">[data-tab]").removeClass("active");
+control.find(">[data-tab='" + tabName + "']").addClass("active");
+});
+// Activate first tab
+var firstName = element.find("li:first").attr("data-tab");
+element.trigger("change.tabs", firstName);
+return this;
+};
+See how much cleaner the code is with custom event handlers? It means we can split
+up the tab change handlers, and it has the added advantage of making the plug-in much
+easier to extend. For example, we can now programmatically change tabs by firing our
+change.tabsevent on the observed list:
+$("#tabs").trigger("change.tabs", "users");
+We could also tie up the tabs with the window’s hash, adding back button support:
+$("#tabs").bind("change.tabs", function(e, tabName){
+window.location.hash = tabName;
+});
+$(window).bind("hashchange", function(){
+var tabName = window.location.hash.slice(1);
+$("#tabs").trigger("change.tabs", tabName);
+});
+The fact that we’re using custom events gives other developers a lot of scope when
+extending our work.
+Non-DOM Events
+Event-based programming is very powerful because it decouples your application’s
+architecture, leading to better self-containment and maintainability. Events aren’t re-stricted to the DOM though, so you can easily write your own event handler library.
+The pattern is called Publish/Subscribe, and it’s a good one to be familiar with.
+Publish/Subscribe, or Pub/Sub, is a messaging pattern with two actors, publishers, and
+subscribers. Publishers publish messages to a particular channel, and subscribers sub-scribe to channels, receiving notifications when new messages are published. The key
+
+here is that publishers and subscribers are completely decoupled—they have no idea
+of each other’s existence. The only thing the two share is the channel name.
+The decoupling of publishers and subscribers allows your application to grow without
+introducing a lot of interdependency and coupling, improving the ease of maintenance,
+as well as adding extra features.
+So, how do you actually go about using Pub/Sub in an application? All you need to do
+is record handlers associated with an event name and then have a way of invoking them.
+Here’s an example PubSubobject, which we can use for adding and triggering event
+listeners:
+var PubSub = { 
+subscribe: function(ev, callback) {
+// Create _callbacks object, unless it already exists
+var calls = this._callbacks || (this._callbacks = {});
+// Create an array for the given event key, unless it exists, then
+// append the callback to the array
+(this._callbacks[ev] || (this._callbacks[ev] = [])).push(callback);
+return this;
+},
+publish: function() {
+// Turn arguments object into a real array
+var args = Array.prototype.slice.call(arguments, 0);
+// Extract the first argument, the event name
+var ev = args.shift();
+// Return if there isn't a _callbacks object, or
+// if it doesn't contain an array for the given event
+var list, calls, i, l;
+if (!(calls = this._callbacks)) return this;
+if (!(list = this._callbacks[ev])) return this;
+// Invoke the callbacks
+for (i = 0, l = list.length; i < l; i++)
+list[i].apply(this, args);
+return this;
+}
+};
+// Example usage
+PubSub.subscribe("wem", function(){
+alert("Wem!");
+});
+PubSub.publish("wem");
+You can namespace events by using a separator, such as a colon (:).
+PubSub.subscribe("user:create", function(){ /* ... */ });
+
+If you’re using jQuery, there’s an  even easier libraryby Ben Alman. It’s so simple, in
+fact, that we can put it inline:
+/*!
+* jQuery Tiny Pub/Sub - v0.3 - 11/4/2010
+* http://benalman.com/
+* 
+* Copyright (c) 2010 "Cowboy" Ben Alman
+* Dual licensed under the MIT and GPL licenses.
+* http://benalman.com/about/license/
+*/
+(function($){
+var o = $({});
+$.subscribe = function() {
+o.bind.apply( o, arguments );
+};
+$.unsubscribe = function() {
+o.unbind.apply( o, arguments );
+};
+$.publish = function() {
+o.trigger.apply( o, arguments );
+};
+})(jQuery);
+The API takes the same arguments as jQuery’s bind()and  trigger()functions. The
+only difference is that the functions reside directly on the jQueryobject, and they are
+called publish()and subscribe():
+$.subscribe( "/some/topic", function( event, a, b, c ) {
+console.log( event.type, a + b + c );
+});
+$.publish( "/some/topic", "a", "b", "c" );
+We’ve been using Pub/Sub for global events, but it’s just as easy to scope it. Let’s take
+the PubSubobject we created previously and scope it to an object:
+var Asset = {};
+// Add PubSub
+jQuery.extend(Asset, PubSub);
+// We now have publish/subscribe functions
+Asset.subscribe("create", function(){
+// ...
+});
+
+We’re using jQuery’s  extend()  to copy  PubSub’s properties onto our  Assetobject.
+Now, all calls to publish()and subscribe()are scoped by Asset. This is useful in lots
+of scenarios, including events in an object-relational mapping (ORM), changes in a
+state machine, or callbacks once an Ajax request has finished.
+
+（本章完）
+

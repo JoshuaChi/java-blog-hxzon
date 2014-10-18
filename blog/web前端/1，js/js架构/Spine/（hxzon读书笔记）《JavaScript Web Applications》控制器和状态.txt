@@ -1,0 +1,618 @@
+﻿（hxzon读书笔记）《JavaScript Web Applications》控制器和状态
+CHAPTER 4 Controllers and State
+
+注释by hxzon
+========
+Historically, state was managed server side with session cookies. So, whenever users
+navigated  to a new page, the previous page’s state was lost—only the cookies persisted.
+JavaScript applications, however, are confined to a single page, which means we can
+now store state on the client's memory.
+One of the major advantages to storing state on the client is a really responsive interface.
+A user gets immediate feedback when interacting with the page, rather than waiting a
+few seconds for the next page to load. Speed greatly improves the user experience,
+making many JavaScript applications a real pleasure to use.
+However, storing state on the client causes challenges as well. Where exactly should it
+be stored? In local variables? Perhaps in the DOM? This is where a lot of developers get
+led astray, which is an unfortunate state of affairs because storing state properly is one
+of the most critical areas to get right.
+First, you should avoid storing data or state in the DOM. That’s just a slippery slope
+leading to an entangled mess and anarchy! In our case—since we’re using the tried and
+tested MVC architecture—state is stored inside our application’s controllers.
+What exactly is a controller? Well, you can think of it as the glue between the appli-cation’s views and models. It’s the only component aware of the application’s views
+and models, tying them together. When the page loads, your controller attaches event
+handlers to views and processes callbacks appropriately, interfacing with models as
+necessary.
+You don’t need any libraries to create controllers, although they can be useful. The only
+essential part is that controllers are modular and independent. Ideally, they shouldn’t
+be defining any global variables, instead functioning as fairly decoupled components.
+An excellent way of ensuring this is with the module pattern.
+
+Module Pattern
+The module pattern is a great way to encapsulate logic and prevent global namespace 
+pollution. It’s all made possible by anonymous functions, which are arguably the single
+best feature of JavaScript. We’ll just create an anonymous function and execute it im-mediately. All the code residing within the function runs inside a closure, providing a
+local and private environment for our application’s variables:
+(function(){
+/* ... */
+})();
+We have to surround the anonymous function with braces ()before we can execute it.
+JavaScript requires this so it can interpret the statement correctly.
+Global Import
+Variable definitions inside the module are local, so they can’t be accessed outside in
+the global namespace. However, the application’s global variables are all still available,
+and they can be readily accessed and manipulated inside the module. It’s often not
+obvious which global variables are being used by a module, especially when your mod-ules get larger.
+In addition, implied globals are slower to resolve because the JavaScript interpreter has
+to walk up the scope chain to resolve them. Local variable access will always be faster
+and more efficient.
+Luckily, our modules provide an easy way to resolve these problems. By passing globals
+as parameters to our anonymous function, we can import them into our code, which
+is both clearer and faster than implied globals:
+(function($){
+/* ... */
+})(jQuery);
+In the example above, we’re importing the global variable jQueryinto our module and
+aliasing it to  $. It’s obvious which global variables are being accessed inside the module,
+and their lookup is quicker. In fact, this is the  recommended practicewhenever you
+want to use jQuery’s $shortcut, which ensures that your code won’t conflict with any
+other libraries.
+Global Export
+We can use a similar technique when it comes to exporting global variables. Ideally,
+you should be using as few global variables as possible, but there’s always the odd
+occasion when they’re needed. We can import the page’s windowinto our module, 
+set-ting properties on it directly, thereby exposing variables globally:
+
+(function($, exports){
+exports.Foo = "wem";
+})(jQuery, window);
+assertEqual( Foo, "wem" );
+The fact that we’re using a variable called  exportsto set any global variables means the
+code is clearer, making it obvious which global variables a module is creating.
+Adding a Bit of Context
+Using a local context is a useful way of structuring modules, especially when it comes
+to registering callbacks to events. As it stands, the context inside our module is global—
+thisis equal to window:
+(function(){
+assertEqual( this, window );
+})();
+If we want to scope the context, we need to start adding functions onto an object. For
+example:
+(function(){
+var mod = {};
+mod.contextFunction = function(){
+assertEqual( this, mod );
+};
+mod.contextFunction();
+})();
+The context inside contextFunction()is now local to our  modobject. We can start using
+thiswithout worrying about creating global variables. To give you a better indication
+of how it would be used in practice, let’s further flesh out that example:
+(function($){
+var mod = {};
+mod.load = function(func){
+$($.proxy(func, this));
+};
+mod.load(function(){
+this.view = $("#view");
+});
+mod.assetsClick = function(e){
+// Process click
+};
+
+mod.load(function(){
+this.view.find(".assets").click(
+$.proxy(this.assetsClick, this)
+);
+});
+})(jQuery);
+We’re creating a load()function that takes a callback, executing it when the page has
+loaded. Notice that we’re using jQuery.proxy()to ensure that the callback is invoked
+in the correct context.
+Then, when the page loads, we’re adding a click handler onto an element, giving it a
+local function,  assetsClick(), as a callback. Creating a controller doesn’t need to be
+any more complicated than that. What’s important is that all of the controller’s state
+is kept local and encapsulated cleanly into a module.
+Abstracting into a Library
+Let’s abstract that library out so we can reuse it with other modules and controllers.
+We’ll include the existing load()function and add new ones like  proxy()and  include():
+(function($, exports){
+var mod = function(includes){
+if (includes) this.include(includes);
+};
+mod.fn = mod.prototype;
+mod.fn.proxy = function(func){
+return $.proxy(func, this);
+};
+mod.fn.load = function(func){
+$(this.proxy(func));
+};
+mod.fn.include = function(ob){
+$.extend(this, ob);
+};
+exports.Controller = mod;
+})(jQuery, window);
+proxy()ensures that functions are executed in the local context, which is a useful pat-tern for event callbacks. The  include()function is just a shortcut for adding properties
+onto the controller, saving some typing.
+We’re adding our library to the exportsobject, exposing it as the global  Controller
+variable. Inside the module we can instantiate a  Controllerobject using its constructor
+function. Let’s go through a simple example that toggles an element’s class depending
+on whether the mouse is over the element:
+
+(function($, Controller){
+var mod = new Controller;
+mod.toggleClass = function(e){ 
+this.view.toggleClass("over", e.data);
+};
+mod.load(function(){
+this.view = $("#view");
+this.view.mouseover(this.proxy(this.toggleClass), true);
+this.view.mouseout(this.proxy(this.toggleClass), false);
+});
+})(jQuery, Controller);
+When the page loads, we’re creating a  viewvariable and attaching some event listeners.
+They in turn call toggleClass()when the mouse moves over the element, toggling the
+element’s class. You can see the full example in this book’s accompanying files, in
+assets/ch04/modules.html.
+Granted, using context rather than local variables means there is probably more code
+to write, what with all the usage of  this. However, the technique gives us much greater
+scope for reusing code and including mixins. For example, we could add a function
+onto every Controllerinstance by setting a property on its prototype:
+Controller.fn.unload = function(func){
+jQuery(window).bind("unload", this.proxy(func));
+};
+Or, we could extend an individual controller by using the  include()function we defined
+earlier, passing it an object:
+var mod = new Controller;
+mod.include(StateMachine);
+The StateMachineobject, in this example, could be reused over and over again with our
+other modules, preventing us from duplicating code and keeping things DRY (don’t
+repeat yourself).
+Loading Controllers After the Document
+As it stands, some parts of our controllers are being loaded before the DOM, and other
+parts are in callbacks to be invoked after the page’s document has loaded. This can be
+confusing because the controller’s logic is being executed under different states, re-sulting in a lot of document load callbacks.
+We can solve this in one fell swoop by loading controllers afterthe DOM. I personally
+advocate this approach because it ensures that you don’t need to think constantly about
+what state the page’s DOM is in when accessing elements.
+
+Let’s first take advantage and clear up our library, making our controllers a bit cleaner.
+The  Controller  class doesn’t need to be a constructor function because the context
+switch needed when generating subcontrollers is unnecessary here:
+// Use global context, rather than the window
+// object, to create global variables
+var exports = this;
+(function($){
+var mod = {};
+mod.create = function(includes){
+var result = function(){
+this.init.apply(this, arguments);
+};
+result.fn = result.prototype;
+result.fn.init = function(){};
+result.proxy = function(func){ return $.proxy(func, this); };
+result.fn.proxy = result.proxy;
+result.include = function(ob){ $.extend(this.fn, ob); }; 
+result.extend = function(ob){ $.extend(this, ob); };
+if (includes) result.include(includes)
+return result;
+};
+exports.Controller = mod;
+})(jQuery);
+Now we can use our new Controller.create()function to create controllers, passing
+in an object literal of instance properties. Notice that the entire controller is wrapped
+in  jQuery(function(){ /* ... */ }). This is an alias for  jQuery.ready(), and it ensures
+that the controller is loaded only after the page’s DOM has fully initialized:
+jQuery(function($){
+var ToggleView = Controller.create({
+init: function(view){
+this.view = $(view);
+this.view.mouseover(this.proxy(this.toggleClass), true);
+this.view.mouseout(this.proxy(this.toggleClass), false); 
+},
+this.toggleClass: function(e){
+this.view.toggleClass("over", e.data); 
+}
+});
+// Instantiate controller, calling init()
+new ToggleView("#view");
+});
+
+The other significant change we’ve made is passing in the view element to the controller
+upon instantiation, rather than hardcoding it inside. This is an important refinement
+because it means we can start reusing controllers with different elements, keeping code
+repetition to a minimum.
+Accessing Views
+A common pattern is to have one controller per view. That view has an ID, so it can be
+passed to controllers easily. Elements inside the view then use classes, rather than IDs,
+so they don’t conflict with elements in other views. This pattern provides a good struc-ture for a general practice, but it should not be conformed to rigidly.
+So far in this chapter we’ve been accessing views by using the  jQuery()selector, storing
+a local reference to the view inside the controller. Subsequent searches for elements
+inside the view are then scoped by that view reference, speeding up their lookup:
+// ... 
+init: function(view){
+this.view = $(view);
+this.form = this.view.find("form");
+}
+However, it does mean that controllers fill up with a lot of selectors, requiring us to
+query the DOM constantly. We can clean this up somewhat by having one place in the
+controller where selectors are mapped to variables names, like so:
+elements: {
+"form.searchForm": "searchForm",
+"form input[type=text]": "searchInput"
+}
+This ensures that the variables this.searchFormand this.searchInputwill be created
+on the controller when it’s instantiated, set to their respective elements. These are nor-mal jQuery objects, so we can manipulate them as usual, setting event handlers and
+fetching attributes.
+Let’s implement support for that  elementsmapping inside our controllers, iterating
+over all the selectors and setting local variables. We’ll do this inside our init()func-tion, which is called when our controller is instantiated:
+var exports = this;
+jQuery(function($){
+exports.SearchView = Controller.create({
+// Map of selectors to local variable names
+elements: {
+"input[type=search]": "searchInput",
+"form": "searchForm"
+},
+// Called upon instantiation
+init: function(element){
+
+this.el = $(element);
+this.refreshElements();
+this.searchForm.submit(this.proxy(this.search));
+},
+search: function(){
+console.log("Searching:", this.searchInput.val());
+},
+// Private
+$: function(selector){
+// An `el` property is required, and scopes the query
+return $(selector, this.el);
+},
+// Set up the local variables
+refreshElements: function(){
+for (var key in this.elements) {
+this[this.elements[key]] = this.$(key);
+}
+}
+});
+new SearchView("#users");
+});
+refreshElements()  expects every controller to have a current element property,  el,
+which will scope any selectors. Once  refreshElements()is called, the  this.search
+Formand  this.searchInputproperties will be set on the controller and are subsequently
+available for event binding and DOM manipulation.
+You can see a full example of this in this book’s accompanying files, in  assets/ch04/
+views.html.
+Delegating Events
+We can also take a stab at cleaning up all that event binding and proxying by having
+an eventsobject that maps event types and selectors to callbacks. This is going to be
+very similar to the elementsobject, but instead will take the following form:
+events: {
+"submit form": "submit"
+}
+Let’s go ahead and add that to our SearchViewcontroller. Like  refreshElements(), we’ll
+have a  delegateEvents()function that will be called when the controller is instantiated.
+This will parse the controller’s eventsobject, attaching event callbacks. In our Search
+Viewexample, we want the  search()function to be invoked whenever the view’s
+<form />is submitted:
+var exports = this;
+
+jQuery(function($){
+exports.SearchView = Controller.create({
+// Map all the event names, 
+// selectors, and callbacks
+events: {
+"submit form": "search"
+},
+init: function(){
+// ...
+this.delegateEvents();
+},
+search: function(e){ /* ... */ },
+// Private
+// Split on the first space
+eventSplitter: /^(\w+)\s*(.*)$/,
+delegateEvents: function(){
+for (var key in this.events) {
+var methodName = this.events[key];
+var method = this.proxy(this[methodName]);
+var match = key.match(this.eventSplitter);
+var eventName = match[1], selector = match[2];
+if (selector === '') {
+this.el.bind(eventName, method);
+} else {
+this.el.delegate(selector, eventName, method);
+}
+}
+}
+});
+Notice  we’re using the  delegate()function inside  delegateEvents(), as well as the
+bind()function. If the event selector isn’t provided, the event will be placed straight
+on el. Otherwise, the event will be delegated, and it will be triggered if the event type
+is fired on a child matching the selector. The advantage of delegation is that it often
+reduces the amount of event listeners required—i.e., listeners don’t have to be placed
+on every element selected because events are caught dynamically when they bubble up.
+We can push all those controller enhancements upstream to our Controllerlibrary so
+they can be reused in every controller. Here’s the finished example; you can find the
+full controller library in assets/ch04/finished_controller.html:
+var exports = this;
+jQuery(function($){
+exports.SearchView = Controller.create({
+elements: {
+"input[type=search]": "searchInput",
+
+"form": "searchForm"
+},
+events: {
+"submit form": "search"
+},
+init: function(){ /* ... */ },
+search: function(){
+alert("Searching: " + this.searchInput.val());
+return false;
+},
+});
+new SearchView({el: "#users"});
+});
+State Machines
+State  machines—or to use their proper term, Finite State Machines(FSMs)—are a great
+way to program UIs. Using state machines, you can easily manage multiple controllers,
+showing and hiding views as necessary. So, what exactly is a state machine? At its core,
+a state machine consists of two things: states and transitions. It has only one active
+state, but it has a multitude of passive states. When the active state switches, transitions
+between the states are called.
+How does this work in practice? Well, consider having a few application views that
+need to be displayed independently—say, a view for showing contacts and a view for
+editing contacts. These two views need to be displayed exclusively—when one is
+shown, the other view needs to be hidden. This is a perfect scenario to introduce a state
+machine because it will ensure that only one view is active at any given time. Indeed,
+if we want to add additional views, such as a settings view, using a state machine makes
+this trivial.
+Let’s flesh out a practical example that will give you a good idea of how state machines
+can be implemented. The example is simple and doesn’t cater to different transition
+types, but it is sufficient for our needs. First, we’re going to create an  Eventsobject that
+will use jQuery’s event API (as discussed in Chapter 2) to add the ability to bind and
+trigger events on our state machine:
+var Events = {
+bind: function(){
+if ( !this.o ) this.o = $({});
+this.o.bind.apply(this.o, arguments);
+},
+trigger: function(){
+if ( !this.o ) this.o = $({});
+this.o.trigger.apply(this.o, arguments);
+
+}
+};
+The Events object is essentially extending jQuery’s existing event support outside the
+DOM so that we can use it in our own library. Now let’s set about creating the State
+Machineclass, which will have one main function, add():
+var StateMachine = function(){};
+StateMachine.fn = StateMachine.prototype;
+// Add event binding/triggering
+$.extend(StateMachine.fn, Events);
+StateMachine.fn.add = function(controller){
+this.bind("change", function(e, current){
+if (controller == current)
+controller.activate();
+else
+controller.deactivate();
+});
+controller.active = $.proxy(function(){
+this.trigger("change", controller);
+}, this);
+};
+The state machine’s add()function adds the passed controller to the list of states and
+creates an active()function. When  active()is called, the active state will transition
+to the controller. The state machine will call  activate()on the active controller and
+deactivate()on all the other controllers. We can see how this works by creating two
+example controllers, adding them to the state machine, and then activating one of them:
+var con1 = {
+activate: function(){ /* ... */ },
+deactivate: function(){ /* ... */ }
+};
+var con2 = {
+activate: function(){ /* ... */ },
+deactivate: function(){ /* ... */ }
+};
+// Create a new StateMachine and add states
+var sm = new StateMachine;
+sm.add(con1);
+sm.add(con2);
+// Activate first state
+con1.active();
+The state machine’s add()function works by creating a callback for the changeevent,
+calling the  activate()or deactivate()function, depending on which is appropriate.
+Although the state machine gives us an active()function, we can also change the state
+by manually triggering the changeevent:
+
+sm.trigger("change", con2);
+Inside our controller’s activate()function, we can set up and display its view, adding
+and showing elements. Likewise, inside the deactivate()function, we can tear down
+anything that is hiding the view. CSS classes offer a good way of hiding and showing
+views. Simply add a class—say, .active—when the view is active, and remove it upon
+deactivation:
+var con1 = {
+activate: function(){
+$("#con1").addClass("active");
+},
+deactivate: function(){ 
+$("#con1").removeClass("active");
+}
+};
+var con2 = {
+activate: function(){
+$("#con2").addClass("active");
+},
+deactivate: function(){ 
+$("#con2").removeClass("active");
+}
+};
+Then, in your stylesheets, make sure that the views have a  .activeclass; otherwise,
+they’re hidden:
+#con1, #con2 { display: none; }
+#con1.active, #con2.active { display: block; }
+You can see the full examples in assets/ch04/state_machine.html.
+Routing
+Our application is now running from a single page, which means its URL won’t change.
+This is a problem for our users because they’re accustomed to having a unique URL
+for a resource on the Web. Additionally, people are used to navigating the Web with
+the browser’s back and forward buttons.
+To resolve this, we want to tie the application’s state to the URL. When the application’s
+state changes, so will the URL. The reverse is true, too—when the URL changes, so
+will the application’s state. During the initial page load, we’ll check the URL and set
+up the application’s initial state.
+Using the URL’s Hash
+However, the page’s base URL can’t be changed without triggering a page refresh,
+which is something we’re trying to avoid. Luckily, there are a few solutions. 
+The tra-ditional way to manipulate the URL was to change its hash. The hash is never sent to
+
+the server, so it can be changed without triggering a page request. For example, here’s
+the URL for my Twitter page, the hash being #!/maccman:
+http://twitter.com/#!/maccman
+You can retrieve and alter the page’s hash using the locationobject:
+// Set the hash
+window.location.hash = "foo";
+assertEqual( window.location.hash , "#foo" );
+// Strip "#"
+var hashValue = window.location.hash.slice(1);
+assertEqual( hashValue, "foo" );
+If  the URL doesn’t have a hash,  location.hashis an empty string. Otherwise,  loca
+tion.hashequals the URL’s hash fragment, prefixed with the #character.
+Setting the hash too often can really hurt performance, especially on mobile browsers.
+So, if you’re setting it frequently—say, as a user scrolls through a list—you may want
+to consider throttling.
+Detecting Hash Changes
+Historically, changes to the hash were detected rather crudely with a polling timer.
+Things are improving, though, and modern browsers support the hashchangeevent.
+This is fired on the  window, and you can listen for it in order to catch changes to the hash:
+window.addEventListener("hashchange", function(){ /* ... */ }, false);
+Or with jQuery:
+$(window).bind("hashchange", function(event){
+// hash changed, change state
+});
+When the hashchangeevent fires, we can make sure the application is in the appropriate
+state. The event has good cross-browser support, with implementations in all the latest
+versions of the major browsers:
+• IE >= 8
+• Firefox >= 3.6
+• Chrome
+• Safari >= 5
+• Opera >= 10.6
+The event isn’t fired on older browsers; however, there’s a useful jQuery plug-inthat
+adds the hashchangeevent to legacy browsers.
+It’s worth noting that this event isn’t fired when the page initially loads, only when the
+hash changes. If you’re using hash routing in your application, you may want to fire
+the event manually on page load:
+
+jQuery(function(){
+var hashValue = location.hash.slice(1);
+if (hashValue)
+$(window).trigger("hashchange");
+});
+Ajax Crawling
+Because  they don’t execute JavaScript, search engine crawlers can’t see any content
+that’s created dynamically. Additionally, none of our hash routes will be indexed; as
+in the eyes of the crawlers, they’re all the same URL—the hash fragment is never sent
+to the server.
+This is obviously a problem if we want our pure JavaScript applications to be indexable
+and available on search engines like Google. As a workaround, developers would create
+a “parallel universe” of content. Crawlers would be sent to special static HTML snap-shots of the content, while normal browsers would continue to use the dynamic Java-Script version of the application. This resulted in a lot more work for developers and
+entailed practices like browser sniffing, something best avoided. Luckily, Google has
+provided an alternative: the Ajax Crawling specification.
+Let’s take a look at my Twitter profile address again (notice the exclamation mark after
+the hash):
+http://twitter.com/#!/maccman
+The exclamation mark signifies to Google’s crawlers that our site conforms to the Ajax
+Crawling spec. Rather than request the URL as-is—excluding the hash, of course—the
+crawler translates the URL into this:
+http://twitter.com/?_escaped_fragment_=/maccman
+The hash has been replaced with the _escaped_fragment_URL parameter. In the spec-ification, this is called an  uglyURL, and it’s something users will never see. The crawler
+then goes ahead and fetches that ugly URL. Since the hash fragment is now a URL
+parameter, your server knows the specific resource the crawler is requesting—in this
+case, my Twitter page.
+The server can then map that ugly URL to whatever resource it represented and respond
+with a pure HTML or text fragment, which is then indexed. Since Twitter still has a
+static version of their site, they just redirect the crawler to that.
+curl -v http://twitter.com/?_escaped_fragment_=/maccman
+302 redirected to http://twitter.com/maccman
+Because Twitter is using a temporary redirect (302) rather than a permanent one
+(301), the URL shown in the search results will typically be the hash address—i.e., the
+dynamic JavaScript version of the site (http://twitter.com/#!/maccman). If you don’t
+have a static version of your site, just serve up a static HTML or text fragment when
+URLs are requested with the _escaped_fragment_parameter.
+
+Once you’ve added support for the Ajax Crawling spec to your site, you can check
+whether it’s working using the  Fetch as Googlebot tool. If you choose not to implement
+the scheme on your site, pages will remain indexed as-is, with a good likelihood of not
+being properly represented in search results. In the long term, however, it’s likely that
+search engines like Google will add JavaScript support to their crawlers, making
+schemes like this one unnecessary.
+Using the HTML5 History API
+The History API is part of the HTML5 spec and essentially allows you to replace the
+current location with an arbitrary URL. You can also choose whether to add the new
+URL to the browser’s history, giving your application “back button” support. Like
+setting the location’s hash, the key is that the page won’t reload—its state will be
+preserved.
+Supported browsers are:
+• Firefox >= 4.0
+• Safari >= 5.0
+• Chrome >= 7.0
+• IE: no support
+• Opera >= 11.5
+The API is fairly straightforward, revolving mostly around the  history.pushState()
+function. This takes three arguments: a data object, a title, and the new URL:
+// The data object is arbitrary and is passed with the popstate event
+var dataObject = { 
+createdAt: '2011-10-10', 
+author: 'donnamoss'
+};
+var url = '/posts/new-url';
+history.pushState(dataObject, document.title, url);
+The three arguments are all optional, but they control what’s pushed onto the browser’s
+history stack:
+The dataobject
+This is completely arbitrary—you specify any custom object you want. It’ll be
+passed along with a popstateevent (which we’ll cover in depth later).
+The titleargument
+This is currently ignored by a lot of browsers, but according to the spec will change
+the new page’s title and appear in the browser’s history.
+The urlargument
+This is a string specifying the URL to replace the browser’s current location. If it’s
+relative, the new URL is calculated relative to the current one, with the same do-
+
+main, port, and protocol. Alternatively, you can specify an absolute URL, but for
+security reasons, it’s restricted to the same domain as the current location.
+The issue with using the new History API in JavaScript applications is that every URL
+needs a real HTML representation. Although the browser won’t request the new
+URL when you call history.pushState(), it will be requested if the page is reloaded. In
+other words, every URL you pass to the API needs to exist—you can’t just make up
+fragments like you can with hashes.
+This isn’t a problem if you already have a static HTML representation of your site, but
+it is if your application is pure JavaScript. One solution is to always serve up the Java-Script application regardless of the URL called. Unfortunately, this will break 404
+(page not found) support, so every URL will return a successful response. The alter-native is to actually do some server-side checking to make sure the URL and requested
+resource is valid before serving up the application.
+The History API contains a few more features. history.replaceState()acts exactly the
+same as history.pushState(), but it doesn’t add an entry to the history stack. You can
+navigate through the browser’s history using the  history.back()and  history.for
+ward()functions.
+The  popstateevent mentioned earlier is triggered when the page is loaded or when
+history.pushState()is called. In the case of the latter, the eventobject will contain a
+stateproperty that holds the data object given to history.pushState():
+window.addEventListener("popstate", function(event){
+if (event.state) {
+// history.pushState() was called
+}
+});
+
+You can listen to the event and ensure that your application’s state stays consistent
+with the URL. If you’re using jQuery, you need to bear in mind that the event is nor-malized. So, to access the state object, you’ll need to access the original event:
+$(window).bind("popstate", function(event){
+event = event.originalEvent;
+if (event.state) {
+// history.pushState() was called
+}
+});
+
+（本章完）
+

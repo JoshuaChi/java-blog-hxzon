@@ -1,7 +1,7 @@
 ﻿//（hxzon学习笔记）js-类，继承
 
 //by hxzon
-//《js架构\Spine\（hxzon学习笔记）《JavaScript Web Applications》面向对象（类，继承）》
+//《js架构\Spine\（hxzon读书笔记）《JavaScript Web Applications》面向对象（类，继承）》
 //=======
 //1，创建类
 

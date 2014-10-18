@@ -1,7 +1,7 @@
-﻿（hxzon学习笔记）《JavaScript Web Applications》面向对象（类，继承）
+﻿（hxzon读书笔记）《JavaScript Web Applications》面向对象（类，继承）
+page6 | Chapter 1 MVC and Classes
 
 注释by hxzon
-page6 | Chapter 1: MVC and Classes
 ===========
 Toward Modularity, Creating Classes
 面向模块化，创建类
