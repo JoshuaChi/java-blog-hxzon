@@ -1,0 +1,210 @@
+﻿（hxzon读书笔记）《JavaScript Web Applications》控制器和状态（续）
+CHAPTER 4 Controllers and State
+
+注释by hxzon
+
+========
+Routing
+路由
+
+Our application is now running from a single page, which means its URL won’t change.
+This is a problem for our users because they’re accustomed to having a unique URL
+for a resource on the Web. Additionally, people are used to navigating the Web with
+the browser’s back and forward buttons.
+To resolve this, we want to tie the application’s state to the URL. When the application’s
+state changes, so will the URL. The reverse is true, too—when the URL changes, so
+will the application’s state. During the initial page load, we’ll check the URL and set
+up the application’s initial state.
+Using the URL’s Hash
+However, the page’s base URL can’t be changed without triggering a page refresh,
+which is something we’re trying to avoid. Luckily, there are a few solutions. 
+The tra-ditional way to manipulate the URL was to change its hash. The hash is never sent to
+
+the server, so it can be changed without triggering a page request. For example, here’s
+the URL for my Twitter page, the hash being #!/maccman:
+http://twitter.com/#!/maccman
+You can retrieve and alter the page’s hash using the locationobject:
+// Set the hash
+window.location.hash = "foo";
+assertEqual( window.location.hash , "#foo" );
+// Strip "#"
+var hashValue = window.location.hash.slice(1);
+assertEqual( hashValue, "foo" );
+If  the URL doesn’t have a hash,  location.hashis an empty string. Otherwise,  loca
+tion.hashequals the URL’s hash fragment, prefixed with the #character.
+Setting the hash too often can really hurt performance, especially on mobile browsers.
+So, if you’re setting it frequently—say, as a user scrolls through a list—you may want
+to consider throttling.
+
+====
+Detecting Hash Changes
+
+Historically, changes to the hash were detected rather crudely with a polling timer.
+Things are improving, though, and modern browsers support the hashchangeevent.
+This is fired on the  window, and you can listen for it in order to catch changes to the hash:
+window.addEventListener("hashchange", function(){ /* ... */ }, false);
+Or with jQuery:
+
+$(window).bind("hashchange", function(event){
+// hash changed, change state
+});
+
+When the hashchangeevent fires, we can make sure the application is in the appropriate
+state. The event has good cross-browser support, with implementations in all the latest
+versions of the major browsers:
+• IE >= 8
+• Firefox >= 3.6
+• Chrome
+• Safari >= 5
+• Opera >= 10.6
+
+The event isn’t fired on older browsers; however, there’s a useful jQuery plug-inthat
+adds the hashchangeevent to legacy browsers.
+
+It’s worth noting that this event isn’t fired when the page initially loads, only when the
+hash changes. If you’re using hash routing in your application, you may want to fire
+the event manually on page load:
+
+jQuery(function(){
+var hashValue = location.hash.slice(1);
+if (hashValue)
+$(window).trigger("hashchange");
+});
+
+====
+Ajax Crawling
+
+Because  they don’t execute JavaScript, search engine crawlers can’t see any content
+that’s created dynamically. Additionally, none of our hash routes will be indexed; as
+in the eyes of the crawlers, they’re all the same URL—the hash fragment is never sent
+to the server.
+
+This is obviously a problem if we want our pure JavaScript applications to be indexable
+and available on search engines like Google. As a workaround, developers would create
+a “parallel universe” of content. Crawlers would be sent to special static HTML snapshots of the content, 
+while normal browsers would continue to use the dynamic Java-Script version of the application. 
+This resulted in a lot more work for developers and
+entailed practices like browser sniffing, something best avoided. Luckily, Google has
+provided an alternative: the Ajax Crawling specification.
+Let’s take a look at my Twitter profile address again (notice the exclamation mark after
+the hash):
+
+http://twitter.com/#!/maccman
+
+The exclamation mark signifies to Google’s crawlers that our site conforms to the Ajax
+Crawling spec. Rather than request the URL as-is—excluding the hash, of course—the
+crawler translates the URL into this:
+
+http://twitter.com/?_escaped_fragment_=/maccman
+
+The hash has been replaced with the _escaped_fragment_URL parameter. In the specification, 
+this is called an  uglyURL, and it’s something users will never see. The crawler
+then goes ahead and fetches that ugly URL. Since the hash fragment is now a URL
+parameter, your server knows the specific resource the crawler is requesting—in this
+case, my Twitter page.
+
+The server can then map that ugly URL to whatever resource it represented and respond
+with a pure HTML or text fragment, which is then indexed. Since Twitter still has a
+static version of their site, they just redirect the crawler to that.
+
+curl -v http://twitter.com/?_escaped_fragment_=/maccman
+302 redirected to http://twitter.com/maccman
+
+Because Twitter is using a temporary redirect (302) rather than a permanent one
+(301), the URL shown in the search results will typically be the hash address—i.e., the
+dynamic JavaScript version of the site (http://twitter.com/#!/maccman). If you don’t
+have a static version of your site, just serve up a static HTML or text fragment when
+URLs are requested with the _escaped_fragment_parameter.
+
+Once you’ve added support for the Ajax Crawling spec to your site, you can check
+whether it’s working using the  Fetch as Googlebot tool. If you choose not to implement
+the scheme on your site, pages will remain indexed as-is, with a good likelihood of not
+being properly represented in search results. In the long term, however, it’s likely that
+search engines like Google will add JavaScript support to their crawlers, making
+schemes like this one unnecessary.
+
+====
+Using the HTML5 History API
+
+The History API is part of the HTML5 spec and essentially allows you to replace the
+current location with an arbitrary URL. You can also choose whether to add the new
+URL to the browser’s history, giving your application “back button” support. Like
+setting the location’s hash, the key is that the page won’t reload—its state will be
+preserved.
+
+Supported browsers are:
+• Firefox >= 4.0
+• Safari >= 5.0
+• Chrome >= 7.0
+• IE: no support
+• Opera >= 11.5
+
+The API is fairly straightforward, revolving mostly around the  history.pushState()
+function. This takes three arguments: a data object, a title, and the new URL:
+
+// The data object is arbitrary and is passed with the popstate event
+var dataObject = { 
+createdAt: '2011-10-10', 
+author: 'donnamoss'
+};
+var url = '/posts/new-url';
+history.pushState(dataObject, document.title, url);
+
+The three arguments are all optional, but they control what’s pushed onto the browser’s
+history stack:
+
+The data object
+This is completely arbitrary—you specify any custom object you want. It’ll be
+passed along with a popstateevent (which we’ll cover in depth later).
+
+The title argument
+This is currently ignored by a lot of browsers, but according to the spec will change
+the new page’s title and appear in the browser’s history.
+
+The url argument
+This is a string specifying the URL to replace the browser’s current location. If it’s
+relative, the new URL is calculated relative to the current one, with the same 
+domain, port, and protocol. Alternatively, you can specify an absolute URL, but for
+security reasons, it’s restricted to the same domain as the current location.
+
+The issue with using the new History API in JavaScript applications is that every URL
+needs a real HTML representation. Although the browser won’t request the new
+URL when you call history.pushState(), it will be requested if the page is reloaded. In
+other words, every URL you pass to the API needs to exist—you can’t just make up
+fragments like you can with hashes.
+
+This isn’t a problem if you already have a static HTML representation of your site, but
+it is if your application is pure JavaScript. One solution is to always serve up the JavaScript application 
+regardless of the URL called. Unfortunately, this will break 404
+(page not found) support, so every URL will return a successful response. 
+The alter-native is to actually do some server-side checking to make sure the URL and requested
+resource is valid before serving up the application.
+
+The History API contains a few more features. history.replaceState()acts exactly the
+same as history.pushState(), but it doesn’t add an entry to the history stack. You can
+navigate through the browser’s history using the  history.back()and  history.for
+ward()functions.
+
+The  popstateevent mentioned earlier is triggered when the page is loaded or when
+history.pushState()is called. In the case of the latter, the eventobject will contain a
+stateproperty that holds the data object given to history.pushState():
+
+window.addEventListener("popstate", function(event){
+if (event.state) {
+// history.pushState() was called
+}
+});
+
+You can listen to the event and ensure that your application’s state stays consistent
+with the URL. If you’re using jQuery, you need to bear in mind that the event is normalized. 
+So, to access the state object, you’ll need to access the original event:
+
+$(window).bind("popstate", function(event){
+event = event.originalEvent;
+if (event.state) {
+// history.pushState() was called
+}
+});
+
+（本章完）
+

@@ -137,6 +137,12 @@ var tommy = new Cat;
 tommy.breath();
 
 //hxzon：更新父类，子类是否会更新？会，处于原型链中。
+//b.constructor=B,b.proto=B.prototype(=x)
+//B.prototype=x
+//x.constructor=X
+//x.proto=X.prototype=A.prototype(=a.proto)
+//即，b.proto.proto=A.prototype(=a.proto)
+//在a.proto上的方法，即A的实例方法，b也有
 
 //====
 //5，方法调用

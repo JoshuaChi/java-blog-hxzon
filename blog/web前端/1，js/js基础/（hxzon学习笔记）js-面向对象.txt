@@ -160,6 +160,14 @@ function inheritPrototype(subType,superType){
 	subType.prototype=prototype;//hxzon：子构造函数的原型对象的构造函数的原型对象，指向父构造函数的原型。
 }
 
+（hxzon：
+b.constructor=B,b.proto=B.prototype(=x)
+B.prototype=x
+x.constructor=X
+x.proto=X.prototype=A.prototype(=a.proto)
+即，b.proto.proto=A.prototype(=a.proto)
+）
+
 示例：
 function SuperType(name){
 	this.name=name;
