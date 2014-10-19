@@ -5,22 +5,68 @@ by hxzon
 《javascript高级程序设计（第2版）》
 6 面向对象的程序设计
 
-
 ========
 hxzon：
 创建对象：动态原型模式（最佳）。
 继承：寄生组合式继承（最佳）。
 
 ========
-1，
+1，重要概念
 
-函数对象属性：
+函数对象（构造函数）的属性：
 prototype：创建的实例的原型对象
 prototype.constructor
 
-实例属性：
-_proto_：指向函数对象的原型对象
-constructor：指向函数对象
+实例的属性：
+_proto_：指向函数对象（构造函数）的原型对象
+constructor：指向函数对象（构造函数）
+
+方法和字段的查找原理：
+在本对象上找，接着在原型链上找（即在prototype上找，接着在prototype的prototype上找，直到Object.prototype ）。
+
+instanceof原理：
+如果构造函数的原型对象，存在于实例的原型链中，返回true。见《更多/javascript instanceof 运算符深入剖析》。
+instanceof 并不检查构造函数，其检测是基于"原形链"的，
+如果 fun.prototype == obj.__proto__ 为 true ，
+或者 fun.prototype.isPrototypeOf(obj.__proto__)  为 true , 即 fun.prototype.isPrototypeOf(obj) === true , 
+则 obj instcaneof fun 返回 true 。 
+因此，即使 obj instanceof Fun 返回 true，obj 也可能不具有 Fun 构造器中定义的属性，因为 Fun 不一定是 obj 的构造器。
+
+isPrototypeOf：
+如果对象 A 存在于 对象obj的“原形链”中，则 A.isPrototypeOf(obj) 返回true，而obj必定继承了A 的属性。
+
+__proto__：
+访问对象的原型链在当前对象的上一级对象，即对象的父级对象，
+非W3C 或 ECMAscript 标准，是浏览器对原型继承的一种实现手段，存在于firefox 和 chrome ，IE下不存在这个属性。
+js 对象的原形链应当是由 js 引擎维护的，属于“引擎级”的数据，
+__proto__ 属性的出现使原形链可以被修改，这使得在 js 语法范围内讨论 js 对象的原型链称为可能。
+在对象的继承关系中，对象obj的构造器 constructor 其实是存在于原型链中的，
+即 obj.constructor 实际上是 obj.__proto__.constructor, 
+obj.hasOwnProperty('constructor');  为 false
+
+typeof原理：
+typeof返回一个表达式的数据类型的字符串，返回结果为js基本的数据类型，
+包括number,boolean,string,object,undefined,function.
+语法为typeof(data) 或 typeof data
+
+==
+propertyIsEnumerable：
+如果对象obj上的属性property可以被列举出来（可被 for in 循环遍历），
+则 obj.propertyIsEnumerable('property') 返回true，
+值得注意的是，propertyIsEnumerable对继承来的属性一律判断为false，
+这一般被认为是ECMA Script 规范的一个设计上的错误。
+
+hasOwnProperty：
+如果对象obj 上的属性 property 不是继承的来的，则 obj.hasOwnProperty('property') 返回true。
+
+delete：
+删除对象自身上的属性，不能删除继承来的属性，不能删除使用 var 声明的变量 ，不能删除函数声明，
+但是在如果在 firebug 和 IE9 的调试器里面执行代码，会发现全局变量被删除了，实际上这在页面上的代码中是不会发生的事。
+另外，数组的 length 属性是不能删除的。
+
+in：
+如果对象 obj  有属性 property（包括继承来的和不可列举属性，不同于 for in 循环中的 in,for in 忽略了不可列举属性），
+则'property' in obj 返回 true，这个运算不存在于早期版本的javascript。
 
 =========
 2，创建对象
@@ -32,19 +78,21 @@ constructor：指向函数对象
 2.3，原型模式：
 
 更简单的原型语法（使用对象字面量）：
+
 function Person(){}
 
 Person.prototype={
-constructor:Person,
-name:"xx",
-age:29,
-friends:["aa","bb"],
-sayName:function(){...}
+    constructor:Person,
+    name:"xx",
+    age:29,
+    friends:["aa","bb"],
+    sayName:function(){...}
 };
 
 原型的动态性：
 
-原型对象的问题：原型中的所有属性，是被实例共享的。共享对函数非常合适，对基本值属性也合适（因为在实例上添加同名属性时会隐藏原型中的属性），但引用类型的属性就会出问题，如上述的friends。
+原型对象的问题：原型中的所有属性，是被实例共享的。共享对函数非常合适，
+对基本值属性也合适（因为在实例上添加同名属性时会隐藏原型中的属性），但引用类型的属性就会出问题，如上述的friends。
 
 2.4，组合使用构造函数模式和原型模式
 
@@ -62,7 +110,7 @@ function Person(name,age,job){
 	}
 }
 
-2.6，寄生构造函数模式：不能依赖instanceof来确定对象类型，能用其它模式则不要使用这种模式。
+2.6，寄生构造函数模式：不能依赖 instanceof 来确定对象类型，能用其它模式则不要使用这种模式。
 
 
 2.7，稳妥构造函数模式：instanceof对这种对象也没有意义。
@@ -88,6 +136,8 @@ function Person(name,age,job){
 
 3.4，原型式继承：
 
+（hxzon：返回一个实例，这个实例的构造函数的原型，指向 o 。）
+
 function object(o){
 	function F(){}
 	F.prototype = o;
@@ -105,9 +155,9 @@ function object(o){
 通过“借用构造函数”来继承属性，通过原型链的混成形式来继承方法。
 
 function inheritPrototype(subType,superType){
-	var prototype = object(superType.prototype);
+	var prototype = object(superType.prototype);//hxzon：返回一个实例，这个实例的构造函数的原型，指向超类（构造函数）的原型。
 	prototype.constructor=subType;
-	subType.prototype=prototype;
+	subType.prototype=prototype;//hxzon：子构造函数的原型对象的构造函数的原型对象，指向父构造函数的原型。
 }
 
 示例：
@@ -136,7 +186,4 @@ SubType.prototype.sayAge=function(){
 原型链保持不变，因此能正常使用instanceof和isPrototypeOf()。
 
 YUI的YAHOO.lang.extend()方法采用了这种继承。
-
-
-
 

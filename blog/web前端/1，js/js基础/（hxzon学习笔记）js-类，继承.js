@@ -5,11 +5,11 @@
 //=======
 //1，创建类
 
-var Class = function(){
+var Class = function(){//hxzon：new Class返回的是一个构造函数
 	var klass = function(){
-		this.init.apply(this, arguments);
+		this.init.apply(this, arguments);//hxzon：klass是一个构造函数，new klass会返回一个对象，该对象用init()方法初始化
 	};
-	klass.prototype.init = function(){};
+	klass.prototype.init = function(){};//hxzon：添加在原型上，使得每个klass实例拥有此方法，不然，是klass这个对象上的方法
 	return klass;
 };
 
@@ -47,12 +47,12 @@ var Class = function(){
 	// Shortcut to access prototype
 	klass.fn = klass.prototype;
 	// Shortcut to access class
-	klass.fn.parent = klass;
+	klass.fn.parent = klass;//hxzon：klass的每个实例的parent属性，都指向klass这个对象
 	// Adding class properties
 	klass.extend = function(obj){
 		var extended = obj.extended;
 		for(var i in obj){
-			klass[i] = obj[i];
+			klass[i] = obj[i];//hxzon：复制obj的每个属性到klass上。注意：后续更新obj对象，不会对klass再有影响。
 		}
 		if (extended) extended(klass);
 	};
@@ -107,16 +107,17 @@ var Class = function(parent){
 		this.init.apply(this, arguments);
 	};
 	// Change klass' prototype 
-	if (parent) {
+	if (parent) {//hxzon：使用了“寄生组合式继承”（最佳）
 		var subclass = function() { };
-		subclass.prototype = parent.prototype;
-		klass.prototype = new subclass;
+		subclass.prototype = parent.prototype;//hxzon：parent是构造函数
+		klass.prototype = new subclass;//hxzon：klass（子构造函数）的原型对象的构造函数的原型对象，指向父构造函数的原型对象。
+		//hxzon：可补充：klass.prototype.constructor= klass
 	};
 	klass.prototype.init = function(){};
 	// Shortcuts
 	klass.fn = klass.prototype;
 	klass.fn.parent = klass;
-	klass._super = klass.__proto__; 
+	klass._super = klass.__proto__; //hxzon：klass.__proto__指向klass的构造函数的原型。？
 	/* include/extend code... */
 	return klass;
 };
@@ -135,6 +136,8 @@ var Cat = new Class(Animal)
 var tommy = new Cat;
 tommy.breath();
 
+//hxzon：更新父类，子类是否会更新？会，处于原型链中。
+
 //====
 //5，方法调用
 
@@ -151,13 +154,13 @@ var Class = function(parent){
 	klass.fn = klass.prototype;
 	// Adding a proxy function
 	klass.proxy = function(func){
-		var self = this;
+		var self = this;//hxzon：this指向klass本身
 		return(function(){ 
 			return func.apply(self, arguments); 
 		});
 	}
 	// Add the function on instances too
-	klass.fn.proxy = klass.proxy;
+	klass.fn.proxy = klass.proxy;//hxzon：this指向klass实例本身
 	return klass;
 };
 
@@ -167,7 +170,7 @@ Button.include({
 	init: function(element){
 		this.element = jQuery(element);
 		// Proxy the click function
-		this.element.click(this.proxy(this.click));//代理
+		this.element.click(this.proxy(this.click));//hxzon：使得click函数里的this指向Button实例本身
 	},
 	click: function(){ /* ... */ }
 });
@@ -178,7 +181,7 @@ Button.include({
 	init: function(element){
 		this.element = jQuery(element);
 		// Bind the click function
-		this.element.click(this.click.bind(this));
+		this.element.click(this.click.bind(this));//hxzon：这里，this指向Button实例本身
 	},
 	click: function(){ /* ... */ }
 });
@@ -249,5 +252,4 @@ var Class = function(parent){
 
 	return klass;
 };
-
 
