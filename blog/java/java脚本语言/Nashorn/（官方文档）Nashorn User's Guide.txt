@@ -1,0 +1,463 @@
+﻿（官方文档）Nashorn User's Guide
+http://docs.oracle.com/javase/8/docs/technotes/guides/scripting/nashorn/toc.html
+
+注释by hxzon
+======
+Preface
+Audience
+Documentation Accessibility
+Related Documents
+Conventions
+
+1 Introduction
+1.1 Invoking Nashorn from Java Code
+1.2 Invoking Nashorn from the Command Line
+
+2 The Nashorn Java API
+2.1 Accessing Java Classes
+2.2 Creating Java Objects
+2.3 Accessing Class and Instance Members
+2.4 Using JavaBeans
+2.5 Working with Java Arrays
+2.6 Working with Java Strings
+2.7 Working with Java Numbers
+2.8 Working with Java Collections
+2.9 Extending Java Classes
+
+3 Nashorn and JavaFX （略）
+
+4 Nashorn and Shell Scripting
+4.1 Shebang
+4.2 String Interpolation
+4.3 Here Document
+4.4 Global Objects
+4.5 Additional Nashorn Built-in Functions
+A JavaFX Script Application Examples
+
+==========
+Enhancements in Java SE 8
+The JDK 8 release is co-bundled with the Nashorn, 
+which is an implementation of the ECMAScript Edition 5.1 Language Specification.
+
+Enhancements in Java SE 7
+The JDK 7 release is co-bundled with the Mozilla Rhino JavaScript engine 
+based on version 1.7R3 pre-release sources with Oracle modifications. 
+You can download the Oracle modified Rhino sources at java.net.
+
+==========
+1 Introduction
+http://docs.oracle.com/javase/8/docs/technotes/guides/scripting/nashorn/intro.html
+
+This chapter provides introductory information about the Nashorn engine 
+and how it can be used to interpret JavaScript code in a Java application or from the command line.
+
+The Nashorn engine is an implementation of the ECMAScript Edition 5.1 Language Specification [Foot1]. 
+It was fully developed in the Java language as part of the Nashorn project [Foot2]. 
+The code is based on the new features of the Da Vinci Machine [Foot3], 
+which is the reference implementation of Java Specification Request (JSR) 292: 
+Supporting Dynamically Typed Languages on the Java Platform [Foot4].
+
+The Nashorn engine is included in the Java SE Development Kit (JDK). 
+You can invoke Nashorn from a Java application using the Java Scripting API to interpret embedded scripts, 
+or you can pass the script to the jjs or jrunscript tool.
+
+Note:
+
+Nashorn is the only JavaScript engine included in the JDK. 
+However, you can use any script engine compliant with JSR 223: Scripting for the Java Platform[Foot1], or implement your own. 
+For more information, see Java Scripting Programmer's Guide at 
+http://docs.oracle.com/javase/8/docs/technotes/guides/scripting/index.html
+
+[Footnote1]http://jcp.org/en/jsr/detail?id=223
+
+====
+1.1 Invoking Nashorn from Java Code
+
+To invoke Nashorn in your Java application, create an instance of the Nashorn engine using the Java Scripting API.
+
+To get an instance of the Nashorn engine:
+
+Import the javax.script package.
+
+The Java Scripting API is composed of classes and interfaces in this package. 
+For more information about the javax.script package, see the specification at 
+http://docs.oracle.com/javase/8/docs/api/javax/script/package-summary.html
+
+Create a ScriptEngineManager object.
+
+The ScriptEngineManager class is the starting point for the Java Scripting API. 
+A ScriptEngineManager object is used to instantiate ScriptEngine objects and maintain global variable values shared by them.
+
+Get a ScriptEngine object from the manager using the getEngineByName() method.
+
+This method takes one String argument with the name of the script engine. 
+To get an instance of the Nashorn engine, pass in "nashorn". 
+Alternatively, you can use any of the following: "Nashorn", "javascript", "JavaScript", "js", "JS", "ecmascript", "ECMAScript".
+
+After you have the Nashorn engine instance, you can use it to evaluate statements and script files, set variables, and so on. 
+Example 1-1 provides simple Java application code that evaluates a print("Hello, World!"); statement using Nashorn.
+
+Example 1-1 Evaluating a Script Statement Using Nashorn (EvalScript.java)
+
+import javax.script.*;
+
+public class EvalScript {
+    public static void main(String[] args) throws Exception {
+        // create a script engine manager
+        ScriptEngineManager factory = new ScriptEngineManager();
+        // create a Nashorn script engine
+        ScriptEngine engine = factory.getEngineByName("nashorn");
+        // evaluate JavaScript statement
+        try {
+            engine.eval("print('Hello, World!');");
+        } catch (final ScriptException se) { se.printStackTrace(); }
+    }
+}
+
+Note:
+
+The eval() method throws a ScriptException that must be handled properly.
+
+For more information about using scripts in Java code, see Java Scripting Programmer's Guide at 
+http://docs.oracle.com/javase/8/docs/technotes/guides/scripting/index.html
+
+====
+1.2 Invoking Nashorn from the Command Line
+
+There are two command-line tools that can be used to invoke the Nashorn engine:
+
+jrunscript
+
+This is a generic command that invokes any available script engine compliant with JSR 223. 
+By default, without any options, jrunscript invokes the Nashorn engine, because it is the default script engine in the JDK.
+
+For more information about jrunscript, see the tool's reference page at 
+http://docs.oracle.com/javase/8/docs/technotes/tools/windows/jrunscript.html
+
+jjs
+
+This is the recommended tool, created specifically for Nashorn. 
+To evaluate a script file using Nashorn, pass the name of the script file to the jjs tool. 
+To launch an interactive shell that interprets statements passed in using standard input, start the jjs tool without specifying any script files.
+
+For more information about jjs, see the tool's reference page at http://docs.oracle.com/javase/8/docs/technotes/tools/windows/jjs.html
+
+Footnote1:http://www.ecma-international.org/publications/standards/Ecma-262.html
+Footnote2:http://openjdk.java.net/projects/nashorn/
+Footnote3:http://openjdk.java.net/projects/mlvm/
+Footnote4:http://jcp.org/en/jsr/detail?id=292
+
+===============
+2 The Nashorn Java API
+http://docs.oracle.com/javase/8/docs/technotes/guides/scripting/nashorn/api.html
+
+This chapter describes how to access Java from a script interpreted by the Nashorn engine.
+
+The sections in this chapter contain examples of script statements 
+interpreted by the Nashorn engine in interactive language shell mode. 
+This interactive shell is started by running the jjs command without any scripts passed to it. 
+This is useful for trying things out, but the main purpose of the Nashorn Java API 
+is to write Java applications as scripts that can be interpreted by the Nashorn engine.
+
+====
+2.1 Accessing Java Classes
+
+There are two approaches to access packages and classes using Nashorn: 
+the traditional approach is to use the Packages global object, and the recommended approach is to use the Java global object. 
+This section describes both approaches.
+
+The predefined top-level Packages object enables you to access Java packages and classes using their fully qualified names, 
+as if they are properties of the Packages object. 
+The following example shows how you can access the MyPackage package and its MyClass class if MyPackage.jar is in your class path:
+
+jjs> Packages.MyPackage
+[JavaPackage MyPackage]
+jjs> Packages.MyPackage.MyClass
+[JavaClass MyPackage.MyClass]
+
+Accessing standard Java packages and classes is more straightforward than accessing custom packages and classes. 
+For your convenience, there are global objects defined for each of the standard Java packages: 
+com, edu, java, javafx, javax, and org. 
+They have aliases that correspond to properties of the Packages object. 
+The following example shows how you can access the java.lang package and the java.lang.System class:
+
+jjs> java.lang
+[JavaPackage java.lang]
+jjs> typeof java.lang
+object
+jjs> java.lang.System
+[JavaClass java.lang.System]
+jjs> typeof java.lang.System
+function
+
+As you can see from the previous example, Nashorn interprets Java packages as JavaPackage objects, and Java classes as JavaClass function objects, 
+which can be used as constructors for the classes. 
+For more information about instantiating a class, see Section 2.2, "Creating Java Objects".
+
+The traditional approach for accessing Java packages and classes is intuitive and straightforward, but at the same time, 
+it can be inefficient, limited, and error-prone for the following reasons:
+
+Each property access has a cost, so accessing a package or class in a deep hierarchy can be slow.
+
+There is no special syntax for creating Java arrays. 
+You must use the java.lang.reflect.Array class as a workaround.
+
+If you misspell a class name, Nashorn assumes that you provided a package name, 
+and interprets it as a JavaPackage object instead of a JavaClass function object. 
+You might not be aware of this until an error is thrown when you attempt to use it as a class. 
+To avoid this, use the typeof operator to conditionally test that the construct you are trying to access is interpreted as a function object. 
+The following example shows how this conditional check works:
+
+jjs> typeof java.lang.System == "function"
+true
+jjs> typeof java.lang.Zyztem == "function"
+false
+
+To avoid the disadvantages of the approach previously described, 
+Nashorn defines the Java global object that has several functions for working with Java classes. 
+The Java.type() function takes a string with the fully qualified Java class name, and returns the corresponding JavaClass function object. 
+The following example shows how you can access the java.lang.System class:
+
+jjs> Java.type("java.lang.System")
+[JavaClass java.lang.System]
+
+Similar to importing classes in Java, it is a good practice to declare variables of JavaClass type at the beginning of a script. 
+The following example shows how you can declare the System variable and give it a value of the java.lang.System class:
+
+jjs> var System = Java.type("java.lang.System")
+jjs> System
+[JavaClass java.lang.System]
+
+====
+2.2 Creating Java Objects
+
+To instantiate a class, pass the JavaClass function object to the new operator. 
+Nashorn invokes the corresponding constructor based on the arguments passed to the function. 
+The following example shows how you can instantiate the java.util.HashMap class 
+with the default initial capacity and with the initial capacity set to 100:
+
+jjs> var HashMap = Java.type("java.util.HashMap")
+jjs> var mapDef = new HashMap()
+jjs> var map100 = new HashMap(100)
+
+====
+2.3 Accessing Class and Instance Members
+
+You can use the standard dot notation to access static fields, methods, and inner classes as follows:
+
+jjs> Java.type("java.lang.Math").PI
+3.141592653589793
+jjs> Java.type("java.lang.System").currentTimeMillis()
+1375813353330
+jjs> Java.type("java.util.Map").Entry
+[JavaClass java.util.Map$Entry]
+
+An inner class can also be accessed using internal representation with the dollar sign ($) as the separator, or a dot, which is consistent with Java:
+可以使用美元符号，或点号，访问内部类。
+
+jjs> Java.type("java.util.Map$Entry")
+[JavaClass java.util.Map$Entry]
+jjs> Java.type("java.util.Map.Entry")
+[JavaClass java.util.Map$Entry]
+
+To invoke an instance method or access an instance field of an object, use the dot operator, similar to how it is done in Java. 
+The following example shows how you can call the toUpperCase() method on a String object:
+
+jjs> var String = Java.type("java.lang.String")
+jjs> var str = new String("Hello")
+jjs> str
+Hello
+jjs> var upper = str.toUpperCase()
+jjs> upper
+HELLO
+
+Nashorn also supports member access using the bracket notation, 
+where you specify the name of the member as a string between brackets ([]) that immediately follow the class (in case of a static member) 
+or object (in case of an instance member). 
+This method is defined by the ECMAScript as an alternative to the dot notation, and is not intuitive for Java developers. 
+However, it can be used to resolve method overload ambiguity. 
+By default, Nashorn uses the overloaded method that best matches the arguments, and this is not always what you expect. 
+For example, if you want to print a double value, you must use the java.lang.System.out.println(double) method overload, 
+as shown in the following example:
+
+jjs> Java.type("java.lang.System").out.println(10)
+10
+jjs> Java.type("java.lang.System").out["println(double)"](10)
+10.0
+
+====
+2.4 Using JavaBeans
+
+Nashorn enables you to treat accessor and mutator methods in JavaBeans as equivalent JavaScript properties. 
+The name of the property is the name of the JavaBean method without the get or set suffix, and starts with a lowecase letter. 
+For example you can call the getYear() and setYear() methods in a java.util.Date object using the year property as follows:
+
+jjs> var Date = Java.type("java.util.Date")
+jjs> var date = new Date()
+jjs> date.year + 1900
+2013
+jjs> date.year = 2014 - 1900
+114
+jjs> date.year + 1900
+2014
+
+====
+2.5 Working with Java Arrays
+
+To access a Java array class, pass to the Java.type() function the type of objects 
+that comprise the array followed by a pair of brackets (similar to Java syntax). 
+The following example shows how you can access a Java array of integers and a Java array of String objects:
+
+jjs> Java.type("int[]")
+[JavaClass [I]
+jjs> Java.type("java.lang.String[]")
+[JavaClass [Ljava.lang.String;]
+
+After you have the array type object, you can use it to instantiate an array as you do any other class. 
+You can access array entries by their indexes, and use the dot or bracket notation to access members (similar to Java syntax), 
+as shown in the following example:
+
+jjs> var IntArrayType = Java.type("int[]")
+jjs> var arr = new IntArrayType(10)
+jjs> arr[1] = 123
+123
+jjs> arr[2] = 321
+321
+jjs> arr[1] + arr[2]
+444
+jjs> arr[10]
+java.lang.ArrayIndexOutOfBoundsException: Array index out of range: 10
+jjs> arr.length
+10
+
+If you have an existing JavaScript array, you can convert it to a Java array using the Java.to() function. 
+The following example shows how you can convert a JavaScript array of strings "a", "b", and "c", 
+to a java.lang.String[] array with the same values:
+
+jjs> var jsArr = ["a","b","c"]
+jjs> var strArrType = Java.type("java.lang.String[]")
+jjs> var javaArr = Java.to(jsArr, strArrType)
+jjs> javaArr.class
+class [Ljava.lang.String;
+jjs> javaArr[0]
+a
+
+You can iterate through a Java array's indexes and values using the for and for each statements as follows:
+
+jjs> for (var i in javaArr) print(i)
+0
+1
+2
+jjs> for each (var i in javaArr) print(i)
+a
+b
+c
+
+====
+2.6 Working with Java Strings
+
+Strings are interpreted by Nashorn as java.lang.String objects. 
+However, if you concatenate two strings you get an instance of the jdk.nashorn.internal.runtime.ConsString class. 
+This is not a problem for most scripts, because both classes implement the java.lang.CharSequence interface, 
+but in some cases, Nashorn passes the ConsString object when a method expects a java.lang.Object argument. 
+To avoid this, use the String() function to ensure that the string is a Java String object, as shown in the following example:
+
+jjs> var a = "abc"
+jjs> a.class
+class java.lang.String
+jjs> var b = a + "def"
+jjs> b.class
+class jdk.nashorn.internal.runtime.ConsString
+jjs> var c = String(b)
+jjs> c.class
+class java.lang.String
+
+====
+2.7 Working with Java Numbers
+
+Nashorn interprets numbers as java.lang.Double, java.lang.Long, or java.lang.Integer objects, 
+depending on the computation performed. 
+You can use the Number() function to force a number to be a Double object, as shown in the following example:
+
+jjs> var intNum = 10
+jjs> intNum.class
+class java.lang.Integer
+
+jjs> var dblNum = Number(intNum)
+jjs> dblNum.class
+class java.lang.Double
+
+====
+2.8 Working with Java Collections
+
+Nashorn interprets Java collections as arrays. 
+You can access collection elements using the index in brackets ([]) and iterate over the values of a collection using the for each statement, 
+as shown in the following example:
+Nashorn将java集合视为数组。
+
+jjs> var ArrayList = Java.type("java.util.ArrayList")
+jjs> var alist = new ArrayList()
+jjs> alist.add("a")
+true
+jjs> alist.add("b")
+true
+jjs> alist.add("c")
+true
+jjs> alist[1]
+b
+jjs> for each (var i in alist) print(i)
+a
+b
+c
+
+Unlike other collections, to iterate over keys and values in a map, you must use the keySet() and values() methods. 
+The following example shows how you can create a HashMap object and iterate over its keys and values:
+
+jjs> var HashMap = Java.type("java.util.HashMap")
+jjs> var hm = new HashMap()
+jjs> hm.put("name", "Bob")
+jjs> hm.put("age", 40)
+jjs> hm.put("weight", 180)
+jjs> for each (var i in hm.keySet()) print(i)
+weight
+age
+name
+jjs> for each (var i in hm.values()) print(i)
+180
+40
+Bob
+
+====
+2.9 Extending Java Classes
+
+You can extend a class using the Java.extend() function that takes a Java type as the first argument 
+and method implementations (in the form of JavaScript functions) as the other arguments. 
+Example 2-1 shows a script that extends the java.lang.Runnable interface and uses it to construct a new java.lang.Thread object.
+
+Example 2-1 Extending a Java Class
+
+var Run = Java.type("java.lang.Runnable");
+var MyRun = Java.extend(Run, {
+    run: function() {
+        print("Run in separate thread");
+    }
+});
+
+var Thread = Java.type("java.lang.Thread");
+var th = new Thread(new MyRun());
+
+Nashorn can automatically extend single abstract method (SAM) classes 
+if you provide the function for implementing the method as the argument to the constructor. 
+Example 2-2 shows a script that extends the java.lang.Runnable interface 
+and uses it to construct a new java.lang.Thread object, but it uses fewer lines of code than in Example 2-1, 
+because the Java.extend() function is called automatically for a SAM class.
+
+Example 2-2 Extending a Java SAM Class
+
+var Thread = Java.type("java.lang.Thread")
+var th = new Thread(function() print("Run in a separate thread"))
+
+For more information about the capabilities of the Java.extend() function, 
+see Java Scripting Programmer's Guide at 
+http://docs.oracle.com/javase/8/docs/technotes/guides/scripting/index.html
+

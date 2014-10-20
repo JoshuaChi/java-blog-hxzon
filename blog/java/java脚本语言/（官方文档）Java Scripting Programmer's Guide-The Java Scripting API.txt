@@ -1,0 +1,366 @@
+﻿（官方文档）Java Scripting Programmer's Guide-The Java Scripting API
+http://docs.oracle.com/javase/8/docs/technotes/guides/scripting/prog_guide/about.html
+
+注释by hxzon
+========
+Preface
+Audience
+Documentation Accessibility
+Related Documents
+Conventions
+
+1 Scripting Languages and Java
+
+2 The Java Scripting API
+
+3 Using Java From Scripts
+3.1 Accessing Java Classes
+3.2 Importing Java Packages and Classes
+3.3 Using Java Arrays
+3.4 Implementing Java Interfaces
+3.5 Extending Abstract Java Classes
+3.6 Extending Concrete Java Classes
+3.7 Accessing Methods of a Superclass
+3.8 Binding Implementations to Classes
+3.9 Selecting Method Overload Variant
+3.10 Mapping Data Types
+
+============
+1 Scripting Languages and Java
+http://docs.oracle.com/javase/8/docs/technotes/guides/scripting/prog_guide/about.html
+
+This chapter describes the characteristics of scripting languages and how they can be used by Java programmers.
+
+Scripting languages are programming languages that support the ability to write scripts. 
+Unlike source files for other programming languages that must be compiled into bytecode before you run them, 
+scripts are evaluated by a runtime environment (in this case, by a script engine) directly.
+
+Most scripting languages are dynamically typed. 
+This enables you to create new variables without declaring the variable type 
+(the interpreter assigns the type based on the type of the object associated with the variable), 
+and you can reuse the same variable for objects of different types (type conversion is performed automatically).
+
+Scripting languages generally have simple syntax; they allow complex tasks to be performed in relatively few steps.
+
+Although scripting languages are usually interpreted at runtime, 
+they can be compiled into Java bytecode that can then be executed on the Java Virtual Machine (JVM). 
+Scripting languages can be faster and easier to use for certain problems, 
+so it is sometimes chosen by developers of Java applications. 
+However, if you write your Java application in a scripting language, 
+then you lose the benefits of the Java language (such as type safety and access to the class library).
+
+Java Specification Request (JSR) 223: Scripting for the Java Platform addresses the issue of integrating Java and scripting languages. 
+It defines a standard framework and application programming interface (API) 
+to embed scripts in your Java applications and access Java objects from scripts. 
+You can find more information about JSR 223 on the Java Community Process (JCP) website at http://jcp.org/en/jsr/detail?id=223
+
+By embedding scripts in your Java code, you can customize and extend the Java application. 
+For example, you can have configuration parameters, business logic, math expressions, 
+and other external parts written as scripts. 
+When developing your Java application, you do not need to choose the scripting language. 
+If you write your application with the Java Scripting API (defined by JSR 223), 
+then users can write scripts in any language compliant with JSR 223. 
+For information about using the Java Scripting API, see Chapter 2.
+
+When writing a script in a language compliant with JSR 223, you have access to the entire standard Java library. 
+For more information about accessing Java from scripts, see Chapter 3.
+
+============
+2 The Java Scripting API
+http://docs.oracle.com/javase/8/docs/technotes/guides/scripting/prog_guide/api.html
+
+This chapter describes how the Java Scripting API (defined by JSR 223) is used to embed scripts in your Java applications, 
+and provides a number of examples with Java classes, which demostrate the features of the Java Scripting API.
+
+The Java Scripting API consists of classes and interfaces from the javax.script package. 
+It is a relatively small and simple package with the ScriptEngineManager class as the starting point. 
+A ScriptEngineManager object can discover script engines through the JAR file service discovery mechanism, 
+and instantiate ScriptEngine objects that interpret scripts written in a specific scripting language. 
+For more information about the javax.script package, see the Java SE specification at 
+http://docs.oracle.com/javase/7/docs/api/javax/script/package-summary.html
+以 ScriptEngineManager 为入口。
+
+The Nashorn engine is the default ECMAScript (JavaScript) engine bundled with the Java SE Development Kit (JDK). 
+The Nashorn engine was developed fully in Java by Oracle as part of an OpenJDK project. 
+You can find more information about the Nashorn project at http://openjdk.java.net/projects/nashorn/
+
+Although Nashorn is the default ECMAScript engine used by the Java Scripting API, 
+you can use any script engine compliant with JSR 223, or you can implement your own. 
+This document does not cover the implementation of script engines compliant with JSR 223, 
+but at the most basic level, you must implement the javax.script.ScriptEngine and javax.script.ScriptEngineFactory interfaces. 
+The abstract class javax.script.AbstractScriptEngine provides useful defaults for a few methods in the ScriptEngine interface.
+
+To use the Java Scripting API:
+
+Create a ScriptEngineManager object.
+
+Get a ScriptEngine object from the manager.
+
+Evaluate the script using the script engine's eval() method.
+
+The following examples shows you how to use the Java Scripting API in Java. 
+To keep the examples simple, exceptions are not handled. 
+However, there are checked and runtime exceptions thrown by the Java Scripting API, 
+and they should be properly handled. 
+In every example, an instance of the ScriptEngineManager class is used to request the Nashorn engine 
+(an object of the ScriptEngine class) using the getEngineByName() method. 
+If the engine with the specified name is not present, null is returned. 
+For more information about using the Nashorn engine, see the Nashorn User's Guide.
+
+
+Note:
+
+Each ScriptEngine object has its own variable scope. 
+For information about using multiple variable scopes, see Example 8.
+注意，每个脚本引擎有自己的变量作用域。
+
+Example 1 Evaluating a Statement
+示例：执行语句
+In this example, the eval() method is called on the script engine instance to execute JavaScript code from a String object.
+
+import javax.script.*;
+
+public class EvalScript {
+    public static void main(String[] args) throws Exception {
+        ScriptEngineManager manager = new ScriptEngineManager();
+        ScriptEngine engine = manager.getEngineByName("nashorn");
+
+        // evaluate JavaScript code
+        engine.eval("print('Hello, World')");
+    }
+}
+
+Example 2 Evaluating a Script File
+示例：执行脚本文件
+In this example, the eval() method takes in a FileReader object that reads JavaScript code from a file named script.js. 
+By wrapping various input stream objects as readers, it is possible to execute scripts from files, URLs, and other resources.
+
+import javax.script.*;
+
+public class EvalFile {
+    public static void main(String[] args) throws Exception {
+        ScriptEngineManager manager = new ScriptEngineManager();
+        ScriptEngine engine = manager.getEngineByName("nashorn");
+
+        // evaluate JavaScript code
+        engine.eval(new java.io.FileReader("script.js"));
+    }
+}
+
+==
+Example 3 Exposing a Java Object as a Global Variable
+示例：嵌入java对象作为全局变量
+
+In this example, a File object is created and exposed to the engine as a global variable named file using the put() method. 
+Then the eval() method is called with JavaScript code that accesses the variable and calls the getAbsolutePath() method.
+
+
+Note:
+
+The syntax to access fields and call methods of Java objects exposed as variables depends on the scripting language. 
+This example uses JavaScript syntax, which is similar to Java.
+
+
+import javax.script.*;
+import java.io.*;
+
+public class ScriptVars {
+    public static void main(String[] args) throws Exception {
+        ScriptEngineManager manager = new ScriptEngineManager();
+        ScriptEngine engine = manager.getEngineByName("nashorn");
+
+        // create File object
+        File f = new File("test.txt");
+
+        // expose File object as a global variable to the engine
+        engine.put("file", f);
+
+        // evaluate JavaScript code and access the variable
+        engine.eval("print(file.getAbsolutePath())");
+    }
+}
+
+==
+Example 4 Invoking a Script Function
+示例：调用脚本函数
+
+In this example, the eval() method is called with JavaScript code that defines a function with one parameter. 
+Then, an Invocable object is created and its invokeFunction() method is used to invoke the function.
+
+
+Note:
+
+Not all script engines implement the Invocable interface. 
+This example uses the Nashorn engine, which can invoke functions in scripts that have previously been evaluated by this engine.
+
+
+import javax.script.*;
+
+public class InvokeScriptFunction {
+    public static void main(String[] args) throws Exception {
+        ScriptEngineManager manager = new ScriptEngineManager();
+        ScriptEngine engine = manager.getEngineByName("nashorn");
+
+        // evaluate JavaScript code that defines a function with one parameter
+        engine.eval("function hello(name) { print('Hello, ' + name) }");
+
+        // create an Invocable object by casting the script engine object
+        Invocable inv = (Invocable) engine;
+
+        // invoke the function named "hello" with "Scripting!" as the argument
+        inv.invokeFunction("hello", "Scripting!");
+    }
+}
+
+==
+Example 5 Invoking a Script Object's Method
+示例：调用脚本对象的方法
+
+In this example, the eval() method is called with JavaScript code that defines an object with a method. 
+This object is then exposed from the script to the Java application using the script engine's get() method. 
+Then, an Invocable object is created, and its invokeMethod() method is used to invoke the method defined for the script object.
+通过 get() 获取脚本对象。
+
+Note:
+
+Not all script engines implement the Invocable interface. 
+This example uses the Nashorn engine, which can invoke methods in scripts that have previously been evaluated by this engine.
+
+
+import javax.script.*;
+
+public class InvokeScriptMethod {
+    public static void main(String[] args) throws Exception {
+        ScriptEngineManager manager = new ScriptEngineManager();
+        ScriptEngine engine = manager.getEngineByName("nashorn");
+
+        // evaluate JavaScript code that defines an object with one method
+        engine.eval("var obj = new Object()");
+        engine.eval("obj.hello = function(name) { print('Hello, ' + name) }");
+
+        // expose object defined in the script to the Java application
+        Object obj = engine.get("obj");
+
+        // create an Invocable object by casting the script engine object
+        Invocable inv = (Invocable) engine;
+
+        // invoke the method named "hello" on the object defined in the script
+        // with "Script Method!" as the argument
+        inv.invokeMethod(obj, "hello", "Script Method!");
+    }
+}
+
+==
+Example 6 Implementing a Java Interface with Script Functions
+用脚本函数实现java接口方法
+
+In this example, the eval() method is called with JavaScript code that defines a function. 
+Then, an Invocable object is created, and its getInterface() method is used to create a Runnable interface object. 
+The methods of the interface are implemented by script functions with matching names 
+(in this case, the run() function is used to implement the run() method in the interface object). 
+Finally, a new thread is started that runs the script function.
+
+import javax.script.*;
+
+public class ImplementRunnable {
+    public static void main(String[] args) throws Exception {
+        ScriptEngineManager manager = new ScriptEngineManager();
+        ScriptEngine engine = manager.getEngineByName("nashorn");
+
+        // evaluate JavaScript code that defines a function with one parameter
+        engine.eval("function run() { print('run() function called') }");
+
+        // create an Invocable object by casting the script engine object
+        Invocable inv = (Invocable) engine;
+
+        // get Runnable interface object
+        Runnable r = inv.getInterface(Runnable.class);//hxzon：？
+
+        // start a new thread that runs the script
+        Thread th = new Thread(r);
+        th.start();
+        th.join();
+    }
+}
+
+==
+Example 7 Implementing a Java Interface with the Script Object's Methods
+脚本对象实现java接口
+
+In this example, the eval() method is called with JavaScript code that defines an object with a method. 
+This object is then exposed from the script to the Java application using the script engine's get() method. 
+Then, an Invocable object is created, and its getInterface() method is used to create a Runnable interface object. 
+The methods of the interface are implemented by the script object's methods with matching names 
+(in this case, the run method of the obj object is used to implement the run() method in the interface object). 
+Finally, a new thread is started that runs the script object's method.
+
+import javax.script.*;
+
+public class ImplementRunnableObject {
+    public static void main(String[] args) throws Exception {
+        ScriptEngineManager manager = new ScriptEngineManager();
+        ScriptEngine engine = manager.getEngineByName("nashorn");
+
+        // evaluate JavaScript code that defines a function with one parameter
+        engine.eval("var obj = new Object()")
+        engine.eval("obj.run = function() { print('obj.run() method called') }");
+
+        // expose object defined in the script to the Java application
+        Object obj = engine.get("obj");
+
+        // create an Invocable object by casting the script engine object
+        Invocable inv = (Invocable) engine;
+
+        // get Runnable interface object
+        Runnable r = inv.getInterface(obj, Runnable.class);
+
+        // start a new thread that runs the script
+        Thread th = new Thread(r);
+        th.start();
+        th.join();
+    }
+}
+
+==
+Example 8 Using Multiple Scopes
+使用多个作用域
+
+In this example, the script engine's put() method is used to set the variable x to a String object hello. 
+Then, the eval() method is used to print the variable in the default scope. 
+Then, a different script context is defined, and its scope is used to 
+set the same variable to a different value (a String object world). 
+Finally, the variable is printed in the new script context that displays a different value.
+
+A single scope is an instance of the javax.script.Bindings interface. 
+This interface is derived from the java.util.Map<String, Object> interface. 
+A scope is a set of name and value pairs where the name is a non-empty, non-null String object. 
+The javax.script.ScriptContext interface supports multiple scopes with associated Bindings for each scope. 
+By default, every script engine has a default script context. 
+The default script context has at least one scope represented by the static field ENGINE_SCOPE. 
+Various scopes supported by a script context are available through the getScopes() method.
+每个引擎默认有一个作用域，为引擎范围内。
+
+import javax.script.*;
+
+public class MultipleScopes {
+    public static void main(String[] args) throws Exception {
+        ScriptEngineManager manager = new ScriptEngineManager();
+        ScriptEngine engine = manager.getEngineByName("nashorn");
+
+        // set global variable
+        engine.put("x","hello");
+
+        // evaluate JavaScript code that prints the variable (x = "hello")
+        engine.eval("print(x)");
+
+        // define a different script context
+        ScriptContext newContext = new SimpleScriptContext();
+        newContext.setBindings(engine.createBindings(), ScriptContext.ENGINE_SCOPE);
+        Bindings engineScope = newContext.getBindings(ScriptContext.ENGINE_SCOPE);
+
+        // set the variable to a different value in another scope
+        engineScope.put("x", "world");
+
+        // evaluate the same code but in a different script context (x = "world")  //使用新的作用域
+        engine.eval("print(x)", newContext);
+

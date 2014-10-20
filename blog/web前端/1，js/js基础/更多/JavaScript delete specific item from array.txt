@@ -1,0 +1,50 @@
+﻿JavaScript delete specific item from array
+solidlystated
+Date : 2011-09-16 16:38:52
+http://www.pixelstech.net/article/1316205532-JavaScript-delete-specific-item-from-array	  
+
+
+Deleting an item from an array is easy using JavaScript’s built-in method splice(). 
+However, if you are somewhat new to scripting, simply knowing about splice 
+does not help you remove a certain item from an array. 
+This article will solidly state the solution to this dilemma. 
+If you want to  remove a specific item from your array, 
+you will simply use a basic loop and a conditional check with the  splice() method. 
+Here is a breakdown of what we will do in 3 easy steps, 
+so that you can implement this solution yourself later. 
+The Three Step Process Setup a basic ‘for’  loop , iterating backwards In the loop,  
+test  item for match If so,  splice  the item at that point in the loop Solid Tip:   
+splice()  takes 2 arguments (index of item to remove, number of items to remove). 
+To ensure compatibility, don’t forget the 2nd. 
+
+Removing One Item 
+Here is our code example using the traditional fruit array. 
+In this example, I want to remove ‘banana’ if it exists. 
+
+
+var  myArray  =   [ 'apple' , 'orange' , 'banana' , 'pear' , 'peach' ] ; 
+ 
+for ( var  i  =  myArray. length - 1 ;  i  >=   0 ;  i -- ) {    // STEP 1 
+     if ( myArray [ i ]   ==   'banana' ) {                // STEP 2 
+        myArray. splice ( i , 1 ) ;                   // STEP 3 
+     } 
+} 
+// returns [apple,orange,pear,peach] 
+
+Removing Multiple Items 
+The example above just removed ‘banana’ from the array, leaving four items left in the collection. 
+Step 3 above myArray.splice(i,1)  says to remove the item starting at index  i  and remove 1 item. 
+If you used the number 2 instead of 1, it would have removed ‘banana’ AND ‘pear’. 
+If you want to test for 2  specific  values, however, you can make a simple modification to step 2, as seen below. 
+I have made the example loops  iterate backward  to allow this option. 
+
+
+var  myArray  =   [ 'apple' , 'orange' , 'banana' , 'pear' , 'peach' ] ; 
+ 
+for ( var  i  =  myArray. length - 1 ;  i  >=   0 ;  i -- ) {                // STEP 1 
+     if ( myArray [ i ]   ==   'banana'   ||  myArray [ i ]   ==   'peach' ) {   // STEP 2 
+        myArray. splice ( i , 1 ) ;                               // STEP 3 
+     } 
+} 	
+// returns [apple,orange,pear]
+

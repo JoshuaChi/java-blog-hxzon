@@ -2,7 +2,7 @@
 http://blog.csdn.net/miscclp/article/details/34642291
 翻译和编译自： http://docs.oracle.com/javase/8/docs/technotes/guides/scripting/nashorn/toc.html
 
-
+========
 用Notepad++新建一js文件，F6运行命令为：
 
 npp_save
