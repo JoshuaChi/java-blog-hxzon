@@ -2,11 +2,14 @@
 page6 | Chapter 1 MVC and Classes
 
 注释by hxzon
+学习摘要见《js基础/（hxzon学习笔记）js-类，继承.js》
+
 ===========
 Toward Modularity, Creating Classes
 面向模块化，创建类
 
-Before we get to the nitty-gritty of MVC, we’re going to cover some preliminary concepts, such as JavaScript classes and events. 
+Before we get to the nitty-gritty of MVC, we’re going to cover some preliminary concepts, 
+such as JavaScript classes and events. 
 This will give you a solid foundation before
 moving on to some of the more advanced concepts.
 JavaScript object literals are fine for static classes, but it’s often useful to create classical
@@ -530,7 +533,8 @@ these can still be changed, it makes it obvious that they’re part of a private
 steer clear of this approach because it looks rather ugly.
 
 JavaScript does have support for immutable properties; 
-however, this isn’t implemented across the main browsers, so we’ll have to wait before using this method. Instead,
+however, this isn’t implemented across the main browsers, so we’ll 
+have to wait before using this method. Instead,
 we’ll use JavaScript anonymous functions to create a private scope, which can only be
 accessed internally:
 通过“匿名立即执行”函数来实现私有变量和私有函数。

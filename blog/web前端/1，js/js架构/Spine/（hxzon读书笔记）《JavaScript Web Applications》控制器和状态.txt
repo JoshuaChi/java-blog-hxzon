@@ -110,7 +110,7 @@ this is equal to window:
 在匿名立即执行函数里，this指向window。
 
 (function(){
-assertEqual( this, window );
+	assertEqual( this, window );
 })();
 
 If we want to scope the context, we need to start adding functions onto an object. For
@@ -165,7 +165,7 @@ Let’s abstract that library out so we can reuse it with other modules and cont
 We’ll include the existing load() function and add new ones like  proxy() and  include():
 
 (function($, exports){
-    var mod = function(includes){
+    var mod = function(includes){//hxzon：作为构造函数使用
         if (includes) this.include(includes);
     };
     mod.fn = mod.prototype;
@@ -189,6 +189,7 @@ We’re adding our library to the exports object, exposing it as the global  Con
 variable. Inside the module we can instantiate a  Controller object using its constructor
 function. Let’s go through a simple example that toggles an element’s class depending
 on whether the mouse is over the element:
+示例：创建一个新控制器类
 
 (function($, Controller){
     var mod = new Controller;
@@ -244,15 +245,16 @@ what state the page’s DOM is in when accessing elements.
 Let’s first take advantage and clear up our library, making our controllers a bit cleaner.
 The  Controller  class doesn’t need to be a constructor function because the context
 switch needed when generating subcontrollers is unnecessary here:
-改进。控制器不需要一个构造函数，因为子控制器不需要上下文切换。
+改进。控制器不需要一个构造函数，
+因为我们不需要创建子控制器，所以也就不需要上下文切换。（hxzon：注意）
 
 // Use global context, rather than the window
 // object, to create global variables
 var exports = this;
 (function($){
     var mod = {};
-    mod.create = function(includes){
-        var result = function(){
+    mod.create = function(includes){//hxzon：返回一个构造函数
+        var result = function(){//hxzon：构造函数
             this.init.apply(this, arguments);
         };
         result.fn = result.prototype;
@@ -285,7 +287,7 @@ jQuery(function($){
         }
     });
     // Instantiate controller, calling init()
-    new ToggleView("#view");
+    new ToggleView("#view");//hxzon：创建一个控制器实例
 });
 
 The other significant change we’ve made is passing in the view element to the controller
@@ -315,7 +317,7 @@ init: function(view){
 However, it does mean that controllers fill up with a lot of selectors, requiring us to
 query the DOM constantly. We can clean this up somewhat by having one place in the
 controller where selectors are mapped to variables names, like so:
-将css选择器映射到变量（自动创建本地变量）。
+将css选择器映射到变量（自动创建本地变量）。（hxzon：有用的思想）
 
 elements: {
     "form.searchForm": "searchForm",
@@ -333,35 +335,35 @@ We’ll do this inside our init() function, which is called when our controller 
 
 var exports = this;
 jQuery(function($){
-exports.SearchView = Controller.create({
-// Map of selectors to local variable names
-elements: {
-"input[type=search]": "searchInput",
-"form": "searchForm"
-},
-// Called upon instantiation
-init: function(element){
-
-this.el = $(element);
-this.refreshElements();
-this.searchForm.submit(this.proxy(this.search));
-},
-search: function(){
-console.log("Searching:", this.searchInput.val());
-},
-// Private
-$: function(selector){
-// An `el` property is required, and scopes the query
-return $(selector, this.el);
-},
-// Set up the local variables
-refreshElements: function(){
-for (var key in this.elements) {
-this[this.elements[key]] = this.$(key);
-}
-}
-});
-new SearchView("#users");
+	exports.SearchView = Controller.create({
+		// Map of selectors to local variable names
+		elements: {
+			"input[type=search]": "searchInput",
+			"form": "searchForm"
+		},
+	
+		// Called upon instantiation
+		init: function(element){
+			this.el = $(element);
+			this.refreshElements();
+			this.searchForm.submit(this.proxy(this.search));
+		},
+		search: function(){
+			console.log("Searching:", this.searchInput.val());
+		},
+		// Private
+		$: function(selector){
+			// An `el` property is required, and scopes the query
+			return $(selector, this.el);
+		},
+		// Set up the local variables
+		refreshElements: function(){
+			for (var key in this.elements) {
+				this[this.elements[key]] = this.$(key);//hxzon：自动创建本地变量
+			}
+		}
+	});
+	new SearchView("#users");
 });
 
 refreshElements()  expects every controller to have a current element property,  el,
@@ -405,9 +407,11 @@ jQuery(function($){
             this.delegateEvents();
         },
         search: function(e){ /* ... */ },
+
         // Private
         // Split on the first space
         eventSplitter: /^(\w+)\s*(.*)$/,
+
         delegateEvents: function(){
             for (var key in this.events) {
                 var methodName = this.events[key];
@@ -456,7 +460,7 @@ jQuery(function($){
 
 =========
 State Machines
-有限状态机（hxzon：重点理解）
+有限状态机（hxzon：重点理解。对this的处理，未完全理解）
 
 State  machines—or to use their proper term, Finite State Machines(FSMs)—are a great
 way to program UIs. Using state machines, you can easily manage multiple controllers,
@@ -484,12 +488,12 @@ trigger events on our state machine:
 var Events = {
     bind: function(){
         if ( !this.o ) this.o = $({});
-            this.o.bind.apply(this.o, arguments);
-        },
-        trigger: function(){
-            if ( !this.o ) this.o = $({});
-            this.o.trigger.apply(this.o, arguments);
-        }
+        this.o.bind.apply(this.o, arguments);//hxzon：？将Events的这两个方法的this，都绑定到一个内部对象o上。何用？
+    },
+    trigger: function(){
+        if ( !this.o ) this.o = $({});
+        this.o.trigger.apply(this.o, arguments);
+    }
 };
 
 The Events object is essentially extending jQuery’s existing event support outside the
@@ -510,17 +514,17 @@ StateMachine.fn.add = function(controller){
             controller.deactivate();
     });
     controller.active = $.proxy(function(){
-        this.trigger("change", controller);
+        this.trigger("change", controller);//hxzon：通过代理，这里的this指向状态机实例，否则会指向控制器实例
     }, this);
 };
 
 The state machine’s add() function adds the passed controller to the list of states and
 creates an active() function. When  active() is called, the active state will transition
 to the controller. The state machine will call  activate() on the active controller and
+deactivate() on all the other controllers. We can see how this works by creating two
 通过状态机的add方法，可以添加一个控制器到状态机中，并为这个控制器添加了一个active方法。
 当调用控制器的active方法时，状态机的状态会迁移到此控制器。
 然后调用此控制器的activate方法，并调用所有其它控制器的deactivate方法。
-deactivate()on all the other controllers. We can see how this works by creating two
 example controllers, adding them to the state machine, and then activating one of them:
 
 var con1 = {

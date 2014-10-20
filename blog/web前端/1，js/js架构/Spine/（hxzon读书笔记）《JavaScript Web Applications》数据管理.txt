@@ -1,252 +1,335 @@
-﻿（hxzon读书笔记）《JavaScript Web Applications》数据模型
+﻿（hxzon读书笔记）《JavaScript Web Applications》数据管理
 CHAPTER 3 Models and Data
 
 注释by hxzon
 ========
-One of the challenges with moving state to the client side is data management. Tradi-tionally,  you could fetch data directly from the database during the page request, in-teroperating the result directly into the page. However, data management in stateful
+One of the challenges with moving state to the client side is data management. 
+Traditionally,  you could fetch data directly from the database during the page request, 
+interoperating the result directly into the page. However, data management in stateful
 JavaScript applications is a completely different process. There’s no request/response
-model, and you don’t have access to server-side variables. Instead, data is fetched re-motely and stored temporarily on the client side.
-Although making this transition can be a hassle, there are a few advantages. For ex-ample, client-side data access is practically instantaneous, as you’re just fetching it from
+model, and you don’t have access to server-side variables. 
+Instead, data is fetched remotely and stored temporarily on the client side.
+Although making this transition can be a hassle, there are a few advantages. 
+For example, client-side data access is practically instantaneous, as you’re just fetching it from
 memory. This can make a real difference to your application’s interface; any interaction
 with the application gives immediate feedback, often dramatically improving the user’s
 experience.
+
 How you architect data storage on the client side requires some thought. This is an
-area riddled with pitfalls and potential traps, often tripping up less-experienced devel-opers—especially as their applications get larger. In this chapter, we’ll cover how best
+area riddled with pitfalls and potential traps, often tripping up less-experienced developers
+—especially as their applications get larger. In this chapter, we’ll cover how best
 to make that transition, and I’ll give you some recommended patterns and practices.
+
+====
 MVC and Namespacing
+命名空间
+
 Ensuring that there’s a clear separation between your application’s views, state, and
 data is crucial to keeping its architecture uncluttered and sustainable. With the MVC
 pattern, data management happens in models (the “M” of MVC). Models should be
 decoupled from views and controllers. Any logic associated with data manipulation
 and behavior should reside in models and be namespaced properly.
+
 In JavaScript, you can namespace functions and variables by making them properties
 of an object. For example:
+
 var User = {
-records: [ /* ... */ ]
+	records: [ /* ... */ ]
 };
 
 The array of users is namespaced properly under User.records.  Functions associated
-with users can also be namespaced under the Usermodel. For example, we can have a
-fetchRemote()function for fetching user data from a server:
+with users can also be namespaced under the User model. For example, we can have a
+fetchRemote() function for fetching user data from a server:
+
 var User = {
-records: [],
-fetchRemote: function(){ /* ... */ }
+	records: [],
+	fetchRemote: function(){ /* ... */ }
 };
+
 Keeping all of a model’s properties under a namespace ensures that you don’t get any
 conflicts and that it’s MVC-compliant. It also prevents your code from spiraling down
 into a tangled mess of functions and callbacks.
-You can take namespacing a step further and keep any functions specific to user in-stances on the actual user objects. Let’s say we had a  destroy()function for user re-cords; it refers to specific users, so it should be on Userinstances:
+
+You can take namespacing a step further and keep any functions specific to user instances 
+on the actual user objects. Let’s say we had a  destroy() function for user records; 
+it refers to specific users, so it should be on Userinstances:
+
 var user = new User;
 user.destroy()
+
 To achieve that, we need to make Usera class, rather than a plain object:
+
 var User = function(atts){
-this.attributes = atts || {};
+	this.attributes = atts || {};
 };
+
 User.prototype.destroy = function(){
-/* ... */
+	/* ... */
 };
+
 Any functions and variables that don’t relate to specific users can be properties directly
-on the Userobject:
+on the User object:
+
 User.fetchRemote = function(){
-/* ... */
+	/* ... */
 };
+
 For more information about namespacing, visit Peter Michaux’s blog, where he’s
 written an excellent articleon the subject.
+
+=========
 Building an ORM
-Object-relational mappers, or ORMs, are typically used in languages other than Java-Script. However, they’re a very useful technique for data management as well as a great
+
+Object-relational mappers, or ORMs, are typically used in languages other than JavaScript. 
+However, they’re a very useful technique for data management as well as a great
 way of using models in your JavaScript application. With an ORM, for example, you
 can tie up a model with a remote server—any changes to model instances will send
 background Ajax requests to the server. Or, you could tie up a model instance with an
 HTML element—any changes to the instance will be reflected in the view. I’ll elaborate
 on those examples later, but for now, let’s look at creating a custom ORM.
+
 Essentially, an ORM is just an object layer wrapping some data. Typically, ORMs are
 used to abstract SQL databases, but in our case, the ORM will just be abstracting
-
 JavaScript data types. The advantage of this extra layer is that we can enhance the basic
 data with more functionality by adding our own custom functions and properties. This
 lets us add things like validation, observers, persistence, and server callbacks while still
 being able to reuse a lot of code.
+
 Prototypal Inheritance
-We’re going to use Object.create()to construct our ORM, which is a little different
+原型继承
+
+We’re going to use Object.create() to construct our ORM, which is a little different
 from the class-based examples we covered in  Chapter 1. This will allow us to use
 prototype-based inheritance, rather than using constructor functions and the  new
 keyword.
-Object.create()takes one argument, a prototype object, and returns a new object with
+
+Object.create() takes one argument, a prototype object, and returns a new object with
 the specified prototype object. In other words, you give it an object, and it returns a
 new one, inheriting from the one you specified.
-Object.create()was recently added to ECMAScript, 5th Edition, so it isn’t implemen-ted in some browsers, such as IE. However, this doesn’t pose a problem since we can
-easily add support if needed:
-if (typeof Object.create !== "function")
-Object.create = function(o) {
-function F() {}
-F.prototype = o;
-return new F();
-};
-The example above was taken from Douglas Crockford’s article on Prototypal Inheri-tance. Check it out if you want a more in-depth explanation behind JavaScript proto-types and inheritance.
-We’re going to create a Modelobject, which will be in charge of creating new models
-and instances:
-var Model = {
-inherited: function(){},
-created: function(){},
-prototype: {
-init: function(){}
-},
-create: function(){
-var object = Object.create(this);
-object.parent = this;
-object.prototype = object.fn = Object.create(this.prototype);
-object.created();
-this.inherited(object);
-return object;
-},
+创建一个对象，这个对象以原对象为原型。
 
-init: function(){
-var instance = Object.create(this.prototype);
-instance.parent = this;
-instance.init.apply(instance, arguments);
-return instance;
-}
+Object.create() was recently added to ECMAScript, 5th Edition, 
+so it isn’t implemented in some browsers, such as IE. 
+However, this doesn’t pose a problem since we can
+easily add support if needed:
+
+if (typeof Object.create !== "function")
+	Object.create = function(o) {
+		function F() {}
+		F.prototype = o;
+	return new F();
 };
+
+The example above was taken from Douglas Crockford’s article on Prototypal Inheritance. 
+Check it out if you want a more in-depth explanation behind JavaScript proto-types and inheritance.
+We’re going to create a Model object, which will be in charge of creating new models
+and instances:
+
+var Model = {
+	inherited: function(){},
+	created: function(){},
+	prototype: {
+		init: function(){}
+	},
+
+	create: function(){
+		var object = Object.create(this);
+		object.parent = this;
+		object.prototype = object.fn = Object.create(this.prototype);
+		object.created();
+		this.inherited(object);
+		return object;
+	},
+
+	init: function(){
+		var instance = Object.create(this.prototype);
+		instance.parent = this;
+		instance.init.apply(instance, arguments);
+		return instance;
+	}
+};
+
 If  you’re unfamiliar with  Object.create(), this may look daunting, so let’s break it
-down. The create()function returns a new object, inheriting from the  Modelobject;
-we’ll use this for creating new models. The init()function returns a new object, in-heriting from Model.prototype—i.e., an instance of the Modelobject:
+down. The create() function returns a new object, inheriting from the  Model object;
+we’ll use this for creating new models. The init() function returns a new object, 
+inheriting from Model.prototype—i.e., an instance of the Model object:
+
 var Asset = Model.create();
 var User = Model.create();
 var user = User.init();
+
+====
 Adding ORM Properties
+
 Now, if we add properties to Model, they’ll be available on all inherited models:
+
 // Add object properties
 jQuery.extend(Model, {
-find: function(){}
+	find: function(){}
 });
 // Add instance properties
 jQuery.extend(Model.prototype, {
-init: function(atts) {
-if (atts) this.load(atts);
-},
-load: function(attributes){
-for(var name in attributes)
-this[name] = attributes[name];
-}
+	init: function(atts) {
+		if (atts) this.load(atts);
+	},
+	load: function(attributes){
+		for(var name in attributes)
+			this[name] = attributes[name];
+	}
 });
-jQuery.extend()is just a shorthand way of using a  forloop to copy over properties
-manually, which is similar to what we’re doing in the load()function. Now, our object
-and instance properties are propagating down to our individual models:
-assertEqual( typeof Asset.find, "function" );
-In fact, we’re going to be adding a lot of properties, so we might as well make
-extend()and include()part of the Modelobject:
-var Model = {
-/* ... snip ... */
-extend: function(o){
-var extended = o.extended;
-jQuery.extend(this, o);
-if (extended) extended(this);
 
-},
-include: function(o){
-var included = o.included;
-jQuery.extend(this.prototype, o);
-if (included) included(this);
-}
+jQuery.extend() is just a shorthand way of using a  for loop to copy over properties
+manually, which is similar to what we’re doing in the load() function. Now, our object
+and instance properties are propagating down to our individual models:
+
+assertEqual( typeof Asset.find, "function" );
+
+In fact, we’re going to be adding a lot of properties, so we might as well make
+extend() and include() part of the Model object:
+
+var Model = {
+	/* ... snip ... */
+	extend: function(o){
+		var extended = o.extended;
+		jQuery.extend(this, o);
+		if (extended) extended(this);
+	},
+	include: function(o){
+		var included = o.included;
+		jQuery.extend(this.prototype, o);
+		if (included) included(this);
+	}
 };
+
 // Add object properties
 Model.extend({
-find: function(){}
+	find: function(){}
 });
 // Add instance properties
 Model.include({
-init: function(atts) { /* ... */ },
-load: function(attributes){ /* ... */ }
+	init: function(atts) { /* ... */ },
+	load: function(attributes){ /* ... */ }
 });
+
 Now, we can create new assets and set some attributes:
+
 var asset = Asset.init({name: "foo.png"});
+
+====
 Persisting Records
+持久化数据
+
 We need a way of persisting records—i.e., of saving a reference to created instances so
-we can access them later. We’ll do that using a recordsobject, set on the Model. When
+we can access them later. We’ll do that using a records object, set on the Model. When
 we’re saving an instance, we’ll add it to that object; when deleting instances, we’ll
 remove them from the object:
+
 // An object of saved assets
 Model.records = {};
+
 Model.include({
-newRecord: true,
-create: function(){
-this.newRecord = false;
-this.parent.records[this.id] = this;
-},
-destroy: function(){
-delete this.parent.records[this.id];
-}
+	newRecord: true,
+	create: function(){
+		this.newRecord = false;
+		this.parent.records[this.id] = this;
+	},
+	destroy: function(){
+		delete this.parent.records[this.id];
+	}
 });
+
 What about updating an existing instance? Easy—just update the object reference:
+
 Model.include({
-update: function(){
-this.parent.records[this.id] = this;
-}
+	update: function(){
+		this.parent.records[this.id] = this;
+	}
 });
 
 Let’s create a convenience function to save an instance, so we don’t have to check to
 see whether the instance was saved previously, or whether it needs to be created:
+
 // Save the object to the records hash, keeping a reference to it
 Model.include({
-save: function(){
-this.newRecord ? this.create() : this.update(); 
-}
+	save: function(){
+		this.newRecord ? this.create() : this.update(); 
+	}
 });
-And what about implementing that find()function, so we can find assets by their ID?
+
+And what about implementing that find() function, so we can find assets by their ID?
+
 Model.extend({
-// Find by ID, or raise an exception
-find: function(id){
-return this.records[id] || throw("Unknown record");
-}
+	// Find by ID, or raise an exception
+	find: function(id){
+		return this.records[id] || throw("Unknown record");
+	}
 });
+
 Now that we’ve succeeded in creating a basic ORM, let’s try it out:
+
 var asset = Asset.init();
 asset.name = "same, same";
 asset.id = 1
 asset.save();
+
 var asset2 = Asset.init();
 asset2.name = "but different";
 asset2.id = 2;
 asset2.save();
+
 assertEqual( Asset.find(1).name, "same, same" );
 asset2.destroy();
+
+====
 Adding ID Support
+唯一标识符
+
 At the moment, every time we save a record we have to specify an ID manually. This
-sucks, but fortunately, it’s something we can automate. First, we need a way of gener-ating IDs, which we can do with a Globally Unique Identifier (GUID) generator. Well,
+sucks, but fortunately, it’s something we can automate. First, we need a way of generating IDs, 
+which we can do with a Globally Unique Identifier (GUID) generator. Well,
 technically, JavaScript can’t generate official, bona fide 128-bit GUIDs for API
-reasons—it can only generate pseudorandom numbers. Generating truly random
+reasons—it can only generate pseudo random numbers. Generating truly random
 GUIDs is a notoriously difficult problem, and operating systems calculate them using
 the MAC address, mouse position, and BIOS checksums, or by measuring electrical
 noise or radioactive decay—and even lava lamps! However, JavaScript’s native
 Math.random(), although pseudorandom, will be enough for our needs.
-Robert Kieffer has written an easy and succinct GUID generator that uses  Math.ran
-dom()to generate pseudorandom GUIDs. It’s so simple that we can put it inline:
-Math.guid = function(){
-return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-var r = Math.random()*16|0, v = c == 'x' ? r : (r&0x3|0x8);
 
-return v.toString(16);
-}).toUpperCase(); 
+Robert Kieffer has written an easy and succinct GUID generator that uses  Math.random()
+to generate pseudorandom GUIDs. It’s so simple that we can put it inline:
+
+Math.guid = function(){
+	return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+		var r = Math.random()*16|0, v = c == 'x' ? r : (r&0x3|0x8);
+		return v.toString(16);
+	}).toUpperCase(); 
 };
+
 Now  that we have a function to generate GUIDs, integrating that into our ORM is
-simple; all we need to change is the create()function:
+simple; all we need to change is the create() function:
+
 Model.extend({
-create: function(){
-if ( !this.id ) this.id = Math.guid();
-this.newRecord = false;
-this.parent.records[this.id] = this;
-}
+	create: function(){
+		if ( !this.id ) this.id = Math.guid();
+		this.newRecord = false;
+		this.parent.records[this.id] = this;
+	}
 });
+
 Now, any newly created records have random GUIDs as their ID:
+
 var asset = Asset.init();
 asset.save();
 asset.id //=> "54E52592-313E-4F8B-869B-58D61F00DC74"
+
+==
 Addressing References
+
 If you’ve been observing closely, you might have spotted a bug relating to the references
-in our ORM. We’re not cloning instances when they’re returned by  find()or when
+in our ORM. We’re not cloning instances when they’re returned by  find() or when
 we’re saving them, so if we change any properties, they’re changed on the original asset.
 This is a problem because we only want assets to update when we call the  update()
 function:
+
 var asset = new Asset({name: "foo"});
 asset.save();
 // Assert passes correctly
@@ -255,113 +338,151 @@ assertEqual( Asset.find(asset.id).name, "foo" );
 asset.name = "wem";
 // Oh dear! This assert fails, as the asset's name is now "wem"
 assertEqual( Asset.find(asset.id).name, "foo" );
-Let’s fix that by creating a new object during the find()operation. We’ll also need to
-duplicate the object whenever we create or update the record:
-Asset.extend({
-find: function(id){
-var record = this.records[id];
-if ( !record ) throw("Unknown record");
-return record.dup();
-}
-});
-Asset.include({
 
-create: function(){
-this.newRecord = false;
-this.parent.records[this.id] = this.dup();
-},
-update: function(){
-this.parent.records[this.id] = this.dup();
-},
-dup: function(){
-return jQuery.extend(true, {}, this);
-}
+Let’s fix that by creating a new object during the find() operation. We’ll also need to
+duplicate the object whenever we create or update the record:
+
+Asset.extend({
+	find: function(id){
+		var record = this.records[id];
+		if ( !record ) throw("Unknown record");
+		return record.dup();
+	}
 });
-We have another problem—Model.recordsis an object shared by every model:
+
+Asset.include({
+	create: function(){
+		this.newRecord = false;
+		this.parent.records[this.id] = this.dup();
+	},
+	update: function(){
+		this.parent.records[this.id] = this.dup();
+	},
+	dup: function(){
+		return jQuery.extend(true, {}, this);
+	}
+});
+
+We have another problem—Model.records is an object shared by every model:
+
 assertEqual( Asset.records, Person.records );
+
 This has the unfortunate side effect of mixing up all the records:
+
 var asset = Asset.init();
 asset.save();
 assert( asset in Person.records );
-The solution is to set a new  recordsobject whenever we create a new model. Model.cre
-ated()is the callback for new object creation, so we can set any objects that are specific
+
+The solution is to set a new  records object whenever we create a new model. Model.created()
+is the callback for new object creation, so we can set any objects that are specific
 to the model in there:
+
 Model.extend({
-created: function(){
-this.records = {};
-}
+	created: function(){
+		this.records = {};
+	}
 });
+
+=======
 Loading in Data
+加载数据
+
 Unless your web application is entirely restricted to the browser, you’ll need to load in
 remote data from a server. Typically, a subset of data is loaded when the application
-starts, and more data is loaded after the interaction. Depending on the type of appli-cation and the amount of data, you may be able to load everything you need on the
+starts, and more data is loaded after the interaction. Depending on the type of application 
+and the amount of data, you may be able to load everything you need on the
 initial page load. This is ideal, so users never have to wait for more data to be loaded.
 However, this isn’t feasible for a lot of applications because there’s too much data to
 fit comfortably in a browser’s memory.
+
 Preloading data is crucial to making your application feel slick and fast to your users,
-keeping any waiting time to a minimum. However, there’s a fine line between preload-ing data that’s actually accessed and loading redundant data that’s never used. You
-need to predict what sort of data your users will want (or use metrics once your appli-cation is live).
+keeping any waiting time to a minimum. However, there’s a fine line between preloading data 
+that’s actually accessed and loading redundant data that’s never used. You
+need to predict what sort of data your users will want (or use metrics once your application is live).
 
 If you’re displaying a paginated list, why not preload the next page so transitions are
 instant? Or, even better, just display a long list and automatically load and insert data
 as the list is scrolled (the infinite scroll pattern). The less latency a user feels, the better.
+
 When you do fetch new data, make sure the UI isn’t blocked. Display some sort of
 loading indicator, but make sure the interface is still usable. There should be very few
 scenarios, if any, that require blocking the UI.
+
 Data can be present inline in the initial page or loaded with separate HTTP requests
 through Ajax or JSONP. Personally, I would recommend the latter two technologies,
 as including a lot of data inline increases the page size, whereas parallel requests load
 faster. AJAX and JSON also let you cache the HTML page, rather than dynamically
 render it for every request.
+
+==
 Including Data Inline
-I don’t really advocate this approach for the reasons I outlined in the previous para-graph, but it can be useful in specific situations, especially for loading in a very small
+
+I don’t really advocate this approach for the reasons I outlined in the previous para-graph, 
+but it can be useful in specific situations, especially for loading in a very small
 amount of data. This technique has the advantage of being really simple to implement.
 All you need to do is render a JSON object directly into the page. For example, here’s
 how you’d do it with Ruby on Rails:
+
 <script type="text/javascript">
 var User = {};
 User.records = <%= raw @users.to_json %>;
 </script>
+
 We’re using ERB tags to output a JSON interpretation of the user data. The rawmethod 
 is simply to stop the JSON from being escaped. When the page is rendered, the resulting
 HTML looks like this:
+
 <script type="text/javascript">
 var User = {};
 User.records = [{"first_name": "Alex"}];
 </script>
+
 JavaScript can just evaluate the JSON as-is because it has the same structure as a Java-Script object.
+
+==
 Loading Data with Ajax
+
 This is probably the first method of loading remote data that springs to mind when you
 hear background requests, and for good reason: it’s tried, tested, and supported in all
-modern browsers. That’s not to say that Ajax is without its drawbacks—its unstan-dardized history has resulted in an inconsistent API and, due to browser security,
+modern browsers. That’s not to say that Ajax is without its drawbacks
+—its unstandardized history has resulted in an inconsistent API and, due to browser security,
 loading data from different domains is tricky.
 
 If you need a short primer on Ajax and the  XMLHttpRequest  class, read “Getting Started,”
 a Mozilla Developer article. In all likelihood, though, you’ll end up using a library like
 jQuery that abstracts Ajax’s API, massaging out the differences among browsers. For
 that reason, we’ll cover jQuery’s API here, rather than the raw XMLHttpRequestclass.
-jQuery’s Ajax API consists of one low-level function,  jQuery.ajax(), and several higher-level abstractions of it, reducing the amount of code you need to write.  jQuery
-.ajax()takes a hash of settings for request parameters, content type, and callbacks,
+jQuery’s Ajax API consists of one low-level function,  jQuery.ajax(), 
+and several higherlevel abstractions of it, reducing the amount of code you need to write.  
+jQuery.ajax() takes a hash of settings for request parameters, content type, and callbacks,
 among others. As soon as you call the function, the request is asynchronously sent in
 the background.
+
 url
 The request url. The default is the current page.
+
 success
 A function to be called if the request succeeds. Any data returned from the server
 is passed as a parameter.
+
 contentType
 Sets the  Content-Typeheader of the request. If the request contains data, the default
 is application/x-www-form-urlencoded, which is fine for most use cases.
+
 data
 The data to be sent to the server. If it’s not already a string, jQuery will serialize
 and URL-encode it.
+
 type
 The HTTP method to use: GET, POST, or DELETE. The default is GET.
+
+--
 dataType
 The type of data you’re expecting back from the server. jQuery needs to know this
 so it knows what to do with the result. If you don’t specify a dataType, jQuery will
 do some intelligent guessing based on the MIME type of the response. Supported
 values are:
+
 text
 Plain-text response; no processing is needed.
 script
@@ -370,48 +491,65 @@ json
 jQuery evaluates the response as JSON, using a strict parser.
 jsonp
 For JSONP requests, which we’ll cover in detail later.
+
+
 For example, let’s do a simple Ajax request, which alerts whatever data returned by the
 server:
-jQuery.ajax({
-url: "/ajax/endpoint",
-type: "GET",
 
-success: function(data) {
-alert(data);
-}
+jQuery.ajax({
+	url: "/ajax/endpoint",
+	type: "GET",
+	success: function(data) {
+		alert(data);
+	}
 });
+
 However,  all those options are a bit verbose. Luckily, jQuery has a few shortcuts.
-jQuery.get()takes a URL and optional data and callback:
+jQuery.get() takes a URL and optional data and callback:
+
 jQuery.get("/ajax/endpoint", function(data){
-$(".ajaxResult").text(data);
+	$(".ajaxResult").text(data);
 });
-Or, if we want to send a few query parameters with the GETrequest:
+
+Or, if we want to send a few query parameters with the GET request:
+
 jQuery.get("/ajax/endpoint", {foo: "bar"}, function(data){
-/* ... */
+	/* ... */
 });
+
 If we’re expecting JSON back from the server, we need to call  jQuery.getJSON()instead,
 which sets the request’s dataTypeoption to "json":
+
 jQuery.getJSON("/json/endpoint", function(json){
-/* ... */
+	/* ... */
 });
+
 Likewise, there’s a jQuery.post()function, which also takes a URL, data, and callback:
+
 jQuery.post("/users", {first_name: "Alex"}, function(result){
-/* Ajax POST was a success */
+	/* Ajax POST was a success */
 });
+
 If you want to use other HTTP methods—DELETE,  HEAD, and  OPTIONS—you’ll have to
-use the lower-level jQuery.ajax()function.
+use the lower-level jQuery.ajax() function.
 That was a brief overview of jQuery’s Ajax API, but if you need more information, read
 the full documentation.
-A limitation of Ajax is the same origin policy, which restricts requests to the same do-main, subdomain, and port as the address of the page from which they’re made. There’s
-a good reason for this: whenever an Ajax request is sent, all that domain’s cookie in-formation is sent along with the request. That means, to the remote server, the request
+
+A limitation of Ajax is the same origin policy, which restricts requests 
+to the same domain, subdomain, and port as the address of the page from which they’re made. There’s
+a good reason for this: whenever an Ajax request is sent, 
+all that domain’s cookie information is sent along with the request. 
+That means, to the remote server, the request
 appears to be from a logged-in user. Without the same origin policy, an attacker could
 potentially fetch all your emails from Gmail, update your Facebook status, or direct
 message your followers on Twitter—quite a security flaw.
+
 However, while the same origin policy is integral to the security of the Web, it’s also
 somewhat inconvenient for developers trying to access legitimate remote resources.
 Other technologies like Adobe Flash and Java have implemented workarounds to the
 problem with cross-domain policy files, and now Ajax is catching up with a standard
 called CORS, or cross-origin resource sharing.
+
 CORS lets you break out of the same origin policy, giving you access to authorized
 remote servers. The specification is well supported by the major browsers, so unless
 you’re using IE6, you should be fine.
@@ -422,59 +560,86 @@ CORS support by browser:
 • Safari: full support
 • Chrome: full support
 • Opera: no support
+
 Using CORS is trivially easy. If you want to authorize access to your server, just add a
 few lines to the HTTP header of returned responses:
+
 Access-Control-Allow-Origin: example.com
 Access-Control-Request-Method: GET,POST
-The above header will authorize cross-origin GET and POST requests from  exam-ple.com. You should separate multiple values with commas, as with the  GET,POSTvalues
+
+The above header will authorize cross-origin GET and POST requests from  example.com. 
+You should separate multiple values with commas, as with the  GET,POST values
 above. To allow access from additional domains, just list them comma-separated in
 the  Access-Control-Allow-Originheader. Or, to give any domain access, just set the
 origin header to an asterisk (*).
+
 Some browsers, like Safari, will first make an OPTIONS request to check whether the
 request is allowed. Firefox, on the other hand, will make the request and just raise a
 security exception if the CORS headers aren’t set. You’ll need to take account of this
 different behavior server side.
+
 You can even authorize custom request headers using the  Access-Control-Request-Headersheader:
 Access-Control-Request-Headers: Authorization
 This means that clients can add custom headers to Ajax requests, such as signing the
 request with OAuth:
+
 var req = new XMLHttpRequest(); 
 req.open("POST", "/endpoint", true); 
 req.setRequestHeader("Authorization", oauth_signature);
+
 Unfortunately, while CORS works with versions of Internet Explorer 8 and higher,
 Microsoft chose to ignore the spec and the working group. Microsoft created its own
 object, XDomainRequest, which is to be used instead of  XMLHttpRequestfor cross-domain
-requests. While its interface is similar to XMLHttpRequest’s, it has a number of restric-tions and limitations. For example, only GET and POST methods work, no authenti-cation or custom headers are supported, and finally, the kicker—only the “Content-Type: text/plain” is supported. If you’re prepared to work around those restrictions,
+requests. While its interface is similar to XMLHttpRequest’s, it has a number of restrictions and limitations. 
+For example, only GET and POST methods work, no authentication or custom headers are supported, 
+and finally, the kicker—only the “Content-Type: text/plain” is supported. 
+If you’re prepared to work around those restrictions,
 then—with the correct Access-Controlheaders—you can get CORS working in IE.
 
+====
 JSONP
+
 JSONP,  or JSON with padding, was created before CORS was standardized, and is
 another way of fetching data from remote servers. The idea is that you have a script tag
-that points to a JSON endpoint where returned data is wrapped in a function invoca-tion. Script tags aren’t subject to any cross-domain limitations, and this technique is
+that points to a JSON endpoint where returned data is wrapped in a function invoca-tion. 
+Script tags aren’t subject to any cross-domain limitations, and this technique is
 supported in practically every browser.
 So, here we have a script tag that points to our remote server:
+
 <script src="http://example.com/data.json"> </script>
+
 Then the endpoint, data.json, returns a JSON object wrapped in a function invocation:
+
 jsonCallback({"data": "foo"})
+
 We then define a globally accessible function. Once the script has loaded, this function
 will be called:
+
 window.jsonCallback = function(result){
-// Do stuff with the result
+	// Do stuff with the result
 }
+
 As it is, this is a fairly convoluted process. Luckily, jQuery wraps it in a succinct API:
+
 jQuery.getJSON("http://example.com/data.json?callback=?", function(result){
-// Do stuff with the result
+	// Do stuff with the result
 });
+
 jQuery replaces the last question mark in the above URL with a random name of a
 temporary function it creates. Your server needs to read the  callbackparameter and
 use that as the name of the returned wrapping function.
+
+==
 Security with Cross-Domain Requests
+
 If you’re opening up your server to cross-origin requests or JSONP from any domain,
 you’ve got to really think about security. Usually the cross-origin domain policy stops
 an attacker from calling, say, Twitter’s API, and fetching your personal data. CORS
 and JSONP change all of that. As with a normal Ajax request, all your session cookies
-are passed with the request, so you’ll be logged into Twitter’s API. Any potential at-tackers have full control over your account; security considerations are therefore
+are passed with the request, so you’ll be logged into Twitter’s API. 
+Any potential at-tackers have full control over your account; security considerations are therefore
 paramount.
+
 With this in mind, here are some key points to take into account when using CORS/
 JSONP if you’re not controlling which domains can access your API:
 • Don’t reveal any sensitive information, such as email addresses.
@@ -482,27 +647,37 @@ JSONP if you’re not controlling which domains can access your API:
 Or, alternatively, to mitigate those security issues, just have a whitelist of domains that
 can connect, or you can use OAuth authentication exclusively.
 
+========
 Populating Our ORM
+
 Populating our ORM with data is pretty straightforward. All we need to do is fetch the
-data from the server and then update our model’s records. Let’s add a populate()func-tion to the Modelobject, which will iterate over any values given, create instances, and
-update the recordsobject:
+data from the server and then update our model’s records. Let’s add a populate() function to the Model object, 
+which will iterate over any values given, create instances, and
+update the records object:
+
 Model.extend({
-populate: function(values){
-// Reset model & records
-this.records = {};
-for (var i=0, il = values.length; i < il; i++) { 
-var record = this.init(values[i]);
-record.newRecord = false;
-this.records[record.id] = record;
-}
-}
+	populate: function(values){
+		// Reset model & records
+		this.records = {};
+		for (var i=0, il = values.length; i < il; i++) { 
+			var record = this.init(values[i]);
+			record.newRecord = false;
+			this.records[record.id] = record;
+		}
+	}
 });
+
 Now, we can use the Model.populate()function with the result of our request for data:
+
 jQuery.getJSON("/assets", function(result){
-Asset.populate(result);
+	Asset.populate(result);
 });
+
 Any records the server returned will now be available in our ORM.
+
+========
 Storing Data Locally
+
 In the past, local data storage was a pain in the neck. The only options available to use
 were cookies and plug-ins like Adobe Flash. Cookies had an antiquated API, couldn’t
 store much data, and sent all the data back to the server on every request, adding
@@ -518,15 +693,18 @@ differs per browser (and version number, as listed below), but they all offer at
 • Safari >= 4
 • Chrome >= 4
 • Opera >= 10.6
+
 HTML5 storage comes under the HTML5 Web Storage specification, and consists of
 two types: local storageand session storage. Local storage persists after the browser is
 closed; session storage persists only for the lifetime of the window. Any data stored is
 scoped by domain and is only accessible to scripts from the domain that originally
 stored the data.
+
 You can access and manipulate local storage and session storage using the  local
 Storageand  sessionStorageobjects, respectively. The API is very similar to setting
 properties on a JavaScript object and, apart from the two objects, is identical for both
 local and session storage:
+
 // Setting a value
 localStorage["someData"] = "wem";
 There are a few more features to the WebStorage API:
@@ -540,118 +718,152 @@ localStorage.getItem("someData"); //=> "wem";
 localStorage.removeItem("someData");
 // Clear all items
 localStorage.clear();
+
 Data is stored as strings, so if you intend on saving any objects or integers, you’ll have
 to do your own conversion. To do this using JSON, serialize the objects into JSON
 before you save them, and deserialize the JSON strings when fetching them:
+
 var object = {some: "object"};
 // Serialize and save an object
 localStorage.setItem("seriData", JSON.stringify(object));
 // Load and deserialize an object
 var result = JSON.parse(localStorage.getItem("seriData"));
-If you go over your storage quota (usually 5 MB per host), a  QUOTA_EXCEEDED_ERRwill
+
+If you go over your storage quota (usually 5 MB per host), a  QUOTA_EXCEEDED_ERR will
 be raised when saving additional data.
 
+====
 Adding Local Storage to Our ORM
+
 Let’s add local storage support to our ORM so that records can be persisted between
 page refreshes. To use the localStorageobject, we need to serialize our records into a
 JSON string. The problem is that, at the moment, serialized objects look like this:
+
 var json = JSON.stringify(Asset.init({name: "foo"}));
 json //=> "{"parent":{"parent":{"prototype":{}},"records":[]},"name":"foo"}"
+
 So, we need to override JSON’s serialization of our models. First, we need to determine
 which properties need to be serialized. Let’s add an  attributesarray to the  Model
 object, which individual models can use to specify their attributes:
+
 Model.extend({
-created: function(){
-this.records = {};
-this.attributes = [];
-}
+	created: function(){
+		this.records = {};
+		this.attributes = [];
+	}
 });
+
 Asset.attributes = ["name", "ext"];
+
 Because every model has different attributes—and therefore can’t share the same array
-reference—the attributesproperty isn’t set directly on the Model. Instead, we’re cre-ating a new array when a model is first created, similar to what we’re doing with the
-recordsobject.
-Now, let’s create an attributes()function, which will return an object of attributes to
+reference—the attributes property isn’t set directly on the Model. 
+Instead, we’re creating a new array when a model is first created, similar to what we’re doing with the
+records object.
+
+Now, let’s create an attributes() function, which will return an object of attributes to
 values:
+
 Model.include({
-attributes: function(){
-var result = {};
-for(var i in this.parent.attributes) {
-var attr = this.parent.attributes[i];
-result[attr] = this[attr];
-}
-result.id = this.id;
-return result;
-}
+	attributes: function(){
+		var result = {};
+		for(var i in this.parent.attributes) {
+			var attr = this.parent.attributes[i];
+			result[attr] = this[attr];
+		}
+		result.id = this.id;
+		return result;
+	}
 });
+
 Now, we can set an array of attributes for every model:
+
 Asset.attributes = ["name", "ext"];
-And the attributes()function will return an object with the correct properties:
+
+And the attributes() function will return an object with the correct properties:
+
 var asset = Asset.init({name: "document", ext: ".txt"});
 asset.attributes(); //=> {name: "document", ext: ".txt"};
+
 As for the overriding of JSON.stringify(), all that’s needed is a  toJSON()method on
 model instances. The JSON library will use that function to find the object to serialize,
 rather than serializing the recordsobject as-is:
 
 Model.include({
-toJSON: function(){
-return(this.attributes());
-}
+	toJSON: function(){
+		return(this.attributes());
+	}
 });
+
 Let’s try serializing the records again. This time, the resultant JSON will contain the
 correct properties:
+
 var json = JSON.stringify(Asset.records);
 json //= "{"7B2A9E8D...":"{"name":"document","ext":".txt","id":"7B2A9E8D..."}"}"
+
 Now that we’ve got JSON serializing working smoothly, adding local storage support
 to our models is trivial. We’ll add two functions onto our  Model:  saveLocal()and
-loadLocal(). When saving, we’ll convert the  Model.recordsobject into an array, seri-alize it, and send it to localStorage:
+loadLocal(). When saving, we’ll convert the  Model.records object into an array, 
+serialize it, and send it to localStorage:
+
 var Model.LocalStorage = {
-saveLocal: function(name){
-// Turn records into an array
-var result = [];
-for (var i in this.records)
-result.push(this.records[i])
-localStorage[name] = JSON.stringify(result);
-},
-loadLocal: function(name){
-var result = JSON.parse(localStorage[name]);
-this.populate(result);
-}
+	saveLocal: function(name){
+		// Turn records into an array
+		var result = [];
+		for (var i in this.records)
+			result.push(this.records[i])
+		localStorage[name] = JSON.stringify(result);
+	},
+	loadLocal: function(name){
+		var result = JSON.parse(localStorage[name]);
+		this.populate(result);
+	}
 };
+
 Asset.extend(Model.LocalStorage);
+
 It’s probably a good idea for the records to be read from the local storage when the
 page loads and to be saved when the page is closed. That, however, will be left as an
 exercise for the reader.
+
+====
 Submitting New Records to the Server
-Earlier, we covered how to use jQuery’s post()function to send data to the server. The
+
+Earlier, we covered how to use jQuery’s post() function to send data to the server. The
 function takes three arguments: the endpoint URL, request data, and a callback:
+
 jQuery.post("/users", {first_name: "Alex"}, function(result){
-/* Ajax POST was a success */
+	/* Ajax POST was a success */
 });
+
 Now that we have an attributes()function, creating records to the server is simple—
 just POST the record’s attributes:
+
 jQuery.post("/assets", asset.attributes(), function(result){
-/* Ajax POST was a success */
+	/* Ajax POST was a success */
 });
 
 If we’re following REST conventions, we’ll want to do an HTTP POST when creating
 a  record and a PUT request when updating the record. Let’s add two functions to Model
-instances—createRemote()and  updateRemote()—which will send the correct HTTP
+instances—createRemote() and  updateRemote()—which will send the correct HTTP
 request type to our server:
+
 Model.include({
-createRemote: function(url, callback){
-$.post(url, this.attributes(), callback);
-},
-updateRemote: function(url, callback){
-$.ajax({
-url: url, 
-data: this.attributes(), 
-success: callback,
-type: "PUT"
+	createRemote: function(url, callback){
+		$.post(url, this.attributes(), callback);
+	},
+	updateRemote: function(url, callback){
+		$.ajax({
+			url: url, 
+			data: this.attributes(), 
+			success: callback,
+			type: "PUT"
+		});
+	}
 });
-}
-});
-Now if we call createRemote()on an Asset instance, its attributes will be POSTed to
+
+Now if we call createRemote() on an Asset instance, its attributes will be POSTed to
 the server:
+
 // Usage:
 Asset.init({name: "jason.txt"}).createRemote("/assets");
 
