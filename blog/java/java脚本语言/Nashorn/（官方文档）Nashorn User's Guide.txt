@@ -38,6 +38,7 @@ A JavaFX Script Application Examples
 Enhancements in Java SE 8
 The JDK 8 release is co-bundled with the Nashorn, 
 which is an implementation of the ECMAScript Edition 5.1 Language Specification.
+http://www.ecma-international.org/ecma-262/5.1/
 
 Enhancements in Java SE 7
 The JDK 7 release is co-bundled with the Mozilla Rhino JavaScript engine 
