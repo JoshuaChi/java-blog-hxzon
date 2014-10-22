@@ -1,0 +1,14 @@
+﻿（hxzon）eclipse小技巧
+
+by hxzon
+==========
+1，全局替换
+
+按Ctrl+H或选择菜单Search->File，
+在弹出的对话框的Containint Text输入查找的关键字，Scope选择WorkSpace，
+然后点Replace按钮。
+
+====
+2，
+
+

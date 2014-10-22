@@ -1,0 +1,426 @@
+﻿（hxzon读书笔记）《Dart：Up and Running》Chapter 2，A Tour of the Dart Language-基本概念，函数
+https://www.dartlang.org/docs/dart-up-and-running/ch02.html
+
+注释by hxzon
+==========
+Important Concepts
+重要概念
+
+As you learn about the Dart language, keep these facts and concepts in mind:
+
+Everything you can place in a variable is an object, and every object is an instance of a class. 
+Even numbers, functions, and null are objects. 
+All objects inherit from the Object class.
+一切都是对象。包括null也是对象。
+
+Specifying static types (such as num in the preceding example) 
+clarifies your intent and enables static checking by tools, but it’s optional. 
+(You might notice when you’re debugging your code that 
+variables with no specified type get a special type: dynamic.)
+
+Dart parses all your code before running it. 
+You can provide tips to Dart—for example, by using types or compile-time constants
+—to catch errors or help your code run faster.
+
+Dart supports top-level functions (such as main()), 
+as well as functions tied to a class or object (static and instance methods, respectively). 
+You can also create functions within functions (nested or local functions).
+支持顶级函数。支持内嵌函数。
+
+Similarly, Dart supports top-level variables, 
+as well as variables tied to a class or object (static and instance variables). 
+Instance variables are sometimes known as fields or properties.
+
+Unlike Java, Dart doesn’t have the keywords public, protected, and private. 
+If an identifier starts with an underscore (_), it’s private to its library. 
+For details, see Libraries and Visibility.
+以下划线开头的变量和函数，是私有的。
+
+Identifiers can start with a letter or _, followed by any combination of those characters plus digits.
+
+Sometimes it matters whether something is an expression or a statement, 
+so we’ll be precise about those two words.
+
+Dart tools can report two kinds of problems: warnings and errors. 
+Warnings are just indications that your code might not work, 
+but they don’t prevent your program from executing. 
+Errors can be either compile-time or run-time. 
+A compile-time error prevents the code from executing at all; 
+a run-time error results in an exception being raised while the code executes.
+
+Dart has two runtime modes: production and checked. 
+Production is faster, but checked is helpful at development.
+两种运行模式。
+
+====
+Keywords
+
+The following table lists the words that the Dart language treats specially.
+
+abstract *	continue	extends	implements *	part *	throw
+as *	default	factory *	import *	rethrow	true
+assert	do	false	in	return	try
+break	dynamic *	final	is	set *	typedef *
+case	else	finally	library *	static *	var
+catch	enum	for	new	super	void
+class	export *	get *	null	switch	while
+const	external *	if	operator *	this	with
+
+In the keyword table, words with an asterisk (*) are built-in identifiers. 
+Although you should generally treat built-in identifiers like reserved words, 
+the only real restriction is that you can’t use a built-in identifier as the name of a class or type.
+
+Having built-in identifiers enables easier porting from JavaScript to Dart. 
+For example, say some JavaScript code has a variable named factory; 
+you don’t have to rename it when you port the code to Dart.
+
+====
+Runtime Modes
+运行模式
+
+We recommend that you develop and debug in checked mode, and deploy to production mode.
+
+Production mode is the default runtime mode of a Dart program, optimized for speed. 
+Production mode ignores assert statements and static types.
+
+Checked mode is a developer-friendly mode that helps you catch some type errors during runtime. 
+For example, if you assign a non-number to a variable declared as a num, 
+then checked mode throws an exception.
+
+===========
+Variables
+变量
+
+Here’s an example of creating a variable and assigning a value to it:
+
+var name = 'Bob';
+
+Variables are references. 
+The variable called name contains a reference to a String object with a value of “Bob”.
+变量都是引用。
+
+==
+Default Value
+
+Uninitialized variables have an initial value of null. 
+Even variables with numeric types are initially null, because numbers are objects.
+即便数值，未初始化时，也是null。
+
+int lineCount;
+assert(lineCount == null); 
+// Variables (even if they will be numbers) are initially null.
+
+Note
+
+The assert() call is ignored in production mode. 
+In checked mode, assert(condition) throws an exception unless condition is true. 
+For details, see the Assert section.
+
+====
+Optional Types
+可选的类型声明
+
+You have the option of adding static types to your variable declarations:
+
+String name = 'Bob';
+
+Adding types is a way to clearly express your intent. 
+Tools such as compilers and editors can use these types to help you, 
+by providing code completion and early warnings for bugs and code completion.
+
+Note
+
+This chapter follows the style guide recommendation of using var, 
+rather than type annotations, for local variables.
+
+====
+Final and Const
+不可修改变量和常量
+
+If you never intend to change a variable, use final or const, either instead of var or in addition to a type. 
+A final variable can be set only once; a const variable is a compile-time constant.
+final变量只能被赋值一次。const变量为编译时常量。
+
+A top-level or class variable that’s declared as final is initialized the first time it’s used:
+
+final name = 'Bob';   // Or: final String name = 'Bob';
+// name = 'Alice';    // Uncommenting this results in an error
+
+Note
+
+Lazy initialization of final variables helps apps start up faster.
+Use const for variables that you want to be compile-time constants. 
+If the const variable is at the class level, mark it static const. 
+(Instance variables can’t be const.) 
+Where you declare the variable, set the value to a compile-time constant such as a literal, 
+a const variable, or the result of an arithmetic operation on constant numbers:
+
+const bar = 1000000;       // Unit of pressure (in dynes/cm2)
+const atm = 1.01325 * bar; // Standard atmosphere
+
+===================
+Functions
+函数
+
+Here’s an example of implementing a function:
+
+void printNumber(num number) {
+  print('The number is $number.');
+}
+
+Although the style guide recommends specifying the parameter and return types, you don’t have to:
+
+printNumber(number) {          // Omitting types is OK.
+  print('The number is $number.');
+}
+
+For functions that contain just one expression, you can use a shorthand syntax:
+
+printNumber(number) => print('The number is $number.');
+
+The => expr; syntax is a shorthand for { return expr;}. 
+In the printNumber() function, the expression is the call to the top-level print() function.
+
+Note
+
+Only an expression—not a statement—can appear between the arrow (=>) and the semicolon (;). 
+For example, you can’t put an if statement there, but you can use a conditional (?:) expression.
+
+You can use types with =>, although the convention is not to do so:
+
+printNumber(num number) => print('The number is $number.'); // Types are OK.
+
+Here’s an example of calling a function:
+
+printNumber(123);
+
+A function can have two types of parameters: required and optional. 
+The required parameters are listed first, followed by any optional parameters.
+
+====
+Optional Parameters
+可选参数
+
+Optional parameters can be either positional or named, but not both.
+
+Both kinds of optional parameter can have default values. 
+The default values must be compile-time constants such as literals. 
+If no default value is provided, the value is null.
+
+==
+Optional named parameters
+可选命名参数
+
+When calling a function, you can specify named parameters using paramName: value. For example:
+
+enableFlags(bold: true, hidden: false);
+
+When defining a function, use {param1, param2, …} to specify named parameters:
+
+/// Sets the [bold] and [hidden] flags to the values you specify.
+enableFlags({bool bold, bool hidden}) {
+  // ...
+}
+
+Use a colon (:) to specify default values:
+
+/**
+ * Sets the [bold] and [hidden] flags to the values you specify,
+ * defaulting to false.
+ */
+enableFlags({bool bold: false, bool hidden: false}) {
+  // ...
+}
+
+enableFlags(bold: true); // bold will be true; hidden will be false.
+
+==
+Optional positional parameters
+可选基于位置的参数
+
+Wrapping a set of function parameters in [] marks them as optional positional parameters:
+
+String say(String from, String msg, [String device]) {
+  var result = '$from says $msg';
+  if (device != null) {
+    result = '$result with a $device';
+  }
+  return result;
+}
+
+Here’s an example of calling this function without the optional parameter:
+
+assert(say('Bob', 'Howdy') == 'Bob says Howdy');
+
+And here’s an example of calling this function with the third parameter:
+
+assert(say('Bob', 'Howdy', 'smoke signal') ==
+  'Bob says Howdy with a smoke signal');
+
+Use = to specify default values:
+用等号表示参数的默认值。
+
+String say(String from, String msg,
+  [String device='carrier pigeon', String mood]) {
+  var result = '$from says $msg';
+  if (device != null) {
+    result = '$result with a $device';
+  }
+  if (mood != null) {
+    result = '$result (in a $mood mood)';
+  }
+  return result;
+}
+
+assert(say('Bob', 'Howdy') == 'Bob says Howdy with a carrier pigeon');
+
+====
+The main() Function
+
+Every app must have a top-level main() function, which serves as the entrypoint to the app. 
+The main() function returns void and has an optional List<String> parameter for arguments.
+
+Here’s an example of the main() function for a web app:
+
+main() {
+  querySelector("#sample_text_id")
+    ..text = "Click me!"
+    ..onClick.listen(reverseText);
+}
+
+Note
+
+The .. operator in the preceding code is a cascade operator, 
+which allows you to perform multiple operations on the members of a single object. 
+You’ll find out more in Classes.
+
+Here’s an example of the main() function for a command-line app that takes arguments:
+
+// Run the app like this: dart args.dart 1 test
+void main(List<String> arguments) {
+  print(arguments);
+
+  assert(arguments.length == 2); 
+  assert(int.parse(arguments[0]) == 1);
+  assert(arguments[1] == 'test'); 
+}
+
+You can use the args library to define and parse command-line arguments.
+
+====
+Functions as First-Class Objects
+函数作为一等公民
+
+You can pass a function as a parameter to another function. For example:
+
+printElement(element) {
+  print(element);
+}
+  
+var list = [1,2,3];
+list.forEach(printElement); // Pass printElement as a parameter.
+
+You can also assign a function to a variable, such as:
+
+var loudify = (msg) => '!!! ${msg.toUpperCase()} !!!';
+assert(loudify('hello') == '!!! HELLO !!!');
+
+====
+Lexical Scope
+词法作用域
+
+Dart is a lexically scoped language, 
+which means that the scope of variables is determined statically, simply by the layout of the code. 
+You can “follow the curly braces outwards” to see if a variable is in scope.
+
+Here is an example of nested functions with variables at each scope level:
+
+var topLevel = true;
+main() {
+    var insideMain = true;
+    
+    myFunction() {
+      var insideFunction = true;
+      
+      nestedFunction() {
+        var insideNestedFunction = true;
+        assert(topLevel);
+        assert(insideMain);
+        assert(insideFunction);
+        assert(insideNestedFunction);
+      }
+    }
+}
+
+Notice how nestedFunction() can use variables from every level, all the way up to the top level.
+
+==
+Lexical Closures
+词法闭包
+
+A closure is a function object that has access to variables in its lexical scope, 
+even when the function is used outside of its original scope.
+
+Functions can close over variables defined in surrounding scopes. 
+In the following example, adder() captures the variable addBy. 
+Wherever the returned function goes, it remembers addBy.
+
+/// Returns a function that adds [addBy] to a number.
+Function makeAdder(num addBy) {
+  adder(num i) {
+    return addBy + i;
+  }
+  return adder;
+}
+
+main() {
+  var add2 = makeAdder(2); // Create a function that adds 2.
+  var add4 = makeAdder(4); // Create a function that adds 4.
+
+  assert(add2(3) == 5);
+  assert(add4(3) == 7);
+}
+
+====
+Testing Functions for Equality
+
+Here’s an example of testing top-level functions, static methods, and instance methods for equality:
+
+foo() {}               // A top-level function
+
+class SomeClass {
+  static void bar() {} // A static method
+  void baz() {}        // An instance method
+}
+
+main() {
+  var x;
+  
+  // Comparing top-level functions.
+  x = foo;
+  assert(x == foo);
+  
+  // Comparing static methods.
+  x = SomeClass.bar;
+  assert(x == SomeClass.bar);
+  
+  // Comparing instance methods.
+  var v = new SomeClass();
+  var w = new SomeClass();
+  var y = v;
+  x = v.baz;
+  
+  assert(x == y.baz);
+  assert(v.baz != w.baz);
+}
+
+（hxzon：实例方法是不相等的。）
+
+====
+Return Values
+
+All functions return a value. 
+If no return value is specified, the statement return null; is implicitly appended to the function body.
+所有函数都有返回值。
+没有return语句时，返回null。
+

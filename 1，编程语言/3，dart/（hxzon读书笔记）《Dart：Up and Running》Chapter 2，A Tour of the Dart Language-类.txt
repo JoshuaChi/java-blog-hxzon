@@ -1,0 +1,653 @@
+﻿（hxzon读书笔记）《Dart：Up and Running》Chapter 2，A Tour of the Dart Language-类
+https://www.dartlang.org/docs/dart-up-and-running/ch02.html
+
+注释by hxzon
+==========
+Classes
+类
+
+Dart is an object-oriented language with classes and mixin-based inheritance. 
+Every object is an instance of a class, and all classes descend from Object. 
+Mixin-based inheritance means that although every class (except for Object) has exactly one superclass, 
+a class body can be reused in multiple class hierarchies.
+每个类都只有一个父类，但是可以混入。
+
+To create an object, you can use the new keyword with a constructor for a class. 
+Constructor names can be either ClassName or ClassName.identifier. For example:
+
+var jsonData = JSON.decode('{"x":1, "y":2}');
+
+var p1 = new Point(2,2);               // Create a Point using Point().
+var p2 = new Point.fromJson(jsonData); // Create a Point using Point.fromJson().
+
+Objects have members consisting of functions and data (methods and instance variables, respectively). 
+When you call a method, you invoke it on an object: 
+the method has access to that object’s functions and data.
+
+Use a dot (.) to refer to an instance variable or method:
+
+var p = new Point(2,2);
+
+p.y = 3;             // Set the value of the instance variable y.
+assert(p.y == 3);    // Get the value of y.
+
+num distance = p.distanceTo(new Point(4,4)); // Invoke distanceTo() on p.
+
+Use the cascade operator (..) when you want to perform a series of operations on the members of a single object:
+使用双点号来连续调用一个对象的方法。
+
+querySelector('#button')
+    ..text = 'Click to Confirm'                        // Get an object. Use its
+    ..classes.add('important')                         // instance variables
+    ..onClick.listen((e) => window.alert('Confirmed!')); // and methods.
+
+Some classes provide constant constructors. 
+To create a compile-time constant using a constant constructor, use const instead of new:
+常量构造函数。
+
+var p = const ImmutablePoint(2,2);
+
+Constructing two identical compile-time constants results in a single, canonical instance:
+注意，下面两个对象是同一个实例。
+
+var a = const ImmutablePoint(1, 1);
+var b = const ImmutablePoint(1, 1);
+
+assert(identical(a,b)); // They are the same instance!
+
+The following sections discuss how to implement classes.
+
+====
+Instance Variables
+
+Here’s how you declare instance variables:
+
+class Point {
+  num x;      // Declare an instance variable (x), initially null.
+  num y;      // Declare y, initially null.
+  num z = 0;  // Declare z, initially 0.
+}
+
+All uninitialized instance variables have the value null.
+未初始化的所有值都为null。
+
+All instance variables generate an implicit getter method. 
+Non-final instance variables also generate an implicit setter method. 
+For details, see Getters and Setters.
+
+class Point {
+  num x;
+  num y;
+}
+
+main() {
+  var point = new Point();
+  point.x = 4;             // Use the setter method for x.
+  assert(point.x == 4);    // Use the getter method for x.
+  assert(point.y == null); // Values default to null.
+}
+
+If you initialize an instance variable where it is declared (instead of in a constructor or method), 
+the value is set when the instance is created, which is before the constructor and its initializer list execute.
+
+====
+Constructors
+构造函数
+
+Declare a constructor by creating a function with the same name as its class 
+(plus, optionally, an additional identifier as described in Named constructors). 
+The most common form of constructor, the generative constructor, creates a new instance of a class:
+
+class Point {
+  num x;
+  num y;
+
+  Point(num x, num y) {
+    // There's a better way to do this, stay tuned.
+    this.x = x;
+    this.y = y;
+  }
+}
+
+The this keyword refers to the current instance.
+
+Note
+
+Use this only when there is a name conflict. 
+Otherwise, Dart style omits the this.
+
+The pattern of assigning a constructor argument to an instance variable is so common, 
+Dart has syntactic sugar to make it easy:
+
+class Point {
+  num x;
+  num y;
+
+  // Syntactic sugar for setting x and y before the constructor body runs.
+  Point(this.x, this.y);
+}
+
+==
+Default constructors
+默认构造函数
+
+If you don’t declare a constructor, a default constructor is provided for you. 
+The default constructor has no arguments and invokes the no-argument constructor in the superclass.
+
+Constructors aren’t inherited
+
+Subclasses don’t inherit constructors from their superclass. 
+A subclass that declares no constructors has only the default (no argument, no name) constructor.
+
+Named constructors
+命名的构造函数
+
+Use a named constructor to implement multiple constructors for a class or to provide extra clarity:
+
+class Point {
+  num x;
+  num y;
+
+  Point(this.x, this.y);
+
+  // Named constructor
+  Point.fromJson(Map json) {
+    x = json['x'];
+    y = json['y'];
+  }
+}
+
+Remember that constructors are not inherited, 
+which means that a superclass’s named constructor is not inherited by a subclass. 
+If you want a subclass to be created with a named constructor defined in the superclass, 
+you must implement that constructor in the subclass.
+注意构造函数是不继承的。
+
+==
+Invoking a non-default superclass constructor
+
+By default, a constructor in a subclass calls the superclass’s unnamed, no-argument constructor. 
+If the superclass doesn’t have such a constructor, 
+then you must manually call one of the constructors in the superclass. 
+Specify the superclass constructor after a colon (:), just before the constructor body (if any).
+默认情况下，会自动调用父类的默认构造函数。
+
+class Person {
+  Person.fromJson(Map data) {
+    print('in Person');
+  }
+}
+
+class Employee extends Person {
+  // Person does not have a default constructor;
+  // you must call super.fromJson(data).
+  Employee.fromJson(Map data) : super.fromJson(data) {
+    print('in Employee');
+  }
+}
+
+main() {
+  var emp = new Employee.fromJson({});
+
+  // Prints:
+  // in Person
+  // in Employee
+}
+
+Because the arguments to the superclass constructor are evaluated before invoking the constructor, 
+an argument can be an expression such as a function call:
+
+class Employee extends Person {
+  ...
+  Employee() : super.fromJson(findDefaultData());
+}
+
+Warning: Arguments to the superclass constructor do not have access to this. 
+For example, arguments can call static methods but not instance methods.
+
+==
+Initializer list
+
+Besides invoking a superclass constructor, you can also initialize instance variables before the constructor body runs. 
+Separate initializers with commas.
+
+class Point {
+  num x;
+  num y;
+
+  Point(this.x, this.y);
+
+  // Initializer list sets instance variables before the constructor body runs.
+  Point.fromJson(Map json) : x = json['x'], y = json['y'] {
+    print('In Point.fromJson(): ($x, $y)');
+  }
+}
+
+Warning: The right-hand side of an initializer does not have access to this.
+
+==
+Redirecting constructors
+
+Sometimes a constructor’s only purpose is to redirect to another constructor in the same class. 
+A redirecting constructor’s body is empty, with the constructor call appearing after a colon (:).
+
+class Point {
+  num x;
+  num y;
+
+  Point(this.x, this.y);                // The main constructor for this class.
+  Point.alongXAxis(num x) : this(x, 0); // Delegates to the main constructor.
+}
+
+==
+Constant constructors
+“常构造函数”
+
+If your class produces objects that never change, you can make these objects compile-time constants. 
+To do this, define a const constructor and make sure that all instance variables are final.
+
+class ImmutablePoint {
+  final num x;
+  final num y;
+  const ImmutablePoint(this.x, this.y);
+  static final ImmutablePoint origin = const ImmutablePoint(0, 0);
+}
+
+==
+Factory constructors
+
+Use the factory keyword when implementing a constructor 
+that doesn’t always create a new instance of its class. 
+For example, a factory constructor might return an instance from a cache, or it might return an instance of a subtype.
+
+The following example demonstrates a factory constructor returning objects from a cache:
+
+class Logger {
+  final String name;
+  bool mute = false;
+
+  // _cache is library-private, thanks to the _ in front of its name.
+  static final Map<String, Logger> _cache = <String, Logger>{};
+  
+  factory Logger(String name) {
+    if (_cache.containsKey(name)) {
+      return _cache[name];
+    } else {
+      final logger = new Logger._internal(name);
+      _cache[name] = logger;
+      return logger;
+    }
+  }
+  
+  Logger._internal(this.name);
+  
+  void log(String msg) {
+    if (!mute) {
+      print(msg);
+    }
+  }
+}
+
+Note
+
+Factory constructors have no access to this.
+To invoke a factory constructor, you use the new keyword:
+
+var logger = new Logger('UI');
+logger.log('Button clicked');
+
+==========
+Methods
+方法
+
+Methods are functions that provide behavior for an object.
+
+Instance methods
+
+Instance methods on objects can access instance variables and this. 
+The distanceTo() method in the following sample is an example of an instance method:
+
+import 'dart:math';
+
+class Point {
+  num x;
+  num y;
+  Point(this.x, this.y);
+
+  num distanceTo(Point other) {
+    var dx = x - other.x;
+    var dy = y - other.y;
+    return sqrt(dx * dx + dy * dy);
+  }
+}
+
+==
+Getters and setters
+
+Getters and setters are special methods that provide read and write access to an object’s properties. 
+Recall that each instance variable has an implicit getter, plus a setter if appropriate. 
+You can create additional properties by implementing getters and setters, using the get and set keywords:
+
+class Rectangle {
+  num left;
+  num top;
+  num width;
+  num height;
+
+  Rectangle(this.left, this.top, this.width, this.height);
+
+  // Define two calculated properties: right and bottom.
+  num get right             => left + width;
+      set right(num value)  => left = value - width;
+  num get bottom            => top + height;
+      set bottom(num value) => top = value - height;
+}
+
+main() {
+  var rect = new Rectangle(3, 4, 20, 15);
+  assert(rect.left == 3);
+  rect.right = 12;
+  assert(rect.left == -8);
+}
+
+With getters and setters, you can start with instance variables, later wrapping them with methods, 
+all without changing client code.
+
+Note
+
+Operators such as increment (++) work in the expected way, whether or not a getter is explicitly defined. 
+To avoid any unexpected side effects, 
+the operator calls the getter exactly once, saving its value in a temporary variable.
+
+====
+Abstract methods
+抽象方法
+
+Instance, getter, and setter methods can be abstract, 
+defining an interface but leaving its implementation up to other classes. 
+To make a method abstract, use a semicolon (;) instead of a method body:
+
+abstract class Doer {
+  // ...Define instance variables and methods...
+ 
+  void doSomething(); // Define an abstract method.
+}
+
+class EffectiveDoer extends Doer {
+  void doSomething() {
+    // ...Provide an implementation, so the method is not abstract here...
+  }
+}
+
+Calling an abstract method results in a run-time error.
+
+Also see Abstract Classes.
+
+====
+Overridable Operators
+重载操作符
+
+You can override the operators shown in the following table. 
+For example, if you define a Vector class, you might define a + method to add two vectors.
+
+<	+	|	[]
+>	/	^	[]=
+<=	~/	&	~
+>=	*	<<	==
+–	%	>>	 
+
+Here’s an example of a class that overrides the + and - operators:
+
+class Vector {
+  final int x;
+  final int y;
+  const Vector(this.x, this.y);
+
+  Vector operator +(Vector v) { // Overrides + (a + b).
+    return new Vector(x + v.x, y + v.y);
+  }
+
+  Vector operator -(Vector v) { // Overrides - (a - b).
+    return new Vector(x - v.x, y - v.y);
+  }
+}
+
+main() {
+  final v = new Vector(2,3);
+  final w = new Vector(2,2);
+
+  assert(v.x == 2 && v.y == 3);         // v   == (2,3)
+  assert((v+w).x == 4 && (v+w).y == 5); // v+w == (4,5)
+  assert((v-w).x == 0 && (v-w).y == 1); // v-w == (0,1)
+}
+
+If you override ==, you should also override Object’s hashCode getter. 
+For an example of overriding == and hashCode, see Implementing Map Keys.
+
+For more information on overriding, in general, see Extending a Class.
+
+====
+Abstract Classes
+抽象类
+
+Use the abstract modifier to define an abstract class—a class that can’t be instantiated. 
+Abstract classes are useful for defining interfaces, often with some implementation. 
+If you want your abstract class to appear to be instantiable, define a factory constructor.
+
+Abstract classes often have abstract methods. 
+Here’s an example of declaring an abstract class that has an abstract method:
+
+// This class is declared abstract and thus can't be instantiated.
+abstract class AbstractContainer {
+  // ...Define constructors, fields, methods...
+
+  void updateChildren(); // Abstract method.
+}
+
+The following class isn’t abstract, and thus can be instantiated even though it defines an abstract method:
+
+class SpecializedContainer extends AbstractContainer {
+  // ...Define more constructors, fields, methods...
+
+  void updateChildren() {
+    // ...Implement updateChildren()...
+  }
+// Abstract method causes a warning but doesn't prevent instantiatation.
+  void doSomething(); 
+}
+
+====
+Implicit Interfaces
+隐式接口
+
+Every class implicitly defines an interface containing 
+all the instance members of the class and of any interfaces it implements. 
+If you want to create a class A that supports class B’s API without inheriting B’s implementation, 
+class A should implement the B interface.
+
+A class implements one or more interfaces by declaring them in an implements clause 
+and then providing the APIs required by the interfaces. For example:
+
+// A person. The implicit interface contains greet().
+class Person {
+  final _name;          // In the interface, but visible only in this library,
+  Person(this._name);   // Not in the interface, since this is a constructor.
+  String greet(who) => 'Hello, $who. I am $_name.'; // In the interface.
+}
+
+// An implementation of the Person interface.
+class Imposter implements Person {
+  final _name = "";      // We have to define this, but we don't use it.
+  String greet(who) => 'Hi $who. Do you know who I am?';
+}
+
+greetBob(Person person) => person.greet('bob');
+
+main() {
+  print(greetBob(new Person('kathy')));
+  print(greetBob(new Imposter()));
+}
+
+Here’s an example of specifying that a class implements multiple interfaces:
+
+class Point implements Comparable, Location {
+  // ...
+}
+
+====
+Extending a Class
+继承类
+
+Use extends to create a subclass, and super to refer to the superclass:
+
+class Television {
+  void turnOn() {
+    _illuminateDisplay();
+    _activateIrSensor();
+  }
+  ...
+}
+
+class SmartTelevision extends Television {
+  void turnOn() {
+    super.turnOn();
+    _bootNetworkInterface();
+    _initializeMemory();
+    _upgradeApps();
+  }
+  ...
+}
+
+==
+Subclasses can override instance methods, getters, and setters. 
+Here’s an example of overriding the Object class’s noSuchMethod() method, 
+which is called whenever code attempts to use a non-existent method or instance variable:
+
+class A {
+  // Unless you override noSuchMethod, using a non-existent member
+  // results in a NoSuchMethodError.
+  void noSuchMethod(Invocation mirror) {
+    print('You tried to use a non-existent member: ${mirror.memberName}');
+  }
+}
+
+You can use the @override annotation to indicate that you are intentionally overriding a member:
+
+class A {
+  @override
+  void noSuchMethod(Invocation mirror) {
+    // ...
+  }
+}
+
+If you use noSuchMethod() to implement every possible getter, setter, and method for a class, 
+then you can use the @proxy annotation to avoid warnings:
+
+@proxy
+class A {
+  void noSuchMethod(Invocation mirror) {
+    // ...
+  }
+}
+
+For more information on annotations, see Metadata.
+
+========
+Adding Features to a Class: Mixins
+混入
+
+Mixins are a way of reusing a class’s code in multiple class hierarchies.
+
+To use a mixin, use the with keyword followed by one or more mixin names. 
+The following example shows two classes that use mixins:
+
+class Musician extends Performer with Musical {
+  ...
+}
+
+class Maestro extends Person with Musical, Aggressive, Demented {
+  Maestro(String maestroName) {
+    name = maestroName;
+    canConduct = true;
+  }
+}
+
+To implement a mixin, create a class that extends Object, 
+declares no constructors, and has no calls to super. For example:
+
+abstract class Musical {
+  bool canPlayPiano = false;
+  bool canCompose = false;
+  bool canConduct = false;
+  
+  void entertainMe() {
+    if (canPlayPiano) {
+      print('Playing piano');
+    } else if (canConduct) {
+      print('Waving hands');
+    } else {
+      print('Humming to self');
+    }
+  }
+}
+
+For more information, see the article Mixins in Dart.
+
+========
+Class Variables and Methods
+类变量和类方法
+
+Use the static keyword to implement class-wide variables and methods.
+
+==
+Static variables
+
+Static variables (class variables) are useful for class-wide state and constants:
+
+class Color {
+  static const RED = const Color('red'); // A constant static variable.
+  final String name;                     // An instance variable.
+  const Color(this.name);                // A constant constructor.
+}
+
+main() {
+  assert(Color.RED.name == 'red');
+}
+
+Static variables aren’t initialized until they’re used.
+
+==
+Static methods
+
+Static methods (class methods) do not operate on an instance, and thus do not have access to this. For example:
+
+import 'dart:math';
+
+class Point {
+  num x;
+  num y;
+  Point(this.x, this.y);
+
+  static num distanceBetween(Point a, Point b) {
+    var dx = a.x - b.x;
+    var dy = a.y - b.y;
+    return sqrt(dx * dx + dy * dy);
+  }
+}
+
+main() {
+  var a = new Point(2, 2);
+  var b = new Point(4, 4);
+  var distance = Point.distanceBetween(a,b);
+  assert(distance < 2.9 && distance > 2.8);
+}
+
+Note
+
+Consider using top-level functions, instead of static methods, 
+for common or widely used utilities and functionality.
+You can use static methods as compile-time constants. 
+For example, you can pass a static method as a parameter to a constant constructor.
+对于工具方法，考虑使用顶级函数。
+静态方法可以作为编译时常量。
+

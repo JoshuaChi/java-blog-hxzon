@@ -425,7 +425,8 @@
 21.3 小结    547
 
 第22章 JavaScript的未来    548
-22.1 ECMAScript4/JavaScript2    548
+
+22.1 ECMAScript4/JavaScript2    548   （hxzon：废弃）
 22.1.1 JavaScript1.5    548
 22.1.2 JavaScript1.6    550
 22.1.3 JavaScript1.7    552
@@ -442,6 +443,7 @@
 22.1.14 包    572
 22.1.15 语言上的其他变更    572
 22.1.16 ECMAScript4的未来    577
+
 22.2 ECMAScript 3.1    577
 22.2.1 对对象内部实现的变更    578
 22.2.2 静态对象方法    578
