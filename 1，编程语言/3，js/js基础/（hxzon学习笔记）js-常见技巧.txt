@@ -1,0 +1,21 @@
+﻿（hxzon学习笔记）js-常见技巧
+
+by hxzon
+==========
+1，参数默认值
+
+单个参数：
+p1= arguments[0] || xxx;
+o1= arguments[0] || {};
+
+var defaults = {
+                animatePadding: 10,
+                hoverColor: "Black"
+};
+
+jQuery中，使用
+$.extend(defaults , p);
+extend方法的源码，见core.js
+
+====
+2，
