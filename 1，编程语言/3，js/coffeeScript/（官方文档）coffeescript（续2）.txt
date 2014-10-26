@@ -1,0 +1,454 @@
+﻿（官方文档）coffeescript（续2）
+http://coffeescript.org/
+
+Classes, Inheritance, and Super
+JavaScript's prototypal inheritance has always been a bit of a brain-bender, with a whole family tree of libraries that provide a cleaner syntax for classical inheritance on top of JavaScript's prototypes: Base2, Prototype.js, JS.Class, etc. The libraries provide syntactic sugar, but the built-in inheritance would be completely usable if it weren't for a couple of small exceptions: it's awkward to call super (the prototype object's implementation of the current function), and it's awkward to correctly set the prototype chain.
+
+Instead of repetitively attaching functions to a prototype, CoffeeScript provides a basic class structure that allows you to name your class, set the superclass, assign prototypal properties, and define the constructor, in a single assignable expression.
+
+Constructor functions are named, to better support helpful stack traces. In the first class in the example below, this.constructor.name is "Animal".
+
+class Animal
+  constructor: (@name) ->
+
+  move: (meters) ->
+    alert @name + " moved #{meters}m."
+
+class Snake extends Animal
+  move: ->
+    alert "Slithering..."
+    super 5
+
+class Horse extends Animal
+  move: ->
+    alert "Galloping..."
+    super 45
+
+sam = new Snake "Sammy the Python"
+tom = new Horse "Tommy the Palomino"
+
+sam.move()
+tom.move()
+
+
+
+
+var Animal, Horse, Snake, sam, tom,
+  __hasProp = {}.hasOwnProperty,
+  __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
+
+Animal = (function() {
+  function Animal(name) {
+    this.name = name;
+  }
+
+  Animal.prototype.move = function(meters) {
+    return alert(this.name + (" moved " + meters + "m."));
+  };
+
+  return Animal;
+
+})();
+
+Snake = (function(_super) {
+  __extends(Snake, _super);
+
+  function Snake() {
+    return Snake.__super__.constructor.apply(this, arguments);
+  }
+
+  Snake.prototype.move = function() {
+    alert("Slithering...");
+    return Snake.__super__.move.call(this, 5);
+  };
+
+  return Snake;
+
+})(Animal);
+
+Horse = (function(_super) {
+  __extends(Horse, _super);
+
+  function Horse() {
+    return Horse.__super__.constructor.apply(this, arguments);
+  }
+
+  Horse.prototype.move = function() {
+    alert("Galloping...");
+    return Horse.__super__.move.call(this, 45);
+  };
+
+  return Horse;
+
+})(Animal);
+
+sam = new Snake("Sammy the Python");
+
+tom = new Horse("Tommy the Palomino");
+
+sam.move();
+
+tom.move();
+loadrun
+If structuring your prototypes classically isn't your cup of tea, CoffeeScript provides a couple of lower-level conveniences. The extends operator helps with proper prototype setup, and can be used to create an inheritance chain between any pair of constructor functions; :: gives you quick access to an object's prototype; and super() is converted into a call against the immediate ancestor's method of the same name.
+
+String::dasherize = ->
+  this.replace /_/g, "-"
+
+String.prototype.dasherize = function() {
+  return this.replace(/_/g, "-");
+};
+loadrun: "one_two".dasherize()
+Finally, class definitions are blocks of executable code, which make for interesting metaprogramming possibilities. Because in the context of a class definition,  this is the class object itself (the constructor function), you can assign static properties by using 
+@property: value, and call functions defined in parent classes: @attr 'title', type: 'text'
+
+Destructuring Assignment
+To make extracting values from complex arrays and objects more convenient, CoffeeScript implements ECMAScript Harmony's proposed destructuring assignment syntax. When you assign an array or object literal to a value, CoffeeScript breaks up and matches both sides against each other, assigning the values on the right to the variables on the left. In the simplest case, it can be used for parallel assignment:
+
+theBait   = 1000
+theSwitch = 0
+
+[theBait, theSwitch] = [theSwitch, theBait]
+
+
+
+
+ 
+var theBait, theSwitch, _ref;
+
+theBait = 1000;
+
+theSwitch = 0;
+
+_ref = [theSwitch, theBait], theBait = _ref[0], theSwitch = _ref[1];
+loadrun: theBait
+But it's also helpful for dealing with functions that return multiple values.
+
+weatherReport = (location) ->
+  # Make an Ajax request to fetch the weather...
+  [location, 72, "Mostly Sunny"]
+
+[city, temp, forecast] = weatherReport "Berkeley, CA"
+
+
+
+
+var city, forecast, temp, weatherReport, _ref;
+
+weatherReport = function(location) {
+  return [location, 72, "Mostly Sunny"];
+};
+
+_ref = weatherReport("Berkeley, CA"), city = _ref[0], temp = _ref[1], forecast = _ref[2];
+loadrun: forecast
+Destructuring assignment can be used with any depth of array and object nesting, to help pull out deeply nested properties.
+
+futurists =
+  sculptor: "Umberto Boccioni"
+  painter:  "Vladimir Burliuk"
+  poet:
+    name:   "F.T. Marinetti"
+    address: [
+      "Via Roma 42R"
+      "Bellagio, Italy 22021"
+    ]
+
+{poet: {name, address: [street, city]}} = futurists
+
+
+
+var city, futurists, name, street, _ref, _ref1;
+
+futurists = {
+  sculptor: "Umberto Boccioni",
+  painter: "Vladimir Burliuk",
+  poet: {
+    name: "F.T. Marinetti",
+    address: ["Via Roma 42R", "Bellagio, Italy 22021"]
+  }
+};
+
+_ref = futurists.poet, name = _ref.name, (_ref1 = _ref.address, street = _ref1[0], city = _ref1[1]);
+loadrun: name + "-" + street
+Destructuring assignment can even be combined with splats.
+
+tag = "<impossible>"
+
+[open, contents..., close] = tag.split("")
+
+
+
+
+
+
+var close, contents, open, tag, _i, _ref,
+  __slice = [].slice;
+
+tag = "<impossible>";
+
+_ref = tag.split(""), open = _ref[0], contents = 3 <= _ref.length ? __slice.call(_ref, 1, _i = _ref.length - 1) : (_i = 1, []), close = _ref[_i++];
+loadrun: contents.join("")
+Expansion can be used to retrieve elements from the end of an array without having to assign the rest of its values. It works in function parameter lists as well.
+
+text = "Every literary critic believes he will
+        outwit history and have the last word"
+
+[first, ..., last] = text.split " "
+
+
+
+var first, last, text, _ref;
+
+text = "Every literary critic believes he will outwit history and have the last word";
+
+_ref = text.split(" "), first = _ref[0], last = _ref[_ref.length - 1];
+loadrun: first + " " + last
+Destructuring assignment is also useful when combined with class constructors to assign properties to your instance from an options object passed to the constructor.
+
+class Person
+  constructor: (options) -> 
+    {@name, @age, @height} = options
+
+tim = new Person age: 4
+
+var Person, tim;
+
+Person = (function() {
+  function Person(options) {
+    this.name = options.name, this.age = options.age, this.height = options.height;
+  }
+
+  return Person;
+
+})();
+
+tim = new Person({
+  age: 4
+});
+loadrun: tim.age
+Function binding
+In JavaScript, the this keyword is dynamically scoped to mean the object that the current function is attached to. If you pass a function as a callback or attach it to a different object, the original value of this will be lost. If you're not familiar with this behavior, this Digital Web article gives a good overview of the quirks.
+
+The fat arrow => can be used to both define a function, and to bind it to the current value of this, right on the spot. This is helpful when using callback-based libraries like Prototype or jQuery, for creating iterator functions to pass to each, or event-handler functions to use with bind. Functions created with the fat arrow are able to access properties of the this where they're defined.
+
+Account = (customer, cart) ->
+  @customer = customer
+  @cart = cart
+
+  $('.shopping_cart').bind 'click', (event) =>
+    @customer.purchase @cart
+var Account;
+
+Account = function(customer, cart) {
+  this.customer = customer;
+  this.cart = cart;
+  return $('.shopping_cart').bind('click', (function(_this) {
+    return function(event) {
+      return _this.customer.purchase(_this.cart);
+    };
+  })(this));
+};
+load
+If we had used -> in the callback above, @customer would have referred to the undefined "customer" property of the DOM element, and trying to call purchase() on it would have raised an exception.
+
+When used in a class definition, methods declared with the fat arrow will be automatically bound to each instance of the class when the instance is constructed.
+
+Embedded JavaScript
+Hopefully, you'll never need to use it, but if you ever need to intersperse snippets of JavaScript within your CoffeeScript, you can use backticks to pass it straight through.
+
+hi = `function() {
+  return [document.title, "Hello JavaScript"].join(": ");
+}`
+
+
+
+var hi;
+
+hi = function() {
+  return [document.title, "Hello JavaScript"].join(": ");
+};
+loadrun: hi()
+Switch/When/Else
+Switch statements in JavaScript are a bit awkward. You need to remember to break at the end of every case statement to avoid accidentally falling through to the default case. CoffeeScript prevents accidental fall-through, and can convert the switch into a returnable, assignable expression. The format is: switch condition,  when clauses, else the default case.
+
+As in Ruby, switch statements in CoffeeScript can take multiple values for each when clause. If any of the values match, the clause runs.
+
+switch day
+  when "Mon" then go work
+  when "Tue" then go relax
+  when "Thu" then go iceFishing
+  when "Fri", "Sat"
+    if day is bingoDay
+      go bingo
+      go dancing
+  when "Sun" then go church
+  else go work
+switch (day) {
+  case "Mon":
+    go(work);
+    break;
+  case "Tue":
+    go(relax);
+    break;
+  case "Thu":
+    go(iceFishing);
+    break;
+  case "Fri":
+  case "Sat":
+    if (day === bingoDay) {
+      go(bingo);
+      go(dancing);
+    }
+    break;
+  case "Sun":
+    go(church);
+    break;
+  default:
+    go(work);
+}
+load
+Switch statements can also be used without a control expression, turning them in to a cleaner alternative to if/else chains.
+
+score = 76
+grade = switch
+  when score < 60 then 'F'
+  when score < 70 then 'D'
+  when score < 80 then 'C'
+  when score < 90 then 'B'
+  else 'A'
+# grade == 'C'
+var grade, score;
+
+score = 76;
+
+grade = (function() {
+  switch (false) {
+    case !(score < 60):
+      return 'F';
+    case !(score < 70):
+      return 'D';
+    case !(score < 80):
+      return 'C';
+    case !(score < 90):
+      return 'B';
+    default:
+      return 'A';
+  }
+})();
+load
+Try/Catch/Finally
+Try/catch statements are just about the same as JavaScript (although they work as expressions).
+
+try
+  allHellBreaksLoose()
+  catsAndDogsLivingTogether()
+catch error
+  print error
+finally
+  cleanUp()
+
+var error;
+
+try {
+  allHellBreaksLoose();
+  catsAndDogsLivingTogether();
+} catch (_error) {
+  error = _error;
+  print(error);
+} finally {
+  cleanUp();
+}
+load
+Chained Comparisons
+CoffeeScript borrows chained comparisons from Python — making it easy to test if a value falls within a certain range.
+
+cholesterol = 127
+
+healthy = 200 > cholesterol > 60
+
+
+var cholesterol, healthy;
+
+cholesterol = 127;
+
+healthy = (200 > cholesterol && cholesterol > 60);
+loadrun: healthy
+String Interpolation, Block Strings, and Block Comments
+Ruby-style string interpolation is included in CoffeeScript. Double-quoted strings allow for interpolated values, using #{ ... }, and single-quoted strings are literal.
+
+author = "Wittgenstein"
+quote  = "A picture is a fact. -- #{ author }"
+
+sentence = "#{ 22 / 7 } is a decent approximation of π"
+
+
+
+
+
+var author, quote, sentence;
+
+author = "Wittgenstein";
+
+quote = "A picture is a fact. -- " + author;
+
+sentence = "" + (22 / 7) + " is a decent approximation of π";
+loadrun: sentence
+Multiline strings are allowed in CoffeeScript. Lines are joined by a single space unless they end with a backslash. Indentation is ignored.
+
+mobyDick = "Call me Ishmael. Some years ago --
+  never mind how long precisely -- having little
+  or no money in my purse, and nothing particular
+  to interest me on shore, I thought I would sail
+  about a little and see the watery part of the
+  world..."
+var mobyDick;
+
+mobyDick = "Call me Ishmael. Some years ago -- never mind how long precisely -- having little or no money in my purse, and nothing particular to interest me on shore, I thought I would sail about a little and see the watery part of the world...";
+loadrun: mobyDick
+Block strings can be used to hold formatted or indentation-sensitive text (or, if you just don't feel like escaping quotes and apostrophes). The indentation level that begins the block is maintained throughout, so you can keep it all aligned with the body of your code.
+
+html = """
+       <strong>
+         cup of coffeescript
+       </strong>
+       """
+       
+var html;
+
+html = "<strong>\n  cup of coffeescript\n</strong>";
+loadrun: html
+Double-quoted block strings, like other double-quoted strings, allow interpolation.
+
+Sometimes you'd like to pass a block comment through to the generated JavaScript. For example, when you need to embed a licensing header at the top of a file. Block comments, which mirror the syntax for block strings, are preserved in the generated code.
+
+###
+SkinnyMochaHalfCaffScript Compiler v1.0
+Released under the MIT License
+###
+
+
+
+/*
+SkinnyMochaHalfCaffScript Compiler v1.0
+Released under the MIT License
+ */
+
+load
+Block Regular Expressions
+Similar to block strings and comments, CoffeeScript supports block regexes — extended regular expressions that ignore internal whitespace and can contain comments and interpolation. Modeled after Perl's /x modifier, CoffeeScript's block regexes are delimited by /// and go a long way towards making complex regular expressions readable. To quote from the CoffeeScript source:
+
+OPERATOR = /// ^ (
+  ?: [-=]>             # function
+   | [-+*/%<>&|^!?=]=  # compound assign / compare
+   | >>>=?             # zero-fill right shift
+   | ([-+:])\1         # doubles
+   | ([&|<>])\2=?      # logic / shift
+   | \?\.              # soak access
+   | \.{2,3}           # range or splat
+) ///
+
+
+var OPERATOR;
+
+OPERATOR = /^(?:[-=]>|[-+*\/%<>&|^!?=]=|>>>=?|([-+:])\1|([&|<>])\2=?|\?\.|\.{2,3})/;
+load
