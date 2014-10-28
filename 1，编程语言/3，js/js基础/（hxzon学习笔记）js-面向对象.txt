@@ -195,3 +195,31 @@ SubType.prototype.sayAge=function(){
 
 YUI的YAHOO.lang.extend()方法采用了这种继承。
 
+===========
+hxzon学习：
+
+var x={echo:function(){return "hello";},echo2:function(){return "hello2";}};
+var y=Object.create(x);
+y.echo();
+y.echo2();
+y.echo2=function(){return "hello world";};
+y.echo();
+y.echo2();
+
+y.__proto__===x;
+//y instanceof y.constructor;//true hxzon：？使用Object.create时不应如此使用，总是返回true
+//y instanceof x.constructor;//true
+
+x={echo:function(){return "hello baby";},echo2:function(){return "hello baby2";}};//不影响y
+y.echo();
+y.echo2();
+y.__proto__===x;//false
+var z=Object.create(x);
+z.echo();
+z.echo2();
+z.__proto__===x;//true
+
+y.__proto__=x;
+y.echo();// hello baby
+y.echo2();
+

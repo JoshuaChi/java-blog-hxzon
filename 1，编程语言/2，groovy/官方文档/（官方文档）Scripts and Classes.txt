@@ -6,7 +6,9 @@ http://groovy.codehaus.org/Scripts+and+Classes
 Classes are defined in Groovy similarly to Java. 
 Methods can be class (static) or instance based and can be public, protected, private 
 and support all the usual Java modifiers like synchronized.  
+
 Package and class imports use the Java syntax (including static imports).  
+
 Groovy automatically imports the following:
 自动导入以下包：
 

@@ -19,3 +19,7 @@ extend方法的源码，见core.js
 
 ====
 2，
+var y = Object.create(x);
+
+
+3，

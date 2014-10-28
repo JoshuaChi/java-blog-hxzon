@@ -382,7 +382,8 @@ assert "Fred" == p.name
 assert "Flintstone" == p.other
 
 The important thing to note here is that instead of a MetaMethod 
-we look-up a MetaProperty instance if that exists we call the getProperty method of the MetaProperty passing the delegate (ie the instance of the class).
+we look-up a MetaProperty instance if that exists 
+we call the getProperty method of the MetaProperty passing the delegate (ie the instance of the class).
 
 The only different with setProperty is you need the value in the method signature and to call setProperty on the MetaProperty:
 
