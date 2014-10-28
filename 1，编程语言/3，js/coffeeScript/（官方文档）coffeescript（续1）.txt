@@ -1,0 +1,374 @@
+﻿（官方文档）coffeescript（续1）
+http://coffeescript.org/
+
+Loops and Comprehensions
+Most of the loops you'll write in CoffeeScript will be comprehensions over arrays, objects, and ranges. Comprehensions replace (and compile into) for loops, with optional guard clauses and the value of the current array index. Unlike for loops, array comprehensions are expressions, and can be returned and assigned.
+
+# Eat lunch.
+eat food for food in ['toast', 'cheese', 'wine']
+
+# Fine five course dining.
+courses = ['greens', 'caviar', 'truffles', 'roast', 'cake']
+menu i + 1, dish for dish, i in courses
+
+# Health conscious meal.
+foods = ['broccoli', 'spinach', 'chocolate']
+eat food for food in foods when food isnt 'chocolate'
+var courses, dish, food, foods, i, _i, _j, _k, _len, _len1, _len2, _ref;
+
+_ref = ['toast', 'cheese', 'wine'];
+for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+  food = _ref[_i];
+  eat(food);
+}
+
+courses = ['greens', 'caviar', 'truffles', 'roast', 'cake'];
+
+for (i = _j = 0, _len1 = courses.length; _j < _len1; i = ++_j) {
+  dish = courses[i];
+  menu(i + 1, dish);
+}
+
+foods = ['broccoli', 'spinach', 'chocolate'];
+
+for (_k = 0, _len2 = foods.length; _k < _len2; _k++) {
+  food = foods[_k];
+  if (food !== 'chocolate') {
+    eat(food);
+  }
+}
+load
+Comprehensions should be able to handle most places where you otherwise would use a loop, each/forEach, map, or select/filter, for example: shortNames = (name for name in list when name.length < 5)
+If you know the start and end of your loop, or would like to step through in fixed-size increments, you can use a range to specify the start and end of your comprehension.
+
+countdown = (num for num in [10..1])
+
+var countdown, num;
+
+countdown = (function() {
+  var _i, _results;
+  _results = [];
+  for (num = _i = 10; _i >= 1; num = --_i) {
+    _results.push(num);
+  }
+  return _results;
+})();
+loadrun: countdown
+Note how because we are assigning the value of the comprehensions to a variable in the example above, CoffeeScript is collecting the result of each iteration into an array. Sometimes functions end with loops that are intended to run only for their side-effects. Be careful that you're not accidentally returning the results of the comprehension in these cases, by adding a meaningful return value — like true — or null, to the bottom of your function.
+
+To step through a range comprehension in fixed-size chunks, use by, for example:
+evens = (x for x in [0..10] by 2)
+
+Comprehensions can also be used to iterate over the keys and values in an object. Use of to signal comprehension over the properties of an object instead of the values in an array.
+
+yearsOld = max: 10, ida: 9, tim: 11
+
+ages = for child, age of yearsOld
+  "#{child} is #{age}"
+var age, ages, child, yearsOld;
+
+yearsOld = {
+  max: 10,
+  ida: 9,
+  tim: 11
+};
+
+ages = (function() {
+  var _results;
+  _results = [];
+  for (child in yearsOld) {
+    age = yearsOld[child];
+    _results.push("" + child + " is " + age);
+  }
+  return _results;
+})();
+loadrun: ages.join(", ")
+If you would like to iterate over just the keys that are defined on the object itself, by adding a hasOwnProperty check to avoid properties that may be inherited from the prototype, use
+for own key, value of object
+
+The only low-level loop that CoffeeScript provides is the while loop. The main difference from JavaScript is that the while loop can be used as an expression, returning an array containing the result of each iteration through the loop.
+
+# Econ 101
+if this.studyingEconomics
+  buy()  while supply > demand
+  sell() until supply > demand
+
+# Nursery Rhyme
+num = 6
+lyrics = while num -= 1
+  "#{num} little monkeys, jumping on the bed.
+    One fell out and bumped his head."
+var lyrics, num;
+
+if (this.studyingEconomics) {
+  while (supply > demand) {
+    buy();
+  }
+  while (!(supply > demand)) {
+    sell();
+  }
+}
+
+num = 6;
+
+lyrics = (function() {
+  var _results;
+  _results = [];
+  while (num -= 1) {
+    _results.push("" + num + " little monkeys, jumping on the bed. One fell out and bumped his head.");
+  }
+  return _results;
+})();
+loadrun: lyrics.join(" ")
+For readability, the until keyword is equivalent to while not, and the loop keyword is equivalent to while true.
+
+When using a JavaScript loop to generate functions, it's common to insert a closure wrapper in order to ensure that loop variables are closed over, and all the generated functions don't just share the final values. CoffeeScript provides the do keyword, which immediately invokes a passed function, forwarding any arguments.
+
+for filename in list
+  do (filename) ->
+    fs.readFile filename, (err, contents) ->
+      compile filename, contents.toString()
+var filename, _fn, _i, _len;
+
+_fn = function(filename) {
+  return fs.readFile(filename, function(err, contents) {
+    return compile(filename, contents.toString());
+  });
+};
+for (_i = 0, _len = list.length; _i < _len; _i++) {
+  filename = list[_i];
+  _fn(filename);
+}
+load
+Array Slicing and Splicing with Ranges
+Ranges can also be used to extract slices of arrays. With two dots (3..6), the range is inclusive (3, 4, 5, 6); with three dots (3...6), the range excludes the end (3, 4, 5). Slices indices have useful defaults. An omitted first index defaults to zero and an omitted second index defaults to the size of the array.
+
+numbers = [1, 2, 3, 4, 5, 6, 7, 8, 9]
+
+start   = numbers[0..2]
+
+middle  = numbers[3...-2]
+
+end     = numbers[-2..]
+
+copy    = numbers[..]
+var copy, end, middle, numbers, start;
+
+numbers = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+
+start = numbers.slice(0, 3);
+
+middle = numbers.slice(3, -2);
+
+end = numbers.slice(-2);
+
+copy = numbers.slice(0);
+loadrun: middle
+The same syntax can be used with assignment to replace a segment of an array with new values, splicing it.
+
+numbers = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+
+numbers[3..6] = [-3, -4, -5, -6]
+
+
+
+ 
+var numbers, _ref;
+
+numbers = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+
+[].splice.apply(numbers, [3, 4].concat(_ref = [-3, -4, -5, -6])), _ref;
+loadrun: numbers
+Note that JavaScript strings are immutable, and can't be spliced.
+
+Everything is an Expression (at least, as much as possible)
+You might have noticed how even though we don't add return statements to CoffeeScript functions, they nonetheless return their final value. The CoffeeScript compiler tries to make sure that all statements in the language can be used as expressions. Watch how the return gets pushed down into each possible branch of execution in the function below.
+
+grade = (student) ->
+  if student.excellentWork
+    "A+"
+  else if student.okayStuff
+    if student.triedHard then "B" else "B-"
+  else
+    "C"
+
+eldest = if 24 > 21 then "Liz" else "Ike"
+var eldest, grade;
+
+grade = function(student) {
+  if (student.excellentWork) {
+    return "A+";
+  } else if (student.okayStuff) {
+    if (student.triedHard) {
+      return "B";
+    } else {
+      return "B-";
+    }
+  } else {
+    return "C";
+  }
+};
+
+eldest = 24 > 21 ? "Liz" : "Ike";
+loadrun: eldest
+Even though functions will always return their final value, it's both possible and encouraged to return early from a function body writing out the explicit return (return value), when you know that you're done.
+
+Because variable declarations occur at the top of scope, assignment can be used within expressions, even for variables that haven't been seen before:
+
+six = (one = 1) + (two = 2) + (three = 3)
+
+
+var one, six, three, two;
+
+six = (one = 1) + (two = 2) + (three = 3);
+loadrun: six
+Things that would otherwise be statements in JavaScript, when used as part of an expression in CoffeeScript, are converted into expressions by wrapping them in a closure. This lets you do useful things, like assign the result of a comprehension to a variable:
+
+# The first ten global properties.
+
+globals = (name for name of window)[0...10]
+var globals, name;
+
+globals = ((function() {
+  var _results;
+  _results = [];
+  for (name in window) {
+    _results.push(name);
+  }
+  return _results;
+})()).slice(0, 10);
+loadrun: globals
+As well as silly things, like passing a try/catch statement directly into a function call:
+
+alert(
+  try
+    nonexistent / undefined
+  catch error
+    "And the error is ... #{error}"
+)
+
+var error;
+
+alert((function() {
+  try {
+    return nonexistent / void 0;
+  } catch (_error) {
+    error = _error;
+    return "And the error is ... " + error;
+  }
+})());
+loadrun
+There are a handful of statements in JavaScript that can't be meaningfully converted into expressions, namely break, continue, and return. If you make use of them within a block of code, CoffeeScript won't try to perform the conversion.
+
+Operators and Aliases
+Because the == operator frequently causes undesirable coercion, is intransitive, and has a different meaning than in other languages, CoffeeScript compiles == into ===, and != into  !==. In addition, is compiles into ===, and isnt into !==.
+
+You can use not as an alias for !.
+
+For logic, and compiles to &&, and or into ||.
+
+Instead of a newline or semicolon, then can be used to separate conditions from expressions, in while, if/else, and switch/when statements.
+
+As in YAML, on and yes are the same as boolean true, while off and no are boolean false.
+
+unless can be used as the inverse of if.
+
+As a shortcut for this.property, you can use @property.
+
+You can use in to test for array presence, and of to test for JavaScript object-key presence.
+
+To simplify math expressions, ** can be used for exponentiation, // performs integer division and %% provides true mathematical modulo.
+
+All together now:
+
+CoffeeScript	JavaScript
+is	===
+isnt	!==
+not	!
+and	&&
+or	||
+true, yes, on	true
+false, no, off	false
+@, this	this
+of	in
+in	no JS equivalent
+a ** b	Math.pow(a, b)
+a // b	Math.floor(a / b)
+a %% b	(a % b + b) % b
+launch() if ignition is on
+
+volume = 10 if band isnt SpinalTap
+
+letTheWildRumpusBegin() unless answer is no
+
+if car.speed < limit then accelerate()
+
+winner = yes if pick in [47, 92, 13]
+
+print inspect "My name is #{@name}"
+var volume, winner;
+
+if (ignition === true) {
+  launch();
+}
+
+if (band !== SpinalTap) {
+  volume = 10;
+}
+
+if (answer !== false) {
+  letTheWildRumpusBegin();
+}
+
+if (car.speed < limit) {
+  accelerate();
+}
+
+if (pick === 47 || pick === 92 || pick === 13) {
+  winner = true;
+}
+
+print(inspect("My name is " + this.name));
+load
+The Existential Operator
+It's a little difficult to check for the existence of a variable in JavaScript. if (variable) ... comes close, but fails for zero, the empty string, and false. CoffeeScript's existential operator ? returns true unless a variable is null or undefined, which makes it analogous to Ruby's nil?
+
+It can also be used for safer conditional assignment than ||= provides, for cases where you may be handling numbers or strings.
+
+solipsism = true if mind? and not world?
+
+speed = 0
+speed ?= 15
+
+footprints = yeti ? "bear"
+
+
+
+
+
+
+ 
+var footprints, solipsism, speed;
+
+if ((typeof mind !== "undefined" && mind !== null) && (typeof world === "undefined" || world === null)) {
+  solipsism = true;
+}
+
+speed = 0;
+
+if (speed == null) {
+  speed = 15;
+}
+
+footprints = typeof yeti !== "undefined" && yeti !== null ? yeti : "bear";
+loadrun: footprints
+The accessor variant of the existential operator ?. can be used to soak up null references in a chain of properties. Use it instead of the dot accessor . in cases where the base value may be null or undefined. If all of the properties exist then you'll get the expected result, if the chain is broken, undefined is returned instead of the TypeError that would be raised otherwise.
+
+zip = lottery.drawWinner?().address?.zipcode
+var zip, _ref;
+
+zip = typeof lottery.drawWinner === "function" ? (_ref = lottery.drawWinner().address) != null ? _ref.zipcode : void 0 : void 0;
+load
+Soaking up nulls is similar to Ruby's andand gem, and to the safe navigation operator in Groovy.
+
+

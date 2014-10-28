@@ -1,0 +1,103 @@
+﻿（官方文档）coffeescript（续3）
+http://coffeescript.org/
+
+Cake, and Cakefiles
+
+CoffeeScript includes a (very) simple build system similar to Make and Rake. Naturally, it's called Cake, and is used for the tasks that build and test the CoffeeScript language itself. Tasks are defined in a file named Cakefile, and can be invoked by running cake [task] from within the directory. To print a list of all the tasks and options, just type cake.
+
+Task definitions are written in CoffeeScript, so you can put arbitrary code in your Cakefile. Define a task with a name, a long description, and the function to invoke when the task is run. If your task takes a command-line option, you can define the option with short and long flags, and it will be made available in the options object. Here's a task that uses the Node.js API to rebuild CoffeeScript's parser:
+
+fs = require 'fs'
+
+option '-o', '--output [DIR]', 'directory for compiled code'
+
+task 'build:parser', 'rebuild the Jison parser', (options) ->
+  require 'jison'
+  code = require('./lib/grammar').parser.generate()
+  dir  = options.output or 'lib'
+  fs.writeFile "#{dir}/parser.js", code
+var fs;
+
+fs = require('fs');
+
+option('-o', '--output [DIR]', 'directory for compiled code');
+
+task('build:parser', 'rebuild the Jison parser', function(options) {
+  var code, dir;
+  require('jison');
+  code = require('./lib/grammar').parser.generate();
+  dir = options.output || 'lib';
+  return fs.writeFile("" + dir + "/parser.js", code);
+});
+load
+If you need to invoke one task before another — for example, running  build before test, you can use the invoke function:  invoke 'build'. Cake tasks are a minimal way to expose your CoffeeScript functions to the command line, so don't expect any fanciness built-in. If you need dependencies, or async callbacks, it's best to put them in your code itself — not the cake task.
+
+Source Maps
+
+CoffeeScript 1.6.1 and above include support for generating source maps, a way to tell your JavaScript engine what part of your CoffeeScript program matches up with the code being evaluated. Browsers that support it can automatically use source maps to show your original source code in the debugger. To generate source maps alongside your JavaScript files, pass the --map or -m flag to the compiler.
+
+For a full introduction to source maps, how they work, and how to hook them up in your browser, read the HTML5 Tutorial.
+
+"text/coffeescript" Script Tags
+
+While it's not recommended for serious use, CoffeeScripts may be included directly within the browser using <script type="text/coffeescript"> tags. The source includes a compressed and minified version of the compiler (Download current version here, 39k when gzipped) as extras/coffee-script.js. Include this file on a page with inline CoffeeScript tags, and it will compile and evaluate them in order.
+
+In fact, the little bit of glue script that runs "Try CoffeeScript" above, as well as the jQuery for the menu, is implemented in just this way. View source and look at the bottom of the page to see the example. Including the script also gives you access to CoffeeScript.compile() so you can pop open Firebug and try compiling some strings.
+
+The usual caveats about CoffeeScript apply — your inline scripts will run within a closure wrapper, so if you want to expose global variables or functions, attach them to the window object.
+
+Books
+
+There are a number of excellent resources to help you get started with CoffeeScript, some of which are freely available online.
+
+The Little Book on CoffeeScript is a brief 5-chapter introduction to CoffeeScript, written with great clarity and precision by Alex MacCaw.
+Smooth CoffeeScript is a reimagination of the excellent book Eloquent JavaScript, as if it had been written in CoffeeScript instead. Covers language features as well as the functional and object oriented programming styles. By E. Hoigaard.
+CoffeeScript: Accelerated JavaScript Development is Trevor Burnham's thorough introduction to the language. By the end of the book, you'll have built a fast-paced multiplayer word game, writing both the client-side and Node.js portions in CoffeeScript.
+CoffeeScript Programming with jQuery, Rails, and Node.js is a new book by Michael Erasmus that covers CoffeeScript with an eye towards real-world usage both in the browser (jQuery) and on the server size (Rails, Node).
+CoffeeScript Ristretto is a deep dive into CoffeeScript's semantics from simple functions up through closures, higher-order functions, objects, classes, combinators, and decorators. By Reg Braithwaite.
+Testing with CoffeeScript is a succinct and freely downloadable guide to building testable applications with CoffeeScript and Jasmine.
+CoffeeScript Application Development is a new book from Packt Publishing that introduces CoffeeScript while walking through the process of building a demonstration web application.
+CoffeeScript in Action is a new book from Manning Publications that covers CoffeeScript syntax, composition techniques and application development.
+Screencasts
+
+A Sip of CoffeeScript is a Code School Course which combines 6 screencasts with in-browser coding to make learning fun. The first level is free to try out.
+Meet CoffeeScript is a 75-minute long screencast by PeepCode. Highly memorable for its animations which demonstrate transforming CoffeeScript into the equivalent JS.
+If you're looking for less of a time commitment, RailsCasts' CoffeeScript Basics should have you covered, hitting all of the important notes about CoffeeScript in 11 minutes.
+Examples
+
+The best list of open-source CoffeeScript examples can be found on GitHub. But just to throw out few more:
+
+github's Hubot, a friendly IRC robot that can perform any number of useful and useless tasks.
+sstephenson's Pow, a zero-configuration Rack server, with comprehensive annotated source.
+technoweenie's Coffee-Resque, a port of Resque for Node.js.
+assaf's Zombie.js, a headless, full-stack, faux-browser testing library for Node.js.
+jashkenas' Underscore.coffee, a port of the Underscore.js library of helper functions.
+stephank's Orona, a remake of the Bolo tank game for modern browsers.
+josh's nack, a Node.js-powered Rack server.
+Resources
+
+Source Code
+Use bin/coffee to test your changes,
+bin/cake test to run the test suite,
+bin/cake build to rebuild the CoffeeScript compiler, and 
+bin/cake build:parser to regenerate the Jison parser if you're working on the grammar. 
+
+git checkout lib && bin/cake build:full is a good command to run when you're working on the core language. It'll refresh the lib directory (in case you broke something), build your altered compiler, use that to rebuild itself (a good sanity test) and then run all of the tests. If they pass, there's a good chance you've made a successful change.
+CoffeeScript Issues
+Bug reports, feature proposals, and ideas for changes to the language belong here.
+CoffeeScript Google Group
+If you'd like to ask a question, the mailing list is a good place to get help.
+The CoffeeScript Wiki
+If you've ever learned a neat CoffeeScript tip or trick, or ran into a gotcha — share it on the wiki. The wiki also serves as a directory of handy text editor extensions, web framework plugins, and general CoffeeScript build tools.
+The FAQ
+Perhaps your CoffeeScript-related question has been asked before. Check the FAQ first.
+JS2Coffee
+Is a very well done reverse JavaScript-to-CoffeeScript compiler. It's not going to be perfect (infer what your JavaScript classes are, when you need bound functions, and so on...) — but it's a great starting point for converting simple scripts.
+High-Rez Logo
+The CoffeeScript logo is available in Illustrator, EPS and PSD formats, for use in presentations.
+Web Chat (IRC)
+
+Quick help and advice can usually be found in the CoffeeScript IRC room. Join #coffeescript on irc.freenode.net, or click the button below to open a webchat session on this page.
+
+click to open #coffeescript
+

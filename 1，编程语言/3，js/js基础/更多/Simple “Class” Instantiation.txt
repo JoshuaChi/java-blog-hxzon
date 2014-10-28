@@ -1,0 +1,128 @@
+﻿Simple “Class” Instantiation
+By John Resig, ejohn.org
+http://ejohn.org/blog/simple-class-instantiation/
+
+======
+John Resig is the Dean of Computer Science at Khan Academy and the creator of the jQuery JavaScript library. He’s also the author of the books Pro JavaScript Techniques and Secrets of the JavaScript Ninja.
+
+John is a Visiting Researcher at Ritsumeikan University in Kyoto working on the study of Ukiyo-e (Japanese Woodblock printing). He has developed a comprehensive woodblock print database and image search engine located at: Ukiyo-e.org.
+
+Currently, John is located in Brooklyn, NY.
+======
+This is another trick that I’ve been using for a while to simplify Class-style instantiation of a function in JavaScript. Take a look at the following code, for example:
+
+function User(first, last){
+    this.name = first + " " + last;
+}
+ 
+var user = new User("John", "Resig");
+Pretty straight-forward. Now let’s look at a couple quirks of Class-style instantiation that can cause issues, but can be easily remedied.
+
+First is an issue that new JavaScript programmers will encounter. On a quick observation of the above code it isn’t immediately obvious that the function is actually something that is meant to be instantiated with the ‘new’ operator (Unless, of course, you understood that the use of ‘this’ within the function implied that it was meant to be instantiated). Thus, a new user would try to call the function without the operator, causing severely unexpected results (e.g. ‘user’ would be undefined).
+
+Secondly, if a Class-style function is meant to be instantiated, and isn’t, it can in turn end up polluting the current scope (frequently the global namespace), causing even more unexpected results. For example, observe the following code:
+
+var name = "Resig";
+var user = User("John", name);
+// user is undefined
+// AND name is no longer "Resig"
+if ( name == "John Resig" ) {
+   // Oops!
+}
+This can result in a debugging nightmare. The developer may try to interact the name variable again (being unaware of the error that occurred from mis-using the User function) and be forced to dance down the horrible non-deterministic wormhole that’s presented to them (Why is the value of their variables changing underneath their feet?).
+
+Finally, a tangible advantage. Instantiating a function with a bunch of prototype properties is very, very, fast. It completely blows the Module pattern, and similar, out of the water. Thus, if you have a frequently-accessed function (returning an object) that you want people to interact with, then it’s to your advantage to have the object properties be in the prototype chain and instantiate it. Here it is, in code:
+
+// Very fast
+function User(){}
+User.prototype = { /* Lots of properties ... */ };
+ 
+// Very slow
+function User(){
+  return { /* Lots of properties */ };
+}
+Now, with that in mind, let’s also examine constructing a simple function API. For example, the $ function from jQuery. There’s no way that the users are going to want to do new $("div") every time they interact with that method; however, we want to be able to take advantage of the speedy benefits of the object prototype. Therefore, we need a solution to solve this.
+
+Now, without further hassle, here is the solution to all of the above problems, in a simple snippet:
+
+function User(first, last){
+  if ( this instanceof User ) {
+    this.name = first + " " + last;
+  } else
+    return new User(first, last);
+}
+The two tricky lines are the first and the last. Let’s examine those in depth.
+
+if ( this instanceof User ) {
+This statement seems straightforward but takes a little bit of consideration. What we’re doing is checking to see if we’re currently inside of an instantiated version of the function, rather than just the function itself. Let’s look at a simpler example:
+
+function test(){
+    alert( this instanceof test );
+}
+test(); // alert( false );
+new test(); // alert( true );
+Using this bit of logic we can now construct our structure within the class constructor. This means that if the ‘this instanceof User’ expression is true then we need to behave like we normally would, within a constructor (initializing property values, etc.). But if the expression is false, we need to instantiate the function, like so:
+
+return new User(first, last);
+It’s important to return the result, since we’re just inside a normal function at the point. This way, no matter which way we now call the User() function, we’ll always get an instance back.
+
+// New Style:
+new User();
+// => [object User]
+User();
+// => [object User]
+ 
+// Old Style:
+new User();
+// => [object User]
+User();
+// => undefined
+makeClass()
+Ok, so this is all well-and-good, but let’s now wrap this together into a generic class constructor that we can reuse to build these types of functions. Something like the following should be sufficient:
+
+// makeClass - By John Resig (MIT Licensed)
+function makeClass(){
+  return function(args){
+    if ( this instanceof arguments.callee ) {
+      if ( typeof this.init == "function" )
+        this.init.apply( this, args.callee ? args : arguments );
+    } else
+      return new arguments.callee( arguments );
+  };
+}
+Let’s reexamine our previous example and see how this function could be used:
+
+var User = makeClass();
+User.prototype.init = function(first, last){
+  this.name = first + " " + last;
+};
+var user = User("John", "Resig");
+user.name
+// => "John Resig"
+So there you have it: A simpler syntax for classical-style object instantiation that easy for end users and is more robust and resilient to misuse.
+
+Bonus! Let’s dive into the makeClass() function and see what makes it tick. Again, it’s deceptively simple (due to it’s length) but is actually a complex bit of code to wrap your mind around. Let’s break it down bit-by-bit.
+
+The first part:
+
+function makeClass(){
+  return function(args){ /* ... */ };
+}
+When we “make a class” all we’re doing is producing a function. Since, in JavaScript, “classes” (or, our closest approximation of what we call classes) is actually a heavily-enhanced function. Thus, calling makeClass just gives us a function to play with. All class-creation libraries do this (Prototype, base, et. al.).
+
+if ( this instanceof arguments.callee ) {
+      // Stuff ...
+    } else
+      return new arguments.callee( arguments );
+Now, this code looks very similar to the code that we used before to check the “class” type. The distinction here is that we don’t know what the name of the class actually is. Thus, we have to cheat and “become generic”. When you’re inside of a function (remember, we’re inside the anonymous function that is now the representation of the class – we are the class) arguments.callee is a reference to the function itself (in JavaScript 2 this will become the expression “this function”).
+
+Now, that explains the first if statement, but let’s look at that last return statement. Notice that we’re instantiating an anonymous function, from inside of itself. I suspect that this will blow the mind of someone – and it should; this is what makes JavaScript a great language to work with. But note that we pass in ‘arguments’ as the first parameter to the class constructor. We’re cheating here. The issue is that you can’t actually call .apply() (or .call()) on the instantiation of a function (you can in JavaScript 2 by applying against the intrinsic::construct method). Thus, we pass along the arguments, collectively, as the first argument and then watch for those arguments to come in, named ‘args’.
+
+if ( typeof this.init == "function" )
+        this.init.apply( this, args.callee ? args : arguments );
+Finally, the last bit. Since we need to make the construction phase of the class generic, we defer that to an ‘init’ function property instead (Prototype uses ‘initialize’ instead, I like short words). Then we simply .apply() the function passing in the arguments that were transferred to us and the ‘this’ instance (but only if this this.init method exists, don’t want to require that a constructor exists). Additionally, since the arguments may have been collected and put into the first argument (previously) we need to verify that and check that it is an arguments variable with args.callee.
+
+And there you have it: Some very-simple class construction code that’s actually quite powerful and useful. Comment and feedback are appreciated.
+
+Posted: December 6th, 2007
+
