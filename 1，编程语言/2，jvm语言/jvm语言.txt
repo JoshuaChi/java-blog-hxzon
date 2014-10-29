@@ -1,0 +1,19 @@
+﻿jvm语言
+
+Kotlin
+Kotlin是静态类型的语言，也可以编程成Java字节码以及JavaScript，
+作为一个时髦又表现丰富的编程语言，Kotlin就是被设计用来生产高性能要求的程序的，所以运行起来和Java也是不相上下。
+Kotlin可以从 JetBrains InteilliJ Idea IDE这个开发工具以插件形式使用。
+
+Ceylon
+Ceylon是一个通用的，静态类型编程语言，也是基于阻塞以及面向对象的。
+据说这个语言深受Java的影响，而且它一开始就是被Red Hat公司设计为给大型团队合作完成大型项目来的。
+Ceylon的主要努力方向是将语言变得更加可读，更加可预期，更加工具化以及更加模块化。
+据 Gavin King所说，Ceylon将不仅仅只是个编译器，而将是一个可以取代Java SDK的新Ceylon SDK。
+
+Fantom
+Fantom能够在运行时为JVM以及.NET或者JavaScript平台生成字节码，
+Fantom是与Groovy以及JRuby差不多的一样面向对 象的编程语言，
+但是悲剧的是Fantom无法使用Java类库，而是使用它自己扩展的类库。
+忘了说Fantom也包括actors，而且它最大的优势就是在网站上有一个非常完备卓越的API文档系统。
+

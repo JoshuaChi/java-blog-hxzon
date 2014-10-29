@@ -1,0 +1,378 @@
+﻿（官方文档）kotlin-Getting Started
+
+Statically typed programming language targeting the JVM and JavaScript 100% interoperable with Java™
+
+http://kotlinlang.org/docs/reference/
+
+http://kotlinlang.org/docs/reference/basic-syntax.html
+Basic Syntax
+
+Defining packages
+
+Package specification should be at the top of the source file:
+
+It is not required to match directories and packages: source files can be placed arbitrarily in the file system.
+
+See Packages.
+
+Defining functions
+
+Function having two Int parameters with Int return type:
+
+Function with an expression body and inferred return type:
+
+Function visible from outside of a module should have return type explicitly specified:
+
+Function returning no meaningful value:
+
+Unit return type can be omitted:
+
+See Functions.
+
+Defining local variables
+
+Assign-once (read-only) local variable:
+
+Mutable variable:
+
+See also Properties And Fields.
+
+Using string templates
+
+fun main(args: Array<String>) {
+  if (args.size == 0) return
+
+  print("First argument: ${args[0]}")
+}
+See String templates.
+
+Using conditional expressions
+
+fun max(a: Int, b: Int): Int {
+  if (a > b)
+    return a
+  else
+    return b
+}
+Using if as an expression:
+
+fun max(a: Int, b: Int) = if (a > b) a else b
+See if expressions.
+
+Using nullable values and checking for null
+
+A reference must be explicitly marked as nullable when null value is possible.
+
+Return null if str does not hold an integer:
+
+fun parseInt(str: String): Int? {
+  // ...
+}
+Use a function returning nullable value:
+
+fun main(args: Array<String>) {
+  if (args.size < 2) {
+    print("Two integers expected")
+    return
+  }
+
+  val x = parseInt(args[0])
+  val y = parseInt(args[1])
+
+  // Using `x * y` yields error because they may hold nulls.
+  if (x != null && y != null) {
+    // x and y are automatically cast to non-nullable after null check
+    print(x * y)
+  }
+}
+or
+
+  // ...
+  if (x == null) {
+    print("Wrong number format in '${args[0]}'")
+    return
+  }
+  if (y == null) {
+    print("Wrong number format in '${args[1]}'")
+    return
+  }
+
+  // x and y are automatically cast to non-nullable after null check
+  print(x * y)
+See Null-safety.
+
+Using type checks and automatic casts
+
+The is operator checks if an expression is an instance of a type. If an immutable local variable or property is checked for a specific type, there’s no need to cast it explicitly:
+
+fun getStringLength(obj: Any): Int? {
+  if (obj is String) {
+    // `obj` is automatically cast to `String` in this branch
+    return obj.length
+  }
+
+  // `obj` is still of type `Any` outside of the type-checked branch
+  return null
+}
+or
+
+fun getStringLength(obj: Any): Int? {
+  if (obj !is String)
+    return null
+
+ // `obj` is automatically cast to `String` in this branch
+ return obj.length
+}
+or even
+
+fun getStringLength(obj: Any): Int? {
+ // `obj` is automatically cast to `String` on the right-hand side of `&&`
+  if (obj is String && obj.length > 0)
+    return obj.length
+
+ return null
+}
+See Classes and Type casts.
+
+Using a for loop
+
+fun main(args: Array<String>) {
+  for (arg in args)
+    print(arg)
+or
+
+for (i in args.indices)
+    print(args[i])
+}
+See for loop.
+
+Using a while loop
+
+fun main(args: Array<String>) {
+  var i = 0
+  while (i < args.size)
+    print(args[i++])
+}
+See while loop.
+
+Using when expression
+
+fun cases(obj: Any) {
+  when (obj) {
+    1          -> print("One")
+    "Hello"    -> print("Greeting")
+    is Long    -> print("Long")
+    !is String -> print("Not a string")
+    else       -> print("Unknown")
+  }
+}
+See when expression.
+
+Using ranges
+
+Check if a number is within a range using in operator:
+
+if (x in 1..y-1)
+  print("OK")
+Check if a number is out of range:
+
+if (x !in 0..array.lastIndex)
+  print("Out")
+Iterating over a range:
+
+for (x in 1..5)
+  print(x)
+See Ranges.
+
+Using collections
+
+Iterating over a collection:
+
+for (name in names)
+  println(name)
+Checking if a collection contains an object using in operator:
+
+if (text in names) // names.contains(text) is called
+  print("Yes")
+Using function literals to filter and map collections:
+
+names filter { it.startsWith("A") } sortBy { it } map { it.toUpperCase() } forEach { print(it) }
+See Higher-order functions and Function literals.
+
+========
+http://kotlinlang.org/docs/reference/idioms.html
+Idioms
+
+A collection of random and frequently used idioms in Kotlin. If you have a favorite idiom, contribute it. Do a pull request.
+
+Creating DTO’s (POJO’s/POCO’s)
+
+data class Customer(val name: String, val email: String)
+provides a Customer class with the following functionality:
+
+getters (and setters in case of var’s) for all properties
+equals()
+hashCode()
+toString()
+copy()
+component1(), component2(), …, for all properties (see Data classes)
+Declaring a final local variable
+
+val a = foo()
+Default values for function parameters
+
+fun foo(a: Int = 0, b: String = "") { ... }
+Filtering a list
+
+val positives = list.filter { x -> x > 0 }
+Or alternatively, even shorter:
+
+val positives = list.filter { it > 0 }
+String Interpolation
+
+println("Name $name")
+Instance Checks
+
+when (x) {
+    is Foo -> ...
+    is Bar -> ...
+    else   -> ...
+}
+Traversing a map/list of pairs
+
+for ((k, v) in map) {
+    println("$k -> $v")
+}
+k,v can be called anything.
+
+Using ranges
+
+for (i in 1..100) { ... }
+for (x in 2..10) { ... }
+Read-only list
+
+val list = listOf("a", "b", "c")
+Read-only map
+
+val map = mapOf("a" to 1, "b" to 2, "c" to 3)
+Accessing a map
+
+println(map["key"])
+map["key"] = value
+Lazy property
+
+val p: String by Delegates.lazy {
+    // compute the string
+}
+Extension Functions
+
+fun String.spaceToCamelCase() { ... }
+
+"Convert this to camelcase".spaceToCamelCase()
+Creating a singleton
+
+object Resource {
+    val name = "Name"
+}
+If not null shorthand
+
+val files = File("Test").listFiles()
+
+println(files?.size)
+If not null and else shorthand
+
+val files = File("Test").listFiles()
+
+println(files?.size ?: "empty")
+Executing a statement if null
+
+val data = ...
+val email = data["email"] ?: throw IllegalStateException("Email is missing!")
+Execute if not null
+
+val data = ...
+
+data?.let {
+    ... // execute this block if not null
+}
+Return on when statement
+
+fun transform(color: String): Int {
+    return when (color) {
+        "Red" -> 0
+        "Green" -> 1
+        "Blue" -> 2
+        else -> throw IllegalArgumentException("Invalid color param value")
+    }
+}
+Return on try catch block
+
+fun test() {
+    val result = try {
+        count()
+    } catch (e: ArithmeticException) {
+        throw IllegalStateException(e)
+    }
+
+    // Working with result
+}
+Return on if statement
+
+fun foo(param: Int) {
+    val result = if (param == 1) {
+        "one"
+    } else if (param == 2) {
+        "two"
+    } else {
+        "three"
+    }
+}
+Single-expression functions
+
+fun theAnswer() = 42
+This is equivalent to
+
+fun theAnswer(): Int {
+    return 42
+}
+This can be effectively combined with other idioms, leading to shorter code. E.g. with the when expression:
+
+fun transform(color: String): Int = when (color) {
+    "Red" -> 0
+    "Green" -> 1
+    "Blue" -> 2
+    else -> throw IllegalArgumentException("Invalid color param value")
+}
+
+========
+http://kotlinlang.org/docs/reference/coding-conventions.html
+Coding Conventions
+
+This page contains the current coding style for the Kotlin language.
+
+Naming Style
+
+if in doubt default to the Java Coding Conventions such as:
+
+use of camelCase for names (and avoid underscore in names)
+types start with upper case
+methods and properties start with lower case
+use 4 space indentation
+public functions should have documentation such that it appears in Kotlin Doc
+Kotlin does not have fields as a primary concept in the language - it only has properties. Avoid the use of prefixes on properties, such as _ or m_ or other kinds of notation; If you need access to a backing field of a property, use the $ prefix: $foo to refer to a field behind property foo; never create a private property and call it _foo
+
+Colon
+
+There is a space before colon where colon separates type and supertype and there’s no space where colon separates instance and type:
+
+trait Foo : Bar {
+    fun foo(a: Int): String
+}
+Unit
+
+If a function returns Unit, the return type should be omitted:
+
+fun foo() { // ": Unit" is omitted here
+
+}
+

@@ -1,0 +1,357 @@
+﻿（官方文档）kotlin-Functions and Lambdas
+
+========
+Functions
+http://kotlinlang.org/docs/reference/functions.html
+
+Function Declarations
+
+Functions in Kotlin are declared using the fun keyword
+
+fun double(x: Int): Int {
+}
+Parameters
+
+Function parameters are defined using Pascal notation, i.e. name: type. Parameters are separated using commas. Each parameter must be explicitly typed.
+
+fun powerOf(number: Int, exponent: Int) {
+...
+}
+Default Arguments
+
+Function parameters can have default values, which are used when a corresponding argument is omitted. This allows for a reduced number of overloads compared to other languages.
+
+fun read(b: Array<Byte>, off: Int = 0, len: Int = -1) {
+...
+}
+Default values are defined using the = after type along with the value. Default arguments must be the last in the list, that is, it is not possible to have a parameter without a default argument following one with a default argument.
+
+Named Arguments
+
+Function parameters can be named when calling functions. This is very convenient when a function has a high number of parameters or default ones.
+
+Given the following function
+
+fun reformat(str: String, normalizeCase: Boolean = true, upperCaseFirstLetter: Boolean = true, divideByCamelHumps: Boolean = false, wordSeparator: Character = ' ') {
+...
+}
+we could call this using default arguments
+
+reformat(str)
+However, when calling it with non-default, the call would look something like
+
+reformat(str, true, true, false, '_')
+With named arguments we can make the code much more readable
+
+reformat(str,
+    normalizeCase = true,
+    uppercaseFirstLetter = true,
+    divideByCamelHumps = false,
+    wordSeparator = '_'
+  )
+and if we do not need all arguments
+
+reformat(str, wordSeparator = '_')
+Unit-returning functions
+
+If a function does not return any useful value, its return type is Unit. Unit is a type with only one value - Unit. This value does not have to be returned explicitly
+
+fun printHello(name: String?): Unit {
+    if (name != null)
+        println("Hello ${name}")
+    else
+        println("Hi there!")
+    // `return Unit` or `return` is optional
+}
+The Unit return type declaration is also optional. The above code is equivalent to
+
+fun printHello(name: String?) {
+    ...
+}
+Single-Expression functions
+
+When a function returns a single expression, the curly braces can be omitted and the body is specified after a = symbol
+
+fun double(x: Int) : Int = x * 2
+Explicitly declaring the return type is optional when this can be inferred by the compiler
+
+fun double(x: Int) = x * 2
+Explicit return types
+
+There are cases when an explicit return type is required:
+
+Functions with expression body that are public or protected. These are considered to be part of the public API surface. Not having explicit return types makes it potentially easier to change the type accidentally. This is the same reason why explicit types are required for properties.
+Functions with block body must always specify return types explicitly, unless it’s intended for them to return Unit, in which case it is optional. Kotlin does not infer return types for functions with block bodies because such functions may have complex control flow in the body, and the return type will be non-obvious to the reader (and sometimes even for the compiler).
+Variable number of arguments (Varargs)
+
+The last parameter of a function may be marked with vararg annotation
+
+fun asList<T>(vararg ts : T) : List<T> {
+  val result = ArrayList<T>()
+  for (t in ts) // ts is an Array
+    result.add(t)
+  return result
+}
+allowing a variable number of arguments to be passed to the function:
+
+  val list = asList(1, 2, 3)
+Inside a function a vararg-parameter of type T is visible as an array of T, i.e. the ts variable in the example above has type Array<T>.
+
+Only one parameter may be annotated as vararg. It may be the last parameter or the one before last, if the last parameter has a function type (allowing a lambda to be passed outside parentheses).
+
+When we call a vararg-function, we can pass arguments one-by-one, e.g. asList(1, 2, 3), or, if we already have an array and want to pass its contents to the function, we use the spread operator (prefix the array with *):
+
+val a = array(1, 2, 3)
+val list = asList(-1, 0, *a, 4)
+Function Scope
+
+In Kotlin functions can be declared at top level in a file, meaning you do not need to create a class to hold a function, like languages such as Java, C# or Scala. In addition to top level functions, Kotlin functions can also be declared local, as member functions and extension functions.
+
+Local Functions
+
+Kotlin supports local functions, i.e. a function inside another function
+
+fun dfs(graph : Graph){
+  fun dfs(current : Vertex, visited : Set<Vertex>) {
+    if (!visited.add(current)) return
+    for (v in current.neighbors)
+      dfs(v, visited)
+  }
+
+  dfs(graph.vertices[0], HashSet())
+}
+Local function can access local variables of outer functions (i.e. the closure), so in the case above, the visited can be a local variable
+
+fun dfs(graph : Graph){
+  val visited = HashSet<Vertex>()
+  fun dfs(current : Vertex) {
+    if (!visited.add(current)) return
+    for (v in current.neighbors)
+      dfs(v)
+  }
+
+  dfs(graph.vertices[0])
+}
+Local functions can even return from outer functions using qualified return expressions
+
+fun reachable(from : Vertex, to : Vertex) : Boolean {
+  val visited = HashSet<Vertex>()
+  fun dfs(current : Vertex) {
+    // here we return from the outer function:
+    if (current == to) return@reachable true
+    // And here -- from local function:
+    if (!visited.add(current)) return
+    for (v in current.neighbors)
+      dfs(v)
+  }
+
+  dfs(from)
+  return false // if dfs() did not return true already
+}
+Member Functions
+
+A member function is a function that is defined inside a class or object
+
+class Sample() {
+    fun foo() { print("Foo") }
+}
+Member functions are called with dot notation
+
+Sample().foo() // creates instance of class Sample and calls foo
+For more information on classes and overriding members see Classes and Inheritance
+
+Generic Functions
+
+Functions can have generic parameters which are specified using angle brackets after the function name and before the value parameters
+
+fun singletonArray<T>(item : T) : Array<T> {
+  return Array<T>(1, {item})
+}
+For more information on generic functions see Generics
+
+Inline Functions
+
+Inline functions are explained in High Order Functions
+
+Extension Functions
+
+Extension functions are explained in their own section
+
+High Order Functions and Lambdas
+
+High Order functions and Lambdas are explained in their own section
+
+Function Usage
+
+Calling functions uses the traditional approach
+
+val result = double(2)
+Calling member functions uses the dot notation
+
+Sample().foo() // create instance of class Sample and calls foo
+Infix notation
+
+Functions can also be called using infix notations when
+
+They are member functions or extension functions
+They have a single parameter
+// Define extension to Int
+fun Int.shl(x: Int) {
+..
+}
+
+// call extension function using infix notation
+
+1 shl 2
+
+// is the same as
+
+1.shl(2)
+
+==========
+Higher-Order Functions and Lambdas
+http://kotlinlang.org/docs/reference/lambdas.html
+
+Higher-Order Functions
+
+A higher-order function is a function that takes functions as parameters, or returns a function. A good example of such a function is lock() that takes a lock object and a function, acquires the lock, runs the functions and releases the lock:
+
+fun lock<T>(lock : Lock, body : () -> T) : T {
+  lock.lock()
+  try {
+    return body()
+  }
+  finally {
+    lock.unlock();
+  }
+}
+Let’s examine the code above: body has a function type: () -> T, so it’s supposed to be a function that takes no parameters and returns a value of type T. It is invoked inside the try block, while protected by the lock, and its result is returned by the lock() function.
+
+If we want to call lock, we can pass another function to it as an argument (see function references):
+
+fun toBeSynchronized() = sharedResource.operation()
+
+val result = lock(lock, ::toBeSynchronized)
+Another, often more convenient way is to pass a function literal (often referred to as lambda expression):
+
+val result = lock(lock, { sharedResource.operation() })
+Function literals are described in more detail below, but for purposes of continuing this section, let’s see a brief overview
+
+A function literal is always surrounded by curly braces,
+Its parameters (if any) are declared before -> (parameter types may be omitted),
+The body goes after -> (when present).
+In Kotlin, there is a convention that if the last parameter to a function is a function, then we can omit the parenthesis
+
+lock (lock) {
+  sharedResource.operation()
+}
+Another example of a higher order function would be map() (of Map/Reduce):
+
+fun <T, R> List<T>.map(transform : (T) -> R) : List<R> {
+  val result = ArrayList<R>()
+  for (item in this)
+    result.add(transform(item))
+  return result
+}
+This function can be called as follows
+
+val doubled = ints.map {it -> it * 2}
+One other convention helps is that if a function literal has only one parameter, its declaration may be omitted (along with the ->) and its name will be it
+
+ints map {it * 2} // Infix call + Implicit 'it'
+These conventions allow to write LINQ-style code
+
+strings filter {it.length == 5} sortBy {it} map {it.toUpperCase()}
+Inline Functions
+
+Using higher-order functions imposes certain runtime penalties: each function is an object, and it captures a closure, i.e. those variables that are accessed in the body of the function. Memory allocations (both for function objects and classes) and virtual calls introduce runtime overhead.
+
+But it appears that in many cases this kind of overhead can be eliminated by inlining the function literals. The functions shown above are good examples of this situation. I.e., the lock() function could be easily inlined at call-sites. Consider the following case:
+
+lock(l) {foo()}
+Instead of creating a function object for the parameter and generating a call, the compiler could emit the following code
+
+lock.lock()
+try {
+  foo()
+}
+finally {
+  lock.unlock()
+}
+Isn’t it what we wanted from the very beginning?
+
+To make the compiler do this, we need to annotate the lock() function with the inline annotation:
+
+inline fun lock<T>(lock : Lock, body : () -> T) : T {
+  // ...
+}
+Inlining may cause the generated code to grow, but if we do it in a reasonable way (do not inline big functions) it will pay off in performance, especially at “megamorphic” call-sites inside loops.
+
+Function Literals
+
+A function literal as an “anonymous function”, i.e. a function that is not declared, but passed immediately as an expression. Consider the following example:
+
+max(strings, {a, b -> a.length < b.length})
+Function max is a higher-order function, i.e. is takes a function value as the second argument. This second argument is an expression that is itself a function, i.e. a function literal. As a function, it is equivalent to
+
+fun compare(a : String, b : String) : Boolean = a.length < b.length
+Function Types
+
+For a function to accept another function as a parameter, we have to specify a function type for that parameter. For example the abovementioned function max is defined as follows:
+
+fun max<T>(collection : Collection<out T>, less : (T, T) -> Boolean) : T? {
+  var max : T? = null
+  for (it in collection)
+    if (max == null || less(max!!, it))
+      max = it
+  return max
+}
+The parameter less is of type (T, T) -> Boolean, i.e. a function that takes two parameters of type T and returns a Boolean: true if the first one is smaller than the second one.
+
+In the body, line 4, less is used as a function: it is called by passing two arguments of type T.
+
+A function type is written as above, or may have named parameters, for documentation purposes and to enable calls with named arguments.
+
+val compare : (x : T, y : T) -> Int = ...
+Syntactic form of function literals
+
+The full syntactic form of function literals, i.e. literals of function types, is as follows:
+
+val sum = {(x : Int, y : Int) : Int -> x + y}
+A function literal is always surrounded by curly braces, parameter declarations in the full syntactic form go inside parentheses and have optional type annotations, the optional return type annotation goes after the parameter list, the body goes after an ‘->’ sign. If we leave all the optional annotations out, what’s left looks like this:
+
+val sum : (Int, Int) -> Int = {(x, y) -> x + y}
+As this is the most common case, Kotlin allows us to leave the parentheses out as well, if no type annotations are present, and so we get the short syntactic form for functional literals:
+
+val sum : (Int, Int) -> Int = {x, y -> x + y}
+It very common that a function literal has only one parameter. If Kotlin can figure the signature out itself, it allows us not to declare the only parameter, and will implicitly declare it for us under the name it:
+
+ints.filter {it > 0} // this literal is of type '(it : Int) -> Boolean'
+Note that if a function takes another function as the last parameter, the function literal argument can be passed outside the parenthesized argument list. See Higher-order functions and the grammar for callSuffix.
+
+Closures
+
+A function literal (as well as a local function and object expressions) can access its closure, i.e. the variables declared in the outer scope. Unlike Java the closure variables can be modified:
+
+var sum = 0
+ints filter {it > 0} forEach {
+  sum += it
+}
+print(sum)
+Extension Function Literals
+
+In addition to ordinary functions, Kotlin supports extension functions. This kind of functions in so useful, that extension function literals are also supported. One of the most important examples of their usage is Type-safe Groovy-style builders.
+
+An extension function differs from an ordinary one in that it has a receiver type specification.
+
+val sum = {Int.(other : Int) : Int -> this + other}
+Receiver type may be specified only in the full syntactic form of a function literal (remember that parameter types and return type annotations are optional in this form).
+
+Such a literal has a function type with receiver
+
+sum : Int.(other : Int) -> Int
+it can be called with a dot or in infix form (since it has only one parameter)
+
+1.sum(2)
+1 sum 2
+
