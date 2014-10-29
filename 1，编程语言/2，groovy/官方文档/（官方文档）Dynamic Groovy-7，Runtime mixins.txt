@@ -1,7 +1,14 @@
 ﻿（官方文档）Dynamic Groovy-7，Runtime mixins
 http://groovy.codehaus.org/Runtime+mixins
 
-Last metaprogramming feature we'll cover today: runtime mixins. @Mixin allowed you to mixin new behavior to classes you owned and were designing. But you could not mixin anything to types you didn't own. Runtime mixins propose to fill that gap by letting you add a mixin on any type at runtime. If we think again about our example of vehicles with some mixed-in capabilities, if we didn't own James Bond's vehicle and give it some diving ability, we could use this mechanism:
+注释by hxzon
+====
+Last metaprogramming feature we'll cover today: runtime mixins. 
+@Mixin allowed you to mixin new behavior to classes you owned and were designing. 
+But you could not mixin anything to types you didn't own. 
+Runtime mixins propose to fill that gap by letting you add a mixin on any type at runtime. 
+If we think again about our example of vehicles with some mixed-in capabilities, 
+if we didn't own James Bond's vehicle and give it some diving ability, we could use this mechanism:
 
 
 // provided by a third-party
@@ -18,7 +25,10 @@ JamesBondVehicle.mixin DivingAbility, FlyingAbility
 
 assert new JamesBondVehicle().fly() ==
        "I'm the James Bond's vehicle and I fly!"
+
 assert new JamesBondVehicle().dive() ==
        "I'm the James Bond's vehicle and I dive!"
+
 One or more mixins can be passed as argument to the static mixin() method added by Groovy on Class.
+通过类的mixin() 方法混入其它类。
 

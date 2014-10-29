@@ -1,16 +1,24 @@
 ﻿（官方文档）Dynamic Groovy-9，Using methodMissing & propertyMissing
 http://groovy.codehaus.org/Using+methodMissing+and+propertyMissing
 
-Since 1.5, Groovy supports the concept of "methodMissing". This differs from invokeMethod in that it is only invoked in the case of failed method dispatch.
+注释by hxzon
+====
+Since 1.5, Groovy supports the concept of "methodMissing". 
+This differs from invokeMethod in that it is only invoked in the case of failed method dispatch.
 
 Using methodMissing with dynamic method registration
-Typically when using methodMissing the code will react in some way that makes it possible for the next time the same method is called, that it goes through the regular Groovy method dispatch logic.
 
-For example consider dynamic finders in GORM. These are implemented in terms of methodMissing. How does it work? The code resembles something like this:
+Typically when using methodMissing the code will react in some way that makes it possible for the next time the same method is called, 
+that it goes through the regular Groovy method dispatch logic.
+
+For example consider dynamic finders in GORM. 
+These are implemented in terms of methodMissing. 
+How does it work? The code resembles something like this:
 
 class GORM {
 
    def dynamicMethods = [...] // an array of dynamic methods that use regex
+
    def methodMissing(String name, args) {
        def method = dynamicMethods.find { it.match(name) }
        if(method) {
@@ -22,17 +30,25 @@ class GORM {
        else throw new MissingMethodException(name, delegate, args)
    }
 }
-Notice how, if we find a method to invoke then we dynamically register a new method on the fly using ExpandoMetaClass. This is so that the next time the same method is called it is more efficient. This way methodMissing doesn't have the overhead of invokeMethod AND is not expensive for the second call
 
+Notice how, if we find a method to invoke then we dynamically register a new method on the fly using ExpandoMetaClass. 
+This is so that the next time the same method is called it is more efficient. 
+This way methodMissing doesn't have the overhead of invokeMethod AND is not expensive for the second call
+
+====
 Using propertyMissing
-Groovy also supports propertyMissing for dealing with property resolution attempts. For a getter you use a propertyMissing definition that takes a String argument:
+
+Groovy also supports propertyMissing for dealing with property resolution attempts. 
+For a getter you use a propertyMissing definition that takes a String argument:
 
 class Foo {
    def propertyMissing(String name) { name }
 }
+
 def f = new Foo()
 
 assertEquals "boo", f.boo
+
 For a setters you add a second propertyMissing definition that takes a value argument:
 
 class Foo {
@@ -40,12 +56,16 @@ class Foo {
    def propertyMissing(String name, value) { storage[name] = value }
    def propertyMissing(String name) { storage[name] }
 }
+
 def f = new Foo()
 f.foo = "bar"
 
 assertEquals "bar", f.foo
+
 As with methodMissing you will likely want to dynamically register new properties at runtime to improve the performance of you code.
 
+====
 Static methods and properties
+
 You can add methodMissing and propertyMissing that deals with static methods and properties via ExpandoMetaClass
 
