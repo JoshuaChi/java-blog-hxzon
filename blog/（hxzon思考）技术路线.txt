@@ -102,7 +102,8 @@ js mvc（angularjs），js ui（jquery，extjs，dojo）。
 
 coffeescript：更简练的语法，编译成js。是否必要？
 
-dart：近似C#语法。自带虚拟机，也可编译成js。不感兴趣。
+dart：近似C#语法。自带虚拟机，也可编译成js。
+语义与js不同。非原型。不感兴趣。
 
 7，nodejs
 

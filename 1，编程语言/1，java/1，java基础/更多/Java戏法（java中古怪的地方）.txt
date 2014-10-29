@@ -1,0 +1,272 @@
+﻿Java戏法（java中古怪的地方）
+作者 Paulo Moreira ，译者 臧秀涛 发布于 2014年10月28日 |
+http://www.infoq.com/cn/articles/Java-Sleight-of-Hand
+
+============
+我们经常遇到这样的情况，有些代码的行为出乎意料。Java语言有很多奇怪的地方，即使有经验的开发者也可能会感到意外。
+
+老实说，经常有资历较浅的同事来问，“执行这段代码有什么样的结果？”，让人措手不及。“我可以告诉你，但是如果你自己找出答案，学到的会更多”，这是很常见的答复。现在可别这么说了，可以先吸引一下他的注意力（哦……我想我看到安吉丽娜·朱莉了，藏在我们的构建服务器后面呢，你可以快去看一下吗？），利用这个时间，快速过一下这篇文章吧。
+
+本文将介绍一些Java的奇怪之处，以帮助开发者做好更充分的准备，使他们再遇到结果令人意外的代码时，能够很好地应对。
+
+
+
+对于每个技巧，我们都会提供一些看似简单的代码，但是这段代码在编译时或运行时的行为就不那么直观了。表现如何，为什么会这样，我们会讲清楚背后的原理。这些例子的复杂性不同，有的非常简单，有的则很费脑细胞。
+
+不可理喻的标识符
+
+我们很熟悉定义合法的Java标识符的规则：
+
+一个标识符是由一个或多个字符（可以是字母、数字、$或下划线）组成的集合。
+标识符必须以字母、$或下划线开头。
+Java关键字不能用作标识符。
+标识符中的字符没有数量限制。
+也可以使用从\u00c0到\ud7a3之间的Unicode字符。
+规则非常简单，但有些有趣的例子会让人惊讶。比如，开发者可以将类名用作标识符，这是没有限制的：
+
+//类名可以用作标识符
+String String = "String"; 
+Object Object = null; 
+Integer Integer = new Integer(1); 
+//让代码难以理解怎么样？ 
+Float Double = 1.0f; 
+Double Float = 2.0d; 
+if (String instanceof String) {
+      if (Float instanceof Double) {
+          if (Double instanceof Float) {
+                System.out.print("Can anyone read this code???");
+            }
+      }
+ }
+下面的标识符也都是合法的：
+
+int $ =1;
+int € = 2;
+int £ = 3;
+int _ = 4;
+long $€£ = 5;
+long €_£_$ = 6;
+long $€£$€£$€£$€£$€£$€£$€_________$€£$€£$€£$€£$€£$€£$€£$€£$€£_____ = 7;
+此外，请记住，同样的名字可以同时用于变量和标签。通过分析上下文，编译器知道引用的是哪一个。
+
+int £ = 1;
+£: for (int € = 0; € < £; €++) {
+     if (€ == £) {
+         break £;
+     }
+}
+当然，不要忘了标识符的规则可以应用于变量名、方法名、标签和类名：
+
+class $ {} 
+interface _ {} 
+class € extends $ implements _ {}
+所以我们学到了很厉害的一招，那就是可以编写没有人能理解的代码，包括我们自己！
+
+NullPointerException从何而来？
+
+自动装箱是在Java 5中引入的，给我们带来了很多方便，我们不用在基本类型和其包装器类型之间跳来跳去了：
+
+int primitiveA = 1;
+Integer wrapperA = primitiveA;
+wrapperA++;
+primitiveA = wrapperA;
+运行时并没有为了支持这种变化而做修改，大部分工作都是编译时完成的。对于前面这段代码，编译器会生成类似下面这样的代码：
+
+int primitiveA = 1;
+Integer wrapperA = new Integer(primitiveA);
+int tmpPrimitiveA = wrapperA.intValue();
+tmpPrimitiveA++;
+wrapperA = new Integer(tmpPrimitiveA);
+primitiveA = wrapperA.intValue(); 
+前面的自动装箱也可以应用于方法调用：
+
+public static int calculate(int a) {
+     int result = a + 3;
+     return result;
+}
+public static void main(String args[]) {
+     int i1 = 1;
+     Integer i2 = new Integer(1);
+     System.out.println(calculate(i1));
+     System.out.println(calculate(i2));
+}
+真棒，对于以基本类型为参数的方法，我们可以向其传递相应的包装器类型，让编译器来执行变换：
+
+public static void main(String args[]) {
+     int i1 = 1;
+     Integer i2 = new Integer(1);
+     System.out.println(calculate(i1));
+     int i2Tmp = i2.intValue();
+     System.out.println(calculate(i2Tmp));
+} 
+稍作修改，再来试试：
+
+public static void main(String args[]) {
+     int i1 = 1;
+     Integer i2 = new Integer(1);
+     Integer i3 = null;
+     System.out.println(calculate(i1));
+     System.out.println(calculate(i2));
+     System.out.println(calculate(i3));
+}
+和前面一样，这段代码会被翻译成：
+
+public static void main(String args[]) {
+     int i1 = 1;
+     Integer i2 = new Integer(1);
+Integer i3 = null;
+     System.out.println(calculate(i1));
+     int i2Tmp = i2.intValue();
+     System.out.println(calculate(i2Tmp));
+     int i3Tmp = i3.intValue();
+     System.out.println(calculate(i3Tmp));
+}
+当然，这段代码会让我们看到老朋友NullPointerException。像下面这种更简单的情况，同样如此：
+
+public static void main(String args[]) {
+     Integer iW = null;
+     int iP = iW;
+}
+所以在使用自动拆箱时一定要非常小心，它可能导致NullPointerException；而在该特性引入之前，是不可能遇到此类异常的。更糟糕的是，识别这些代码模式有时并不容易。如果必须将一个包装器类型的变量转换成基本类型变量，而且不确定其是否可能为null，那就要为代码做好保护措施。
+
+包装器类型遭遇同一性危机
+
+继续自动装箱这个话题，看一下下面的代码：
+
+Short s1 = 1;
+Short s2 = s1;
+System.out.println(s1 == s2);
+当然打印true了。现在来点有趣的：
+
+Short s1 = 1;
+Short s2 = s1;
+s1++;
+System.out.println(s1 == s2);
+输出成了false。等等，什么情况？难道s1和s2引用的不是同一个对象吗？JVM真是疯了！还是用前面提到的代码翻译机制来看看吧：
+
+Short s1 = new Short((short)1);
+Short s2 = s1;
+short tempS1 = s1.shortValue();
+tempS1++;
+s1 = new Short(tempS1);
+System.out.println(s1 == s2);
+哦……这么看是更合理了，不是吗？使用自动装箱的时候总得小心！
+
+妈妈快看，没有异常！
+
+下面这个非常简单，但是很多有经验的Java开发者都会中招。闲话少说，看代码：
+
+NullTest myNullTest = null;
+System.out.println(myNullTest.getInt());
+当看到这段代码时，很多人会以为会出现NullPointerException。果真如此吗？看看其余代码再说：
+
+class NullTest {
+     public static int getInt() {
+         return 1;
+     }
+}
+永远记住，类变量和类方法的使用，仅仅依赖引用的类型。即使引用为null，仍然可以调用。从良好实践的角度来看，明智的做法是使用NullTest.getInt()来代替myNullTest.getInt()，但鬼知道什么时候会碰上这样的代码。
+
+变长参数和数组，必要的变通
+
+变长参数特性带来了一个强大的概念，可以帮助开发者简化代码。不过变长参数的背后是什么呢？不多不少，就是一个数组。
+
+public void calc(int... myInts) {} 
+calc(1, 2, 3);
+编译器会将前面的代码翻译成类似这样：
+
+int[] ints = {1, 2, 3};
+calc(ints);
+当心空调用语句，这相当于传递了一个null作为参数。
+
+calc();
+等价于
+int[] ints = null;
+calc(ints);
+当然，下面的代码会导致编译错误，因为两条语句是等价的：
+
+public void m1(int[] myInts) { ...    } 
+public void m1(int... myInts) { ...    }
+可变的常量
+
+大部分开发者认为，当变量定义中出现final关键字时，指示的就是一个常量，也就是说，这个变量的值不可改变。这并不完全正确，当final关键字应用于变量时，只是说明该变量只能赋值一次。
+
+class MyClass {
+     private final int myVar;
+     private int myOtherVar = getMyVar();
+     public MyClass() {
+         myVar = 10;
+     }
+     public int getMyVar() {
+         return myVar;
+     }
+     public int getMyOtherVar() {
+         return myOtherVar;
+     }
+     public static void main(String args[]) {
+         MyClass mc = new MyClass();
+         System.out.println(mc.getMyVar());
+         System.out.println(mc.getMyOtherVar());
+     }
+}
+前面的代码将打印10 0。因此，在处理final变量时，必须区分两种情况：一种是在编译时就赋了默认值的，这种就是常量；另一种是在运行时初始化的。
+
+覆盖的特色
+
+请记住，从Java 5开始，覆盖方法的返回类型可以与被覆盖方法不同。唯一的规则是，覆盖方法的返回类型是被覆盖方法的返回类型的子类型。所以在Java 5中下面的代码成了合法的：
+
+class A {
+     public A m() {
+         return new A();     
+}
+} 
+
+class B extends A {
+     public B m() {
+         return new B();
+     }
+}
+重载操作符
+
+就操作符重载而言，Java不是特别强，但它确实支持+操作符的重载。该操作符可以用于算术加法和字符串连接，具体取决于上下文。
+
+int val = 1 + 2;
+String txt = "1" + "2";
+当字符串中混入了数值类型，事情就复杂了。但是规则很简单，在遇到字符串操作数之前，会一直执行算术加法。一出现字符串，两个操作数都会被转为字符串（如果需要的话），并执行一次字符串连接。下面例子说明了不同的组合：
+
+System.out.println(1 + 2); //执行加法，打印3 
+
+System.out.println("1" + "2"); //执行字符串连接，打印12
+System.out.println(1 + 2 + 3 + "4" + 5); //执行加法，直到发现"4"，然后执行字符串连接，打印645
+
+System.out.println("1" + "2" + "3" + 4 + 5); //执行字符串连接，打印12345
+奇怪的日期格式
+
+这个花招与DateFormat的实现有关，其使用方式有一定的误导性，而且有的时候，代码到了产品中，问题才会暴露出来。
+
+DateFormat 的parse方法会解析一个字符串，并生成一个日期。解析过程是根据定义的日期格式掩码来工作的。根据JavaDoc，如果指定的字符串的开头部分无法解析，会抛出一个ParseException。这个定义很模糊，可以有不同的解释。大部分开发者认为，如果字符串参数与定义的格式不匹配，会抛出ParseException。但情况并非总是如此。
+
+对于SimpleDateFormat，大家应该非常小心。当面对下面的代码时，大部分开发者认为会抛出ParseException。
+
+String date = "16-07-2009";
+
+SimpleDateFormat sdf = new SimpleDateFormat("ddmmyyyy");
+try {     
+Date d = sdf.parse(date);
+     System.out.println(DateFormat.getDateInstance(DateFormat.MEDIUM,
+                     new Locale("US")).format(d));
+} catch (ParseException pe) {
+     System.out.println("Exception: " + pe.getMessage());
+}
+运行这段代码，会产生下列输出：Jan 16, 0007。真是奇怪，编译器竟然没有指出字符串与预期的格式不匹配，而是继续处理，而且尽其最大努力来解析文本。请注意，这里有两个隐藏的花招。其一，月份的掩码是MM，而mm用于分钟，这就解释了为什么月份被设置成了一月。其二，DecimalFormat类的parse方法将一直解析文本，直到遇到无法解析的字符，返回的是到目前这个位置已经处理过的数字。所以“7-20”将翻译成7年。这种差异很容易看出来，但如果使用的是“yyyymmdd”，情况就更复杂了，输出将是“Jan 7, 0016”。解析“16-0”，直到遇到第一个不可解析的字符，所以16会被当成年份。“-0”不会影响结果，它会被理解为0分钟。之后“7-”就被映射到天数了。
+
+译者注：文中关于自动装箱的说明不够准确，像“Integer wrapperA = primitiveA;”这条语句，编译器的处理策略是将其映射为“Integer wrapperA = Integer.valueOf(primitive);”,Short的处理类似。有兴趣的读者可以自行测试。
+
+另外，对Java谜题感兴趣的读者可以阅读Joshua Bloch的《Java解惑》一书，其中列出了很多容易出错的地方。
+
+关于作者
+
+Paulo Moreira是葡萄牙的一位自由软件工程师，目前在卢森堡的财政部门工作。他毕业于米尼奥大学，获得了计算机科学和系统工程的硕士学位。从2001年起，他一直使用Java，从事服务器端的开发工作，涉及电信、零售、软件和金融市场等领域。
+
+查看英文原文：Java Sleight of Hand
+

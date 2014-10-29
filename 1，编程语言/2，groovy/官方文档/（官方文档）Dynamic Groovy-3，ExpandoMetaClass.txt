@@ -132,6 +132,7 @@ Each time, we want to add / change several properties or methods of an existing 
 there is too much of a repetition of Type.metaClass.xxx. 
 Take for example this extract of a Unit manipulation DSL dealing with operator overloading:
 
+使用类的metaClass添加方法：
 
 Number.metaClass.multiply = { Amount amount -> amount.times(delegate) }
 Number.metaClass.div =      { Amount amount -> amount.inverse().times(delegate) }
@@ -161,12 +162,15 @@ Amount.metaClass {
 
 A metaClass() method takes a closure as single argument, containing the various definitions of the methods and properties, 
 instead of repeating the Type.metaClass on each line. 
-When there is just one method of a given name, use the pattern methodName
+When there is just one method of a given name, use the pattern
+添加或替换方法： 
+methodName { /* closure */ }, 
+but when there are several, you should use the append operator and follow the patten
+添加方法： 
+methodName <<{ /* closure */ }. 
 
-{ /* closure */ }, but when there are several, you should use the append operator and follow the patten methodName <<
-
-{ /* closure */ }. Static methods can also be added through this mechanism, so instead of the classical approach:
-
+Static methods can also be added through this mechanism, so instead of the classical approach:
+添加静态方法的快捷方式：
 
 // add a fqn() method to Class to get the fully
 // qualified name of the class (ie. simply Class#getName)
@@ -184,6 +188,7 @@ Class.metaClass {
 }
 
 Note here that you have to quote the static keyword, to avoid this construct to look like a static initializer. 
+注意，必须使用引号将static关键字括起，否则看起来像静态初始化块。
 For one off method addition, the classical approach is obviously more concise, 
 but when you have several methods to add, the EMC DSL makes sense.
 
@@ -200,6 +205,7 @@ new File('myFile.txt').wordCount
 When there is some logic inside the getter, this is certainly the best approach, 
 but when you just want to have new properties holding simple values, 
 through the ExpandoMetaClass DSL, it is possible to define them. 
+如果只是简单的bean属性。
 In the following example, a lastAccessed property is added to a Car class — each instance will have its property. 
 Whenever a method is called on that car, this property is updated with a newer timestamp.
 
@@ -241,6 +247,7 @@ println "Last accessed: ${car.lastAccessed ?: 'Never'}"
 
 In our example, in the DSL, we access that property through the delegate of the closure, 
 with delegate.lastAccessed = new Date(). 
+通过 delegate 来访问属性。
 And we intercept any method call thanks to invokeMethod(), delegating to the original method for the call, 
 and throwing an exception in case the method doesn't exist. 
 Later on, you can see by executing this script that lastAccessed is updated as soon as we call a method on our instance.
