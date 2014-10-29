@@ -1,0 +1,170 @@
+﻿（官方文档）Embedding Groovy
+http://groovy.codehaus.org/Embedding+Groovy
+
+http://groovy.codehaus.org/Embedding+a+Groovy+Console+in+a+Java+Server+Application
+http://groovy.codehaus.org/Integrating+Groovy+in+an+application+-+a+success+story
+
+====
+Groovy is a great language just on its own in various scenarios. 
+It is also extremely useful in mixed Groovy/Java environments. 
+With this in mind, Groovy has been designed to be very lightweight and easy to embed into any Java application system.
+
+There are three main approaches for natively integrating Groovy with Java. 
+Each of these is discussed in more detail below.
+主要有三种方法，在java中嵌入groovy。
+
+Alternatively, you can use the Bean Scripting Framework to embed any scripting language into your Java code, 
+giving you other language options if you needed them (though we can't imagine why (smile) ). 
+Using BSF allows you to be more loosely coupled to your scripting language; 
+however, native integration is more light weight and offers closer integration.
+
+====
+Evaluate scripts or expressions using the shell
+
+You can evaluate any expression or script in Groovy using the GroovyShell.
+
+The GroovyShell allows you to pass in and out variables via the Binding object.
+
+// call groovy expressions from Java code
+Binding binding = new Binding();
+binding.setVariable("foo", new Integer(2));
+GroovyShell shell = new GroovyShell(binding);
+
+Object value = shell.evaluate("println 'Hello World!'; x = 123; return foo * 10");
+assert value.equals(new Integer(20));
+assert binding.getVariable("x").equals(new Integer(123));
+
+====
+Evaluate Scripts with a Common Base Class
+
+It is often useful to make your groovy scripts extend a base class of your choosing 
+so that the script can access common methods. 
+This can be achieved by setting the script base class property 
+on the compile configuration and passing this new compiler configuration to the shell.
+
+class ScriptBaseTest {
+
+  @Test
+  void extend_groovy_script() {
+    def configuration = new CompilerConfiguration()
+    configuration.setScriptBaseClass("ScriptBaseTestScript")
+
+    def shell = new GroovyShell(this.class.classLoader, new Binding(), configuration)
+
+    assertEquals shell.evaluate("foo()"), "this is foo"
+  }
+}
+
+abstract class ScriptBaseTestScript extends Script {
+  def foo() {
+    "this is foo"
+  }
+}
+
+====
+Dynamically loading and running Groovy code inside Java
+动态加载和运行
+
+You can use the GroovyClassLoader to load classes dynamically into a Java program 
+and execute them (or use them) directly. 
+The following Java code shows an example:
+
+ClassLoader parent = getClass().getClassLoader();
+GroovyClassLoader loader = new GroovyClassLoader(parent);
+Class groovyClass = loader.parseClass(new File("src/test/groovy/script/HelloWorld.groovy"));
+
+// let's call some method on an instance
+GroovyObject groovyObject = (GroovyObject) groovyClass.newInstance();
+Object[] args = {};
+groovyObject.invokeMethod("run", args);
+
+If you have an interface you wish to use which you implement in the Groovy script you can use it as follows:
+
+GroovyClassLoader gcl = new GroovyClassLoader();
+Class clazz = gcl.parseClass(myStringwithGroovyClassSource, "SomeName.groovy");
+Object aScript = clazz.newInstance();
+MyInterface myObject = (MyInterface) aScript;
+myObject.interfaceMethod();
+  ...
+
+This works fine if the Groovy class implements the inferface MyInterface. 
+myObject can from then on be used as every other Java object implementing MyInterface.
+
+One thing to remember is that the parseClass will try to create an object from your String fileName.  
+Another way to do the gcl.parseClass is:
+
+Class clazz = gcl.parseClass(new File("SomeName.groovy");
+
+Full Example:
+
+TestInterface.java
+public interface TestInterface {
+    public void printIt();
+}
+
+Tester.groovy
+public class Tester implements TestInterface {
+    public void printIt() {
+        println "this is in the test class";
+    }
+}
+
+TestClass.java -- inside of a method
+String fileName = "Tester.groovy";
+GroovyClassLoader gcl = new GroovyClassLoader();
+Class clazz = gcl.parseClass(new File(fileName));
+Object aScript = clazz.newInstance();
+
+TestInterface ifc = (TestInterface) aScript;
+ifc.printIt();
+
+Note that all of the error handling has been removed -- you won't be able to do this in a java class. 
+I actually use the Interface invocation for Groovy inside of a Utility Class.
+
+====
+The GroovyScriptEngine
+
+The most complete solution for people who want to embed groovy scripts into their servers 
+and have them reloaded on modification is the GroovyScriptEngine. 
+You initialize the GroovyScriptEngine with a set of CLASSPATH like roots that can be URLs or directory names. 
+You can then execute any Groovy script within those roots. 
+The GSE will also track dependencies between scripts 
+so that if any dependent script is modified the whole tree will be recompiled and reloaded.
+当更新脚本时，能够跟踪依赖，自动重编译和重加载受影响的脚本。
+
+Additionally, each time you run a script you can pass in a Binding that contains properties that the script can access. 
+Any properties set in the script will also be available in that binding after the script has run. 
+Here is a simple example:
+
+/my/groovy/script/path/hello.groovy:
+
+output = "Hello, ${input}!"
+import groovy.lang.Binding;
+import groovy.util.GroovyScriptEngine;
+
+String[] roots = new String[] { "/my/groovy/script/path" };
+GroovyScriptEngine gse = new GroovyScriptEngine(roots);
+Binding binding = new Binding();
+binding.setVariable("input", "world");
+gse.run("hello.groovy", binding);
+System.out.println(binding.getVariable("output"));
+
+This will print "Hello, world!".
+
+====
+Embedding a Groovy Console in a Java Application
+
+An interactive Groovy interpreter can be embedded in a running application for experimentation and testing. 
+For a tutorial on how to do, including example code, 
+see the cookbook example Embedding a Groovy Console in a Java Server Application.
+
+An example for the integration of Groovy as scripting language into an application 
+can be found at Integrating Groovy in an application - a success story
+
+====
+Runtime dependencies
+
+You can use the groovy-all-x.y.z.jar from the GROOVY_HOME/embeddable directory of your Groovy installation, 
+or find the according artifact from your Gradle / Maven / Ant+Ivy build. 
+Please also have a look at the download section to see how to get Groovy.
+

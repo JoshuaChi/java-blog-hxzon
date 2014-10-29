@@ -1,0 +1,277 @@
+﻿Node.js 打造实时多人游戏框架
+by  Sean—前端开发 | 2014-10-28
+http://www.aliued.cn/2014/10/28/node-js-%E6%89%93%E9%80%A0%E5%AE%9E%E6%97%B6%E5%A4%9A%E4%BA%BA%E6%B8%B8%E6%88%8F%E6%A1%86%E6%9E%B6.html
+
+=======
+在 Node.js 如火如荼发展的今天，我们已经可以用它来做各种各样的事情。前段时间UP主参加了极客松活动，在这次活动中我们意在做出一款让“低头族”能够更多交流的游戏，核心功能便是 Lan Party 概念的实时多人互动。极客松比赛只有短得可怜的36个小时，要求一切都敏捷迅速。在这样的前提下初期的准备显得有些“水到渠成”。跨平台应用的 solution 我们选择了 node-webkit，它足够简单且符合我们的要求。
+
+按照需求，我们的开发可以按照模块分开进行。本文具体讲述了开发 Spaceroom（我们的实时多人游戏框架）的过程，包括一系列的探索与尝试，以及对 Node.js、WebKit 平台本身的一些限制的解决，和解决方案的提出。
+
+Getting started
+Spaceroom 一瞥
+在最开始，Spaceroom 的设计肯定是需求驱动的。我们希望这个框架可以提供以下的基础功能：
+
+能够以 房间(或者说频道) 为单位，区分一组用户
+能够接收收集组内用户发来的指令
+在各个客户端之间对时，能够按照规定的 interval 精确广播游戏数据
+能够尽量消除由网络延迟带来的影响
+当然，在 coding 的后期，我们为 Spaceroom 提供了更多的功能，包括暂停游戏、在各个客户端之间生成一致的随机数等（当然根据需求这些都可以在游戏逻辑框架里自己实现，并非一定需要用到 Spaceroom 这个更多在通信层面上工作的框架）。
+
+APIs
+Spaceroom 分为前后端两个部分。服务器端所需要做的工作包括维护房间列表，提供创建房间、加入房间的功能。我们的客户端 APIs 看起来像这样:
+
+spaceroom.connect(address, callback) – 连接服务器
+spaceroom.createRoom(callback) – 创建一个房间
+spaceroom.joinRoom(roomId) – 加入一个房间
+spaceroom.on(event, callback) – 监听事件
+……
+ 
+
+客户端连接到服务器后，会收到各种各样的事件。例如一个在一间房间中的用户，可能收到新玩家加入的事件，或者游戏开始的事件。我们给客户端赋予了“生命周期”，他在任何时候都会处于以下状态的一种：
+
+ss_0
+
+你可以通过 spaceroom.state 获取客户端的当前状态。
+
+使用服务器端的框架相对来说简单很多，如果使用默认的配置文件，那么直接运行服务器端框架就可以了。我们有一个基本的需求：服务器代码 可以直接运行在客户端中，而不需要一个单独的服务器。玩过 PS 或者 PSP 的玩家应该清楚我在说什么。当然，可以跑在专门的服务器里，自然也是极好的。
+
+逻辑代码的实现这里简略了。初代的 Spaceroom 完成了一个 Socket 服务器的功能，它维护房间列表，包括房间的状态，以及每一个房间对应的游戏时通信（指令收集，bucket 广播等）。具体实现可以参看源码。
+
+同步算法
+那么，要怎么才能使得各个客户端之间显示的东西都是实时一致的呢？
+
+这个东西听起来很有意思。仔细想想，我们需要服务器帮我们传递什么东西？自然就会想到是什么可能造成各个客户端之间逻辑的不一致：用户指令。既然处理游戏逻辑的代码都是相同的，那么给定同样的条件，代码的运行结果也是相同的。唯一不同的就是在游戏过程当中，接收到的各种玩家指令。理所当然的，我们需要一种方式来同步这些指令。如果所有的客户端都能拿到同样的指令，那么所有的客户端从理论上讲就能有一样的运行结果了。
+
+网络游戏的同步算法千奇百怪，适用的场景也各不相同。Spaceroom 采用的同步算法类似于帧锁定的概念。我们把时间轴分成了一个一个的区间，每一个区间称为一个 bucket。Bucket 是用来装载指令的，由服务器端维护。在每一个 bucket 时间段的末尾，服务器把 bucket 广播给所有客户端，客户端拿到 bucket 之后从中取出指令，验证之后执行。
+
+为了降低网络延迟造成的影响，服务器接到的来自客户端的指令每一个都会按照一定的算法投递到对应的 bucket 中，具体按照以下步骤：
+
+设 order_start 为指令携带的指令发生时间， t 为 order_start 所在 bucket 的起始时间
+如果 t + delay_time <= 当前正在收集指令的 bucket 的起始时间，将指令投递到 当前正在收集指令的 bucket 中，否则继续 step 3
+将指令投递到 t + delay_time 对应的 bucket 中
+ 
+
+其中 delay_time 为约定的服务器延迟时间，可以取为客户端之间的平均延迟，Spaceroom 里默认取值80，以及 bucket 长度默认取值48. 在每个 bucket 时间段的末尾，服务器将此 bucket 广播给所有客户端，并开始接收下一个 bucket 的指令。客户端根据收到的 bucket 间隔，在逻辑中自动进行对时，将时间误差控制在一个可以接受的范围内。
+
+这个意思是，正常情况下，客户端每隔 48ms 会收到从服务器端发来的一个 bucket，当到达需要处理这个 bucket 的时间时，客户端会进行相应处理。假设客户端 FPS=60，每隔 3帧 左右的时间，会收到一次 bucket，根据这个 bucket 来更新逻辑。如果因为网络波动，超出时间后还没有收到 bucket，客户端暂停游戏逻辑并等待。在一个 bucket 之内的时间，逻辑的更新可以使用 lerp 的方法。
+
+_2014_10_20_9_23_11
+
+在 delay_time = 80, bucket_size = 48 的情况下，任一指令最少会被延迟 96ms 执行。更改这两个参数，例如在 delay_time = 60, bucket_size = 32 的情况下，任一指令最少会被延迟 64ms 执行。
+
+计时器引发的血案
+整个看下来，我们的框架在运行的时候需要有一个精确的计时器。在固定的 interval 下执行 bucket 的广播。理所当然地，我们首先想到了使用setInterval()，然而下一秒我们就意识到这个想法有多么的不靠谱：调皮的 setInterval() 似乎有非常严重的误差。而且要命的是，每一次的误差都会累计起来，造成越来越严重的后果。
+
+于是我们马上又想到了使用 setTimeout()，通过动态地修正下一次到时的时间来让我们的逻辑大致稳定在规定的 interval 左右。例如此次setTimeout()比预期少了5ms, 那么我们下一次就让他提前5ms. 不过测试结果不尽人意，而且这怎么看都不够优雅。
+
+所以我们又要换一个思路。是否可以让 setTimeout() 尽可能快地到期，然后我们检查当前的时间是否到达目标时间。例如在我们的循环中，使用setTimeout(callback, 1) 来不停地检查时间，这看起来像是一个不错的主意。
+
+令人失望的计时器
+我们立即写了一段代码来测试我们的想法，结果令人失望。在目前最新的 node.js 稳定版(v0.10.32)以及 Windows 平台下，运行这样一段代码：
+
+var sum = 0, count = 0;
+function test() {
+  var now = Date.now();
+  setTimeout(function () {
+    var diff = Date.now() - now;
+    sum += diff;
+    count++;
+    test();
+  });
+}
+
+test();
+一段时间之后在控制台里输入 sum/count，可以看到一个结果，类似于：
+
+> sum / count
+15.624555160142348
+什么?!!我要 1ms 的间隔时间，你却告诉我实际的平均间隔为 15.625ms！这个画面简直是太美。我们在 mac 上做同样的测试，得到的结果是 1.4ms。于是我们心生疑惑：这到底是什么鬼？如果我是一个果粉，我可能就要得出 Windows 太垃圾然后放弃 Windows 的结论了，不过好在我是一名严谨的前端工程师，于是我开始继续思索起这个数字来。
+
+等等，这个数字为什么那么眼熟？15.625ms 这个数字会不会太像 Windows 下的最大计时器间隔了？立即下载了一个 ClockRes 进行测试，控制台一跑果然得到了如下结果：
+
+Maximum timer interval: 15.625 ms
+Minimum timer interval: 0.500 ms
+Current timer interval: 1.001 ms
+果不其然！查阅 node.js 的手册我们能看到这样一段对 setTimeout 的描述:
+
+The actual delay depends on external factors like OS timer granularity and system load.
+
+然而测试结果显示，这个实际延迟是最大计时器间隔(注意此时系统的当前计时器间隔只有 1.001ms)，无论如何让人无法接受，强大的好奇心驱使我们翻翻看 node.js 的源码来一窥究竟。
+
+Node.js 中的 BUG
+相信大部分你我都对 Node.js 的 even loop 机制有一定的了解，查看 timer 实现的源码我们可以大致了解到 timer 的实现原理，让我们从 event loop 的主循环讲起：
+
+while (r != 0 && loop->stop_flag == 0) {
+    /* 更新全局时间 */
+    uv_update_time(loop);
+    /* 检查计时器是否到期，并执行对应计时器回调 */
+    uv_process_timers(loop);
+
+    /* Call idle callbacks if nothing to do. */
+    if (loop->pending_reqs_tail == NULL &&
+        loop->endgame_handles == NULL) {
+      /* 防止event loop退出 */
+      uv_idle_invoke(loop);
+    }
+
+    uv_process_reqs(loop);
+    uv_process_endgames(loop);
+
+    uv_prepare_invoke(loop);
+
+    /* 收集 IO 事件 */
+    (*poll)(loop, loop->idle_handles == NULL &&
+                  loop->pending_reqs_tail == NULL &&
+                  loop->endgame_handles == NULL &&
+                  !loop->stop_flag &&
+                  (loop->active_handles > 0 ||
+                   !ngx_queue_empty(&loop->active_reqs)) &&
+                  !(mode & UV_RUN_NOWAIT));
+    /* setImmediate() 等 */
+    uv_check_invoke(loop);
+    r = uv__loop_alive(loop);
+    if (mode & (UV_RUN_ONCE | UV_RUN_NOWAIT))
+      break;
+  }
+其中 uv_update_time 函数的源码如下：（https://github.com/joyent/libuv/blob/v0.10/src/win/timer.c）
+
+void uv_update_time(uv_loop_t* loop) {
+  /* 获取当前系统时间 */
+  DWORD ticks = GetTickCount();
+
+  /* The assumption is made that LARGE_INTEGER.QuadPart has the same type */
+  /* loop->time, which happens to be. Is there any way to assert this? */
+  LARGE_INTEGER* time = (LARGE_INTEGER*) &loop->time;
+
+  /* If the timer has wrapped, add 1 to it's high-order dword. */
+  /* uv_poll must make sure that the timer can never overflow more than */
+  /* once between two subsequent uv_update_time calls. */
+  if (ticks < time->LowPart) {
+    time->HighPart += 1;
+  }
+  time->LowPart = ticks;
+}
+该函数的内部实现，使用了 Windows 的 GetTickCount() 函数来设置当前时间。简单地来说，在调用 setTimeout 函数之后，经过一系列的挣扎，内部的 timer->due 会被设置为当前 loop 的时间 + timeout。在 event loop 中，先通过 uv_update_time 更新当前 loop 的时间，然后在uv_process_timers 中检查是否有计时器到期，如果有就进入 JavaScript 的世界。通篇读下来，event loop大概是这样一个流程：
+
+更新全局时间
+检查定时器，如果有定时器过期，执行回调
+检查 reqs 队列，执行正在等待的请求
+进入 poll 函数，收集 IO 事件，如果有 IO 事件到来，将相应的处理函数添加到 reqs 队列中，以便在下一次 event loop 中执行。在 poll 函数内部，调用了一个系统方法来收集 IO 事件。这个方法会使得进程阻塞，直到有 IO 事件到来或者到达设定好的超时时间。调用这个方法时，超时时间设定为最近的一个 timer 到期的时间。意思就是阻塞收集 IO 事件，最大阻塞时间为 下一个 timer 的到底时间。
+Windows下 poll 函数之一的源码:
+
+static void uv_poll(uv_loop_t* loop, int block) {
+  DWORD bytes, timeout;
+  ULONG_PTR key;
+  OVERLAPPED* overlapped;
+  uv_req_t* req;
+
+  if (block) {
+    /* 取出最近的一个计时器的过期时间 */
+    timeout = uv_get_poll_timeout(loop);
+  } else {
+    timeout = 0;
+  }
+
+  GetQueuedCompletionStatus(loop->iocp,
+                            &bytes,
+                            &key,
+                            &overlapped,
+                            /* 最多阻塞到下个计时器到期 */
+                            timeout);
+
+  if (overlapped) {
+    /* Package was dequeued */
+    req = uv_overlapped_to_req(overlapped);
+    /* 把 IO 事件插入队列里 */
+    uv_insert_pending_req(loop, req);
+  } else if (GetLastError() != WAIT_TIMEOUT) {
+    /* Serious error */
+    uv_fatal_error(GetLastError(), "GetQueuedCompletionStatus");
+  }
+}
+按照上述步骤，假设我们设置了一个 timeout = 1ms 的计时器，poll 函数会最多阻塞 1ms 之后恢复（如果期间没有任何 IO 事件）。在继续进入 event loop 循环的时候， uv_update_time 就会更新时间，然后 uv_process_timers 发现我们的计时器到期，执行回调。所以初步的分析是，要么是uv_update_time 出了问题（没有正确地更新当前时间），要么是 poll 函数等待 1ms 之后恢复，这个 1ms 的等待出了问题。
+
+查阅 MSDN，我们惊人地发现对 GetTickCount 函数的描述：
+
+The resolution of the GetTickCount function is limited to the resolution of the system timer, which is typically in the range of 10 milliseconds to 16 milliseconds.
+
+GetTickCount 的精度是如此的粗糙！假设 poll 函数正确地阻塞了 1ms 的时间，然而下一次执行 uv_update_time 的时候并没有正确地更新当前 loop 的时间！所以我们的定时器没有被判定为过期，于是 poll 又等待了 1ms，又进入了下一次 event loop。直到终于 GetTickCount 正确地更新了（所谓15.625ms更新一次），loop 的当前时间被更新，我们的计时器才在 uv_process_timers 里被判定过期。
+
+向 WebKit 求助
+Node.js 的这段源码看得人很无助：他使用了一个精度低下的时间函数，而且没有做任何处理。不过我们立刻想到了既然我们使用 Node-WebKit，那么除了 Node.js 的 setTimeout，我们还有 Chromium 的 setTimeout。写一段测试代码，用我们的浏览器或者 Node-WebKit 跑一下：http://marks.lrednight.com/test.html#1 (#后面跟的数字表示需要测定的间隔)，结果如下图：
+
+ss_1
+
+按照 HTML5 的规范，理论结果应该是前5次结果是1ms，以后的结果是4ms。测试用例中显示的结果是从第3次开始的，也就是说表上的数据理论上应该是前3次都是1ms，之后的结果都是4ms。结果有一定的误差，而且根据规定，我们能拿到的最小的理论结果是4ms。虽然我们不满足，但显然这比 node.js 的结果让我们满意多了。强大的好奇心趋势我们看看 Chromium 的源码，看看他是如何实现的。(https://chromium.googlesource.com/chromium/src.git/+/38.0.2125.101/base/time/time_win.cc)
+
+首先，在确定 loop 的当前时间方面，Chromium 使用了 timeGetTime() 函数。查阅 MSDN 可以发现这个函数的精度受系统当前 timer interval 影响。在我们的测试机上，理论上也就是上文中提到过的 1.001ms。然而 Windows 系统默认情况下，timer interval 是其最大值（测试机上也就是 15.625ms），除非应用程序修改了全局 timer interval。
+
+如果你关注 IT界的新闻，你一定看过这样的一条新闻。看起来我们的 Chromium 把计时器间隔设定得很小了嘛！看来我们不用担心系统计时器间隔的问题了？不要开心得太早，这样的一条修复给了我们当头一棒。事实上，这个问题在 Chrome 38 中已经得到了修复。难道我们要使用修复以前的 Node-WebKit？这显然不够优雅，而且阻止了我们使用性能更高的 Chromium 版本。
+
+进一步查看 Chromium 源码我们可以发现，在有计时器，且计时器的 timeout < 32ms 时，Chromium 会更改系统的全局定时器间隔以实现小于 15.625ms 精度的计时器。(查看源码) 启动计时器时，一个叫 HighResolutionTimerManager 的东西会被启用，这个类会根据当前设备的电源类型，调用 EnableHighResolutionTimer 函数。具体来说，当前设备用电池时，他会调用EnableHighResolutionTimer(false)，而使用电源时会传入 true。EnableHighResolutionTimer 函数的实现如下:
+
+void Time::EnableHighResolutionTimer(bool enable) {
+  base::AutoLock lock(g_high_res_lock.Get());
+  if (g_high_res_timer_enabled == enable)
+    return;
+  g_high_res_timer_enabled = enable;
+  if (!g_high_res_timer_count)
+    return;
+  // Since g_high_res_timer_count != 0, an ActivateHighResolutionTimer(true)
+  // was called which called timeBeginPeriod with g_high_res_timer_enabled
+  // with a value which is the opposite of |enable|. With that information we
+  // call timeEndPeriod with the same value used in timeBeginPeriod and
+  // therefore undo the period effect.
+  if (enable) {
+    timeEndPeriod(kMinTimerIntervalLowResMs);
+    timeBeginPeriod(kMinTimerIntervalHighResMs);
+  } else {
+    timeEndPeriod(kMinTimerIntervalHighResMs);
+    timeBeginPeriod(kMinTimerIntervalLowResMs);
+  }
+}
+其中，kMinTimerIntervalLowResMs = 4，kMinTimerIntervalHighResMs = 1。timeBeginPeriod 以及timeEndPeriod 是 Windows 提供的用来修改系统 timer interval 的函数。也就是说在接电源时，我们能拿到的最小的 timer interval 是1ms，而使用电池时，是4ms。由于我们的循环不断地调用了 setTimeout，根据 W3C 规范，最小的间隔也是 4ms，所以松口气，这个对我们的影响不大。
+
+又一个精度问题
+回到开头，我们发现测试结果显示，setTimeout 的间隔并不是稳定在 4ms 的，而是在不断地波动。而 http://marks.lrednight.com/test.html#48 测试结果也显示，间隔在 48ms 和 49ms 之间跳动。原因是，在 Chromium 和 Node.js 的 event loop 中，等待 IO 事件的那个 Windows 函数调用的精度，受当前系统的计时器影响。游戏逻辑的实现需要用到 requestAnimationFrame 函数（不停更新画布），这个函数可以帮我们将计时器间隔至少设置为 kMinTimerIntervalLowResMs（因为他需要一个16ms的计时器，触发了高精度计时器的要求）。测试机使用电源的时候，系统的 timer interval 是 1ms，所以测试结果有 ±1ms 的误差。如果你的电脑没有被更改系统计时器间隔，运行上面那个#48的测试，max可能会到达48+16=64ms。
+
+使用 Chromium 的 setTimeout 实现，我们可以将 setTimeout(fn, 1) 的误差控制在 4ms 左右，而 setTimeout(fn, 48) 的误差可以控制在 1ms 左右。于是，我们的心中有了一幅新的蓝图，它让我们的代码看起来像是这样：
+
+/* Get the max interval deviation */
+var deviation = getMaxIntervalDeviation(bucketSize); // bucketSsize = 48, deviation = 2;
+function gameLoop() {
+  var now = Date.now();
+  if (previousBucket + bucketSize <= now) {
+    previousBucket = now;
+
+    doLogic();
+  }
+
+  if (previousBucket + bucketSize - Date.now() > deviation) {
+    // Wait 46ms. The actual delay is less than 48ms.
+    setTimeout(gameLoop, bucketSize - deviation);
+  } else {
+    // Busy waiting. Use setImmediate instead of process.nextTick because the former does not block IO events.
+    setImmediate(gameLoop);
+  }
+}
+上面的代码让我们等待一个误差小于 bucket_size( bucket_size – deviation) 的时间而不是直接等于一个 bucket_size，46ms 的 delay 即便发生了最大的误差，根据上文的理论，实际间隔也是小于48ms的。剩下的时间我们使用忙等待的方法，确保我们的 gameLoop 在足够精确的 interval 下执行。
+
+虽然我们利用 Chromium 在一定程度上解决了问题，但这显然不够优雅。
+
+还记得我们最初的要求吗？我们的服务器端代码是应该可以脱离 Node-Webkit 客户端的，直接在一台有 Node.js 环境的电脑中运行。如果直接跑上面的代码，deviation 的值至少是16ms，也就是说在每一个48ms中，我们要忙等待16ms的时间。CPU使用率蹭蹭蹭就上去了。
+
+意想不到的惊喜
+真是气人啊，Node.js 里这么大的一个BUG，没有人注意到吗？答案真是让我们喜出望外。这个BUG在 v.0.11.3 版本里已经得到了修复。直接查看 libuv 代码的 master 分支也能看到修改后的结果。具体的做法是，在 poll 函数等待完成之后，把 loop 的当前时间，加上一个 timeout。这样即便 GetTickCount 没有反应过来，在经过poll的等待之后，我们还是加上了这段等待的时间。于是计时器就能够顺利地到期了。
+
+也就是说，辛苦半天的问题，在 v.0.11.3 里已经得到了解决。不过，我们的努力不是白费的。因为即便消除了 GetTickCount 函数的影响，poll 函数本身也受到系统定时器的影响。解决方案之一，便是编写 Node.js 插件，更改系统定时器的间隔。
+
+不过我们这次的游戏，初步设定是没有服务器的。客户端建立房间之后，就成为了一个服务器。服务器代码可以跑在 Node-WebKit 的环境中，所以 Windows 系统下计时器的问题的优先级并不是最高的。按照上文中我们给出的解决方案，结果已经足够让我们满意。
+
+收尾
+解决了计时器的问题，我们的框架实现也就基本上再没什么阻碍了。我们提供了 WebSocket 的支持（在纯 HTML5 环境下），也自定义了通信协议实现了性能更高的 Socket 支持（Node-WebKit 环境下）。当然，Spaceroom 的功能在最初是比较简陋的，但随着需求的提出和时间的增加，我们也在逐渐地完善这个框架。
+
+例如我们发现在我们的游戏里需要生成一致的随机数的时候，我们就为 Spaceroom 加上了这样的功能。在游戏开始的时候 Spaceroom 会分发随机数种子，客户端的 Spaceroom 提供了利用 md5 的随机性，借助随机数种子生成随机数的方法。
+
+So far so good. 看起来还是蛮欣慰的。在编写这样一个框架的过程当中，也学到了很多的东西。如果你对 Spaceroom 有点兴趣，也可以参与到它当中来。相信，Spaceroom 会在更多的地方施展它的拳脚。
+
