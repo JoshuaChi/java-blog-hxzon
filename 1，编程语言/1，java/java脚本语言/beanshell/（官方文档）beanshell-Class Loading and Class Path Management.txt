@@ -1,0 +1,142 @@
+﻿（官方文档）beanshell-Class Loading and Class Path Management
+http://www.beanshell.org/manual/classpath.html
+
+========
+BeanShell is capable of some very fine grained and sophisticated class reloading and modifications to the class path. BeanShell can even map the entire class path to allow for automatic importing of classes.
+Changing the Class Path
+
+addClassPath( URL | path )
+Add the specified directory or archive to the classpath. Archives may be located by URL, allowing them to be loaded over the network.
+
+Examples:
+
+addClassPath( "/home/pat/java/classes" );
+addClassPath( "/home/pat/java/mystuff.jar" );
+addClassPath( new URL("http://myserver/~pat/somebeans.jar") );
+
+Note that if you add class path that overlaps with the existing Java user classpath then the new path will effectively reload the classes in that area.
+
+If you add a relative path to the classpath it is evaluated to an absolute path; it does not "move with you".
+
+cd("/tmp");
+addClassPath("."); // /tmp
+setClassPath( URL [] )
+
+Change the entire classpath to the specified array of directories and/or archives.
+
+This command has some important side effects. It effectively causes all classes to be reloaded (including any in the Java user class path at startup). Please see "Class Reloading" below for further details.
+
+Note: setClassPath() cannot currently be used to make the classpath smaller than the Java user path at startup.
+
+==
+Auto-Importing from the Classpath
+
+As an alternative to explicitly importing class names you may use the following statement to trigger automatic importing:
+import *;
+There may be a significant delay while the class path is mapped. This is why auto-importing is not turned on by default. When run interactively, Bsh will report the areas that it is mapping.
+
+It is only necessary to issue the auto-import command once. Thereafter changes in the classpath via the addClassPath() and setClassPath() commands will remap as necessary.
+
+Note: As of BeanShell 1.1alpha new class files added to the classpath (from outside of BeanShell) after mapping will not be seen in imports.
+
+====
+Reloading Classes
+
+BeanShell provides an easy to use mechanism for reloading classes from the classpath. It is possible in BeanShell to reload arbitrary subsets of classes down to a single class file. However There are subtle issues to be understood with respect to what it means to reload a class in the Java environment. Please see the discussion of class loading detail below. But in a nutshell, it is important that classes which work together be reloaded together at the same time, unless you know what you are doing.
+reloadClasses( [ package name ] )
+
+The most course level of class reloading is accomplished by issuing the reloadClasses() command with no arguments.
+
+reloadClasses();
+
+This will effectively reload all classes in the current classpath (including any changes you have made through addClassPath()).
+
+Note: that reloading the full path is actually a light weight operation that simply replaces the class loader - normal style class loading is done as classes are subsequently referenced.
+
+Be aware that any object instances which you have previously created may not function with new objects created by the new class loader. Please see the discussion of class loading details below.
+
+You can also reload all of the classes in a specified package:
+
+reloadClasses("mypackage.*");
+
+This will reload only the classes in the specified package. The classes will be reloaded even if they are located in different places in the classpath (e.g. if you have some of the package in one directory and some in another).
+
+As a special case for reloading unpackaged classes the following commands are equivalent:
+
+reloadClasses(".*") 
+reloadClasses("<unpackaged>")
+
+You can also reload just an individual class file:
+
+reloadClasses("mypackage.MyClass") 
+Note: As of alpha1.1 classes contained in archives (jar files) cannot be reloaded. i.e. jar files cannot be swapped.
+
+==
+Mapping the path
+
+Unlike the reloadClases() command which reloads the entire class path, when you issue a command to reload a package or individual class name BeanShell must map some portions of the classpath to find the location of those class files. This operation can be time consuming, but it is only done once. If running in interactive mode feedback will be given on the progress of the mapping.
+Loading Classes Explicitly
+
+In order to perform an explicit class lookup by name while taking into account any BeanShell class path modification you must use a replacement for the standard Class.forName() method.
+The getClass() command will load a class by name, using the BeanShell classpath. Alternately, you can consult the class manager explicitly:
+
+name="foo.bar.MyClass";
+c = getClass( name );
+c = BshClassManager.classForName( name );  // equivalent
+
+==
+Setting the Default ClassLoader
+
+The bsh.Interpeter setClassLoader() and bsh.BshClassManager.setClassLoader() methods can be used to set an external class loader which is consulted for all basic class loading in BeanShell.
+BeanShell will use the specified class loader at the same point where it would otherwise use the plain Class.forName(). If no explicit classpath management is done from the script (addClassPath(), setClassPath(), reloadClasses()) then BeanShell will only use the supplied classloader. If additional classpath management is done then BeanShell will perform that in addition to the supplied external classloader. However BeanShell is not currently able to reload classes supplied through the external classloader.
+
+========
+Class Loading in Java
+
+A fundamental Java security proposition is that classes may only be loaded through a class loader once 
+and that classes loaded through different class loaders live in different name spaces. 
+By different name spaces I mean that they are not considered to be of the same type, even if they came from the very same class file.
+You can think of this in the following way: 
+When you load classes through a new class loader imagine that every class name is prefixed with the identifier "FromClassLoaderXXX" 
+and that all internal references to other classes loaded through that class loader are similarly rewritten. 
+Now if you attempt to pass a reference to a class instance loaded through another class loader to one of your newly loaded objects, 
+it will not recognize it as the same type of class.
+一个类只能被一个加载器加载一次。不同的加载器加载的相同类，是视为不同类型的。
+
+BeanShell works with objects dynamically through the reflection API, 
+so your scripts will not have a problem recognizing reloaded class objects. 
+However any objects which have you already created might not like them.
+beanshell基于反射工作。
+但是之前已创建的实例，是没有新增的方法和字段的（hxzon：？）。
+
+====
+Class Loading in BeanShell
+
+The following is a discussion of the BeanShell class loader architecture, 
+which allows both course class path extension and fine grained individual class reloading.
+
+Thriftiness - Abiding by the BeanShell thriftiness proposition: 
+no class loading code is exercised unless directed by a command. 
+BeanShell begins with no class loader and only adds class loading in layers as necessary to achieve desired effects.
+
+The following diagram illustrates the two layer class loading scheme:
+
+
+A "base" class loader is used to handle course changes to the classpath including added path. 
+Unless directed by setClassPath() the base loader will only add path and will not cover existing Java user class path. 
+This prevents unnecessary class space changes for the existing classes.
+
+Packages of classes and individual classes are mapped in sets by class loaders capable of handling discrete files. 
+A mapping of reloaded classes is maintained. 
+The discrete file class loaders will also use this mapping to resolve names outside there space, 
+so when any individual class is reloaded it will see all previously reloaded classes as well.
+重新加载的类，可以看见之前加载的类。
+
+The BshClassManager knows about all class loader changes and broadcasts notification of changes to registered listeners. 
+BeanShell namespaces use this mechanism to dereference cached type information, however they do not remove existing object instances.
+会解除对缓存的类型信息的引用，但是不会移除已存在的对象实例。
+
+Type caching is extremely important to BeanShell performance. 
+So changing the classloader, which necessitates clearing all type caches, should be considered an expensive operation.
+更换类加载器，是一个昂贵的操作。
+
