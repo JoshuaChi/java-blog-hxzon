@@ -1,0 +1,56 @@
+﻿（官方文档）groovy-Bean Scripting Framework
+http://groovy.codehaus.org/Bean+Scripting+Framework
+http://commons.apache.org/proper/commons-bsf/
+
+Groovy integrates cleanly with BSF (the Bean Scripting Framework) which allows you to embed any scripting engine into your Java code while keeping your Java code decoupled from any particular scripting engine specifics.
+
+The BSF engine for Groovy is implemented by the GroovyEngine class; however, that fact is normally hidden away by the BSF APIs. You just treat Groovy like any of the other scripting languages via the BSF API.
+
+Note: Groovy has its own native support for integration with Java. See Embedding Groovy for further details. So you only need to worry about BSF if you want to also be able to call other languages from Java, e.g. JRuby or if you want to remain very loosely coupled from your scripting language.
+
+Getting started
+Provided you have Groovy and BSF jars in your classpath, you can use the following Java code to run a sample Groovy script:
+
+
+String myScript = "println('Hello World')\n  return [1, 2, 3]";
+BSFManager manager = new BSFManager();
+List answer = (List) manager.eval("groovy", "myScript.groovy", 0, 0, myScript);
+assertEquals(3, answer.size());
+Passing in variables
+BSF lets you pass beans between Java and your scripting language. You can register/unregister beans which makes them known to BSF. You can then use BSF methods to lookup beans as required. Alternatively, you can declare/undeclare beans. This will register them but also make them available for use directly in your scripting language. This second approach is the normal approach used with Groovy. Here is an example:
+
+
+manager.declareBean("xyz", new Integer(4), Integer.class);
+Object answer = manager.eval("groovy", "test.groovy", 0, 0, "xyz + 1");
+assertEquals(new Integer(5), answer);
+Other calling options
+The previous examples used the eval method. BSF makes multiple methods available for your use (see the BSF documentation for more details). One of the other available methods is apply. It allows you to define an anonymous function in your scripting language and apply that function to arguments. Groovy supports this function using closures. Here is an example:
+
+
+Vector ignoreParamNames = null;
+Vector args = new Vector();
+args.add(new Integer(2));
+args.add(new Integer(5));
+args.add(new Integer(1));
+Integer actual = (Integer) manager.apply("groovy", "applyTest", 0, 0,
+    "def summer = { a, b, c -> a * 100 + b * 10 + c }", ignoreParamNames, args);
+assertEquals(251, actual.intValue());
+Access to the scripting engine
+Although you don't normally need it, BSF does provide a hook that lets you get directly to the scripting engine. One of the functions which the engine can perform is to invoke a single method call on an object. Here is an example:
+
+
+BSFEngine bsfEngine = manager.loadScriptingEngine("groovy");
+manager.declareBean("myvar", "hello", String.class);
+Object myvar = manager.lookupBean("myvar");
+String result = (String) bsfEngine.call(myvar, "reverse", new Object[]{});
+assertEquals("olleh", result);
+Legacy points of interest
+If you must integrate with early version of BSF (i.e. prior to bsf 2.3.0-rc2) then you'll need to manually register the Groovy language with BSF using the following snippet of code:
+
+
+BSFManager.registerScriptingEngine(
+	"groovy",
+	"org.codehaus.groovy.bsf.GroovyEngine",
+	new String[] { "groovy", "gy" }
+);
+

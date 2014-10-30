@@ -14,7 +14,7 @@ It is used to convey information to the compiler about types,
 but can also be used by application developers for many purposes, 
 annotating data sources, policy etc.
 
-符号和集合支持元数据，元数据是关于符号和集合自身信息的一个映射。
+符号和集合支持元数据，元数据是关于“符号”和“集合”自身信息的一个映射。
 （arbitrary，随意。）
 元数据系统允许任意添加。
 （convey，传达。）
@@ -30,7 +30,7 @@ Two objects that differ only in metadata are equal.
 
 That said, metadata and its relationship to an object is immutable 
 - an object with different metadata is a different object.
-这意味着，元数据和对象之间的关系是不变的，
+元数据和对象之间的“连结”是不可删除修改的，
 一个对象拥有不同的元数据是不同的对象。
 
 （hxzon：拥有不同元数据的对象一定是不同的对象，但是可能相等。）
@@ -44,6 +44,35 @@ Returns the metadata of obj, returns nil if there is no metadata.
 Returns an object of the same type and value as obj, with map as its metadata.
 
 返回一个新对象，与原对象类型和值相同，加上元数据。
+
+（hxzon：
+Clojure编译器会自动将某些元素附加到Var对象上。
+
+:file是定义Var对象的那个文件的字符串名称。
+:line则是文件中定义Var对象所在的行数。
+:name是给Var对象提供名称的一个Symbol。
+:ns是一个Namespace对象，描述了定义Var对象的Namespace。
+:macro则是一个指示Var对象是一个宏而非函数或者绑定变量。
+:arglist是一序列向量，每个向量都描述了一个函数所能够接受的参数名称。
+记住,一个函数可以有多个参数列表和函数体。
+函数或者宏都是由一个Var对象来表示，有各自相关联的元数据。
+）
+
+====
+（2014.10.30）
+Metadata Reader Macros
+
+In addition to with-meta, there are a number of reader macros (The Reader: Macro Characters) for applying metadata to the expression following it:
+^{:doc "How obj works!"} obj - Sets the metadata of obj to the provided map.
+Equivalent to (with-meta obj {:doc "How obj works!"})
+^:dynamic obj - Sets the given keyword to true in the object's metadata.
+Equivalent to ^{:dynamic true} obj
+^String obj - Sets the value of :tag key in the object's metadata.
+Equivalent to ^{:tag java.lang.String} obj
+Used to hint an objects type to the Clojure compiler. See Java Interop: Type Hints for more information and a complete list of special type hints.
+
+It is possible to add multiple pieces of metadata by chaining the metadata reader macros together. 
+For example: ^:dynamic ^ints obj would apply both the :dynamic flag and ints type-hint to obj.
 
 ==========
 hxzon补充：
