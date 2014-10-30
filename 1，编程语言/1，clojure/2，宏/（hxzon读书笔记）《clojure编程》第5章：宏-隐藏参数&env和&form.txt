@@ -139,7 +139,7 @@ hxzon：
     (every? #(or (== 3 (count %))
                  (throw (IllegalArgumentException.
                             (format "`%s` provided to `%s` on line %s has < 3 elements"
-                                    %  ;整个有问题的数组参数
+                                    %  ;宏的参数
                                     (first &form)  ;宏的名字，有可能被重命名
                                     (-> &form meta :line)))))  ;用户代码使用宏的行号
             triples)

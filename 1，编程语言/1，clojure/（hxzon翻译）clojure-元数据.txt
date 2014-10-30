@@ -1,7 +1,6 @@
 （hxzon翻译）clojure-元数据
 
 by hxzon
-
 ===========
 http://clojure.org/metadata
 
@@ -54,7 +53,7 @@ Clojure编译器会自动将某些元素附加到Var对象上。
 :ns是一个Namespace对象，描述了定义Var对象的Namespace。
 :macro则是一个指示Var对象是一个宏而非函数或者绑定变量。
 :arglist是一序列向量，每个向量都描述了一个函数所能够接受的参数名称。
-记住,一个函数可以有多个参数列表和函数体。
+一个函数可以有多个参数列表和函数体。
 函数或者宏都是由一个Var对象来表示，有各自相关联的元数据。
 ）
 
@@ -62,17 +61,24 @@ Clojure编译器会自动将某些元素附加到Var对象上。
 （2014.10.30）
 Metadata Reader Macros
 
-In addition to with-meta, there are a number of reader macros (The Reader: Macro Characters) for applying metadata to the expression following it:
+In addition to with-meta, there are a number of reader macros (The Reader: Macro Characters) 
+for applying metadata to the expression following it:
+
 ^{:doc "How obj works!"} obj - Sets the metadata of obj to the provided map.
 Equivalent to (with-meta obj {:doc "How obj works!"})
+
 ^:dynamic obj - Sets the given keyword to true in the object's metadata.
 Equivalent to ^{:dynamic true} obj
+
 ^String obj - Sets the value of :tag key in the object's metadata.
 Equivalent to ^{:tag java.lang.String} obj
-Used to hint an objects type to the Clojure compiler. See Java Interop: Type Hints for more information and a complete list of special type hints.
+
+Used to hint an objects type to the Clojure compiler. 
+See Java Interop: Type Hints for more information and a complete list of special type hints.
 
 It is possible to add multiple pieces of metadata by chaining the metadata reader macros together. 
-For example: ^:dynamic ^ints obj would apply both the :dynamic flag and ints type-hint to obj.
+For example: ^:dynamic ^ints obj 
+would apply both the :dynamic flag and ints type-hint to obj.
 
 ==========
 hxzon补充：
@@ -138,17 +144,18 @@ The metadata reader macro first reads the metadata and attaches it to the next f
 ^{:a 1 :b 2} [1 2 3] yields the vector [1 2 3] with a metadata map of {:a 1 :b 2}.
 
 元数据是一个映射，添加到如下对象：符号，列表，向量，集合，映射，
-标记字面量返回IMeta（？），记录，类型，和构造器。
+返回IMeta的标记字面量（？见《clojure-读者》），记录，类型，和构造器。
 尖波号读取一个映射字面量，然后将它作为元数据添加到下一个形式。
 
 A shorthand version allows the metadata to be a simple symbol or string, 
-in which case it is treated as a single entry map with a key of :tag and a value of the (resolved) symbol or string, e.g.:
+in which case it is treated as a single entry map with a key of :tag 
+and a value of the (resolved) symbol or string, e.g.:
 
 ^String x is the same as ^{:tag java.lang.String} x
 
 Such tags can be used to convey type information to the compiler.
 
-如果元数据是一个简单的符号或字符串，可以缩写。
+如果:tag元数据的值是一个简单的符号或字符串，可以缩写。
 例如 ^{:tag java.lang.String} x ，可缩写成 ^String x 。
 这种标记可以用来向编译器提供类型信息。
 
@@ -169,3 +176,4 @@ Metadata can be chained in which case they are merged from right to left.
 
 (meta ^:private ^:dynamic [1 2 3])
 ;= {:dynamic true, :private true}
+
