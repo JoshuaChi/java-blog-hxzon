@@ -14,7 +14,7 @@ ns-unmap。remove-ns。
 3，keyword，symbol，name，intern，namespace，keyword?，symbol? 。
 
 ==========
-clojure的命名空间，是从符号到java类名和var的动态映射。
+clojure的命名空间，是从“符号”到“java类名”和“var”的动态映射。
 
 1，ns。
 
