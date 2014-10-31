@@ -13,7 +13,7 @@ Namespaces
 命名空间。
 
 Namespaces are mappings from simple (unqualified) symbols to Vars and/or Classes.
-命名空间是一个映射，将无限定符号映射到Var或者java类。
+命名空间是一个映射，将“无限定符号”映射到“Var”或者“java类”。
  
 Vars can be interned in a namespace, using def or any of its variants, 
 in which case they have a simple symbol for a name and a reference to their containing namespace,
@@ -24,7 +24,7 @@ Var通过def及其变体，池化到一个命名空间。
 A namespace can also contain mappings from symbols to vars interned in other namespaces by using refer or use, 
 or from symbols to Class objects by using import. 
 
-可以使用refer或者user，从另一个命名空间导入符号到Var的映射。
+可以使用refer或者use，从另一个命名空间导入符号到Var的映射。
 可以使用import，导入java类的简名。
 
 Note that namespaces are first-class, they can be enumerated etc.

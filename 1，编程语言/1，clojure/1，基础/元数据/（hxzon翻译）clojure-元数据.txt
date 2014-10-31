@@ -60,6 +60,7 @@ Clojure编译器会自动将某些元素附加到Var对象上。
 ====
 （2014.10.30）
 Metadata Reader Macros
+元数据读者宏
 
 In addition to with-meta, there are a number of reader macros (The Reader: Macro Characters) 
 for applying metadata to the expression following it:
@@ -79,6 +80,7 @@ See Java Interop: Type Hints for more information and a complete list of special
 It is possible to add multiple pieces of metadata by chaining the metadata reader macros together. 
 For example: ^:dynamic ^ints obj 
 would apply both the :dynamic flag and ints type-hint to obj.
+串联元数据。
 
 ==========
 hxzon补充：
@@ -138,6 +140,7 @@ user=> (meta stu-with-address)
 
 Metadata is a map associated with some kinds of objects: Symbols, Lists, Vector, Sets, Maps, 
 tagged literals returning an IMeta, and record, type, and constructor calls. 
+
 The metadata reader macro first reads the metadata and attaches it to the next form read
 (see with-meta to attach meta to an object):
 
@@ -145,6 +148,7 @@ The metadata reader macro first reads the metadata and attaches it to the next f
 
 元数据是一个映射，添加到如下对象：符号，列表，向量，集合，映射，
 返回IMeta的标记字面量（？见《clojure-读者》），记录，类型，和构造器。
+
 尖波号读取一个映射字面量，然后将它作为元数据添加到下一个形式。
 
 A shorthand version allows the metadata to be a simple symbol or string, 

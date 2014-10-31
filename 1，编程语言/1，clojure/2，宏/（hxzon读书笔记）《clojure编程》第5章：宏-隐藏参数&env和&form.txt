@@ -227,9 +227,9 @@ hxzon：
                         ~result (if or# or# (OR ~@next))]
                     ~result))))
 
-;hxzon理解：这个宏，返回 (let [res001 xv] res001)，res001带有元数据，xv是它的值
-;hxzon理解：本地绑定是一个存储位置，let将值写入这个存储位置，不影响这个存储位置的元数据。
+;hxzon理解：这个宏，返回 (let [^{:x x :y y} res001 xv] res001) ？
 
+==
 (binding [*print-meta* true]
          (prn (macroexpand '^String (OR a b))))
 ; (let* [or__1176__auto__ a
