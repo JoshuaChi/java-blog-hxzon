@@ -218,8 +218,8 @@ hxzon：
 (defmacro OR
     ([] nil)
     (   [x]
-        (let [result (with-meta (gensym "res") (meta &form))]   ;result存放一个符号，这个符号带有 &form 的元数据。
-             `(let [~result ~x]   ;result求值得到 res001，x求值后绑定到res001（不影响res001的元数据？），最后，返回res001（带有元数据）。
+        (let [result (with-meta (gensym "res") (meta &form))]   ;gensym生成一个唯一符号res001，这个符号带有 &form 的元数据，绑定到result。
+             `(let [~result ~x]   ;hxzon理解：这个宏，返回 (let [res001 xv] res001) ，res001 带有元数据。
                    ~result)))
     (   [x & next]
         (let [result (with-meta (gensym "res") (meta &form))]
@@ -227,7 +227,6 @@ hxzon：
                         ~result (if or# or# (OR ~@next))]
                     ~result))))
 
-;hxzon理解：这个宏，返回 (let [^{:x x :y y} res001 xv] res001) ？
 
 ==
 (binding [*print-meta* true]

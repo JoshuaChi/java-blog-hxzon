@@ -44,6 +44,7 @@
  ^{:arglists '([& items])
    :doc "Creates a new list containing the items."
    :added "1.0"}
+
   list (. clojure.lang.PersistentList creator))
 
 ;构建序列：
@@ -66,6 +67,8 @@
   ^{:macro true
     :added "1.0"}
   let (fn* let [&form &env & decl] (cons 'let* decl)))
+; 生成 (let* decl)
+
 
 ;----
 ;loop：
@@ -106,6 +109,7 @@
                (recur (conj ret (first s)) (next s))
                (seq ret)))))
 
+;==========
 ;定义函数（defn）：
 
 (def 
@@ -119,10 +123,10 @@
 
  defn (fn defn [&form &env name & fdecl]
         ;; Note: Cannot delegate this check to def because of the call to (with-meta name ..)
-        (if (instance? clojure.lang.Symbol name)
+        (if (instance? clojure.lang.Symbol name)        ;检查函数名name是否是一个符号
           nil
           (throw (IllegalArgumentException. "First argument to defn must be a symbol")))
-        (let [m (if (string? (first fdecl))     ;如果fdecl第一个元素是字符串，视为文档参数，放入m。
+        (let [m (if (string? (first fdecl))     ;如果fdecl第一个元素是字符串，视为文档参数，放入m，并设为:doc元数据。
                   {:doc (first fdecl)}
                   {})
               fdecl (if (string? (first fdecl))     ;除掉fdecl开头的文档参数，如果有。
@@ -549,10 +553,12 @@
   are made in parallel (unlike let); all init-exprs are evaluated
   before the vars are bound to their new values."
   {:added "1.0"}
+
   [bindings & body]
   (assert-args
     (vector? bindings) "a vector for its binding"   ;绑定表达式必须是一个向量。
     (even? (count bindings)) "an even number of forms in binding vector")   ;绑定表达式的向量必须是偶数个元素。
+
   (let [var-ize (fn [var-vals]
                   (loop [ret [] vvs (seq var-vals)]
                     (if vvs
@@ -682,17 +688,20 @@
   else returns form."
   {:added "1.0"
    :static true}
+
   [form]
     (. clojure.lang.Compiler (macroexpand1 form)))
 
+==
 (defn macroexpand
   "Repeatedly calls macroexpand-1 on form until it no longer
   represents a macro form, then returns it.  Note neither
   macroexpand-1 nor macroexpand expand macros in subforms."
   {:added "1.0"
    :static true}
+
   [form]
-    (let [ex (macroexpand-1 form)]
+    (let [ex (macroexpand-1 form)]      ;递归，直到macroexpand-1后与macroexpand-1前相同
       (if (identical? ex form)
         form
         (macroexpand ex))))
@@ -773,7 +782,9 @@
   Evaluates the exprs in a lexical context in which the symbols in
   the binding-forms are bound to their respective init-exprs or parts
   therein."
+
   {:added "1.0", :special-form true, :forms '[(let [bindings*] exprs*)]}
+
   [bindings & body]
   (assert-args
      (vector? bindings) "a vector for its binding"
@@ -810,8 +821,10 @@
   name => symbol
 
   Defines a function"
+
   {:added "1.0", :special-form true,
    :forms '[(fn name? [params* ] exprs*) (fn name? ([params* ] exprs*)+)]}
+
   [& sigs]
     (let [name (if (symbol? (first sigs)) (first sigs) nil)  ;第一个元素是否是符号（可选的内部函数名）
           sigs (if name (next sigs) sigs)  ;移除内部函数名，如果有
@@ -1021,8 +1034,10 @@
   Takes a vector of function specs and a body, and generates a set of
   bindings of functions to their names. All of the names are available
   in all of the definitions of the functions, as well as the body."
+
   {:added "1.0", :forms '[(letfn [fnspecs*] exprs*)],
    :special-form true, :url nil}
+
   [fnspecs & body] 
   `(letfn* ~(vec (interleave (map first fnspecs) 
                              (map #(cons `fn %) fnspecs)))
