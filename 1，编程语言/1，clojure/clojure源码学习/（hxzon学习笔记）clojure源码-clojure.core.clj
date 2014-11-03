@@ -8,7 +8,7 @@
 ;let*
 
 ;=====
-;反引述和编接反引述，只是声明，没有实现。
+;反引述和编接反引述，只是声明，没有实现。见 SyntaxQuoteReader，UnquoteReader 。
 
 (def unquote)
 (def unquote-splicing)

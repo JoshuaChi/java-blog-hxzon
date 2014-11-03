@@ -271,6 +271,17 @@ hxzon：
                             `(let [or# ~x]
                                   (if or# or# (or ~@next))))))	;这里为or？前面例子为OR？
 
+（hxzon补充：
+
+(let [x ^ByteBuf 'x] (prn (meta x)))
+;nil
+;这种写法是给 'x 添加类型提示？
+
+(let [x (with-meta 'x {:tag ByteBuf})] (prn (meta x)))
+;{:tag io.netty.buffer.ByteBuf}
+
+）
+
 =======
 3，测试上下文相关的宏
 
