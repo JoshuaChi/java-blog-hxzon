@@ -1,26 +1,53 @@
-//（hxzon读书笔记）clojure源码-简单的类.java
+（hxzon读书笔记）clojure源码品读
 
+by hxzon
+====
 1，基本概念
 
 Var
 根值，线程绑定值。
 
+(var a)，特殊形式，获得a所对应的Var 。
+见 clojure.lang.LispReader.EvalReader，clojure.lang.LispReader.VarReader 。
+见 clojure.lang.Compiler.TheVarExpr 。
+
+==
 Namespace
 命名空间，存放Symbol到Var的映射。
 
 Symbol
 
+Keyword
+
 IFn
 
+====
 2，LispReader
 读取器（读者宏）
 
+LispReader.read(PushbackReader r, boolean eofIsError, Object eofValue, boolean isRecursive)
+LispReader.interpretToken(String s)
+LispReader.matchSymbol(String s)
+
+====
 3，Compiler
 特殊形式的定义，字节码生成。
 
+Expr Compiler.analyze(C context, Object form, String name)
+Expr Compiler.analyzeSymbol(Symbol sym)  ：解析符号，识别成Var或类名，否则抛出异常。
+Compiler.VarExpr ：var（符号）求值（解引用），得到它的线程绑定值，或根值。
+
+Compiler.LetExpr
+
+Compiler.InvokeExpr ：求值成函数，并调用该函数。
+
+Compiler.DefExpr  ：(def sym "doc string" initExpr)
+
+====
 4，RT
 各种操作方法（序列操作，映射表操作，数组操作，数据类型转换等）的实现。
 
+====
 5，core.clj
 
 核心宏，核心函数定义。

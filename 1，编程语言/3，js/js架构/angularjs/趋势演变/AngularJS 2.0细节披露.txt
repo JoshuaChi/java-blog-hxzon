@@ -1,0 +1,50 @@
+﻿AngularJS 2.0细节披露
+作者 David Iffland ，译者 邵思华 发布于 2014年11月2日 |
+http://www.infoq.com/cn/news/2014/11/angular-2-atscript
+
+上周在巴黎举行的ng-europe大会上，Angular团队为与会者介绍了即将到来的AngularJS 2.0版本的细节。新版本对1.x版本进行了重大的颠覆，当前还没有任何迁移指南，此外它还是基于一个名为AtScript的新语言进行开发的。
+
+对于熟悉Angular 1.X版本的开发者来说，他们将看到一个完全不同的框架，并且必须学习一种新的架构。在一堂关于版本2.0的变更的讲座中，Igor Minar 和 Tobias Bosch介绍了新的模板语法：
+
+<input type="text" [value]="firstName">
+<button (click)="addPerson()">Add</button>
+这种新语法将数据绑定到元素的属性（property）上，而不是特性（attribute）上。这就允许你使用以下语法：
+
+<input type="checkbox" [checked]="someProperty">
+看上去类似于标准的HTML，但这个复选框元素不会暴露出checked特性。新的模板引擎将数据绑定到元素的属性上，即使这些属性并非由DOM所暴露出的特性。
+
+与新架构引起的其它剧变相比，新的模板语法只是一个相对较小的改动。与会者之一的Michael Bromley描述了一些新版本的一些破坏性改动，版本2.0取消了1.X中的以下概念
+
+控制器（Controller）
+（Directive定义对象）
+$scope
+angular.module
+jqLite
+关于jqLite的取消，Igor是这样说的：
+
+在2.0中，我们不会在框架中使用任何DOM的封装了，而是直接和原始的DOM打交道。自从我们启动项目以来，DOM本身已经得到了很大的改善，因此我们不再需要一个兼容层来帮助我们应付跨浏览器的问题了。所以我们可以直接操作原始的DOM。不过如果你想要使用jQuery，在你的组件中应用jQuery，那也完全没问题。
+
+2.0版本的一个目标是改善Angular应用的开发体验，在第2天的主题演讲上，AngularJS之父Miško Hevery描述了如何通过使用AtScript来实现这一目标。
+
+AtScript是TypeScript的一个超集，后者是由微软创建的一门语言。TypeScript为JavaScript加入了类型，而AtScript进一步扩展了这一思想，它为类型加入了标注与动态注入。
+
+标注允许开发者为某个类加入“表达意图”的能力。因此，无需通过模板代码的方式创建自定义directive，开发者可以创建一个类，并告诉AngularJS“这是一个directive”。而动态注入的能力允许框架在运行时检查类型信息。
+
+不过，AtScript的使用是可选的，开发Angular 2.0应用并不一定要使用AtScript。Miško说道：由于现在的社区和类库都是使用纯JavaScript开发的，因此不强迫AtScript的使用是非常重要的目标。而由于AtScript可以直接编译为EcmaScript 5（ES5），因此开发者可以直接编写Angular 2.0。
+
+在一次问答讲座上，开发者们问道Angular 1.3还将获得多长时间的支持。Brad Green是这样回答的：
+
+比较合理的期望是，我们大约还需要1年半至2年时间以发布2.0的最终版本，这段时间内我们还会为1.3提供缺陷修复及安全补丁。
+
+Angular团队还暗示他们没有为从Angular 1.X迁移到2.0提供迁移指南，但他们也不排除这种可能。目前还没有确切的发布日期，不过团队基本达成了共识，会在2015年终最终完成版本2.0。
+
+Brad Green还表示，Angular 2.0只会支持“最新的浏览器”，但没有指出确切的版本。他说他们的团队“在尝试基于未来的标准进行开发，而不是关注于现有的标准”。
+
+开发者们对于这次重大变更的感觉可谓是五味陈杂。Hacker News的用户zak_mc_kracken说道：
+
+虽然新版本依然叫做“Angular”，但它与之前的版本几乎没有多少相似之处，它完全是一个新的框架。一想到我对于Angular 1所掌握的全部知识都将成为过期的内容，就禁不住感到有点儿悲伤，但我也很期待对这个新的框架进行一番研究。如果它的革新性能够达到Angular 1的一半，那我就会从中获得很大的乐趣。
+
+ng-europe大会的视频曾被短暂地上传到YouTube上，但很快就被删除了。按照ng-europe的Twitter帐号的说法，“他们将会在之后的两周内上传所有的视频”。在那之前，开发者可以参考Angular 2.0设计文档，并且查看GitHub上的代码库。
+
+查看英文原文：AngularJS 2.0 Details Emerge
+

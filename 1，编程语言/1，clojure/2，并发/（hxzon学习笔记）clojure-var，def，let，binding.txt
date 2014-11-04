@@ -31,7 +31,7 @@ set! ，替换动态var在本地绑定的当前值。
 --
 5，
 varA捕获当时的值。
-#‘varA捕获此时的值。
+#'varA捕获此时的值。
 
 (defn a [x] (+ 5 x))
 ;= #'user/a
@@ -41,6 +41,8 @@ varA捕获当时的值。
 
 (def c (partial #'a 5))
 ;= #'user/c
+;hxzon：即 (def c (partial (var a) 5))
+
 
 (b)
 ;= 10
@@ -48,7 +50,7 @@ varA捕获当时的值。
 (c)
 ;= 10
 
-(defn a [x] (+10 b))
+(defn a [x] (+ 10 x))
 ;= #'user/a
 
 (b)

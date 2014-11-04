@@ -37,13 +37,20 @@ let绑定是不允许有名字空间的。
 
 (import 'io.netty.buffer.ByteBuf)
 
-(def cmdHandles (ref {}))
+(def cmd-fns (ref {}))
 
 (defmacro def-cmd [cmd & body]
-	`(dosync (alter cmdHandles assoc ~cmd (fn [ ~'byteBuf  ~'ctx] ~@body))))
+	`(dosync (alter cmd-fns assoc ~cmd (fn [ ~'byteBuf  ~'ctx] ~@body))))
 
 (defn remove-client [^Channel channel]
 	(dosync (alter dissoc clientChannels channel)))
+
+给宏生成的代码添加类型提示（通过引入本地绑定）：
+
+(defmacro def-cmd [cmd & body]
+  (let [byteBuf (with-meta 'byteBuf { :tag ByteBuf } ) 
+          ctx (with-meta 'ctx { :tag ChannelHandlerContext }) ]
+    `(dosync (alter cmd-fns assoc ~cmd (fn [ ~byteBuf  ~ctx] ~@body)))))
 
 ====
 4，(with-out-str & body)
