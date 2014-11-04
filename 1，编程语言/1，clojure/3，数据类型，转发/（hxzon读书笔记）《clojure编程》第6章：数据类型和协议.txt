@@ -1,7 +1,7 @@
 （hxzon读书笔记）《clojure编程》第6章：数据类型和协议
 
 by hxzon
-
+====
 摘要：
 1，动态表达力问题：让已有类型实现新接口。
 2，协议。
@@ -38,6 +38,7 @@ by hxzon
 这个问题的前半部分，任何面向对象的语言都提供了这个能力。
 这个问题的后半部分，很少有语言尝试解决。
 
+========
 2，协议
 
 clojure里面接口的对应物我们成为“协议”，而“接口”这个词特指java接口。
@@ -68,7 +69,7 @@ clojure里面接口的对应物我们成为“协议”，而“接口”这个�
 
 不需要实现协议定义的所有方法，如果调用到那些没有实现的方法，会抛出异常。
 
-----
+====
 extend-protocol把一个协议扩展到多个类型，
 extend-type把多个协议扩展到一个类型。
 
@@ -90,7 +91,7 @@ extend-type把多个协议扩展到一个类型。
 
 因为这些实现函数是命名空间限定的，所以一个协议的方法不会跟另外一个协议的方法相冲突。
 
---
+==
 示例：矩阵协议。
 
 (defprotocol Matrix
@@ -172,7 +173,7 @@ extend-type把多个协议扩展到一个类型。
 (dims matrix)
 ;= [2 3]
 
-===========
+========
 3，定义新类型：deftype，defrecord
 
 记录类型：(defrecord Point [x y])
@@ -196,7 +197,7 @@ extend-type把多个协议扩展到一个类型。
 (map meta (NamedPoint/getBasis))
 ;= ({:tag String} {:tag long} {:tag long})
 
---
+==
 不同点：
 记录类型是设计用来表示应用级别的数据的，
 而deftype则是设计用来表示比较底层的一些类型的，例如新的数据结构。
@@ -205,7 +206,7 @@ extend-type把多个协议扩展到一个类型。
 而deftype则提供了一些对底层操作进行优化的能力。
 所以大多数时候用的是记录类型，而很少用deftype。
 
-----
+==
 使用defrecord或者deftype定义了一个新类型，这个定义好的类型是被定义在所在命名空间对应的java包里面。
 它会被默认引入所定义的命名空间，所以无需限定名。
 但如果切换到另外一个命名空间，即使use或require了定义它的命名空间，
@@ -263,7 +264,7 @@ extend-type把多个协议扩展到一个类型。
     (with-meta {:foo :bar})
     (assoc :z 5))
 
-----
+==
 构造函数和工厂函数
 
 构造函数通常不应该作为公开的api，而应该提供一些工厂函数。
@@ -308,12 +309,12 @@ deftype和defrecord都会隐式创建一个形如->TypeXX的工厂函数，它�
 (defn point [x y]
       {:x x, :y y})
 
-----
+==
 注：早期clojure提供defstruct,create-struct,struct-map,struct，这些都过时了。
 如果你需要一个很灵活的struct，使用map。
 如果你需要一个比较正式的模型，使用记录类型。
 
-----
+==
 普通map vs 记录类型
 
 通常鼓励先使用map，
@@ -324,7 +325,7 @@ deftype和defrecord都会隐式创建一个形如->TypeXX的工厂函数，它�
 但有一个陷阱：记录类型不是函数（而map是）。
 另一个陷阱是，普通map和记录类型永远不可能相等。
 
-=============
+========
 5，普通类型
 
 deftype是clojure最底层的定义形式。
@@ -335,7 +336,8 @@ deftype被设计来定义那种最底层的框架类型的，例如新的数据�
 
 deftype定义的类型没有实现关系型数据结构的接口，不能使用关键字来访问。
 
-可修改的字段有两种类型：volatile和非synchronized的，加上元数据^:volatile-mutable或者^:unsynchronized-mutable即可。
+可修改的字段有两种类型：volatile和非synchronized的，
+加上元数据^:volatile-mutable或者^:unsynchronized-mutable即可。
 
 volatile保证对于该字段的读写是原子的，并且必须以代码中指定的顺序发生。
 也就是它们不能被JIT编译器或者CPU重排序。
@@ -351,7 +353,7 @@ volatile保证对于该字段的读写是原子的，并且必须以代码中指
 可修改字段在方法体内跟本地绑定看起来差不多。
 但如果使用let定义一个同名的本地绑定，它会遮住这个可修改字段。
 
-----
+==
 示例：薛定谔的猫
 
 (deftype SchrödingerCat [^:unsynchronized-mutable state]
@@ -380,7 +382,7 @@ volatile保证对于该字段的读写是原子的，并且必须以代码中指
 (schrödinger-cat)
 ;= #<SchrödingerCat@3248bc64: :alive>
 
-----
+==
 使用修改字段还是引用/数据流类型？
 
 大多数情况下，一个应用的可修改性需求可以由clojure的引用类型（agent，atom，ref），
@@ -388,7 +390,7 @@ volatile保证对于该字段的读写是原子的，并且必须以代码中指
 或者可以使用java并发包里面的类。
 使用这些手段比使用可修改字段简单很多。尽可能不要去碰可修改字段。
 
-==========
+========
 6，实现协议
 
 让一个类型实现一个协议有两种方法：
@@ -399,7 +401,7 @@ volatile保证对于该字段的读写是原子的，并且必须以代码中指
 当在类型之外访问类型字段时，需要用关键字或者java互操作方法来访问。
 内联实现时，因为这些字段名在词法范围内，可以直接引用字段名字。
 
---
+==
 ;内联实现
 (defrecord Point [x y]
     Matrix
@@ -418,7 +420,7 @@ volatile保证对于该字段的读写是原子的，并且必须以代码中指
     (cols [pt] [[x y]])
     (dims [pt] [2 1]))
 
---
+==
 (defrecord Point [x y])
 
 (extend-protocol Matrix
@@ -440,7 +442,7 @@ volatile保证对于该字段的读写是原子的，并且必须以代码中指
         [[(:x pt) (:y pt)]])
     (dims [pt] [2 1]))
 
--------
+====
 6.1，内联实现
 
 6.1.1，
@@ -480,12 +482,12 @@ volatile保证对于该字段的读写是原子的，并且必须以代码中指
     (size [x]))
 ;= nil
 
---
+==
 使用内联实现时，实现代码是直接写入类文件里面，所以无法在运行时改变。
 
 内联实现是静态的，所以应该在性能优化时才考虑这种方式。
 
-----
+====
 6.1.2，
 要实现java接口，只能用内联方式。
 Object的方法也可作为接口来实现，除此以外，任何其他类（抽象类或非抽象类），都不能内联继承。
@@ -530,7 +532,7 @@ Object的方法也可作为接口来实现，除此以外，任何其他类（�
     (hashCode [this]
         (-> x hash (hash-combine y))))
 
-----
+====
 6.1.3，用reify定义匿名类型
 
 跟deftype和defrecord不同，reify不是一个顶级形式，它不会定义出一个有名的类型，
@@ -564,7 +566,7 @@ reify与proxy的使用场景有重合。
 -2，reify更受限。它只能实现协议，java接口和Object的方法，不能继承一个具体类（包括抽象类）。
 -3，因为reify方法直接写入类文件，所以调用这些方法没有额外开销。
 
----------
+====
 6.2，重用实现
 
 类型只能实现协议或接口，没办法继承另一个具体类型，从而继承它的实现。
@@ -594,7 +596,7 @@ reify与proxy的使用场景有重合。
 extend的第3个参数是一个map，键名是方法名，值是方法实现。
 通过对这个map操作，可以实现“继承”“traits”和“混入”。
 
-----
+==
 示例，为一些方法提供默认实现。
 
 (def abstract-matrix-impl
@@ -622,7 +624,7 @@ extend的第3个参数是一个map，键名是方法名，值是方法实现。
                         pt))
         :dims (fn [pt] [2 1])))
 
-----
+==
 示例，混入。
 
 (defprotocol Measurable
@@ -671,7 +673,7 @@ Measurable
 ;= {:height #<user$eval1251$fn__1252 user$eval1251$fn__1252@744589eb>,
 ;= :width #<user$eval1251$fn__1254 user$eval1251$fn__1254@40735f45>}
 
---
+==
 (defn combine
     "Takes two functions f and g and returns a fn that takes a variable number
     of args, applies them to f and g and then returns the result of
@@ -697,10 +699,10 @@ Measurable
      [(width bbtn) (height bbtn)])
 ;= [100 16]
 
-----
+==
 如果使用内联实现了一个协议，就不能再用上述方法进行重用，而只能利用代理或宏。
 
-============
+========
 7，协议自省
 
 --
@@ -726,7 +728,7 @@ satisfies? ，相当于java中的instance? ，测试某个实例是否扩展了�
 
 使用内联实现的类型，satisfies? 和 instance? 是一样的。
 
-=========
+========
 8，协议函数分派的边界场景
 
 因为协议的方法产生的是命名空间限定的函数，所以两个协议的函数永远不会相互冲突。
