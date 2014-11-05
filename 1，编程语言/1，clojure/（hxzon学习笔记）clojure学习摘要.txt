@@ -1,5 +1,6 @@
 ﻿（hxzon学习笔记）clojure学习摘要
 
+====
 1，定义函数
 
 (fn [p1 p2] s1 s2)
@@ -8,17 +9,45 @@
 
 注意，只有long和double两种类型。
 
+==
+fn的第一个参数是一个可选的函数名字，使得可以在函数体中引用函数自己。
+
+(def strange-adder (fn  adder-self-reference
+                        ([x] (adder-self-reference x 1))
+                        ([x y] (+ x y))))
+;= #'user/strange-adder
+
+==
 定义本地变量，(let [x1 v1 x2 v2] ...)
 
-中途return，使用内部私有函数。
+中途return，使用内部私有函数，(let [fn1 ...]) 。
+
+==
+循环：
+
+          (loop [ sb "" cmds (keys @adm-cmds)]
+            (if(empty? cmds)
+              (.writeAndFlush ctx (str sb "\r\n"))
+              (recur (str sb (first cmds) "  ") (rest cmds))))
+
 
 ====
 2，宏
 
+宏返回的值是“clojure代码”，这些生成的代码插入到自己所在位置。
+
+(defmacro defCompFn [name method & body]
+  ;`(dosync (alter ~name assoc (keyword ~method) (fn ~@body))))
+  (list 'dosync (list 'alter name 'assoc (list 'keyword method ) (cons 'fn body ))))
+
+
+==
 ~'，波浪号和单引号是一种常见的搭配，如下。
 ~'session，外层已经阻止求值，为什么不直接使用 session ？
 因为直接使用session，会加上当前的命名空间，见下。
 let绑定是不允许有名字空间的。
+
+'~xxx ，对xxx求值，再引述。
 
 ==
 引述（单引号'）：返回参数的不求值形式。
@@ -55,5 +84,8 @@ let绑定是不允许有名字空间的。
 ====
 4，(with-out-str & body)
 将“打印输出”绑定到一个StringWriter，返回这个字符串。
+
+====
+5，在需要do的地方，漏写do，会抛出空指针异常。
 
 

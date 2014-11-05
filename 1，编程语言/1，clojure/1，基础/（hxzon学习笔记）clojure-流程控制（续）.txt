@@ -127,7 +127,8 @@ bound to integers from 0 through n-1.
 
 ----
 2，doseq： 
-doseq和for的语法是一样的，只不过for返回lazy seq而doseq接受任意数量的表达式，以有副作用的方式执行它们，并且返回nil 。
+doseq和for的语法是一样的，只不过for返回lazy seq，
+而doseq接受任意数量的表达式，以有副作用的方式执行它们，并且返回nil 。
 
 user=> (doseq [i (range 10)] (println i))  
 0  
