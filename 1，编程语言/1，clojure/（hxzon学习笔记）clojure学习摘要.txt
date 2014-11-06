@@ -40,6 +40,18 @@ fn的第一个参数是一个可选的函数名字，使得可以在函数体中
   ;`(dosync (alter ~name assoc (keyword ~method) (fn ~@body))))
   (list 'dosync (list 'alter name 'assoc (list 'keyword method ) (cons 'fn body ))))
 
+(defmacro defCompFn [name method & body]
+  (let [bs (if (vector? (first body))  (list body)  body)
+        bs 
+        (for [ [a & b] bs]    ;向量解构
+          (cons (into ['this] a) b))]    ;添加隐式参数“this”
+    `(dosync (alter ~name assoc (keyword ~method) (fn ~@bs) ))  ))
+
+(defmacro defCompFns [name & methods]
+  (let [ms 
+        (for [ [methodName & methodBody] methods]
+          `(defCompFn ~name ~methodName ~@methodBody))]
+    `(do ~@ms)))
 
 ==
 ~'，波浪号和单引号是一种常见的搭配，如下。

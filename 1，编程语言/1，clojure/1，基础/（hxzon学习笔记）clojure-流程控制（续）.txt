@@ -108,7 +108,7 @@ user=> (take 10 (iterate #(* % 2) 2)) ; (2 4 8 16 32 64 128 256 512 1024)
 
 ----
 1，dotimes： 
-dotimes 会执行给定的表达式一定次数, 一个本地binding会被给定值：从0到一个给定的数值。
+dotimes 会执行给定的表达式一定次数, 一个本地binding会被给定值：从0到一个“给定的数值减一”。
 
 user=> (dotimes [num 3] (println "number:" (inc num)))  
 number: 1  

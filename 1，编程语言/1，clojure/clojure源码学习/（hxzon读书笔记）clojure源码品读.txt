@@ -52,3 +52,35 @@ Compiler.DefExpr  ：(def sym "doc string" initExpr)
 
 核心宏，核心函数定义。
 
+====
+https://github.com/xumingming/clojure
+徐明明的源码阅读，及修改。
+
+==
+https://github.com/xumingming/clj-false
+FALSE implemented in Clojure
+
+==
+https://github.com/xumingming/clojure-clojure
+Clojure’s abstractions written in Clojure.
+My goal is to replace much of Clojure’s Java code with Clojure code–much but not all. 
+This isn’t Clojure-in-Clojure. 
+I do not expect to replace the Clojure compiler, nor do I expect to implement Var, IFn, the STM, 
+and many other bits of Java code.
+用clojure重写部分java代码。
+
+==
+https://github.com/xumingming/clojure-in-clojure
+An experimental re-implementation of Clojure on Clojure.
+Why?
+At the moment this project is mostly an excuse to write a non-trivial amount of Clojure 
+and to gain a better understanding of the current Clojure implementation.
+How?
+The current approach is to attempt a fairly direct translation of the Java implementation of Clojure, 
+in order to make it easier to spot omissions or mistakes. 
+Once everything works (and backed by extensive tests) the code can be refactored to more idiomatic Clojure.
+
+==
+https://github.com/xumingming/clojure-reader
+A re-implementation of the Clojure reader in Clojure.
+

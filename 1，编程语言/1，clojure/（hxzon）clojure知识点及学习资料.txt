@@ -340,6 +340,13 @@ http://blog.clojure.cn/
 
 http://clojure-doc.org/articles/content.html 
 
+==
+https://github.com/xumingming/Clojure-Article
+This repository contains the "Clojure - Functional Programming for the JVM" article.
+It was originally written by Mark Volkmann from Object Computing, Inc. 
+It is now being updated by the Clojure community. 
+Thanks to all the contributors including Sean Corfield and John Gabriele.
+
 以下是各种针对clojure的开源工具： 
 
 clojure工具箱汇总： 
