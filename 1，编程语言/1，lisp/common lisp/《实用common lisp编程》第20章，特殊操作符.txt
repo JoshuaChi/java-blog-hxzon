@@ -1,26 +1,36 @@
 ﻿《实用common lisp编程》第20章，特殊操作符
 
+注释by hxzon
+=======
+CHAPTER 20 The Special Operators . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 245
 第20 章 特殊操作符　　213
+
+Controlling Evaluation. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 245
 20.1 控制求值　　213
+
+Manipulating the Lexical Environment. . . . . . . . . . . . . . . . . . . . . . . . . . . 246
 20.2 维护词法环境　　 213
+
+Local Flow of Control. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 248
 20.3 局部控制流　　 216
+
+Unwinding the Stack. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 252
 20.4 从栈上回退　　219
+
+Multiple Values. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 256
 20.5 多值　　 223
+
+EVAL-WHEN. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 258
 20.6 EVAL-WHEN　　224
+
+Other Special Operators. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 260
 20.7 其他特殊操作符　　 227
 
-CHAPTER 20 The Special Operators . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 245
-Controlling Evaluation. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 245
-Manipulating the Lexical Environment. . . . . . . . . . . . . . . . . . . . . . . . . . . 246
-Local Flow of Control. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 248
-Unwinding the Stack. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 252
-Multiple Values. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 256
-EVAL-WHEN. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 258
-Other Special Operators. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 260
 
 ==========
 CHAPTER 20
 The Special Operators
+
 In a way, the most impressive aspect of the condition system covered in the previous chapter 
 is that if it wasn’t already part of the language, itcould be written entirely as a user-level library. 
 This is possible because Common Lisp’s special operators—while none touches directly on 
@@ -34,83 +44,125 @@ called for, you’ll at least know it exists. Second, because the 25 special ope
 the basic rule for evaluating function calls and the built-in data types—provide the foundation 
 for the rest of the language, a passing familiarity with them will help you understand how the 
 language works.
+
 In this chapter, I’ll discuss all the special operators, some briefly and some at length, so 
 you can see how they fit together. I’ll point out which ones you can expect to use directly in 
 your own code, which ones serve as the basis for other constructs that you use all the time, and 
 which ones you’ll rarely use directly but which can be handy in macro-generated code.
+
+========
 Controlling Evaluation
+控制求值
+
+（hxzon：quote，阻止求值。if。progn，即clojure中的 do 。）
+
 The first category of special operators contains the three operators that provide basic control 
 over the evaluation of forms. They’re QUOTE, IF, and PROGN, and I’ve discussed them all already. 
 However, it’s worth noting how each of these special operators providesone fundamental kind 
 of control over the evaluation of one or more forms. QUOTEprevents evaluation altogether and 
 allows you to get at s-expressions as data. IFprovides the fundamental boolean choice operation 
-from which all other conditional execution constructs can be built.
-1
-And PROGNprovides the 
-ability to sequence a number of forms.
-1. Of course, if IFwasn’t a special operator but some other conditional form, such as COND, was, you 
+from which all other conditional execution constructs can be built.【1】
+And PROGNprovides the ability to sequence a number of forms.
+
+【1】 Of course, if IFwasn’t a special operator but some other conditional form, such as COND, was, you 
 could build IFas a macro. Indeed, in many Lisp dialects, starting with McCarthy’s original Lisp, 
 CONDwas the primitive conditional evaluation operator.
 
+========
 Manipulating the Lexical Environment
+操作词法环境
+
+（hxzon：
+let
+let*
+setq
+flet，创建本地函数，不可递归。这使得可以调用外部同名函数。
+labels，创建本地函数，可递归调用自身。
+macrolet，本地宏。
+symbol-macrolet，创建“符号宏”。
+function，获取函数本身。
+）
+
 The largest class of special operators contains the operators that manipulate and access the 
-lexical environment. LETand LET*, which I’ve already discussed, are examples of special operators that manipulate the lexical environment since they can introduce new lexical bindings 
-for variables. Any construct, such as a DOor DOTIMES, that binds lexical variables will have to 
-expand into a LETor LET*.
-2
-The SETQspecial operator is one thataccesses the lexical environment since it can be used to set variables whose bindings were created by LETand LET*.
+lexical environment. LET and LET*, which I’ve already discussed, 
+are examples of special operators that manipulate the lexical environment since they can introduce new lexical bindings 
+for variables. Any construct, such as a DO or DOTIMES, that binds lexical variables will have to 
+expand into a LET or LET*.【2】
+
+The SETQ special operator is one that accesses the lexical environment 
+since it can be used to set variables whose bindings were created by LET and LET*.
 Variables, however, aren’t the only thing that can be named within a lexical scope. While 
 most functions are defined globally with DEFUN, it’s also possible to create local functions with 
-the special operators FLETand LABELS, local macros with MACROLET, and a special kind of 
+the special operators FLET and LABELS, local macros with MACROLET, and a special kind of 
 macro, called a symbol macro, with SYMBOL-MACROLET.
-Much like LETallows you to introduce a lexical variable whose scope is the body of the LET, 
-FLETand LABELSlet you define a function that can be referred to only within the scope of the 
-FLETor LABELSform. These special operators are handy when you need a local function that’s 
+
+Much like LET allows you to introduce a lexical variable whose scope is the body of the LET, 
+FLET and LABELS let you define a function that can be referred to only within the scope of the 
+FLET or LABELS form. These special operators are handy when you need a local function that’s 
 a bit too complex to define inline as a LAMBDAexpression or that you need to use more than 
 once. Both have the same basic form, which looks like this:
+
 (flet (function-definition*)
 body-form*)
+
 and like this:
+
 (labels (function-definition*)
 body-form*)
+
 where each function-definitionhas the following form:
+
 (name(parameter*) form*)
-The difference between FLETand LABELSis that the names of the functions defined with 
-FLETcan be used only in the body of the FLET, while the names introduced by LABELScan be 
+
+The difference between FLET and LABELS is that the names of the functions defined with 
+FLET can be used only in the body of the FLET, while the names introduced by LABELS can be
+flet定义的函数，只能在body中使用。而labels定义的函数，可立即使用。 
 used immediately, including in the bodies of the functions defined by the LABELS. Thus, LABELS
-can define recursive functions, while FLETcan’t. It might seem limiting that FLETcan’t be used 
-to define recursive functions, but Common Lisp provides both FLETand LABELSbecause 
+can define recursive functions, while FLET can’t. It might seem limiting that FLET can’t be used 
+to define recursive functions, but Common Lisp provides both FLET and LABELS because 
 sometimes it’s useful to be able to write local functions that can call another function of the 
 same name, either a globally defined function or a local function from an enclosing scope.
-Within the body of a FLETor LABELS, you can use the names of the functions defined just like 
-any other function, including with the FUNCTIONspecial operator. Since you can use FUNCTION
-to get the function object representing a function defined with FLETor LABELS, and since a 
-FLETor LABELScan be in the scope of other binding forms such as LETs, these functions can 
+
+Within the body of a FLET or LABELS, you can use the names of the functions defined just like 
+any other function, including with the FUNCTION special operator. Since you can use FUNCTION
+function用来获取函数本身。
+to get the function object representing a function defined with FLET or LABELS, and since a 
+FLET or LABELS can be in the scope of other binding forms such as LETs, these functions can 
 be closures.
+
 Because the local functions can refer to variables from the enclosing scope, they can often 
 be written to take fewer parameters than the equivalent helper functions.This is particularly 
 handy when you need to pass a function that takes a single argument as a functional parameter. 
-2. Well, technically those constructs could also expand into a LAMBDAexpression since, as I mentioned 
-in Chapter 6, LETcould be defined—and was in some earlier Lisps—as a macro that expands into 
+
+【2】 Well, technically those constructs could also expand into a LAMBDAexpression since, as I mentioned 
+in Chapter 6, LET could be defined—and was in some earlier Lisps—as a macro that expands into 
 an invocation of an anonymous function.
 
 For example, in the following function, which you’ll see again in Chapter 25, the FLETed function, 
 count-version, takes a single argument, as required by walk-directory, but can also use the 
 variable versions, introduced by the enclosing LET:
+
 (defun count-versions (dir)
 (let ((versions (mapcar #'(lambda (x) (cons x 0)) '(2 3 4))))
 (flet ((count-version (file)
 (incf (cdr (assoc (major-version (read-id3 file)) versions)))))
 (walk-directory dir #'count-version :test #'mp3-p))
 versions))
+
 This function could also be written using an anonymous function in the place of the 
 FLETed count-version, but giving the function a meaningful name makes it a bit easier to read.
-And when a helper function needs to recurse, an anonymous function just won’t do.
-3
+And when a helper function needs to recurse, an anonymous function just won’t do.【3】
+
+【3】 Surprising as it may seem, it actually is possible to make anonymous functions recurse. However, 
+you must use a rather esoteric mechanism known as the Y combinator. But the Y combinator is 
+an interesting theoretical result, not a practical programming tool, so is well outside the scope of 
+this book.
+
 When you don’t want to define a recursive helper function as a global function, you can use 
 LABELS. For example, the following function, collect-leaves, uses the recursive helper function 
 walkto walk a tree and gather all the atoms in the tree into a list, which collect-leavesthen 
 returns (after reversing it):
+
 (defun collect-leaves (tree)
 (let ((leaves ()))
 (labels ((walk (tree)
@@ -121,28 +173,36 @@ returns (after reversing it):
 (walk (cdr tree))))))
 (walk tree))
 (nreverse leaves)))
+
 Notice again how, within the walkfunction, you can refer to the variable, leaves, introduced 
 by the enclosing LET.
-FLETand LABELSare also useful operations to use in macro expansions—a macro can 
-expand into code that contains a FLETor LABELSto create functions that can be used within 
-the body of the macro. This technique can be used either to introduce functions that the user 
+
+FLET and LABELS are also useful operations to use in macro expansions—a macro can 
+expand into code that contains a FLET or LABELS to create functions that can be used within 
+the body of the macro. This technique can be used either to introduce functions that the user
 of the macro will call or simply as a way of organizing the code generated by the macro. This, 
 for instance, is how a function such as CALL-NEXT-METHOD, which can be used only within a 
 method definition, might be defined.
-A near relative to FLETand LABELSis the special operator MACROLET, which you can use to 
-define local macros. Local macros work just like global macros defined with DEFMACROexcept 
-without cluttering the global namespace. When a MACROLETform is evaluated, the body forms 
-are evaluated with the local macro definitions in effect and possibly shadowing global function 
-and macro definitions or local definitions from enclosing forms. Like FLETand LABELS, MACROLET
-can be used directly, but it’s also a handy target for macro-generated code—by wrapping some 
-3. Surprising as it may seem, it actually is possible to make anonymous functions recurse. However, 
-you must use a rather esoteric mechanism known as the Y combinator. But the Y combinator is 
-an interesting theoretical result, not a practical programming tool, so is well outside the scope of 
-this book.
+可以用来创建“只在宏中才能使用的”函数。 
 
+====
+本地宏
+
+A near relative to FLET and LABELS is the special operator MACROLET, which you can use to 
+define local macros. Local macros work just like global macros defined with DEFMACROexcept 
+without cluttering the global namespace. When a MACROLET form is evaluated, the body forms 
+are evaluated with the local macro definitions in effect and possibly shadowing global function 
+and macro definitions or local definitions from enclosing forms. Like FLET and LABELS, MACROLET
+can be used directly, but it’s also a handy target for macro-generated code—by wrapping some 
 user-supplied code in a MACROLET, a macro can provide constructs that can be used only within 
 that code or can shadow a globally defined macro. You’ll see an example of this latter use of 
-MACROLETin Chapter 31.
+MACROLET in Chapter 31.
+
+====
+符号宏
+
+普通宏就像函数，而符号宏就像变量（没有参数），展开成表达式。
+
 Finally, one last macro-defining special operator is SYMBOL-MACROLET, which defines a 
 special kind of macro called, appropriately enough, a symbol macro. Symbol macros are like 
 regular macros except they can’t take arguments and are referred to with a plain symbol rather 
@@ -151,30 +211,57 @@ any use of that symbol in a value position will be expanded and the resulting fo
 its place. This is how macros such as WITH-SLOTSand WITH-ACCESSORSare able to define 
 “variables” that access the state of a particular object under the covers. For instance, the 
 following WITH-SLOTSform:
+
 (with-slots (x y z) foo (list x y z)))
+
 might expand into this code that uses SYMBOL-MACROLET:
+
 (let ((#:g149 foo))
 (symbol-macrolet
 ((x (slot-value #:g149 'x))
 (y (slot-value #:g149 'y))
 (z (slot-value #:g149 'z)))
 (list x y z)))
+
 When the expression (list x y z)is evaluated, the symbols x, y, and zwill be replaced 
-with their expansions, such as (slot-value #:g149 'x).
-4
+with their expansions, such as (slot-value #:g149 'x).【4】
+
+==
+本地符号宏 symbol-macrolet
+
 Symbol macros are most often local, defined with SYMBOL-MACROLET, but Common Lisp 
-also provides a macro DEFINE-SYMBOL-MACROthat defines a global symbol macro. A symbol 
-macro defined with SYMBOL-MACROLETshadows other symbol macros of the same name 
-defined with DEFINE-SYMBOL-MACROor enclosing SYMBOL-MACROLETforms.
+also provides a macro DEFINE-SYMBOL-MACRO that defines a global symbol macro. A symbol 
+macro defined with SYMBOL-MACROLET shadows other symbol macros of the same name 
+defined with DEFINE-SYMBOL-MACRO or enclosing SYMBOL-MACROLET forms.
+
+========
 Local Flow of Control
-The next four special operators I’ll discuss also create and use names in the lexical environment but for the purposes of altering the flow of control rather than defining new functions 
+局部控制流
+
+（hxzon：
+block，
+return-from，退回到指定的block，并且可以返回一个值，作为该块的返回值。相当于其它语言中的return。
+tagbody，
+go
+）
+
+The next four special operators I’ll discuss also create and use names in the lexical environment
+下面四个操作符同样创建名字，但是是为了控制流程。 
+but for the purposes of altering the flow of control rather than defining new functions 
 and macros. I’ve mentioned all four of these special operators in passingbecause they provide 
 the underlying mechanisms used byother language features. They’re BLOCK, RETURN-FROM, 
-TAGBODY, and GO. The first two, BLOCKand RETURN-FROM, are used together to write code that 
-4. It’s not required that WITH-SLOTSbe implemented with SYMBOL-MACROLET—in some implementations, WITH-SLOTSmay walk the code provided and generate an expansion with x, y, and z
-already replaced with the appropriate SLOT-VALUEforms. You can see how your implementation 
+TAGBODY, and GO. 
+
+The first two, BLOCKand RETURN-FROM, are used together to write code that【4】. 
+
+It’s not required that WITH-SLOTS be implemented with SYMBOL-MACROLET
+—in some implementations, WITH-SLOTS may walk the code provided and generate an expansion with x, y, and z
+already replaced with the appropriate SLOT-VALUE forms.
+ You can see how your implementation 
 does it by evaluating this form:
+
 (macroexpand-1 '(with-slots (x y z) obj (list x y z)))
+
 However, walking the body is much easier for the Lisp implementation to do than for user code 
 to do; to replace x, y, and zonly when they appear in value positions requires a code walker that 
 understands the syntax of all special operators and that recursively expands all macro forms in 
@@ -182,71 +269,94 @@ order to determine whether their expansions include the symbols in value positio
 implementation obviously has such a code walker atits disposal, but it’s one of the few parts of 
 Lisp that’s not exposed to users of the language.
 
-returns immediately from a section of code—I discussed RETURN-FROMin Chapter 5 as a way 
+returns immediately from a section of code—I discussed RETURN-FROM in Chapter 5 as a way 
 to return immediately from a function, but it’s more general than that. The other two, TAGBODY
 and GO, provide a quite low-level gotoconstruct that’s the basis for all the higher-level looping 
 constructs you’ve already seen.
+
 The basic skeleton of a BLOCKform is this:
+
 (block name
 form*)
+
 The nameis a symbol, and the formsare Lisp forms. The forms are evaluated in order, and 
-the value of the last form is returned as the value of the BLOCKunless a RETURN-FROMis used to 
-return from the block early. A RETURN-FROMform, as you saw in Chapter 5, consists of the name 
+the value of the last form is returned as the value of the BLOCK unless a RETURN-FROM is used to 
+return from the block early. A RETURN-FROM form, as you saw in Chapter 5, consists of the name 
 of the block to return from and, optionally, a form that provides a value to return. When a 
-RETURN-FROMis evaluated, it causes the named BLOCKto return immediately. If RETURN-FROM
-is called with a return value form, the BLOCKwill return the resulting value; otherwise, the 
-BLOCKevaluates to NIL.
-A BLOCKname can be any symbol, which includes NIL. Many of the standard control 
+RETURN-FROM is evaluated, it causes the named BLOCK to return immediately. If RETURN-FROM
+is called with a return value form, the BLOCK will return the resulting value; otherwise, the 
+BLOCK evaluates to NIL.
+
+A BLOCK name can be any symbol, which includes NIL. Many of the standard control 
 construct macros, such as DO, DOTIMES, and DOLIST, generate an expansion consisting of a 
 BLOCKnamed NIL. This allows you to use the RETURNmacro, which is a bit of syntactic sugar for 
 (return-from nil ...), to break out of such loops. Thus, the following loop will print at most 
 ten random numbers, stopping as soon as it gets a number greater than 50:
+
 (dotimes (i 10)
 (let ((answer (random 100)))
 (print answer)
 (if (> answer 50) (return))))
+
 Function-defining macros such as DEFUN, FLET, and LABELS, on the other hand, wrap their 
 bodies in a BLOCKwith the same name as the function. That’s why you can use RETURN-FROMto 
 return from a function.
-TAGBODYand GOhave a similar relationship to each other as BLOCKand RETURN-FROM: a 
-TAGBODYform defines a context in which names are defined that can be used by GO. The skeleton 
-of a TAGBODYis as follows:
+
+====
+TAGBODY and GO have a similar relationship to each other as BLOCK and RETURN-FROM: 
+a TAGBODY form defines a context in which names are defined that can be used by GO. The skeleton 
+of a TAGBODY is as follows:
+
 (tagbody
 tag-or-compound-form*)
+
 where each tag-or-compound-formis either a symbol, called a tag, or a nonempty list form. 
 The list forms are evaluated in order and the tags ignored, except as I’ll discuss in a moment. 
 After the last form of the TAGBODYis evaluated, the TAGBODYreturns NIL. Anywhere within the 
 lexical scope of the TAGBODYyou can use the GOspecial operator to jumpimmediately to any of 
 the tags, and evaluation will resume with the form following the tag.For instance, you can 
-write a trivial infinite loop with TAGBODYand GOlike this:
+write a trivial infinite loop with TAGBODY and GO like this:
+
 (tagbody
 top
 (print 'hello)
 (go top))
+
 Note that while the tag names must appear at the top level of the TAGBODY, not nested 
 within other forms, the GOspecial operator can appear anywhere within the scope of the 
 TAGBODY. This means you could write a loop that loops a random number of times like this:
+
 (tagbody
 top
 (print 'hello)
 (when (plusp (random 10)) (go top)))
+
 An even sillier example of TAGBODY, which shows you can have multiple tags in a single 
 TAGBODY, looks like this:
+
 (tagbody
 a (print 'a) (if (zerop (random 2)) (go c))
 b (print 'b) (if (zerop (random 2)) (go a))
 c (print 'c) (if (zerop (random 2)) (go b)))
+
 This form will jump around randomly printing as, bs, and cs until eventually the last 
 RANDOMexpression returns 1 and the control falls off the end of the TAGBODY.
+
 TAGBODYis rarely used directly since it’s almost always easier to write iterative constructs 
 in terms of the existing looping macros. It’s handy, however, for translating algorithms written 
-in other languages into Common Lisp, either automatically or manually. An example of an automatic translation tool is the FORTRAN–to–Common Lisp translator, f2cl, that translates 
-FORTRAN source code into Common Lisp in order to make various FORTRAN libraries available to Common Lisp programmers. Since many FORTRAN libraries were written before the 
-structured programming revolution, they’re full ofgotos. The f2cl compiler can simply translate those gotos to GOs within appropriate TAGBODYs.
-5
+in other languages into Common Lisp, either automatically or manually. 
+An example of an automatic translation tool is the FORTRAN–to–Common Lisp translator, f2cl, that translates 
+一种用法是用来翻译其它编程语言的程序。
+FORTRAN source code into Common Lisp in order to make various FORTRAN libraries available to Common Lisp programmers. 
+Since many FORTRAN libraries were written before the 
+structured programming revolution, they’re full ofgotos. 
+The f2cl compiler can simply translate those gotos to GOs within appropriate TAGBODYs.【5】
+
 Similarly, TAGBODYand GOcan be handy when translating algorithms described in prose or 
 by flowcharts—for instance, in Donald Knuth’s classic series The Art of Computer Programming, 
-he describes algorithms using a “recipe” format: step1, do this; step 2, do that; step 3, go back 
+he describes algorithms using a “recipe” format: 
+
+step1, do this; step 2, do that; step 3, go back 
 to step 2; and so on. For example, on page 142 of The Art of Computer Programming, Volume 2: 
 Seminumerical Algorithms, Third Edition (Addison-Wesley, 1998), he describes Algorithm S, 
 which you’ll use in Chapter 27, in this form:
@@ -255,8 +365,11 @@ from a set of N, where 0 < n ≤N.
 S1. [Initialize.] Set t ←0, m ←0. (During this algorithm, m represents the
 number of records selected so far, and t is the total number of input records
 that we have dealt with.)
-5. One version of f2cl is available as part of the Common Lisp Open Code Collection (CLOCC): 
-http://clocc.sourceforge.net/. By contrast, consider the tricks the authors of f2j, a FORTRANto-Java translator, have to play. Although the Java Virtual Machine (JVM) has a goto instruction, 
+
+【5】. One version of f2cl is available as part of the Common Lisp Open Code Collection (CLOCC): 
+http://clocc.sourceforge.net/. By contrast, consider the tricks the authors of f2j, 
+a FORTRANto-Java translator, have to play. Although the Java Virtual Machine (JVM) has a goto instruction, 
+
 it’s not directly exposed in Java. So to compile FORTRAN gotos, they first compile the FORTRAN 
 code into legal Java source with calls to a dummyclass to represent the labels and gotos. Then 
 they compile the source with a regular Java compiler and postprocess the byte codes to translate 
@@ -270,8 +383,10 @@ m < n, go to step S2; otherwise the sample is complete and the algorithm
 terminates.
 S5. [Skip.] Skip the next record (do not include it in the sample), increase t by 1,
 and go back to step S2.
+
 This description can be easily translated into a Common Lisp function, after renaming a 
 few variables, as follows:
+
 (defun algorithm-s (n max) ; max is N in Knuth's algorithm
 (let (seen ; t in Knuth's algorithm
 selected ; m in Knuth's algorithm
@@ -295,11 +410,12 @@ s4
 s5
 (incf seen)
 (go s2))))
+
 It’s not the prettiest code, but it’s easy to verify that it’s a faithful translation of Knuth’s 
 algorithm. But, this code, unlike Knuth’s prose description, can be run and tested. Then you 
-can start refactoring, checking after eachchange that the function still works.
-6
-6. Since this algorithm depends on values returned by RANDOM, you may want to test it with a 
+can start refactoring, checking after eachchange that the function still works.【6】
+
+【6】. Since this algorithm depends on values returned by RANDOM, you may want to test it with a 
 consistent random seed, which you can get by binding *RANDOM-STATE*to the value of 
 (make-random-state nil)around each call to algorithm-s. For instance, you can do a basic 
 sanity check of algorithm-sby evaluating this:
@@ -322,6 +438,7 @@ control within a single function, you can also use them, in conjunction with clo
 an immediate nonlocal return from a function further down on the stack. That’s because BLOCK
 names and TAGBODYtags can be closed over by any code within the lexical scope of the BLOCK
 or TAGBODY. For example, consider this function:
+
 (defun foo ()
 (format t "Entering foo~%")
 (block a
@@ -329,9 +446,11 @@ or TAGBODY. For example, consider this function:
 (bar #'(lambda () (return-from a)))
 (format t " Leaving BLOCK~%"))
 (format t "Leaving foo~%"))
+
 The anonymous function passed to baruses RETURN-FROMto return from the BLOCK. But 
 that RETURN-FROMdoesn’t get evaluated until the anonymous function is invoked with FUNCALL
 or APPLY. Now suppose barlooks like this:
+
 (defun bar (fn)
 (format t " Entering bar~%")
 (baz fn)
@@ -353,16 +472,20 @@ Entering bar
 Entering baz
 Leaving foo
 NIL
+
 Note that the only “Leaving . . .” message that prints is the one that appears after the BLOCK
 in foo.
+
 Because the names of blocks are lexically scoped, a RETURN-FROMalways returns from the 
 smallest enclosing BLOCKin the lexical environment where the RETURN-FROMform appears 
 even if the RETURN-FROMis executed in a different dynamic context. For instance, barcould 
 also contain a BLOCKnamed a, like this:
+
 (defun bar (fn)
 (format t " Entering bar~%")
 (block a (baz fn))
 (format t " Leaving bar~%"))
+
 This extra BLOCKwon’t change the behavior of fooat all—the name ais resolved lexically, 
 at compile time, not dynamically, so the intervening block has no effect on the RETURN-FROM. 
 Conversely, the name of a BLOCKcan be used only by RETURN-FROMs appearing within the 
@@ -379,8 +502,9 @@ only while the BLOCKor TAGBODYis on the call stack. In other words, a closure th
 block name or TAGBODYtag can be passed downthe stack to be invoked later, but it can’t be 
 returned upthe stack. If you invoke a closure that tries to RETURN-FROMa BLOCK, after the BLOCK
 itself has returned, you’ll get an error. Likewise, trying to GOto a TAGBODYthat no longer exists 
-will cause an error.7
-7. This is a pretty reasonable restriction—it’s not entirely clear whatit’d mean to return from a form 
+will cause an error.【7】
+
+【7】 This is a pretty reasonable restriction—it’s not entirely clear whatit’d mean to return from a form 
 that has already returned—unless, of course, you’re a Scheme programmer. Scheme supports 
 continuations, a language construct that makes it possible to return from the same function call 
 more than once. But for a variety of reasons, few, if any, languages other than Scheme support 
@@ -389,14 +513,15 @@ this kind of continuation.
 It’s unlikely you’ll need to use BLOCKand TAGBODYyourself for this kindof stack unwinding. 
 But you’ll likely be using them indirectly whenever you use the condition system, so understanding 
 how they work should help you understand better what exactly, for instance, invoking 
-a restart is doing.
-8
-CATCHand THROWare another pair of special operators that can force the stack to unwind. 
+a restart is doing.【8】
+
+CATCH and THROW are another pair of special operators that can force the stack to unwind. 
 You’ll use these operators even less often than the others mentioned so far—they’re holdovers 
 from earlier Lisp dialects that didn’t have Common Lisp’s condition system. They definitely 
 shouldn’t be confused with try/catchand try/exceptconstructs from languages such as Java 
 and Python.
-CATCHand THROWare the dynamic counterparts of BLOCKand RETURN-FROM. That is, you 
+
+CATCH and THROW are the dynamic counterparts of BLOCKand RETURN-FROM. That is, you 
 wrap CATCHaround a body of code and then use THROWto cause the CATCHform to return 
 immediately with a specified value. The difference is thatthe association between a CATCHand 
 THROWis established dynamically—instead of a lexically scoped name, the label for a CATCHis 
