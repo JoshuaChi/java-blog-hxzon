@@ -1,4 +1,4 @@
-﻿（hxzon读书笔记）《实用common lisp编程》第20章：特殊操作符
+﻿（hxzon学习笔记）《实用common lisp编程》第20章，特殊操作符
 
 by hxzon
 （2012.10.22 ， 2014.1.6 ）

@@ -34,24 +34,35 @@ fn的第一个参数是一个可选的函数名字，使得可以在函数体中
 ====
 2，宏
 
+宏在读取器展开，它的返回值就是展开的结果。
 宏返回的值是“clojure代码”，这些生成的代码插入到自己所在位置。
+
 
 (defmacro defCompFn [name method & body]
   ;`(dosync (alter ~name assoc (keyword ~method) (fn ~@body))))
   (list 'dosync (list 'alter name 'assoc (list 'keyword method ) (cons 'fn body ))))
 
-(defmacro defCompFn [name method & body]
+==
+(defmacro kfn [name method & body]
   (let [bs (if (vector? (first body))  (list body)  body)
         bs 
         (for [ [a & b] bs]    ;向量解构
           (cons (into ['this] a) b))]    ;添加隐式参数“this”
     `(dosync (alter ~name assoc (keyword ~method) (fn ~@bs) ))  ))
 
-(defmacro defCompFns [name & methods]
+(defmacro kfns [name & methods]
   (let [ms 
         (for [ [methodName & methodBody] methods]
           `(defCompFn ~name ~methodName ~@methodBody))]
     `(do ~@ms)))
+
+;相当于给宏重命名：
+
+(defmacro defCompFn [name method & body]
+  `(kfn ~name ~method ~@body))
+
+(defmacro defCompFns [name & methods]
+  `(kfns ~name ~@methods))
 
 ==
 ~'，波浪号和单引号是一种常见的搭配，如下。

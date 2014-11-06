@@ -1,0 +1,239 @@
+﻿《实用common lisp编程》第20章，特殊操作符（续）
+
+CHAPTER 20 The Special Operators . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 245
+Controlling Evaluation. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 245
+Manipulating the Lexical Environment. . . . . . . . . . . . . . . . . . . . . . . . . . . 246
+Local Flow of Control. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 248
+Unwinding the Stack. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 252
+Multiple Values. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 256
+EVAL-WHEN. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 258
+Other Special Operators. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 260
+
+==========
+Multiple Values
+Another feature of Common Lisp that I’ve mentioned in passing—in Chapter 11, when I discussed 
+GETHASH—is the ability for a single formto return multiple values. I’ll discuss it in greater detail 
+now. It is, however, slightly misplaced in a chapter on special operators since the ability to 
+return multiple values isn’t provided by just one or two special operators but is deeply integrated 
+into the language. The operators you’ll most often use when dealing with multiple values are 
+macros and functions, not special operators. But it is the case that the basic ability to get at 
+multiple return values is provided by a special operator, MULTIPLE-VALUE-CALL, upon which 
+the more commonly used MULTIPLE-VALUE-BINDmacro is built.
+The key thing to understand about multiple values is that returning multiple values is 
+quite different from returning a list—if a form returns multiple values, unless you do something specific to capture the multiple values, all but the primary valuewill be silently discarded. 
+To see the distinction, consider the function GETHASH, which returns two values: the value 
+found in the hash table and a boolean that’s NILwhen no value was found.If it returned those 
+two values in a list, every time you called GETHASHyou’d have to take apart the list to get at the 
+actual value, regardless of whether you cared about the second return value. Suppose you have 
+a hash table, *h*, that contains numeric values. If GETHASHreturned a list, you couldn’t write 
+something like this:
+(+ (gethash 'a *h*) (gethash 'b *h*))
+because +expects its arguments to be numbers, not lists. But because the multiple value mechanism silently discards the secondary return value when it’s not wanted, this form works fine.
+There are two aspects to using multiple values—returning multiple values and getting at the 
+nonprimary values returned by forms that return multiple values. The starting points for returning 
+multiple values are the functions VALUESand VALUES-LIST. These are regular functions, not 
+special operators, so their arguments are passedin the normal way. VALUEStakes a variable 
+number of arguments and returns them as multiple values; VALUES-LISTtakes a single list and 
+returns its elements as multiple values. In other words:
+(values-list x) ≡(apply #'values x)
+
+The mechanism by which multiple values are returned is implementation dependent just 
+like the mechanism for passing arguments into functions is. Almost all language constructs 
+that return the value of some subform will “pass through” multiple values, returning all the 
+values returned by the subform. Thus, a function that returns the result of calling VALUESor 
+VALUES-LISTwill itself return multiple values—andso will another function whose result 
+comes from calling the first function. And so on.
+11
+But when a form is evaluated in a value position, only the primary value will be used, 
+which is why the previous addition form works the way you’d expect. The special operator 
+MULTIPLE-VALUE-CALLprovides the mechanism for getting your hands on the multiple values 
+returned by a form. MULTIPLE-VALUE-CALLis similar to FUNCALLexcept that while FUNCALLis 
+a regular function and, therefore, can see and pass ononly the primary values passed to it, 
+MULTIPLE-VALUE-CALLpasses, to the function returned by its first subform, allthe values 
+returned by the remaining subforms.
+(funcall #'+ (values 1 2) (values 3 4))  →4
+(multiple-value-call #'+ (values 1 2) (values 3 4)) →10
+However, it’s fairly rare that you’ll simply wantto pass all the values returned by a function 
+onto another function. More likely, you’ll want to stash the multiple values in different variables and then do something with them. The MULTIPLE-VALUE-BINDmacro, which you saw in 
+Chapter 11, is the most frequently used operatorfor accepting multiple return values. Its skeleton looks like this:
+(multiple-value-bind (variable*) values-form
+body-form*)
+The values-formis evaluated, and the multiple values it returns are bound to the variables. 
+Then the body-formsare evaluated with those bindings in effect. Thus:
+(multiple-value-bind (x y) (values 1 2)
+(+ x y)) →3
+Another macro, MULTIPLE-VALUE-LIST, is even simpler—it takes a single form, evaluates 
+it, and collects the resulting multiple values intoa list. In other words,it’s the inverse of 
+VALUES-LIST.
+CL-USER> (multiple-value-list (values 1 2))
+(1 2)
+CL-USER> (values-list (multiple-value-list (values 1 2)))
+1
+2
+11. A small handful of macros don’t pass through extra return values of the forms they evaluate. In 
+particular, the PROG1macro, which evaluates a number of forms like a PROGNbefore returning the 
+value of the first form, returns that form’s primary value only. Likewise, PROG2, which returns the 
+value of the second of its subforms, returns only the primary value. The special operator 
+MULTIPLE-VALUE-PROG1is a variant of PROG1that returns all the values returned by the first 
+form. It’s a minor wart that PROG1doesn’t already behave like MULTIPLE-VALUE-PROG1, but 
+neither is used often enough that it matters much. The ORand CONDmacros are also not always 
+transparent to multiple values, returning only the primary value of certain subforms.
+
+However, if you find yourself using MULTIPLE-VALUE-LISTa lot, it may be a sign that some 
+function should be returning a list to start with rather than multiple values.
+Finally, if you want to assign multiple values returned by a form to existing variables, you 
+can use VALUESas a SETFable place. For example:
+CL-USER> (defparameter *x* nil)
+*X*
+CL-USER> (defparameter *y* nil)
+*Y*
+CL-USER> (setf (values *x* *y*) (floor (/ 57 34)))
+1
+23/34
+CL-USER> *x*
+1
+CL-USER> *y*
+23/34
+EVAL-WHEN
+A special operator you’ll need to understand in order towrite certain kinds of macros is 
+EVAL-WHEN. For some reason, Lisp books often treat EVAL-WHENas a wizards-only topic. But the 
+only prerequisite to understanding EVAL-WHENis an understanding of how the two functions 
+LOADand COMPILE-FILEinteract. And understanding EVAL-WHENwill be important as you start 
+writing certain kinds of more sophisticated macros, such as the ones you’ll write in Chapters 24 
+and 31.
+I’ve touched briefly on the relation between LOADand COMPILE-FILEin previous chapters, 
+but it’s worth reviewing again here. The job of LOADis to load a file and evaluate all the top-level 
+forms it contains. The job of COMPILE-FILEis to compile a source file into a FASL file, which 
+can then be loaded with LOADsuch that (load "foo.lisp")and (load "foo.fasl")are essentially equivalent.
+Because LOADevaluates each form before reading the next, the side effects of evaluating 
+forms earlier in the file can affect how forms later in the form are read and evaluated. For 
+instance, evaluating an IN-PACKAGEform changes the value of *PACKAGE*, which will affect the 
+way subsequent forms are read.12
+Similarly, a DEFMACROform early in a file can define a macro 
+that can then be used by code later in the file.
+13
+12. The reason loading a file with an IN-PACKAGEform in it has no effect on the value of *PACKAGE*
+after LOADreturns is because LOADbinds *PACKAGE*to its current value before doing anything 
+else. In other words, something equivalent to the following LETis wrapped around the rest of the 
+code in LOAD:
+(let ((*package* *package*)) ...)
+Any assignment to *PACKAGE*will be to the new binding, and the old binding will be restored 
+when LOADreturns. It also binds the variable *READTABLE*, which I haven’t discussed, in the 
+same way.
+13. In some implementations, you may beable to get away with evaluating DEFUNs that use undefined 
+macros in the function body as long as the macros are defined before the function is actually 
+called. But that works, if at all, only when LOADing the definitions from source, not when compiling 
+with COMPILE-FILE, so in general macro definitions mustbe evaluated before they’re used.
+
+COMPILE-FILE, on the other hand, normally doesn’t evaluate the forms it’s compiling; it’s 
+when the FASL is loaded that the forms—or their compiled equivalents—will be evaluated. 
+However, COMPILE-FILEmust evaluate some forms, such as IN-PACKAGEand DEFMACROforms, 
+in order to keep the behavior of (load "foo.lisp")and (load "foo.fasl")consistent.
+So how do macros such as IN-PACKAGEand DEFMACROwork when processed by 
+COMPILE-FILE? In some pre–Common Lisp versions of Lisp, the file compiler simply knew it 
+should evaluate certain macros in addition tocompiling them. Common Lisp avoided the need 
+for such kludges by borrowing the EVAL-WHENspecial operator from Maclisp. This operator, as 
+its name suggests, allows you to control when specific bits of code are evaluated. The skeleton 
+of an EVAL-WHENform looks like this:
+(eval-when (situation*)
+body-form*)
+There are three possible situations—:compile-toplevel, :load-toplevel, and :execute—
+and which ones you specify controls when the body-formswill be evaluated. An EVAL-WHEN
+with multiple situations is equivalent to several EVAL-WHENforms, one per situation, each with 
+the same body code. To explain the meaning of the three situations, I’ll need to explain a bit 
+about how COMPILE-FILE, which is also referred to as thefile compiler, goes about compiling 
+a file.
+To explain how COMPILE-FILEcompiles EVAL-WHENforms, I need to introduce a distinction between compiling top-levelforms and compiling non-top-level forms. A top-level form 
+is, roughly speaking, one that will be compiled intocode that will be run when the FASL is loaded. 
+Thus, all forms that appear directly at the top level of a source file are compiled as top-level 
+forms. Similarly, any forms appearing directly in a top-level PROGNare compiled as top-level forms 
+since the PROGNitself doesn’t doanything—it just groups together its subforms, which will be 
+run when the FASL is loaded.
+14
+Similarly, forms appearing directly in a MACROLETor 
+SYMBOL-MACROLETare compiled as top-level forms because after the compiler has expanded 
+the local macros or symbol macros, there will be no remnant of the MACROLETor 
+SYMBOL-MACROLETin the compiled code. Finally, the expansion of a top-level macro 
+form will be compiled as a top-level form.
+Thus, a DEFUNappearing at the top level of a source file is a top-level form—the code that 
+defines the function and associates it with its name will run when the FASL is loaded—but the 
+forms within the body of the function, which won’t run until the function is called, aren’t toplevel forms. Most forms are compiled the same when compiled as top-level and non-top-level 
+forms, but the semantics of an EVAL-WHENdepend on whether it’s being compiled as a toplevel form, compiled as a non-top-level form, or simply evaluated, combined with what situations are listed in its situation list.
+The situations :compile-topleveland :load-toplevelcontrol the meaning of an 
+EVAL-WHENcompiled as a top-level form. When :compile-toplevelis present, the file compiler 
+will evaluate the subformsat compile time. When :load-toplevelis present, it will compile the 
+subforms as top-level forms. If neither of these situations is present in a top-level EVAL-WHEN, 
+the compiler ignores it.
+14. By contrast, the subforms in a top-level LETaren’t compiled as top-level forms because they’re 
+not run directly when the FASL is loaded. They will run, but it’s in the runtime context of the 
+bindings established by the LET. Theoretically, a LETthat binds no variables could be treated like 
+a PROGN, but it’s not—the forms appearing in a LETare never treated as top-level forms.
+
+When an EVAL-WHENis compiled as a non-top-level form, it’s either compiled like a PROGN, 
+if the :executesituation is specified, or ignored. Similarly, an evaluated EVAL-WHEN—which 
+includes top-level EVAL-WHENs in a source file processed by LOADand EVAL-WHENs evaluated 
+at compile time because they appear as subforms of a top-level EVAL-WHENwith the 
+:compile-toplevelsituation—is treated like a PROGNif :executeis present and ignored otherwise.
+Thus, a macro such as IN-PACKAGEcan have the necessary effect at both compile time and 
+when loading from sourceby expanding into an EVAL-WHENlike the following:
+(eval-when (:compile-toplevel :load-toplevel :execute)
+(setf *package* (find-package "PACKAGE-NAME")))
+*PACKAGE*will be set at compile time because of the :compile-toplevelsituation, set 
+when the FASL is loaded because of :load-toplevel, and set when the source is loaded because 
+of the :execute.
+There are two ways you’re most likely to use EVAL-WHEN. One is if you want to write macros 
+that need to save some information at compile time to be used when generating the expansion 
+of other macro forms in the same file. This typically arises with definitional macros where a 
+definition early in a file can affect the code generated for a definition later in the same file. 
+You’ll write this kind of macro in Chapter 24.
+The other time you might need EVAL-WHENis if you want to put the definition of a macro 
+and helper functions it uses in the samefile as code that uses the macro. DEFMACROalready 
+includes an EVAL-WHENin its expansion so the macro definition is immediately available to be 
+used later in the file. But DEFUNnormally doesn’t make function definitions available at compile 
+time. But if you use a macro in the same file as it’s defined in, you need the macro andany 
+functions it uses to be defined. If you wrap the DEFUNs of any helper functions used by the macro 
+in an EVAL-WHENwith :compile-toplevel, the definitions will be available when the macro’s 
+expansion function runs. You’ll probably want to include :load-topleveland :executeas well 
+since the macros will also need the function definitions after the file is compiled and loaded or 
+if you load the source instead of compiling.
+Other Special Operators
+The four remaining special operators, LOCALLY, THE, LOAD-TIME-VALUE, and PROGV, all allow 
+you to get at parts of the underlying language that can’t be accessed any other way. LOCALLY
+and THEare part of Common Lisp’s declaration system, which is used to communicate things 
+to the compiler that don’t affect the meaning of your code but that may help the compiler 
+generate better code—faster, clearer error messages, and so on.
+15
+I’ll discuss declarations 
+briefly in Chapter 32.
+The other two, LOAD-TIME-VALUEand PROGV, are infrequently used, and explaining the 
+reason why you might ever wantto use them would take longer than explaining what they do. 
+So I’ll just tell you what they do so you know they’re there. Someday you’ll hit on one of those 
+rare times when they’re just the thing, and then you’ll be ready.
+15. The one declaration that has an effect on the semantics of a program is the SPECIALdeclaration 
+mentioned in Chapter 6.
+
+LOAD-TIME-VALUEis used, as its name suggests, to create a value that’s determined at load 
+time. When the file compiler compiles code that contains a LOAD-TIME-VALUEform, it arranges 
+to evaluate the first subform once, when the FASL is loaded, and for the code containing the 
+LOAD-TIME-VALUEform to refer to that value. In other words, instead of writing this:
+(defvar *loaded-at* (get-universal-time))
+(defun when-loaded () *loaded-at*)
+you can write the following:
+(defun when-loaded () (load-time-value (get-universal-time)))
+In code not processed by COMPILE-FILE, LOAD-TIME-VALUEis evaluated once when the 
+code is compiled, which may be when you explicitly compile a function with COMPILEor earlier 
+because of implicit compilation performed by the implementation in the course of evaluating 
+the code. In uncompiled code, LOAD-TIME-VALUEevaluates its form eachtime it’s evaluated.
+Finally, PROGVcreates new dynamic bindings for variables whose names are determined at 
+runtime. This is mostly usefulfor implementing embedded interpreters for languages with 
+dynamically scoped variables. The basic skeleton is as follows:
+(progv symbols-list values-list
+body-form*)
+where symbols-listis a form that evaluates to a list of symbols and values-listis a form that evaluates to a list of values. Each symbol is dynamically bound to the corresponding value, and 
+then the body-formsare evaluated. The difference between PROGVand LETis that because 
+symbols-listis evaluated at runtime, the names of the variables to bind can be determined 
+dynamically. As I say, this isn’t something you need to do often.
+And that’s it for special operators. In the next chapter, I’ll get back to hard-nosed practical 
+topics and show you how to use Common Lisp’s package system to take control of your 
+namespaces so you can write libraries and applications that can coexist without stomping on 
+each other’s names.
