@@ -73,6 +73,8 @@ user=> (if (not (zero? 0)) "no" "yes")
 
 ----
 3，if-let： 
+(if-let [x test] then else)
+
 if-let宏接受两个参数，第一个参数为绑定变量，第二个参数为表达式。
 并根据第二个表达式参数返回的值确定执行then、else语句。 
 
@@ -96,6 +98,7 @@ bindings => binding-form test
 If test is true, evaluates then with binding-form bound to the value of test, if not, yields else
 如果 test 为真，那么结合 binding-form 绑定，对 then 部分进行求值。
 如果 test 为假，那么对 else 部分进行求值。
+（hxzon：绑定之后，最多只能有两个形式。oldform没用，只是用来检查参数个数。）
 
 user=> (defn sum-all-even-number [all-number]
            (if-let [all-even-number (filter even? all-number)]
@@ -388,6 +391,7 @@ Usage: (recur exprs*)
 
 Evaluates the exprs in order, then, in parallel, rebinds the bindings of the recursion point to the values of the exprs.
 Execution then jumps back to the recursion point, a loop or fn method.
+loop 和 fn 都能建立递归点。
 
 Please see http://clojure.org/special_forms#recur
 

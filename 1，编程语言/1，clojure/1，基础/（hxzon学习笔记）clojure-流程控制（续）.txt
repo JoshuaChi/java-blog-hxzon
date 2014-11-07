@@ -77,6 +77,12 @@ rand-int 11表示0至11的随机数。
 
 --
 这里顺便提一下repeat函数：repeat函数接受一/两个常量参数，用法如下： 
+repeat
+function
+Usage: (repeat x)
+       (repeat n x)
+Returns a lazy (infinite!, or length n if supplied) sequence of xs.
+返回一个延迟序列（无限，或者指定元素个数），它的元素都是x 。
 
 user=> (repeat 5 (int (rand-int 100)))  
 (30 30 30 30 30)  
