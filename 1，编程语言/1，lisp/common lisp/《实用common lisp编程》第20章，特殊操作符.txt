@@ -2,29 +2,29 @@
 
 注释by hxzon
 =======
-CHAPTER 20 The Special Operators . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 245
-第20 章 特殊操作符　　213
+CHAPTER 20 The Special Operators
+第20 章 特殊操作符
 
-Controlling Evaluation. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 245
-20.1 控制求值　　213
+Controlling Evaluation
+20.1 控制求值
 
-Manipulating the Lexical Environment. . . . . . . . . . . . . . . . . . . . . . . . . . . 246
-20.2 维护词法环境　　 213
+Manipulating the Lexical Environment
+20.2 维护词法环境
 
-Local Flow of Control. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 248
-20.3 局部控制流　　 216
+Local Flow of Control
+20.3 局部控制流
 
-Unwinding the Stack. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 252
-20.4 从栈上回退　　219
+Unwinding the Stack
+20.4 从栈上回退
 
-Multiple Values. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 256
-20.5 多值　　 223
+Multiple Values
+20.5 多值
 
-EVAL-WHEN. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 258
-20.6 EVAL-WHEN　　224
+EVAL-WHEN
+20.6 EVAL-WHEN
 
-Other Special Operators. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 260
-20.7 其他特殊操作符　　 227
+Other Special Operators
+20.7 其他特殊操作符
 
 
 ==========
@@ -431,12 +431,17 @@ until (zerop n)))
 While it may not be immediately obvious that this code correctly implements Algorithm S, 
 if you got here via a series of functions that all behave identically to the original literal translation 
 of Knuth’s recipe, you’d have good reason to believe it’s correct.
+
+========
 Unwinding the Stack
+20.4，从栈上回退
+
 Another aspect of the language that special operators give you control over is the behavior of 
-the call stack. For instance, while you normally use BLOCKand TAGBODYto manage the flow of 
-control within a single function, you can also use them, in conjunction with closures, to force 
+the call stack. For instance, while you normally use BLOCK and TAGBODY to manage the flow of 
+control within a single function, you can also use them, in conjunction with closures, to force
+block和tagbody的流程控制，是在单个函数内。 
 an immediate nonlocal return from a function further down on the stack. That’s because BLOCK
-names and TAGBODYtags can be closed over by any code within the lexical scope of the BLOCK
+names and TAGBODY tags can be closed over by any code within the lexical scope of the BLOCK
 or TAGBODY. For example, consider this function:
 
 (defun foo ()
@@ -447,9 +452,9 @@ or TAGBODY. For example, consider this function:
 (format t " Leaving BLOCK~%"))
 (format t "Leaving foo~%"))
 
-The anonymous function passed to baruses RETURN-FROMto return from the BLOCK. But 
-that RETURN-FROMdoesn’t get evaluated until the anonymous function is invoked with FUNCALL
-or APPLY. Now suppose barlooks like this:
+The anonymous function passed to baruses RETURN-FROM to return from the BLOCK. But 
+that RETURN-FROM doesn’t get evaluated until the anonymous function is invoked with FUNCALL
+or APPLY. Now suppose bar looks like this:
 
 (defun bar (fn)
 (format t " Entering bar~%")
@@ -460,9 +465,10 @@ Still, the anonymous function isn’t invoked. Now look at baz.
 (format t " Entering baz~%")
 (funcall fn)
 (format t " Leaving baz~%"))
-Finally the function is invoked. But what does it mean to RETURN-FROMa block that’s 
+
+Finally the function is invoked. But what does it mean to RETURN-FROM a block that’s 
 several layers up on the call stack? Turns out it works fine—the stack is unwound back to the 
-frame where the BLOCKwas established and control returns from the BLOCK. The FORMAT
+frame where the BLOCK was established and control returns from the BLOCK. The FORMAT
 expressions in foo, bar, and bazshow this:
 
 CL-USER> (foo)
@@ -476,45 +482,52 @@ NIL
 Note that the only “Leaving . . .” message that prints is the one that appears after the BLOCK
 in foo.
 
-Because the names of blocks are lexically scoped, a RETURN-FROMalways returns from the 
-smallest enclosing BLOCKin the lexical environment where the RETURN-FROMform appears 
-even if the RETURN-FROMis executed in a different dynamic context. For instance, barcould 
-also contain a BLOCKnamed a, like this:
+Because the names of blocks are lexically scoped, a RETURN-FROM always returns from the 
+smallest enclosing BLOCK in the lexical environment where the RETURN-FROM form appears 
+even if the RETURN-FROM is executed in a different dynamic context. For instance, bar could 
+also contain a BLOCK named a, like this:
 
 (defun bar (fn)
 (format t " Entering bar~%")
 (block a (baz fn))
 (format t " Leaving bar~%"))
 
-This extra BLOCKwon’t change the behavior of fooat all—the name ais resolved lexically, 
+This extra BLOCK won’t change the behavior of fooat all—the name ais resolved lexically, 
 at compile time, not dynamically, so the intervening block has no effect on the RETURN-FROM. 
-Conversely, the name of a BLOCKcan be used only by RETURN-FROMs appearing within the 
+Conversely, the name of a BLOCK can be used only by RETURN-FROMs appearing within the 
 lexical scope of the BLOCK; there’s no way for code outside the block to return from the block 
-except by invoking a closure that closes over a RETURN-FROMfrom the lexical scope of the BLOCK.
-TAGBODYand GOwork the same way, in this regard, as BLOCKand RETURN-FROM. When you 
-invoke a closure that contains a GOform, if the GOis evaluated, the stack will unwind back to the 
-appropriate TAGBODYand then jump to the specified tag.
-BLOCKnames and TAGBODYtags, however, differ from lexical variable bindings in one 
+except by invoking a closure that closes over a RETURN-FROM from the lexical scope of the BLOCK.
+
+TAGBODY and GO work the same way, in this regard, as BLOCK and RETURN-FROM. When you 
+invoke a closure that contains a GO form, if the GO is evaluated, the stack will unwind back to the 
+appropriate TAGBODY and then jump to the specified tag.
+
+BLOCK names and TAGBODY tags, however, differ from lexical variable bindings in one 
 important way. As I discussed in Chapter 6, lexical bindings have indefinite extent, meaning 
 the bindings can stick around even after the binding form has returned. BLOCKs and TAGBODYs, 
-on the other hand, have dynamic extent—you can RETURN-FROMa BLOCKor GOto a TAGBODYtag 
-only while the BLOCKor TAGBODYis on the call stack. In other words, a closure that captures a 
-block name or TAGBODYtag can be passed downthe stack to be invoked later, but it can’t be 
-returned upthe stack. If you invoke a closure that tries to RETURN-FROMa BLOCK, after the BLOCK
-itself has returned, you’ll get an error. Likewise, trying to GOto a TAGBODYthat no longer exists 
+on the other hand, have dynamic extent—you can RETURN-FROM a BLOCK or GO to a TAGBODY tag 
+only while the BLOCK or TAGBODY is on the call stack. In other words, a closure that captures a 
+block name or TAGBODY tag can be passed downthe stack to be invoked later, but it can’t be 
+returned upthe stack. If you invoke a closure that tries to RETURN-FROM a BLOCK, after the BLOCK
+itself has returned, you’ll get an error. Likewise, trying to GO to a TAGBODY that no longer exists 
 will cause an error.【7】
 
-【7】 This is a pretty reasonable restriction—it’s not entirely clear whatit’d mean to return from a form 
+【7】 This is a pretty reasonable restriction—it’s not entirely clear what it’d mean to return from a form 
 that has already returned—unless, of course, you’re a Scheme programmer. Scheme supports 
 continuations, a language construct that makes it possible to return from the same function call 
 more than once. But for a variety of reasons, few, if any, languages other than Scheme support 
 this kind of continuation.
 
-It’s unlikely you’ll need to use BLOCKand TAGBODYyourself for this kindof stack unwinding. 
+It’s unlikely you’ll need to use BLOCK and TAGBODY yourself for this kindof stack unwinding. 
 But you’ll likely be using them indirectly whenever you use the condition system, so understanding 
 how they work should help you understand better what exactly, for instance, invoking 
 a restart is doing.【8】
 
+【8】 If you’re the kind of person who likes to know how things work all the way down to the bits, it may 
+be instructive to think about how you might implement the condition system’s macros using 
+BLOCK, TAGBODY, closures, and dynamic variables.
+
+====
 CATCH and THROW are another pair of special operators that can force the stack to unwind. 
 You’ll use these operators even less often than the others mentioned so far—they’re holdovers 
 from earlier Lisp dialects that didn’t have Common Lisp’s condition system. They definitely 
@@ -528,7 +541,8 @@ THROWis established dynamically—instead of a lexically scoped name, the label 
 an object, called a catch tag, and any THROWevaluated within the dynamic extent of the CATCH
 that throws that object will unwind the stack back to the CATCHform and cause it to return 
 immediately. Thus, you can write a version of the foo, bar, and bazfunctions from before using 
-CATCHand THROWinstead of BLOCKand RETURN-FROMlike this:
+CATCH and THROW instead of BLOCKand RETURN-FROMlike this:
+
 (defparameter *obj* (cons nil nil)) ; i.e. some arbitrary object
 (defun foo ()
 (format t "Entering foo~%")
@@ -545,11 +559,9 @@ CATCHand THROWinstead of BLOCKand RETURN-FROMlike this:
 (format t " Entering baz~%")
 (throw *obj* nil)
 (format t " Leaving baz~%"))
-Notice how it isn’t necessary to pass a closure down the stack—bazcan call THROWdirectly. 
+
+Notice how it isn’t necessary to pass a closure down the stack—baz can call THROW directly. 
 The result is quite similar to the earlier version.
-8. If you’re the kind of person who likes to know how things work all the way down to the bits, it may 
-be instructive to think about how you might implement the condition system’s macros using 
-BLOCK, TAGBODY, closures, and dynamic variables.
 
 CL-USER> (foo)
 Entering foo
@@ -558,6 +570,7 @@ Entering bar
 Entering baz
 Leaving foo
 NIL
+
 However, CATCHand THROWare almost toodynamic. In both the CATCHand the THROW, the 
 tag form is evaluated, which means their values are both determined at runtime. Thus, if some 
 code in barreassigned or rebound *obj*, the THROWin bazwouldn’t throw to the same CATCH. 

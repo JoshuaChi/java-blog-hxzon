@@ -11,6 +11,7 @@ Var
 见 clojure.lang.LispReader.EvalReader，clojure.lang.LispReader.VarReader 。
 见 clojure.lang.Compiler.TheVarExpr 。
 
+
 ==
 Namespace
 命名空间，存放Symbol到Var的映射。
@@ -52,7 +53,8 @@ Compiler.DefExpr  ：(def sym "doc string" initExpr)
 
 核心宏，核心函数定义。
 
-====
+
+==================
 https://github.com/xumingming/clojure
 徐明明的源码阅读，及修改。
 

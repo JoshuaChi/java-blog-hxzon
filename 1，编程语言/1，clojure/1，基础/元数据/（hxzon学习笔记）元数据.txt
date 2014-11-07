@@ -1,0 +1,46 @@
+﻿（hxzon学习笔记）元数据
+by hxzon
+
+==================
+对元数据的处理
+
+LispReader生成form时，把元数据字面量附着到随后的形式上，例如sym。
+
+DefExpr.Parser.parse
+从sym取出元数据mm，取出arglists，放到Var上。
+以mm为基础，添加文档字符串，添加编译器信息，去除要忽略的元数据，
+将mm解析成Expr，求值该Expr后作为Var的元数据。
+
+==
+hxzon：帮助理解
+
+(def ^{:y 1} y (with-meta 'yy {:tag String :yy 2}))
+(prn (meta y))
+;{:yy 2, :tag java.lang.String}
+;注意body中的x，是替换成它的值，即xx，而不是它的Var。对比下边：
+(prn (meta (var y)))
+{:y 1, :ns #<Namespace clojure.core>, :name y, :file "NO_SOURCE_FILE", :column 1, :line 1}
+
+(let [^{:x 1} x (with-meta 'xx {:tag String :xx 2})] (prn (meta x)))
+;{:xx 2, :tag java.lang.String}
+（初始值是一个seq，调用analyzeSeq，InvokeExpr.parse。）
+
+(let [^{:x 1} x (with-meta 'xx {:tag String :xx 2})] (prn (meta (var x))))
+;失败，因为var只是本地绑定，不能用var获取。
+
+==
+(let [x ^String 'xx] (prn (meta x)))
+;nil
+
+(let [x ^{:tag String :xx 1} 'xx] (prn (meta x)))
+;nil
+
+(let [x ^{:tag String :xx 1} 'xx] (prn (symbol? x)))
+;true
+(let [x ^{:tag String :xx 1} 'xx] (prn (name x)))  
+;"xx"
+
+上面两个例子，解析成form时，
+'xx是一个Cons（由quote和xx这两个符号组成），这个Cons整体带有该元数据。
+随后该Cons求值成符号x，它不带有元数据。
+
