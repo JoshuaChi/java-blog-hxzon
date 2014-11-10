@@ -50,6 +50,15 @@ fn的第一个参数是一个可选的函数名字，使得可以在函数体中
   (dosync (alter ~name assoc :name '~name)))))
 
 ==
+不同参数个数重载：
+
+(defmacro defComp
+  ([name] `(defComp ~name Comp))
+  ([name parent]
+  `(do (def ~name (kco ~parent))
+     (dosync (alter ~name assoc :name '~name)))))
+
+==
 等价写法：
 
 (defmacro defCompFn [name method & body]
@@ -85,6 +94,13 @@ fn的第一个参数是一个可选的函数名字，使得可以在函数体中
 let绑定是不允许有名字空间的。
 
 '~xxx ，对xxx求值，再引述。
+
+(defmacro def-adm-cmd [^String name & body]
+  `(add-adm-cmd 
+     (try
+       (proxy [org.hxzon.rpggame.core.impl.AbstractAdmCmdImpl] [~name] ~@body)
+       (catch Exception ~'e (log-error ~'e))    ;先引述，必须反引号加入当前命名空间前缀，再求值，得到符号本身。
+       )))
 
 ==
 引述（单引号'）：返回参数的不求值形式。

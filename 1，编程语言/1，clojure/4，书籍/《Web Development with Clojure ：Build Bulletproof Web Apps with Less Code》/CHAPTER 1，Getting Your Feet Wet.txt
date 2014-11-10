@@ -1,0 +1,773 @@
+﻿CHAPTER 1，Getting Your Feet Wet
+
+注释by hxzon
+====
+Setting Up Your Environment
+Your First Project
+
+========
+In the Introduction, on page ix, we talked about some of the benefits of the
+functional style when it comes to writing applications. Of course, you can’t
+learn a language simply by reading about it. To really get a feel for it you have
+to write some code yourself.
+
+In this chapter we’ll cover how to develop a simple guestbook application that
+allows users to leave messages for each other. We’ll see the basic structure
+of a web application as well as the tools necessary for effective Clojure development. 
+If you’re new to Clojure, I recommend taking a look at Appendix 2,
+Clojure  Primer,  on  page  181,  for  a  crash  course  on  the  basic  concepts  and
+syntax.
+
+========
+Setting Up Your Environment
+
+Clojure requires the Java Virtual Machine (JVM) to run, and you will need a
+working Java Development Kit, version 1.6 or higher.
+
+Clojure distribution is provided as a JAR that simply needs to be available on your project’s classpath. 
+Clojure applications can be built with the standard Java tools, such as Maven and Ant;
+however, I strongly recommend that you use Leiningen,
+which is designed specifically for Clojure.
+
+====
+Managing Projects with Leiningen
+管理项目
+
+Leiningen lets you create, build, test, package, and deploy your projects. In
+other words, it’s your one-stop shop for all your project-management-related
+needs.
+
+Leiningen is the Clojure counterpart of Maven, a popular tool for managing
+Java dependencies. Leiningen is compatible with Maven, so it has access to
+large and well-maintained repositories of Java libraries. In addition, Clojure
+libraries are commonly found in the Clojars repository.
+
+This repository is, of
+course, enabled by default in Leiningen.
+
+With Leiningen, you don’t need to worry about manually downloading all the
+libraries for your project. You can simply specify the top-level dependencies,
+and they will cause the libraries they depend on to be pulled in automatically.
+Installing Leiningen is as simple as downloading the installation script from
+the official project page and running it.
+
+Let’s test this. We’ll create a new project by downloading the script and running the following commands:
+创建项目：
+
+wget https://raw.github.com/technomancy/leiningen/stable/bin/lein
+chmod+x lein
+mv lein~/bin
+lein new myapp
+
+Since we’re running leinfor the first time, it will need to install itself. Once
+the  install  is  finished  you  should  see  the  following  output  if  the  command
+completes successfully:
+
+Generatingaprojectcalledmyappbasedonthe 'default'template.
+To see other templates(app,leinplug-in,etc),try`lein help new`.
+
+A new folder called myapphas been created, containing a skeleton application.
+The code for the application can be found in the srcfolder. There we’ll have
+another folder called myappcontaining a single source file named core.clj. This
+file has the following code inside:
+
+(nsmyapp.core)
+(defnfoo
+"Idon'tdoawholelot."
+[x]
+(printlnx"Hello,World!"))
+
+Note that the namespace declaration matches the folder structure. Since the
+corenamespace is inside the myappfolder, its name is myapp.core.
+
+====
+What’s in the Leiningen Project File
+项目文件（project.clj）
+
+Inside the myapp project folder we have a project.clj file. This file contains the
+description of our application. With close scrutiny, you’ll see that this file is
+written  using  standard  Clojure  syntax  and  contains  the  application  name,
+version, URL, license, and dependencies.
+
+(defproject myapp "0.1.0-SNAPSHOT"
+:description "FIXME:write description"
+:url "http://example.com/FIXME"
+:license {:name"EclipsePublicLicense"
+:url "http://www.eclipse.org/legal/epl-v10.html"}
+:dependencies [[org.clojure/clojure "1.5.1"]])
+
+The project.clj file will allow us to manage many different aspects of our application, as well. 
+For example, we could set the foofunction from the myapp.core
+namespace as the entry point for the application using the :mainkey:
+
+(defprojectmyapp "0.1.0-SNAPSHOT"
+:description"FIXME:writedescription"
+:url"http://example.com/FIXME"
+:license{:name"EclipsePublicLicense"
+:url"http://www.eclipse.org/legal/epl-v10.html"}
+:dependencies[[org.clojure/clojure "1.5.1"]]
+;;thiswillsetfooasthemainfunction
+:mainmyapp.core/foo)
+
+The application can now be run from the command line using lein run. Since
+the foo function expects an argument, we’ll have to pass one in:
+
+lein run First
+FirstHello,World!
+
+In the preceding example we created a very simple application that has only
+a single dependency: the Clojure runtime. If we used this as the base for a
+web application, then we’d have to write a lot of boilerplate to get it up and
+running.  Let’s  see  how  we  can  use  a  Leiningen  template  
+to  create  a  web application project with all the boilerplate already set up.
+
+====
+Leiningen Templates
+
+The  templates  consist  of  skeleton  projects  that  are  instantiated  when  the
+name of the template is supplied to the lein script. The templates themselves
+are simply Clojure projects that use the lein-newnew plug-in.
+https://github.com/Raynes/lein-newnew
+
+Later on we’ll see how we can create such templates ourselves.
+
+For now, we’ll use the compojure-app template to instantiate our next application.
+8. https://github.com/yogthos/compojure-template
+
+ The  template  name  is  specified  as  the  argument  following  the new
+keyword when running lein, followed by the name of the project. To make a
+web application instead of the default one as we did a moment ago, we only
+have to do the following:
+
+lein new compojure-app guestbook
+
+This will cause Leiningen to use the compojure-app template when creating
+the guestbook application. This type of application needs to start up a web
+server in order to run. To do that we can run lein ring server instead of lein run.
+
+When  we  run  the  application,  we’ll  see  the  following  output  in  the  console
+and a new browser window will pop up showing the home page.
+
+lein ring server
+guestbookisstarting
+2013-07-1418:21:06.603:INFO:oejs.Server:jetty-7.6.1.v20120215
+2013-07-1418:21:06.639:INFO:oejs.AbstractConnector:
+Started SelectChannelConnector@0.0.0.0:3000
+Started server on port 3000
+
+Now that we know how to create and run our applications, we’ll look at our
+editor options.
+
+You might have noticed that Clojure code can quickly end up having lots of
+parentheses.  Keeping  them  balanced  by  hand  would  quickly  turn  into  an
+exercise in frustration. Luckily, Clojure editors will do this for us.
+
+In fact, not only do the editors balance the parentheses, but some are even
+structurally aware. This means the editor knows where one expression ends
+and another begins. Therefore, we can navigate and select code in terms of
+blocks of logic instead of lines of text.
+
+====
+In this chapter we’ll be using Light Table to work with our guestbook application.
+9. http://www.lighttable.com/
+使用 lighttabel 。
+
+It’s very easy to get up and running and will allow us to quickly dive
+into writing some code. However, its functionality is somewhat limited and
+you may find it insufficient for larger projects. 
+Alternative development environments are discussed in Appendix 1, Alternative IDE Options, on page 177.
+
+Using Light Table
+
+Light Table does not require any installation and we can simply run the executable after it’s downloaded.
+
+
+Light Table offers a very minimal look. By default it simply shows the editor
+pane with the welcome message (see the following figure).
+Figure 1—Light Table workspace
+
+We’ll add the workspace pane from the menu by selecting View -> Workspace
+or pressing Ctrl-T on Windows/Linux or Cmd-T on OS X.
+
+From  there  we  can  open  the  guestbook  project  by  navigating  to  the  Folder
+tab on the top left, as the following figure shows.
+Figure 2—Opening a project
+
+Once the project is selected we can navigate the project tree and select files
+we wish to edit (see the following figure).
+Figure 3—Light Table project
+
+Now that we have our development environment set up, we can finally look
+at adding some functionality to our guestbook application.
+
+========
+Your First Project
+
+You should have your guestbook project running in the console and available
+at http://localhost:3000/. We’ll stop this instance by pressing Ctrl-Cin the terminal.
+Since we have it open in our Light Table workspace, we can run it from the
+editor instead.
+
+We’ll  now  go  a  step  further  and  create  a  Read-Evaluate-Print  Loop  (REPL)
+connection from Light Table to our project. Navigate to View -> Connections
+in the menu to open the Connections tab. 
+There we can click the Add Connection button shown in Figure 4, Light Table connection, on page 7.
+
+Figure 4—Light Table connection
+
+At this point a list of different connection options will pop up. We’ll select the
+Clojure option, as seen in Figure 5, Light  Table  Clojure  connection, on page
+8. Then we’ll navigate to the guestbook project folder and select the project.clj
+file.
+
+With our project connected to Light Table we can start evaluating things right
+in the editor!
+
+You  can  try  this  immediately  by  navigating  to  any  function  and  pressing
+Ctrl-Enter on Windows and Linux or Cmd-Enter on OS X. If we do this while the
+cursor is on the homefunction, we’ll see the following printed next to it:
+#'guestbook.routes.home/home
+
+This  says  that  the  function  has  been  evaluated  in  the  REPL  and  is  now
+available for use.
+
+We  can  also  open  an  Instarepl  by  pressing Ctrl+spacebar and  typing  in repl.
+This  will  open  a  scratch  editor  that  we  can  use  to  run  arbitrary  code  (see
+Figure 6, Light Table Instarepl, on page 8).
+
+Figure 5—Light Table Clojure connection
+Figure 6—Light Table Instarepl
+
+By  default  the  Instarepl  evaluates  everything  as  soon  as  any  changes  are
+made. This is referred to as the livemode. 
+We can now reference the guestbook.repl namespace here and run the start-server function.
+
+(use'guestbook.repl)
+(start-server)
+
+When the code is evaluated the HTTP server will start up and a new browser
+window will open, pointing to the home page (as in the following figure).
+Figure 7—Running the server in the Instarepl
+
+Since we don’t wish start-server to continue being called, we’ll remove the preceding code from the editor.
+Alternatively, we could disable the live evaluation by clicking the liveicon on
+the top right. With the live mode disabled we can run commands using Alt-Enter.
+Now let’s reference our homenamespace by running (use'guestbook.routes.home)
+and call the homefunction, as Figure 8, Using the REPL, on page 10 shows.
+
+As you can see, calling homesimply generates an HTML string for our home
+page.  This  is  what  gets  rendered  in  the  browser  when  we  navigate  to
+http://localhost:3000.
+
+Figure 8—Using the REPL
+
+Notice that we use Clojure vectors to represent the corresponding HTML tags
+in  our  code.  If  we  add  some  new  tags  and  reload  the  page,  we’ll  see  the
+changes.  For  example,  let’s  update  our home function  to  display  a  heading
+and a form to enter a message.
+我们使用向量，来表示html标签。
+
+(defn home[]
+(layout/common
+[:h1"Guestbook"]
+[:p"Welcometomyguestbook"]
+[:hr]
+[:form
+[:p"Name:"]
+[:input]
+[:p"Message:"]
+[:textarea{:rows10:cols40}]]))
+
+When we reload the page, we’ll immediately see the changes we made (refer
+to Figure 9, Guestbook, on page 11).
+Figure 9—Guestbook
+
+You  might  have  guessed  that  the  code  directly  below  the home function  is
+responsible for binding the "/"route to it.
+定义路由：
+
+(defroutes home-routes
+(GET"/"[](home)))
+
+Here, we use defroutes to define the routes for the guestbook.routes.home namespace.
+Each  route  represents  a  URI  to  which  your  application  responds.  It  starts
+with the type of the HTTP request it responds to, such as GET or POST, 
+followed by the parameters and the body.
+
+Before we move on to add any more functionality to the project, we’ll take a
+quick look at the files that were generated for our guestbook application.
+Understanding Application Structure
+
+When we expand our project in the Workspace tab it should look like this:
+
+guestbook/
+resources/
+public/
+css/
+screen.css
+img/
+js/
+src
+guestbook/
+models/
+routes/
+home.clj
+views/
+layout.clj
+handler.clj
+repl.clj
+test/
+guestbook/
+test/
+hanlder.clj
+project.clj
+README.md
+
+In our project’s root folder is the project.cljfile that is used for configuring and
+building the application.
+
+We also have several folders in our project. The src folder is where the application code lives. 
+The resources folder is where we’ll put any static resources
+associated with the application, such as CSS files, images, and JavaScript.
+
+Finally, we have the test folder where we can add tests for our application.
+Clojure  namespaces  follow  Java  packaging  conventions,  meaning  that  if  a
+namespace contains a prefix, it must live in a folder matching the name of
+the prefix. Note that if a namespace contains any dashes, they must be con
+verted to underscores for the corresponding folder and file names.
+This  is  because  the  dash  is  not  a  valid  character  in  Java  package  names.
+Given that Clojure compiles to JVM bytecode, it must follow this convention
+as well.
+
+Since we called our application guestbook, all its namespaces live under the
+src/guestbook folder. Let’s look at what these are. First we have the guestbook.handler
+namespace found in src/guestbook/handler.clj. This namespace contains the entry
+point to our application and defines the handler that’s going to handle all the
+requests to it.
+
+The guestbook.repl namespace found in src/guestbook/repl.clj contains functions that
+start  and  stop  the  server  when  running  from  the  REPL.  We  can  use  it  to
+launch our application directly from the editor instead of running it via lein.
+Next, we have a folder called models. This is reserved for namespaces used to
+define  the  application’s  model  layer.  Such  namespaces  might  deal  with
+database connections, table definitions, and records access.
+
+In the routesfolder we have the namespaces dealing with the route definitions.
+The routes constitute entry points for any workflows we choose to implement.
+
+Currently, there’s a single namespace called guestbook.routes.home with the route
+to  your  home  page  defined  in  it.  This  namespace  lives  in src/guestbook/routes/
+home.clj.
+
+The views folder comes next; it’s used to hold namespaces that deal with your
+application’s  visual  layout.  It  comes  populated  with  the guestbook.views.layout
+namespace, which defines the basic page structure. Once again, the corre
+sponding file for the layoutnamespace is src/guestbook/views/layout.clj.
+
+====
+Adding Some Functionality
+
+Let’s look at creating the user interface (UI) for our guestbook. Don’t worry if
+you can’t immediately follow all of the code; it will be covered in detail in the
+following  chapters.  Instead  of  focusing  on  the  minutiae  of  each  function,
+notice how we’ll structure our application and where we put different parts
+of application logic.
+
+We created a form earlier by writing out its tags by hand. We’ll now replace
+it  with  a  better  implementation  using  helper  functions  from  the  Hiccup
+library.
+https://github.com/weavejester/hiccup
+
+In  order  to  use  these  functions,  we’ll  have  to  reference  the  library  in  our
+namespace declaration as seen here:
+
+(nsguestbook.routes.home
+(:require[compojure.core:refer:all]
+[guestbook.views.layout:aslayout]
+[hiccup.form:refer:all]))
+
+We’ll start by creating a function to render the existing messages. This function
+renders an HTML list containing the existing comments. For the time being
+we’ll simply hardcode a couple of test comments.
+
+(defn show-guests[]
+[:ul.guests
+(for[{:keys[messagenametimestamp]}
+[{:message"Howdy":name"Bob":timestampnil}
+{:message"Hello":name"Bob":timestampnil}]]
+[:li
+[:blockquotemessage]
+[:p"-"[:citename]]
+[:timetimestamp]])])
+
+Next, let’s update the home function to allow the guests to see the messages
+left by the previous guests, and provide a form to create a new message.
+
+(defn home[&[namemessageerror]]
+(layout/common
+[:h1"Guestbook"]
+[:p"Welcometomyguestbook"]
+[:perror]
+;herewecallourshow-guestsfunction
+;togeneratethelistofexistingcomments
+(show-guests)
+[:hr]
+;herewecreateaformwithtextfieldscalled"name"and"message"
+;thesewillbesentwhentheformpoststotheserveraskeywordsof
+;thesamename
+(form-to[:post"/"]
+[:p"Name:"]
+(text-field"name"name)
+[:p"Message:"]
+(text-area{:rows10:cols40} "message"message)
+[:br]
+(submit-button"comment"))))
+
+When  we  navigate  to  the  browser  we  can  see  the  test  messages  displayed
+along with the form. Notice that the home function now takes several optional
+parameters. We’ll render the values of these parameters on the page. When
+the parameters are nilthey will be rendered as empty strings.
+
+The form we created sends an HTTP POST to the "/"route, so let’s add a route
+to handle this action. This route will call a helper function called save-message,
+which we’ll define shortly.
+
+guestbook/src/guestbook/routes/home.clj
+
+(defrouteshome-routes
+(GET"/"[](home))
+(POST"/"[namemessage](save-messagenamemessage)))
+
+The save-message function will check that name and message parameters are
+set,  then  call  the home function.  When  both  parameters  are  supplied  the
+message will be printed to the console; otherwise, an error message will be
+generated.
+
+(defn save-message[namemessage]
+(cond
+(empty?name)
+(homenamemessage"Somedummyforgottoleaveaname")
+(empty?message)
+(homenamemessage"Don'tyouhavesomethingtosay?")
+:else
+(do
+(printlnnamemessage)
+(home))))
+
+Try adding a comment in the guestbook to see that the name and the message
+are printed in the console. Next, try leaving the name or the message blank
+and see if an error is rendered.
+
+We’ve now added the ability to view and submit messages from the UI. 
+However, we don’t really have anywhere to store these messages at the moment.
+
+====
+Adding the Data Model
+
+Since our application will need to store the comments visitors post, let’s add
+the JDBC and SQLite dependencies to our project.clj.
+11. http://www.sqlite.org/
+
+The :dependenciessection
+of our project should look like the following, with the new dependencies added.
+
+:dependencies[[org.clojure/clojure "1.5.1"]
+[compojure"1.1.5"]
+[hiccup"1.0.4"]
+[ring-server"0.3.0"]
+;;JDBCdependencies
+[org.clojure/java.jdbc"0.2.3"]
+[org.xerial/sqlite-jdbc"3.7.2"]]
+
+Since we’ve added new dependencies we’ll need to reconnect our project to
+the REPL. To do this, navigate to the Connect tab and click the Disconnect
+button,  then  follow  the  previously  detailed  steps  to  connect  a  new  REPL
+instance (shown in Figure 10, Disconnecting the REPL, on page 16).
+Once we reconnect the REPL we’ll need to run (start-server)in the Instarepl, as
+we did earlier.
+
+We’re  now  ready  to  create  a  model  for  our  application.  We’ll  create  a  new
+namespace  under  the src/guestbook/models folder.  We’ll  call  this  namespace
+guestbook.models.db. To do that, right-click on the modelsfolder in the workspace
+and choose the New File option. When the file is created name it db.clj.
+As the name implies, the dbnamespace will govern the model for our application 
+and provide functions to store and read the data from the database.
+
+First, we’ll need to add the namespace declaration and reference the database
+dependencies. We’ll do this by writing the following namespace declaration:
+
+guestbook/src/guestbook/models/db.clj
+
+(nsguestbook.models.db
+(:require[clojure.java.jdbc:assql])
+(:importjava.sql.DriverManager))
+
+Figure 10—Disconnecting the REPL
+
+Notice that we use the :requirekeyword to reference other Clojure namespaces,
+but we have to use :importto reference the Java classes.
+Next, we’ll create the definition for our database connection. The definition
+is simply a map containing the class for the JDBC driver, the protocol, and
+the name of the database file used by SQLite.
+
+guestbook/src/guestbook/models/db.clj
+
+(defdb{:classname "org.sqlite.JDBC",
+:subprotocol "sqlite",
+:subname "db.sq3"})
+Now that we have a database connection declared, let’s write a function to
+create the table for storing the guest messages.
+guestbook/src/guestbook/models/db.clj
+(defncreate-guestbook-table[]
+(sql/with-connection
+db
+(sql/create-table
+:guestbook
+
+[:id"INTEGERPRIMARYKEYAUTOINCREMENT"]
+[:timestamp"TIMESTAMPDEFAULTCURRENT_TIMESTAMP"]
+[:name"TEXT"]
+[:message"TEXT"])
+(sql/do-commands"CREATEINDEXtimestamp_indexONguestbook(timestamp)")))
+
+This  function  uses  the with-connection statement,  which  ensures  that  the
+database connection is properly cleaned up after use. Inside it, we call the
+create-tablefunction and pass it the key representing the table name, followed
+by vectors representing the table columns. Just to be thorough, we’ll create
+an index on the timestamp field.
+
+To  run (create-guestbook-table) in  the  Instarepl  we  first  have  to  reference  the
+namespace, as we did with the guestbook.routes.homeearlier.
+
+(use'guestbook.models.db)
+(create-guestbook-table)
+
+You should now be able to run (create-guestbook-table)in the Instarepl to create
+the table. If you have the livemode enabled you’ll want to disable it before
+doing this. Otherwise create-guest-book-tablewill be called any time the scratch
+buffer is updated and produce errors.
+
+With  the  table  created,  we  can  write  a  function  to  read  the  messages  from
+the database.
+
+guestbook/src/guestbook/models/db.clj
+
+(defnread-guests[]
+(sql/with-connection
+db
+(sql/with-query-resultsres
+["SELECT*FROMguestbookORDERBYtimestampDESC"]
+(doallres))))
+
+Here we use with-query-resultsto run a select statement and return its result.
+The reason we call doallbefore returning the result is because r e sis lazy and
+doesn’t load all results into memory.
+
+By calling doallwe force r e sto be completely evaluated. If we do not, then our
+connection will be closed when we leave the function scope and we won’t be
+able to access the results outside it.
+
+We’ll also need to create a function to save new messages to our guestbook
+table. This function will call insert-valuesand pass it the name and the message
+to be stored as parameters.
+
+guestbook/src/guestbook/models/db.clj
+(defnsave-message[namemessage]
+(sql/with-connection
+db
+(sql/insert-values
+:guestbook
+[:name:message:timestamp]
+[namemessage(newjava.util.Date)])))
+
+Now that we’ve written functions to read and write messages, we can try them
+out in the REPL. We’ll need to rerun (use'guestbook.models.db)in the Instarepl to
+access the newly added functions. However, both the guestbook.models.dband
+the guestbook.routes.homenamespaces define a function called save-message.
+If we try to reload the guestbook.models.dbnamespace we’ll get an error stating
+that save-message has  already  been  referenced  in  the guestbook.routes.home
+namespace.  To  avoid  this  problem  we’ll  remove  the  current  reference  to
+save-message by  running ns-unmap in  the  Instarepl  before  running (use
+'guestbook.models.db).
+
+(ns-unmap'user'save-message)
+(use'guestbook.models.db)
+
+Now we can try running the following code and see if the logic for saving and
+reading messages works as expected:
+
+(save-message"Bob""hello")
+(read-guests)
+
+We should see the output shown in Figure 11, Testing the save function, on
+page 19 after saving a message and reading guests from our database.
+With  our  persistence  layer  in  place,  we  can  go  back  and  update  our home
+namespace to use it instead of the dummy data we created earlier.
+
+====
+Putting It All Together
+
+We’ll now add the dbdependency to our homeroute declaration.
+
+guestbook/src/guestbook/routes/home.clj
+
+(nsguestbook.routes.home
+(:require[compojure.core:refer:all]
+[guestbook.views.layout:aslayout]
+[hiccup.form:refer:all]
+[guestbook.models.db:asdb]))
+
+Next, we’ll change the show-guestsfunction to call db/read-guests:
+
+Figure 11—Testing the save function
+
+(defnshow-guests[]
+[:ul.guests
+(for[{:keys[messagenametimestamp]}(db/read-guests)]
+[:li
+[:blockquotemessage]
+[:p"-"[:citename]]
+[:timetimestamp]])])
+
+Finally, we’ll change the save-messagefunction to call db/save-messageinstead of
+printing the submitted params:
+
+guestbook/src/guestbook/routes/home.clj
+
+(defnsave-message[namemessage]
+(cond
+(empty?name)
+(homenamemessage"Somedummyforgottoleaveaname")
+(empty?message)
+(homenamemessage"Don'tyouhavesomethingtosay?")
+:else
+(do
+(db/save-messagenamemessage)
+(home))))
+
+With  these  changes  in  place  we  can  navigate  to  our  page  and  see  that  the
+message we added earlier in the REPL is displayed, as it is in the following
+figure.
+Figure 12—Working guestbook
+
+We can now try adding more messages to confirm that our guestbook is indeed
+working as intended.
+
+You’ve probably noticed that we still have a wart in the way we display the
+messages on our page. The time is simply shown as a number representing
+the  milliseconds.  This  isn’t  terribly  user-friendly,  so  let’s  add  a  function  to
+format it instead.
+
+To do that, we’ll use Java interop to create an instance of SimpleDateFormatto
+format the timestamps for us:
+
+guestbook/src/guestbook/routes/home.clj
+
+(defnformat-time[timestamp]
+(->"dd/MM/yyyy"
+(java.text.SimpleDateFormat.)
+(.formattimestamp)))
+(defnshow-guests[]
+[:ul.guests
+(for[{:keys[messagenametimestamp]}(db/read-guests)]
+[:li
+[:blockquotemessage]
+[:p"-"[:citename]]
+[:time(format-timetimestamp)]])])
+
+====
+Finishing Touches
+
+We’re almost done building our guestbook. There’s only one thing left to do.
+Since we need to have the database table created in order to access it, we’ll
+add the code for doing that to our handlernamespace. First, we’ll reference our
+dbnamespace in the declaration of our handler.
+
+(nsguestbook.handler
+...
+(:require...
+[guestbook.models.db:asdb]))
+
+Then we’ll update our init function to check whether the database exists and
+try to create the guestbook table if needed.
+
+guestbook/src/guestbook/handler.clj
+
+(defn init[]
+(println"guestbookisstarting")
+(if-not(.exists(java.io.File."./db.sq3"))
+(db/create-guestbook-table)))
+
+Since  the init function  runs  once  on  load,  it  ensures  that  the  database  is
+available before we start using the application.
+
+====
+What Did We Just Do?
+
+The  preceding  example  gives  us  a  taste  of  what  to  expect  when  developing
+web applications with Clojure. You might have noticed that you need to write
+very little code to get a working application. The code that you do write has
+little to no boilerplate.
+
+At this point you should feel comfortable with the application’s structure, its
+major components, and how they all fit together.
+As you’ll recall, the application consists of the following namespaces.
+
+There  is  the guestbook.handler namespace  responsible  for  bootstrapping  and
+creating  the  handler  the  server  uses  to  pass  the  client  requests  to  the
+application.
+
+Next we have the guestbook.routes.homenamespace. This is where we set up the
+workflows for the actual functionality and where the bulk of application logic
+lives. As you add more workflows you would create new namespaces under
+guestbook.routes. For example, you might have a guestbook.routes.authnamespace,
+where you would handle user registration and authentication.
+Each  namespace  under routes will  typically  encapsulate  a  self-contained
+workflow in the application. All the code pertaining to it can be found in one
+place and will work independently from the other routes. A workflow might
+represent  handling  user  authentication,  editing  content,  or  performing
+administration.
+
+The guestbook.views.layout namespace  manages  the  application  layout.  Here  is
+where  we  put  the  code  to  generate  the  common  page  elements  and  govern
+the structure for the pages in our application. The layout generally takes care
+of  including  static  resources,  such  as  CSS  and  JavaScript  files  the  pages
+need, as well as setting up other common elements like headers and footers.
+Finally, we have the guestbook.models.dbnamespace. This namespace governs
+the data model for the application. The table definitions will dictate the data
+types, and what data you persist from the client.
+
+As we move on to build larger applications these things will remain constant.
+A properly structured Clojure application is easy to understand and maintain.
+This is great news for your application’s overall life cycle, as you never have
+to  navigate  complex  hierarchies  like  you  often  do  when  dealing  with  large
+code bases in some other languages.
+
+We developed our application using the Light Table development environment.
+Although  it’s  easy  to  use,  it’s  still  rough  around  the  edges  and  lacks  some
+useful features available in other integrated development environments (IDEs).
+These features include code completion, structural code editing, and integrated
+dependency management.
+
+At this point I encourage you to take the time to try out a more mature envi
+ronment  such  as  Eclipse  or  Emacs.
+13. http://www.gnu.org/software/emacs/
+
+The  rest  of  the  book  will  assume
+Eclipse as the development environment; however, it should be easy to follow
+regardless of the editor you’re using. To see the instructions for setting up
+an  alternative  IDE,  please  refer  to Appendix  1, Alternative  IDE  Options,  on
+page 177.
+本书其余的章节，使用Eclipse作为开发环境。
+
+You’ll notice that we actively use the REPL while developing the application.
+This is different from most development environments, where the REPL is not
+integrated with the editor. Being able to execute code in the REPL makes you
+more productive by providing you with a faster feedback cycle.
+
+In this chapter we set up our development environment and covered how a
+typical Clojure web application is structured. In the next chapter, we’ll look
+at the core libraries that comprise the Clojure web stack. You’ll learn about
+the  request/response  life  cycle,  defining  routes,  session  management,  and
+use of middleware to augment the core request-handling functionality.
+

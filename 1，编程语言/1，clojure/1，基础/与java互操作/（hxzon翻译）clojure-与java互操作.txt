@@ -11,6 +11,7 @@ Member access
 
 (.instanceMember instance args*)
 (.instanceMember Classname args*)
+
 (Classname/staticMethod args*)
 Classname/staticField
 
@@ -19,22 +20,28 @@ The Dot special form
 
 (. instance-expr member-symbol)
 (. Classname-symbol member-symbol)
+
 (. instance-expr (method-symbol args*)) or
 (. instance-expr method-symbol args*)
+
 (. Classname-symbol (method-symbol args*)) or
 (. Classname-symbol method-symbol args*)
+
 (.. instance-expr member+)
 (.. Classname-symbol member+)
 
 (doto instance-expr (instanceMethodName-symbol args*)*)
+
 (Classname. args*)
 (new Classname args*)
 
 Alternative Macro Syntax
 
 (instance? Class expr)
+
 (set! (. instance-expr instanceFieldName-symbol) expr)
 (set! (. Classname-symbol staticFieldName-symbol) expr)
+
 (memfn method-name arg-names*)
 (bean obj)
 
@@ -243,12 +250,15 @@ Since much of the rest of the library is built upon these functions, there is gr
 Implementing Interfaces and Extending Classes
 实现java接口和继承java类
 
-Clojure supports the dynamic creation of objects that implement one or more interfaces and/or extend a class with the proxy macro. 
+Clojure supports the dynamic creation of objects 
+that implement one or more interfaces and/or extend a class with the proxy macro. 
 The resulting objects are of an anonymous class. 
 You can also generate statically-named classes and .class files with gen-class. 
 As of Clojure 1.2, reify is also available for implementing interfaces.
 
 ==
+代理
+
 ( proxy [class-and-interfaces] [args] fs+)
 
 class-and-interfaces - a vector of class names
@@ -257,7 +267,8 @@ f => (name [params*] body) or (name ([params*] body) ([params+] body) ...)
 
 Macro
 
-Expands to code which creates a instance of a proxy class that implements the named class/interface(s) by calling the supplied fns. 
+Expands to code which creates a instance of a proxy class 
+that implements the named class/interface(s) by calling the supplied fns. 
 A single class, if provided, must be first. 
 If not provided it defaults to Object. 
 The interfaces names must be valid interface types. 
@@ -265,18 +276,23 @@ If a method fn is not provided for a class method, the superclass method will be
 If a method fn is not provided for an interface method, an UnsupportedOperationException will be thrown should it be called. 
 Method fns are closures and can capture the environment in which proxy is called. 
 Each method fn takes an additional implicit first arg, which is bound to this. 
+
 Note that while method fns can be provided to override protected methods, 
 they have no other access to protected members, nor to super, as these capabilities cannot be proxied.
+注意，虽然可以覆盖“受保护的”方法，
+但没有办法访问“受保护的”方法。（hxzon：？）
 
 ========
 Arrays
 数组
 
 Clojure supports the creation, reading and modification of Java arrays. 
-It is recommended that you limit use of arrays to interop with Java libraries that require them as arguments or use them as return values.
+It is recommended that you limit use of arrays to interop with Java libraries 
+that require them as arguments or use them as return values.
 
 Note that many other Clojure functions work with arrays such as via the seq library. 
-The functions listed here exist for initial creation of arrays, or to support mutation or higher performance operations on arrays.
+The functions listed here exist for initial creation of arrays, 
+or to support mutation or higher performance operations on arrays.
 
 Create array from existing collection: 
 aclone amap to-array to-array-2d into-array

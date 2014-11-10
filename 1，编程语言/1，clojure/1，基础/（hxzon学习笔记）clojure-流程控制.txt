@@ -33,7 +33,7 @@ dotimes，doseq，for。
 ============
 一、标准的流程控制 
 
-----
+====
 1，if： 
 将一个判断表达式作为它的第一个参数进行求值。
 如果求值为true，那么就返回它的第二个参数（相当于“then”子句）的求值结果。
@@ -61,7 +61,7 @@ nil
 user=> (if false "true")  
 nil  
 
-----
+====
 2，if-not： 
 跟 if 的用法相同，但是作用是相反的。
 当逻辑为false的时候会去计算第二个参数的值，为true的时候才计算第三个参数的值。
@@ -71,12 +71,11 @@ user=> (if-not (zero? 0) "no" "yes")
 user=> (if (not (zero? 0)) "no" "yes")  
 "yes"  
 
-----
+====
 3，if-let： 
 (if-let [x test] then else)
 
-if-let宏接受两个参数，第一个参数为绑定变量，第二个参数为表达式。
-并根据第二个表达式参数返回的值确定执行then、else语句。 
+即(let [x test] (if x then else)) 的缩写。
 
 user=> (defn if-let-test [arg] (if-let [x arg] "true" "false"))
 #'user/if-let-test  
@@ -88,7 +87,7 @@ user=> (if-let-test nil)
 user=> (if-let-test false)  
 "false"  
 
---
+==
 if-let
 macro
 Usage: (if-let bindings then)
@@ -122,8 +121,10 @@ http://clojure-api-cn.readthedocs.org/en/latest/clojure.core/if-let.html
   If test is true, evaluates then with binding-form bound to the value of 
   test, if not, yields else"
   {:added "1.0"}
+
   ([bindings then]
    `(if-let ~bindings ~then nil))
+
   ([bindings then else & oldform]
    (assert-args
      (vector? bindings) "a vector for its binding"
@@ -136,7 +137,7 @@ http://clojure-api-cn.readthedocs.org/en/latest/clojure.core/if-let.html
             ~then)
           ~else)))))
 
-----
+========
 4，when: 
 when没有else子句，如果when后面第一个参数为true，则执行条件后的所有语句，否则返回nil。 
 
@@ -154,7 +155,7 @@ hello world
 user=> has-value  
 "returned value"  
 
-----
+====
 5，when-not： 
 when-not与when类似，只是第一个参数返回false，才执行后面所有语句，否则返回nil。 
 
@@ -164,9 +165,11 @@ is true
 user=> (when-not true (println "is true") "return true")  
 nil  
 
-----
+====
 6，when-let： 
-when-let与if-let类似，只有绑定变量值不是false、nil时，才执行后面所有语句，否则直接返回nil。 
+(when-let [x test] body)
+即(let [x test] (when x body))的缩写。
+
 
 user=> (when-let [a true] (println "true") "return true")  
 true  
@@ -178,7 +181,7 @@ nil
 user=> (when-let [a nil] (println "true"))  
 nil  
 
-----
+========
 7，cond： 
 cond 可以有任意个“判断/表达式”对，作为它的参数。
 如果满足第一个判断，就执行第一个判断对应的表达式。
@@ -186,7 +189,7 @@ cond 可以有任意个“判断/表达式”对，作为它的参数。
 如果一个都没有满足，那么返回 nil 。
 除非你用一个 :else 关键字放在最后来抓住剩下的所有可能性。
 
-cond类似于java中的if..else if...else语句。 
+cond类似于java中的 if..else if...else 语句。 
 
 user=> (defn f [n] (cond (< n 0) "<0" (< n 10) "<10" :else ">=10"))  
 #'user/f  
@@ -200,7 +203,7 @@ user=> (f 2)
 user=> (f 10)  
 ">=10"  
 
-----
+====
 7.1，condp
 macro
 Usage: (condp pred expr & clauses)
@@ -211,8 +214,10 @@ Takes a binary predicate, an expression, and a set of clauses.
 pred是一个两元谓词。
 
 Each clause can take the form of either:
+
 test-expr result-expr
 result-expr :>> result-fn
+
 Note :>> is an ordinary keyword.
 （ordinary，普通。）
 每个子句或者含有测试表达式和结果表达式两部分，
@@ -256,7 +261,7 @@ an IllegalArgumentException is thrown.
 
 (condp some [1 2 3 4]
          #{0 6 7} :>> inc
-         #{4 5 9} :>> dec
+         #{4 5 9} :>> dec			; 4 在 [1 2 3 4]中，返回4，再(dec 4) 得到 3
          #{1 2 3} :>> #(+ % 3))
 ;= 3
 
@@ -265,10 +270,11 @@ an IllegalArgumentException is thrown.
 (some #{4 5 9} [1 2 3 4])
 ;= 4
 
-----
+====
 7.2，cond->
 macro
 Usage: (cond-> expr & clauses)
+hxzon：(cond-> init test1 body1 test2 body2 test3 body3 ...)
 
 Takes an expression and a set of test/form pairs. 
 Threads expr (via ->) through each form for which the corresponding test expression is true. 
@@ -280,12 +286,12 @@ cond-> threading does not short circuit after the first true test expression.
 和cond不一样，cond->不是短路的。
 
 user=> (cond-> 1
-               true inc	;true为逻辑真，(inc 1)得到2。
-               false (* 42) ;false为逻辑假，不执行。
-               (= 2 2) (* 3)) ;(= 2 2)为逻辑真，(* 2 3)得到6。
+               true inc			;true为逻辑真，(inc 1)得到2。
+               false (* 42) 		;false为逻辑假，不执行。
+               (= 2 2) (* 3)) 		;(= 2 2)为逻辑真，(* 2 3)得到6。
 6
 
-----
+====
 7.3，cond->>
 macro
 Usage: (cond->> expr & clauses)
@@ -298,7 +304,7 @@ Note that, unlike cond branching,
 cond->> threading does not short circuit after the first true test expression.
 和cond不一样，cond->>不是短路的。
 
-----
+====
 8，case： 
 case可以简单理解为java中switch的case，如下 
 
@@ -315,7 +321,7 @@ user=> (let [mystr "no match"]
                 "default")) ;最后一个表达式只有匹配不成功时才执行  
 "default"  
 
---
+==
 case可以用列表一次匹配多个值： 
 
 user=> (defn f [x] (case x  
@@ -336,7 +342,7 @@ user=> (f 6)
 user=> (f 1)  
 "others"  
 
-----
+====
 9，do： 
 do执行多条语句，返回最后一条语句值 
 
@@ -348,7 +354,7 @@ user=> (def v (do (println 123) (println 321) -1))
 user=> v  
 -1  
 
-----
+========
 10，loop、recur： 
 
 如果递归的层次太深的话，那么可能会产生内存不足的情况。
@@ -404,7 +410,7 @@ Evaluates the exprs in a lexical context in
 which the symbols in the binding-forms are bound to their respective init-exprs or parts therein. 
 Acts as a recur target.
 
-----
+========
 11，while
 macro
 Usage: (while test & body)

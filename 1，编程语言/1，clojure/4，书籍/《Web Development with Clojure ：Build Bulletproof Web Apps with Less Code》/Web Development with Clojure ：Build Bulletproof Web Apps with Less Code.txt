@@ -1,0 +1,133 @@
+Web Development with Clojure ：Build Bulletproof Web Apps with Less Code
+
+http://pragprog.com/book/dswdcloj/web-development-with-clojure
+
+About this Book
+250 pages (est)
+Published: 2014-01-15
+Release: B6.0 (2013-12-16)
+ISBN: 978-1-93778-564-2
+
+Modern web development needs modern tools. 
+Web Development With Clojure shows you how to apply Clojure programming fundamentals to build real-world solutions. 
+You’ll develop all the pieces of a full web application in this powerful language. 
+If you already have some familiarity with Clojure, you’ll learn how to put it to serious practical use. 
+If you’re new to the language, the book provides just enough Clojure to get down to business.
+
+You’ll learn the full process of web development using Clojure 
+while getting hands-on experience with current tools, libraries, and best practices in the language. 
+You’ll develop Clojure apps with both the Light Table and Eclipse development environments. 
+Rather than frameworks, Clojure development builds on rich libraries. 
+You’ll acquire expertise in the popular Ring/Compojure stack, 
+and you’ll learn to use the Liberator library to quickly develop RESTful services. 
+Plus, you’ll find out how to use ClojureScript to work in one language on the client and server sides.
+
+Throughout the book, you’ll develop key components of web applications, 
+including multiple approaches to database access. 
+You’ll create a simple guestbook app and an app to serve resources to users. 
+By the end, you will have developed a rich Picture Gallery web application from conception to packaging and deployment.
+
+This book is for anyone interested in taking the next step in web development.
+
+What You Need
+
+The latest JVM, Clojure 1.4+, and the Leiningen build tool, as well as an editor such as Emacs, Eclipse, or Light Table.
+
+====
+About the Author
+
+Dmitri Sotnikov has been developing Web applications professionally for close to a decade. 
+He has developed and continues to maintain several Clojure libraries as well as the Luminus framework. 
+He has worked in both startup and enterprise environments.
+
+====
+Contents and Extracts
+
+This book is currently in beta, so the contents and extracts will change as the book is developed.
+
+Introduction . . . . . . . . . . . . . ix
+
+1. Getting Your Feet Wet. . . . . . . . . . . 1
+Setting Up Your Environment 1
+Your First Project 6
+
+2. Clojure Web Stack . . . . . . . . . . . 25
+Routing Requests with Ring 26
+Defining the Routes with Compojure 30
+Application Architecture 33
+Beyond Compojure and Ring 42
+What You’ve Learned 54
+
+3. Liberator Services . . . . . . . . . . . 55
+Creating the Project 56
+Defining Resources 56
+Putting It All Together 60
+What You’ve Learned 66
+
+4. Database Access. . . . . . . . . . . . 67
+Working with Relational Databases 67
+Report Generation 72
+What You’ve Learned 79
+
+5. Picture Gallery . . . . . . . . . . . . 81
+The Development Process 81
+What’s in a Gallery 81
+Creating the Application 83
+Application Data Model 84
+Task A: Account Registration 86
+Task B: Login and Logout 95
+Task C: Uploading Pictures 97
+Task D: Displaying Pictures 110
+Task E: Deleting Pictures 115
+Task F: Account Deletion 121
+What You’ve Learned 123
+
+6. Finishing Touches . . . . . . . . . . . 125
+Adding Some Style 125
+Unit Tests 128
+Logging 132
+Application Profiles 135
+Packaging Applications 137
+What You’ve Learned 143
+
+7. Mixing It Up . . . . . . . . . . . . 145
+Using Selmer 145
+Upgrading to ClojureScript 158
+SQL Korma 168
+Creating Application Templates 171
+What You’ve Learned 173
+
+A1. Alternative IDE Options . . . . . . . . . 177
+Installing Eclipse 177
+Installing Emacs 178
+Alternatives 180
+
+A2. Clojure Primer. . . . . . . . . . . . 181
+A Functional Perspective 181
+Data Types 183
+Using Functions 184
+Anonymous Functions 184
+Named Functions 185
+Higher-Order Functions 187
+Closures 188
+Threading Expressions 188
+Being Lazy 189
+Structuring the Code 189
+Destructuring Data 190
+Namespaces 192
+Dynamic Variables 194
+Calling Out to Java 195
+Calling Methods 195
+Dynamic Polymorphism 196
+What about Global State? 197
+Writing Code That Writes Code for You 198
+The Read-Evaluate-Print Loop 200
+Summary 200
+
+A3. Document-Oriented Database Access . . . . . . 201
+Picking the Right Database 201
+Using CouchDB 202
+Using MongoDB 205
+
+Index . . . . . . . . . . . . . . 209
+

@@ -29,3 +29,22 @@ gen-class，需要扩展已有的基类；除了接口所定义的方法，还�
 defrecord，是对领域值建模，需要得益于hashmap的功能和语义；不需要定义可变字段。
 deftype，不是对领域值建模，不需要得益于hashmap的功能和语义；需要定义可变字段。
 
+====
+(reify
+    Protocol-or-Interface-or-Object
+    (method1 [this x]
+        (implementation))
+    Another-Protocol-or-Interface
+    (method2 [this x y]
+        (implementation))
+    (method3 [this x]
+        (implementation)))
+
+由reify所创建的类实例创建了一个闭包，方法的实现体可以直接访问当前词法范围内的任何本地绑定。
+
+reify与proxy的使用场景有重合。
+但是，
+-1，reify更简单。它的方法实现直接写入所定义的匿名类型中（跟deftype和defrecord一样），所以不支持方法实现的动态更新。
+-2，reify更受限。它只能实现协议，java接口和Object的方法，“不能继承一个具体类（包括抽象类）”。
+-3，因为reify方法直接写入类文件，所以调用这些方法没有额外开销。
+
