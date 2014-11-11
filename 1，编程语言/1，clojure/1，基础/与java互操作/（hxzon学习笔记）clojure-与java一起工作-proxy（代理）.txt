@@ -1,9 +1,7 @@
-﻿（hxzon学习笔记）clojure-与java一起工作-java类
+﻿（hxzon学习笔记）clojure-与java一起工作-proxy（代理）
 
 by hxzon
 ========
-1，代理
-
 在Clojure中，可以使用代理来扩展一个类：
 (proxy class-and-interfaces super-cons-args & fns)
 
@@ -23,5 +21,28 @@ user=> (proxy [Callable] [])
 
 如果忽略方法实现，Clojure将提供一个默认实现，该实现抛出异常UnsupportedOperationException。
 
-========
-2，
+====
+代理，proxy《clojure编程》第9章：Java及JVM互操作
+
+(defn lru-cache
+  [max-size]
+  (proxy [java.util.LinkedHashMap] [16 0.75 true]
+    (removeEldestEntry [entry]
+      (> (count this) max-size))))
+
+--
+(def cache (doto (lru-cache 5)
+             (.put :a :b)))
+;= #'user/cache
+
+cache
+;= #<LinkedHashMap$0 {:a=:b}>
+
+(doseq [[k v] (partition 2 (range 500))]
+  (get cache :a)
+  (.put cache k v))
+;= nil
+
+cache
+;= #<LinkedHashMap$0 {492=493, 494=495, 496=497, :a=:b, 498=499}>
+

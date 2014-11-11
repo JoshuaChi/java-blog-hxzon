@@ -1,0 +1,167 @@
+﻿（hxzon读书笔记）《clojure编程》第9章：Java及JVM互操作-在java中使用clojure
+
+by hxzon
+=====
+1，var 和 fn
+
+(ns com.clojurebook.histogram)
+(def keywords (map keyword '(a c a d b c a d c d k d a b b b c d e e e f a a a a)))
+
+==
+package com.clojurebook;
+
+import java.util.ArrayList;
+import java.util.Map;
+import clojure.lang.IFn;
+import clojure.lang.Keyword;
+import clojure.lang.RT;
+import clojure.lang.Symbol;
+import clojure.lang.Var;
+
+public class JavaClojureInterop {
+    private static IFn requireFn = RT.var("clojure.core", "require").fn();
+    private static IFn randIntFn = RT.var("clojure.core", "rand-int").fn();
+    static {
+        requireFn.invoke(Symbol.intern("com.clojurebook.histogram"));
+    }
+    private static IFn frequencies = RT.var("clojure.core", "frequencies").fn();
+    private static Object keywords = RT.var("com.clojurebook.histogram", "keywords").deref();
+
+    @SuppressWarnings({ "unchecked", "rawtypes" })
+    public static void main(String[] args) {
+        Map<Keyword, Integer> sampleHistogram = (Map<Keyword, Integer>) frequencies.invoke(keywords);
+        System.out.println("Number of :a keywords in sample histogram: " + sampleHistogram.get(Keyword.intern("a")));
+        System.out.println("Complete sample histogram: " + sampleHistogram);
+        System.out.println();
+        System.out.println("Histogram of chars in 'I left my heart in san fransisco': " + frequencies.invoke("I left my heart in San Fransisco".toLowerCase()));
+        System.out.println();
+        ArrayList randomInts = new ArrayList();
+        for (int i = 0; i < 500; i++)
+            randomInts.add(randIntFn.invoke(10));
+        System.out.println("Histogram of 500 random ints [0,10): " + frequencies.invoke(randomInts));
+    }
+}
+
+% java -cp target/java-clojure-interop-1.0.0-jar-with-dependencies.jar
+com.clojurebook.JavaClojureInterop
+Number of :a keywords in sample histogram: 8
+Complete sample histogram: {:a 8, :c 4, :d 5, :b 4, :k 1, :e 3, :f 1}
+Frequences of chars in 'I left my heart in san fransisco':
+{\space 6, \a 3, \c 1, \e 2, \f 2, \h 1, \i 3, \l 1, \m 1,
+\n 3, \o 1, \r 2, \s 3, \t 2, \y 1}
+Frequences of 500 random ints [0,10):
+{0 60, 1 61, 2 55, 3 46, 4 37, 5 45, 6 47, 7 52, 8 49, 9 48}
+
+====
+2，deftype 和 defrecord
+
+(ns com.clojurebook.classes)
+
+(deftype Range
+  [start end]
+  Iterable
+  (iterator [this]
+    (.iterator (range start end))))
+
+(defn string-range
+  "Returns a Range instance based on start and end values provided as Strings
+  in a list / vector / array."
+  [[start end]]
+  (Range. (Long/parseLong start) (Long/parseLong end)))
+
+(defrecord OrderSummary
+  [order-number total])
+
+==
+package com.clojurebook;
+
+import clojure.lang.IFn;
+import clojure.lang.RT;
+import clojure.lang.Symbol;
+import com.clojurebook.classes.OrderSummary;
+import com.clojurebook.classes.Range;
+
+public class ClojureClassesInJava {
+    private static IFn requireFn = RT.var("clojure.core", "require").fn();
+    static {
+        requireFn.invoke(Symbol.intern("com.clojurebook.classes"));
+    }
+    private static IFn stringRangeFn = RT.var("com.clojurebook.classes", "string-range").fn();
+
+    public static void main(String[] args) {
+        Range range = new Range(0, 5);
+        System.out.print(range.start + "-" + range.end + ": ");
+        for (Object i : range)
+            System.out.print(i + " ");
+        System.out.println();
+        for (Object i : (Range) stringRangeFn.invoke(args))
+            System.out.print(i + " ");
+        System.out.println();
+        OrderSummary summary = new OrderSummary(12345, "$19.45");
+        System.out.println(String.format("order number: %s; order total: %s", summary.order_number, summary.total));
+        System.out.println(summary.keySet());
+        System.out.println(summary.values());
+    }
+}
+
+% java -cp target/java-clojure-interop-1.0.0-jar-with-dependencies.jar
+com.clojurebook.ClojureClassesInJava 5 10
+0-5: 0 1 2 3 4
+5 6 7 8 9
+order number: 12345; order total: $19.45
+#{:order-number :total}
+(12345 "$19.45")
+
+====
+3，实现协议
+
+(ns com.clojurebook.protocol)
+
+(defprotocol Talkable
+  (speak [this]))
+
+(extend-protocol Talkable
+  String
+  (speak [s] s)
+  Object
+  (speak [this]
+    (str (-> this class .getName) "s can't talk!")))
+
+==
+package com.clojurebook;
+
+import clojure.lang.IFn;
+import clojure.lang.RT;
+import clojure.lang.Symbol;
+import com.clojurebook.protocol.Talkable;
+
+public class BitterTalkingDog implements Talkable {
+    public Object speak() {
+        return "You probably expect me to say 'woof!', don't you? Typical.";
+    }
+
+    Talkable mellow() {
+        return new Talkable() {
+            public Object speak() {
+                return "It's a wonderful day, don't you think?";
+            }
+        };
+    }
+
+    public static void main(String[] args) {
+        RT.var("clojure.core", "require").invoke(Symbol.intern("com.clojurebook.protocol"));
+        IFn speakFn = RT.var("com.clojurebook.protocol", "speak").fn();
+        BitterTalkingDog dog = new BitterTalkingDog();
+        System.out.println(speakFn.invoke(5));
+        System.out.println(speakFn.invoke("A man may die, nations may rise and fall, but an idea lives on."));
+        System.out.println(dog.speak());
+        System.out.println(speakFn.invoke(dog.mellow()));
+    }
+}
+
+% java com.clojurebook.BitterTalkingDog
+java.lang.Integers can't talk!
+A man may die, nations may rise and fall, but an idea lives on.
+You probably expect me to say 'woof!', don't you? Typical.
+It's a wonderful day, don't you think?
+

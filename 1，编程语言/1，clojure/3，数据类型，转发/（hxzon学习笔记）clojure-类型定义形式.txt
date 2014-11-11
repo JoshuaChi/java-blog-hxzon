@@ -1,0 +1,419 @@
+﻿（hxzon学习笔记）clojure-类型定义形式
+
+====
+compile
+function
+Usage: (compile lib)
+Compiles the namespace named by the symbol lib into a set of
+classfiles. The source for the lib must be in a proper
+classpath-relative directory. The output files will go into the
+directory specified by *compile-path*, and that directory too must
+be in the classpath.
+Added in Clojure version 1.0
+
+====
+*compile-files*
+var
+Set to true when compiling files, false otherwise.
+Added in Clojure version 1.0
+
+====
+*compile-path*
+var
+Specifies the directory where 'compile' will write out .class
+files. This directory must be in the classpath for 'compile' to
+work.
+
+Defaults to "classes"
+Added in Clojure version 1.0
+
+====
+*compiler-options*
+var
+A map of keys to options.
+Note, when binding dynamically make sure to merge with previous value.
+
+Supported options:
+
+:elide-meta - a collection of metadata keys to elide during compilation.
+指定哪些元数据要移除。
+
+:disable-locals-clearing - set to true to disable clearing, useful for using a debugger
+Alpha, subject to change.
+
+Added in Clojure version 1.4
+
+========
+gen-class
+
+macro
+Usage: (gen-class & options)
+When compiling, generates compiled bytecode for a class with the
+given package-qualified :name (which, as all names in these
+parameters, can be a string or symbol), and writes the .class file
+to the *compile-path* directory.  When not compiling, does
+nothing. The gen-class construct contains no implementation, as the
+implementation will be dynamically sought by the generated class in
+functions in an implementing Clojure namespace. Given a generated
+class org.mydomain.MyClass with a method named mymethod, gen-class
+will generate an implementation that looks for a function named by 
+(str prefix mymethod) (default prefix: "-") in a
+Clojure namespace specified by :impl-ns
+(defaults to the current namespace). All inherited methods,
+generated methods, and init and main functions (see :methods, :init,
+and :main below) will be found similarly prefixed. By default, the
+static initializer for the generated class will attempt to load the
+Clojure support code for the class as a resource from the classpath,
+e.g. in the example case, ``org/mydomain/MyClass__init.class``. This
+behavior can be controlled by :load-impl-ns
+
+Note that methods with a maximum of 18 parameters are supported.
+
+In all subsequent sections taking types, the primitive types can be
+referred to by their Java names (int, float etc), and classes in the
+java.lang package can be used without a package qualifier. All other
+classes must be fully qualified.
+
+Options should be a set of key/value pairs, all except for :name are optional:
+
+:name aname
+
+The package-qualified name of the class to be generated
+
+:extends aclass
+
+Specifies the superclass, the non-private methods of which will be
+overridden by the class. If not provided, defaults to Object.
+
+:implements [interface ...]
+
+One or more interfaces, the methods of which will be implemented by the class.
+
+:init name
+
+If supplied, names a function that will be called with the arguments
+to the constructor. Must return [ [superclass-constructor-args] state] 
+If not supplied, the constructor args are passed directly to
+the superclass constructor and the state will be nil
+
+:constructors {[param-types] [super-param-types], ...}
+
+By default, constructors are created for the generated class which
+match the signature(s) of the constructors for the superclass. This
+parameter may be used to explicitly specify constructors, each entry
+providing a mapping from a constructor signature to a superclass
+constructor signature. When you supply this, you must supply an :init
+specifier. 
+
+:post-init name
+
+If supplied, names a function that will be called with the object as
+the first argument, followed by the arguments to the constructor.
+It will be called every time an object of this class is created,
+immediately after all the inherited constructors have completed.
+It's return value is ignored.
+
+:methods [ [name [param-types] return-type], ...]
+
+The generated class automatically defines all of the non-private
+methods of its superclasses/interfaces. This parameter can be used
+to specify the signatures of additional methods of the generated
+class. Static methods can be specified with ^{:static true} in the
+signature's metadata. Do not repeat superclass/interface signatures
+here.
+
+:main boolean
+
+If supplied and true, a static public main function will be generated. It will
+pass each string of the String[] argument as a separate argument to
+a function called (str prefix main).
+
+:factory name
+
+If supplied, a (set of) public static factory function(s) will be
+created with the given name, and the same signature(s) as the
+constructor(s).
+
+:state name
+
+If supplied, a public final instance field with the given name will be
+created. You must supply an :init function in order to provide a
+value for the state. Note that, though final, the state can be a ref
+or agent, supporting the creation of Java objects with transactional
+or asynchronous mutation semantics.
+
+:exposes {protected-field-name {:get name :set name}, ...}
+
+Since the implementations of the methods of the generated class
+occur in Clojure functions, they have no access to the inherited
+protected fields of the superclass. This parameter can be used to
+generate public getter/setter methods exposing the protected field(s)
+for use in the implementation.
+
+:exposes-methods {super-method-name exposed-name, ...}
+
+It is sometimes necessary to call the superclass' implementation of an
+overridden method.  Those methods may be exposed and referred in 
+the new method implementation by a local name.
+
+:prefix string
+
+Default: "-" Methods called e.g. Foo will be looked up in vars called
+prefixFoo in the implementing ns.
+
+:impl-ns name
+
+Default: the name of the current ns. Implementations of methods will be 
+looked up in this namespace.
+
+:load-impl-ns boolean
+
+Default: true. Causes the static initializer for the generated class
+to reference the load code for the implementing namespace. Should be
+true when implementing-ns is the default, false if you intend to
+load the code via some other method.
+
+Added in Clojure version 1.0
+
+========
+deftype
+
+macro
+Usage: (deftype name [& fields] & opts+specs)
+(deftype name [fields*]  options* specs*)
+
+Currently there are no options.
+
+Each spec consists of a protocol or interface name followed by zero
+or more method bodies:
+
+protocol-or-interface-or-Object
+(methodName [args*] body)*
+
+Dynamically generates compiled bytecode for class with the given
+name, in a package with the same name as the current namespace, the
+given fields, and, optionally, methods for protocols and/or
+interfaces. 
+
+The class will have the (by default, immutable) fields named by
+fields, which can have type hints. Protocols/interfaces and methods
+are optional. The only methods that can be supplied are those
+declared in the protocols/interfaces.  Note that method bodies are
+not closures, the local environment includes only the named fields,
+and those fields can be accessed directy. Fields can be qualified
+with the metadata :volatile-mutable true or :unsynchronized-mutable
+true, at which point (set! afield aval) will be supported in method
+bodies. Note well that mutable fields are extremely difficult to use
+correctly, and are present only to facilitate the building of higher
+level constructs, such as Clojure's reference types, in Clojure
+itself. They are for experts only - if the semantics and
+implications of :volatile-mutable or :unsynchronized-mutable are not
+immediately apparent to you, you should not be using them.
+
+Method definitions take the form:
+
+(methodname [args*] body)
+
+The argument and return types can be hinted on the arg and
+methodname symbols. If not supplied, they will be inferred, so type
+hints should be reserved for disambiguation.
+
+Methods should be supplied for all methods of the desired
+protocol(s) and interface(s). You can also define overrides for
+methods of Object. Note that a parameter must be supplied to
+correspond to the target object ('this' in Java parlance). Thus
+methods for interfaces will take one more argument than do the
+interface declarations. Note also that recur calls to the method
+head should *not* pass the target object, it will be supplied
+automatically and can not be substituted.
+
+In the method bodies, the (unqualified) name can be used to name the
+class (for calls to new, instance? etc).
+
+When AOT compiling, generates compiled bytecode for a class with the
+given name (a symbol), prepends the current ns as the package, and
+writes the .class file to the *compile-path* directory.
+
+One constructor will be defined, taking the designated fields.  Note
+that the field names __meta and __extmap are currently reserved and
+should not be used when defining your own types.
+
+Given (deftype TypeName ...), a factory function called ->TypeName
+will be defined, taking positional parameters for the fields
+Added in Clojure version 1.2
+
+========
+defrecord
+
+macro
+Usage: (defrecord name [& fields] & opts+specs)
+(defrecord name [fields*]  options* specs*)
+
+Currently there are no options.
+
+Each spec consists of a protocol or interface name followed by zero
+or more method bodies:
+
+protocol-or-interface-or-Object
+(methodName [args*] body)*
+
+Dynamically generates compiled bytecode for class with the given
+name, in a package with the same name as the current namespace, the
+given fields, and, optionally, methods for protocols and/or
+interfaces.
+
+The class will have the (immutable) fields named by
+fields, which can have type hints. Protocols/interfaces and methods
+are optional. The only methods that can be supplied are those
+declared in the protocols/interfaces.  Note that method bodies are
+not closures, the local environment includes only the named fields,
+and those fields can be accessed directly.
+
+Method definitions take the form:
+
+(methodname [args*] body)
+
+The argument and return types can be hinted on the arg and
+methodname symbols. If not supplied, they will be inferred, so type
+hints should be reserved for disambiguation.
+
+Methods should be supplied for all methods of the desired
+protocol(s) and interface(s). You can also define overrides for
+methods of Object. Note that a parameter must be supplied to
+correspond to the target object ('this' in Java parlance). Thus
+methods for interfaces will take one more argument than do the
+interface declarations. Note also that recur calls to the method
+head should *not* pass the target object, it will be supplied
+automatically and can not be substituted.
+
+In the method bodies, the (unqualified) name can be used to name the
+class (for calls to new, instance? etc).
+
+The class will have implementations of several (clojure.lang)
+interfaces generated automatically: IObj (metadata support) and
+IPersistentMap, and all of their superinterfaces.
+
+In addition, defrecord will define type-and-value-based =,
+and will defined Java .hashCode and .equals consistent with the
+contract for java.util.Map.
+
+When AOT compiling, generates compiled bytecode for a class with the
+given name (a symbol), prepends the current ns as the package, and
+writes the .class file to the *compile-path* directory.
+
+Two constructors will be defined, one taking the designated fields
+followed by a metadata map (nil for none) and an extension field
+map (nil for none), and one taking only the fields (using nil for
+meta and extension fields). Note that the field names __meta
+and __extmap are currently reserved and should not be used when
+defining your own records.
+
+Given (defrecord TypeName ...), two factory functions will be
+defined: ->TypeName, taking positional parameters for the fields,
+and map->TypeName, taking a map of keywords to field values.
+
+Added in Clojure version 1.2
+
+========
+reify
+
+macro
+Usage: (reify & opts+specs)
+reify is a macro with the following structure:
+
+(reify options* specs*)
+ 
+ Currently there are no options.
+
+ Each spec consists of the protocol or interface name followed by zero
+ or more method bodies:
+
+ protocol-or-interface-or-Object
+ (methodName [args+] body)*
+
+ Methods should be supplied for all methods of the desired
+ protocol(s) and interface(s). You can also define overrides for
+ methods of Object. Note that the first parameter must be supplied to
+ correspond to the target object ('this' in Java parlance). Thus
+ methods for interfaces will take one more argument than do the
+ interface declarations.  Note also that recur calls to the method
+ head should *not* pass the target object, it will be supplied
+ automatically and can not be substituted.
+
+ The return type can be indicated by a type hint on the method name,
+ and arg types can be indicated by a type hint on arg names. If you
+ leave out all hints, reify will try to match on same name/arity
+ method in the protocol(s)/interface(s) - this is preferred. If you
+ supply any hints at all, no inference is done, so all hints (or
+ default of Object) must be correct, for both arguments and return
+ type. If a method is overloaded in a protocol/interface, multiple
+ independent method definitions must be supplied.  If overloaded with
+ same arity in an interface you must specify complete hints to
+ disambiguate - a missing hint implies Object.
+
+ recur works to method heads The method bodies of reify are lexical
+ closures, and can refer to the surrounding local scope:
+ 
+ (str (let [f "foo"] 
+      (reify Object 
+        (toString [this] f))))
+ == "foo"
+
+ (seq (let [f "foo"] 
+      (reify clojure.lang.Seqable 
+        (seq [this] (seq f)))))
+ == (\f \o \o))
+ 
+ reify always implements clojure.lang.IObj and transfers meta
+ data of the form to the created object.
+ 
+ (meta ^{:k :v} (reify Object (toString [this] "foo")))
+ == {:k :v}
+Added in Clojure version 1.2
+
+========
+proxy
+
+macro
+Usage: (proxy class-and-interfaces args & fs)
+class-and-interfaces - a vector of class names
+
+args - a (possibly empty) vector of arguments to the superclass
+constructor.
+
+f => (name [params*] body) or
+(name ([params*] body) ([params+] body) ...)
+
+Expands to code which creates a instance of a proxy class that
+implements the named class/interface(s) by calling the supplied
+fns. A single class, if provided, must be first. If not provided it
+defaults to Object.
+
+The interfaces names must be valid interface types. If a method fn
+is not provided for a class method, the superclass methd will be
+called. If a method fn is not provided for an interface method, an
+UnsupportedOperationException will be thrown should it be
+called. Method fns are closures and can capture the environment in
+which proxy is called. Each method fn takes an additional implicit
+first arg, which is bound to 'this. Note that while method fns can
+be provided to override protected methods, they have no other access
+to protected members, nor to super, as these capabilities cannot be
+proxied.
+Added in Clojure version 1.0
+Source
+
+proxy-mappings
+function
+Usage: (proxy-mappings proxy)
+Takes a proxy instance and returns the proxy's fn map.
+Added in Clojure version 1.0
+Source
+
+proxy-super
+macro
+Usage: (proxy-super meth & args)
+Use to call a superclass method in the body of a proxy method. 
+Note, expansion captures 'this
+
+Added in Clojure version 1.0
+

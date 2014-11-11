@@ -1,0 +1,223 @@
+（hxzon读书笔记）《clojure编程》第9章：Java及JVM互操作-gen-class
+Ahead-of-Time  Compilation
+提前编译
+
+by hxzon
+=====
+proxy（代理），另见《（hxzon学习笔记）clojure与java一起工作-proxy（代理）》。
+
+=======
+--
+(ns com.clojurebook.imaging
+  (:use [clojure.java.io :only (file)])
+  (:import (java.awt Image Graphics2D)
+           javax.imageio.ImageIO
+           java.awt.image.BufferedImage
+           java.awt.geom.AffineTransform))
+
+(defn load-image
+  [file-or-path]
+  (-> file-or-path file ImageIO/read))
+
+(defn resize-image
+  ^BufferedImage [^Image original factor]
+  (let [scaled (BufferedImage. (* factor (.getWidth original))
+                 (* factor (.getHeight original))
+                 (.getType original))]
+    (.drawImage ^Graphics2D (.getGraphics scaled)
+      original
+      (AffineTransform/getScaleInstance factor factor)
+      nil)
+    scaled))
+
+(gen-class
+  :name ResizeImage
+  :main true
+  :methods [^:static [resizeFile [String String double] void]
+            ^:static [resize [java.awt.Image double] java.awt.image.BufferedImage]])
+
+(def ^:private -resize resize-image)    ;定义私有方法，指向前面定义的函数
+
+(defn- -resizeFile
+  [path outpath factor]
+  (ImageIO/write (-> path load-image (resize-image factor))
+    "png"
+    (file outpath)))
+
+(defn -main
+  [& [path outpath factor]]
+  (when-not (and path outpath factor)
+    (println "Usage: java -jar example-uberjar.jar ResizeImage [INFILE] [OUTFILE] 
+[SCALE]")
+    (System/exit 1))
+  (-resizeFile path outpath (Double/parseDouble factor)))
+
+
+java -cp gen-class-1.0.0-standalone.jar ResizeImage clojure.png resized.png 0.5
+
+ResizeImage.resizeFile("clojure.png", "resized.png", 0.5);
+
+====
+(ns com.clojurebook.CustomException
+  (:gen-class :extends RuntimeException
+              :implements [clojure.lang.IDeref]
+              :constructors {[java.util.Map String] [String]
+                             [java.util.Map String Throwable] [String Throwable]}
+              :init init
+              :state info
+              :methods [[getInfo [] java.util.Map]
+                        [addInfo [Object Object] void]]))
+
+(import 'com.clojurebook.CustomException)
+
+(defn- -init
+  ([info message]
+    [[message] (atom (into {} info))])
+  ([info message ex]
+    [[message ex] (atom (into {} info))]))
+
+(defn- -deref
+  [^CustomException this]
+  @(.info this))
+
+(defn- -getInfo
+  [this]
+  @this)
+
+(defn- -addInfo
+  [^CustomException this key value]
+  (swap! (.info this) assoc key value))
+
+==
+(import 'com.clojurebook.CustomException)
+;= nil
+
+(defn perform-operation
+  [& [job priority :as args]]
+  (throw (CustomException. {:arguments args} "Operation failed")))
+;= #'user/perform-operation
+
+(defn run-batch-job
+  [customer-id]
+  (doseq [[job priority] {:send-newsletter :low
+                          :verify-billings :critical
+                          :run-payroll :medium}]
+    (try
+      (perform-operation job priority)
+      (catch CustomException e
+        (swap! (.info e) merge {:customer-id customer-id
+                                :timestamp (System/currentTimeMillis)})
+        (throw e)))))
+;= #'user/run-batch-job
+
+(try
+  (run-batch-job 89045)
+  (catch CustomException e
+    (println "Error!" (.getMessage) @e)))
+; Error! Operation failed {:timestamp 1309935234556, :customer-id 89045,
+; :arguments (:verify-billings :critical)}
+;= nil
+
+https://github.com/scgilardi/slingshot
+
+==
+import com.clojurebook.CustomException;
+import clojure.lang.PersistentHashMap;
+
+public class BatchJob {
+    private static void performOperation(String jobId, String priority) {
+        throw new CustomException(PersistentHashMap.create("jobId", jobId, "priority", priority), "Operation failed");
+    }
+
+    private static void runBatchJob(int customerId) {
+        try {
+            performOperation("verify-billings", "critical");
+        } catch (CustomException e) {
+            e.addInfo("customer-id", customerId);
+            e.addInfo("timestamp", System.currentTimeMillis());
+            throw e;
+        }
+    }
+
+    public static void main(String[] args) {
+        try {
+            runBatchJob(89045);
+        } catch (CustomException e) {
+            System.out.println("Error! " + e.getMessage() + " " + e.getInfo());
+        }
+    }
+}
+
+=======
+注解
+
+--
+(ns com.clojurebook.annotations.junit
+  (:import (org.junit Test Assert))
+  (:gen-class
+    :name com.clojurebook.annotations.JUnitTest
+    :methods [[^{org.junit.Test true} simpleTest [] void]    ;注解
+              [^{org.junit.Test {:timeout 2000}} timeoutTest [] void]
+              [^{org.junit.Test {:expected NullPointerException}}
+               badException [] void]]))
+
+(defn -simpleTest
+  [this]
+  (Assert/assertEquals (class this) com.clojurebook.annotations.JUnitTest))
+
+(defn -badException
+  [this]
+  (Integer/parseInt (System/getProperty "nonexistent")))
+
+(defn -timeoutTest
+  [this]
+  (Thread/sleep 10000))
+
+--
+There were 2 failures:
+1) timeoutTest(com.clojurebook.annotations.JUnitTest)
+java.lang.Exception: test timed out after 2000 milliseconds
+2) throwsWrongException(com.clojurebook.annotations.JUnitTest)
+java.lang.Exception: Unexpected exception,
+expected<java.lang.NullPointerException> but was<java.lang.NumberFormatException>
+
+====
+(ns com.clojurebook.annotations.jaxrs
+  (:import (javax.ws.rs Path PathParam Produces GET)))
+
+(definterface Greeting
+  (greet [^String visitor-name]))
+
+(deftype ^{Path "/greet/{visitorname}"} GreetingResource []
+  Greeting
+  (^{GET true
+     Produces ["text/plain"]}
+    greet
+    [this ^{PathParam "visitorname"} visitor-name]
+    (format "Hello %s!" visitor-name)))
+
+(com.sun.jersey.api.container.grizzly.GrizzlyWebContainerFactory/create
+  "http://localhost:8080/"
+  {"com.sun.jersey.config.property.packages" "com.clojurebook.annotations.jaxrs"})
+
+--
+% curl http://localhost:8080/application.wadl
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<application xmlns="http://research.sun.com/wadl/2006/10">
+	<doc xmlns:jersey="http://jersey.java.net/" jersey:generatedBy="Jersey: 1.8 06/24/2011 12:17 PM" />
+	<resources base="http://localhost:8080/">
+		<resource path="/greet/{visitorname}">
+			<param xmlns:xs="http://www.w3.org/2001/XMLSchema" type="xs:string"
+				style="template" name="visitorname" />
+			<method name="GET" id="greet">
+				<response>
+					<representation mediaType="text/plain" />
+				</response>
+			</method>
+		</resource>
+	</resources>
+</application>
+
+% curl http://localhost:8080/greet/Jose
+Hello Jose!
+
