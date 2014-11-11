@@ -21,6 +21,23 @@ user=> (proxy [Callable] [])
 
 如果忽略方法实现，Clojure将提供一个默认实现，该实现抛出异常UnsupportedOperationException。
 
+user=> (.call (proxy [Callable] []))
+java.lang.UnsupportedOperationException: call (NO_SOURCE_FILE:0)
+
+==
+Clojure的函数都自动实现Runable和Callable接口：
+
+; 正常用法：调用匿名函数
+user=> (#(println "foo"))
+
+; 调用run方法通过Runnable接口
+user=> (.run #(println "foo"))
+
+; 调用call方法通过Callable接口
+user=> (.call #(println "foo"))
+
+三种调用方法都输出foo。
+
 ====
 代理，proxy《clojure编程》第9章：Java及JVM互操作
 

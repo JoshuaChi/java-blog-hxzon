@@ -48,20 +48,28 @@ gen-class
 
 macro
 Usage: (gen-class & options)
+
 When compiling, generates compiled bytecode for a class with the
 given package-qualified :name (which, as all names in these
 parameters, can be a string or symbol), and writes the .class file
-to the *compile-path* directory.  When not compiling, does
-nothing. The gen-class construct contains no implementation, as the
+to the *compile-path* directory.  
+
+When not compiling, does nothing. 
+
+The gen-class construct contains no implementation, as the
 implementation will be dynamically sought by the generated class in
 functions in an implementing Clojure namespace. Given a generated
 class org.mydomain.MyClass with a method named mymethod, gen-class
 will generate an implementation that looks for a function named by 
 (str prefix mymethod) (default prefix: "-") in a
 Clojure namespace specified by :impl-ns
-(defaults to the current namespace). All inherited methods,
+(defaults to the current namespace).
+
+All inherited methods,
 generated methods, and init and main functions (see :methods, :init,
-and :main below) will be found similarly prefixed. By default, the
+and :main below) will be found similarly prefixed. 
+
+By default, the
 static initializer for the generated class will attempt to load the
 Clojure support code for the class as a resource from the classpath,
 e.g. in the example case, ``org/mydomain/MyClass__init.class``. This
@@ -73,31 +81,33 @@ In all subsequent sections taking types, the primitive types can be
 referred to by their Java names (int, float etc), and classes in the
 java.lang package can be used without a package qualifier. All other
 classes must be fully qualified.
+除了java原始类型，和java.lang中的类型，其它类必须使用全名。
 
 Options should be a set of key/value pairs, all except for :name are optional:
 
 :name aname
-
+要生成的类名。
 The package-qualified name of the class to be generated
 
 :extends aclass
-
+父类。
 Specifies the superclass, the non-private methods of which will be
 overridden by the class. If not provided, defaults to Object.
 
 :implements [interface ...]
-
+实现的接口。
 One or more interfaces, the methods of which will be implemented by the class.
 
 :init name
-
+构造函数。
 If supplied, names a function that will be called with the arguments
 to the constructor. Must return [ [superclass-constructor-args] state] 
 If not supplied, the constructor args are passed directly to
 the superclass constructor and the state will be nil
+必须返回一个向量。
 
 :constructors {[param-types] [super-param-types], ...}
-
+本类构造函数参数，到“父类构造函数参数”的映射。
 By default, constructors are created for the generated class which
 match the signature(s) of the constructors for the superclass. This
 parameter may be used to explicitly specify constructors, each entry
@@ -106,7 +116,7 @@ constructor signature. When you supply this, you must supply an :init
 specifier. 
 
 :post-init name
-
+每当实例被创建时调用，在所有的继承而来的构造函数被调用之后。
 If supplied, names a function that will be called with the object as
 the first argument, followed by the arguments to the constructor.
 It will be called every time an object of this class is created,
@@ -114,28 +124,29 @@ immediately after all the inherited constructors have completed.
 It's return value is ignored.
 
 :methods [ [name [param-types] return-type], ...]
-
+新增的方法。
 The generated class automatically defines all of the non-private
 methods of its superclasses/interfaces. This parameter can be used
 to specify the signatures of additional methods of the generated
 class. Static methods can be specified with ^{:static true} in the
 signature's metadata. Do not repeat superclass/interface signatures
 here.
+可以使用^state标记为静态方法。
 
 :main boolean
-
+是否生成main方法。
 If supplied and true, a static public main function will be generated. It will
 pass each string of the String[] argument as a separate argument to
 a function called (str prefix main).
 
 :factory name
-
+工厂函数。
 If supplied, a (set of) public static factory function(s) will be
 created with the given name, and the same signature(s) as the
 constructor(s).
 
 :state name
-
+实例的状态。
 If supplied, a public final instance field with the given name will be
 created. You must supply an :init function in order to provide a
 value for the state. Note that, though final, the state can be a ref
@@ -143,7 +154,7 @@ or agent, supporting the creation of Java objects with transactional
 or asynchronous mutation semantics.
 
 :exposes {protected-field-name {:get name :set name}, ...}
-
+导出父类的受保护的字段，以便“实现函数”能够访问。
 Since the implementations of the methods of the generated class
 occur in Clojure functions, they have no access to the inherited
 protected fields of the superclass. This parameter can be used to
@@ -151,23 +162,23 @@ generate public getter/setter methods exposing the protected field(s)
 for use in the implementation.
 
 :exposes-methods {super-method-name exposed-name, ...}
-
+导出父类的方法。
 It is sometimes necessary to call the superclass' implementation of an
 overridden method.  Those methods may be exposed and referred in 
 the new method implementation by a local name.
 
 :prefix string
-
+实现函数的前缀。
 Default: "-" Methods called e.g. Foo will be looked up in vars called
 prefixFoo in the implementing ns.
 
 :impl-ns name
-
+实现函数所在的命名空间。
 Default: the name of the current ns. Implementations of methods will be 
 looked up in this namespace.
 
 :load-impl-ns boolean
-
+是否加载实现函数所在的命名空间。
 Default: true. Causes the static initializer for the generated class
 to reference the load code for the implementing namespace. Should be
 true when implementing-ns is the default, false if you intend to
@@ -316,63 +327,69 @@ Added in Clojure version 1.2
 
 ========
 reify
+内联实现。匿名类型。
 
 macro
 Usage: (reify & opts+specs)
 reify is a macro with the following structure:
 
 (reify options* specs*)
+
+Currently there are no options.
+
+Each spec consists of the protocol or interface name followed by zero
+or more method bodies:
+
+protocol-or-interface-or-Object
+(methodName [args+] body)*
+
+Methods should be supplied for all methods of the desired
+protocol(s) and interface(s). You can also define overrides for
+必须实现协议或接口的所有方法。
+methods of Object. Note that the first parameter must be supplied to
+可以覆盖Object的方法。
+correspond to the target object ('this' in Java parlance). Thus
+methods for interfaces will take one more argument than do the
+interface declarations.  Note also that recur calls to the method
+head should *not* pass the target object, it will be supplied
+automatically and can not be substituted.
+
+The return type can be indicated by a type hint on the method name,
+and arg types can be indicated by a type hint on arg names. If you
+leave out all hints, reify will try to match on same name/arity
+method in the protocol(s)/interface(s) - this is preferred. 
+
+If you supply any hints at all, no inference is done, so all hints (or
+default of Object) must be correct, for both arguments and return
+type. If a method is overloaded in a protocol/interface, multiple
+independent method definitions must be supplied.  If overloaded with
+same arity in an interface you must specify complete hints to
+disambiguate - a missing hint implies Object.
+
+recur works to method heads The method bodies of reify are lexical
+closures, and can refer to the surrounding local scope:
  
- Currently there are no options.
+(str (let [f "foo"] 
+     (reify Object 
+       (toString [this] f))))
+== "foo"
 
- Each spec consists of the protocol or interface name followed by zero
- or more method bodies:
+(seq (let [f "foo"] 
+     (reify clojure.lang.Seqable 
+       (seq [this] (seq f)))))
+== (\f \o \o))
 
- protocol-or-interface-or-Object
- (methodName [args+] body)*
-
- Methods should be supplied for all methods of the desired
- protocol(s) and interface(s). You can also define overrides for
- methods of Object. Note that the first parameter must be supplied to
- correspond to the target object ('this' in Java parlance). Thus
- methods for interfaces will take one more argument than do the
- interface declarations.  Note also that recur calls to the method
- head should *not* pass the target object, it will be supplied
- automatically and can not be substituted.
-
- The return type can be indicated by a type hint on the method name,
- and arg types can be indicated by a type hint on arg names. If you
- leave out all hints, reify will try to match on same name/arity
- method in the protocol(s)/interface(s) - this is preferred. If you
- supply any hints at all, no inference is done, so all hints (or
- default of Object) must be correct, for both arguments and return
- type. If a method is overloaded in a protocol/interface, multiple
- independent method definitions must be supplied.  If overloaded with
- same arity in an interface you must specify complete hints to
- disambiguate - a missing hint implies Object.
-
- recur works to method heads The method bodies of reify are lexical
- closures, and can refer to the surrounding local scope:
+reify always implements clojure.lang.IObj and transfers meta
+data of the form to the created object.
  
- (str (let [f "foo"] 
-      (reify Object 
-        (toString [this] f))))
- == "foo"
+(meta ^{:k :v} (reify Object (toString [this] "foo")))
+== {:k :v}
 
- (seq (let [f "foo"] 
-      (reify clojure.lang.Seqable 
-        (seq [this] (seq f)))))
- == (\f \o \o))
- 
- reify always implements clojure.lang.IObj and transfers meta
- data of the form to the created object.
- 
- (meta ^{:k :v} (reify Object (toString [this] "foo")))
- == {:k :v}
 Added in Clojure version 1.2
 
 ========
 proxy
+代理。匿名类型。
 
 macro
 Usage: (proxy class-and-interfaces args & fs)
@@ -380,6 +397,7 @@ class-and-interfaces - a vector of class names
 
 args - a (possibly empty) vector of arguments to the superclass
 constructor.
+父类构造函数的参数。
 
 f => (name [params*] body) or
 (name ([params*] body) ([params+] body) ...)
@@ -393,27 +411,40 @@ The interfaces names must be valid interface types. If a method fn
 is not provided for a class method, the superclass methd will be
 called. If a method fn is not provided for an interface method, an
 UnsupportedOperationException will be thrown should it be
-called. Method fns are closures and can capture the environment in
-which proxy is called. Each method fn takes an additional implicit
-first arg, which is bound to 'this. Note that while method fns can
+called. 
+
+Method fns are closures and can capture the environment in
+which proxy is called. 
+
+Each method fn takes an additional implicit
+first arg, which is bound to 'this. 
+
+Note that while method fns can
 be provided to override protected methods, they have no other access
 to protected members, nor to super, as these capabilities cannot be
 proxied.
-Added in Clojure version 1.0
-Source
+虽然可以重写父类受保护的方法，但是不能访问这些方法。？
 
+Added in Clojure version 1.0
+
+====
 proxy-mappings
 function
 Usage: (proxy-mappings proxy)
-Takes a proxy instance and returns the proxy's fn map.
-Added in Clojure version 1.0
-Source
 
+Takes a proxy instance and returns the proxy's fn map.
+返回一个代理对象的方法映射。
+
+Added in Clojure version 1.0
+
+====
 proxy-super
 macro
 Usage: (proxy-super meth & args)
+
 Use to call a superclass method in the body of a proxy method. 
 Note, expansion captures 'this
+在代理方法内，访问父类的方法。
 
 Added in Clojure version 1.0
 

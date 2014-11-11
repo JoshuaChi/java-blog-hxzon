@@ -221,3 +221,59 @@ expected<java.lang.NullPointerException> but was<java.lang.NumberFormatException
 % curl http://localhost:8080/greet/Jose
 Hello Jose!
 
+========
+========
+编译到硬盘
+
+生成 reader.tasklist类 的Clojure源代码：
+
+(ns reader.tasklist
+    (:gen-class
+    :extends org.xml.sax.helpers.DefaultHandler
+    :state state
+    :init init)
+    (:use [clojure.contrib.duck-streams :only (reader)])
+    (:import [java.io File]
+             [org.xml.sax InputSource]
+             [org.xml.sax.helpers DefaultHandler]
+             [javax.xml.parsers SAXParserFactory]))
+(defn -main [& args]
+   (dosseq [arg args]
+       (println (task-list arg))))
+(defn task-list [arg]
+   (let [handler (new examples.tasklist)]
+      (.. SAXParserFactory newInstance newSAXParser
+          (parse (InputSource. (reader (File. arg)))
+              handler))
+      @(.state handler)))
+(defn -init[]
+   [[] (atom [])])
+(defn -startElement
+  [this uri local qname atts]
+  (when (= qname "target")
+    (swap! (.state this) conj (.getValue atts "name"))))
+
+说明：
+(1) :gen-class 指示Clojure生成Java类reader.tasklist
+
+(2) :extends 指示生成类继承DefaultHandler（实现接口用:implements语句）
+
+(3) Clojure生成Java类将类状态隔离到一个单独的状态结构，:state语句指定状态结构变量
+
+(4) :init语句指定类初始化函数，初始化函数返回Java需要的基类构造函数参数和Clojure使用的初始状态结构
+
+(5) Clojure生成reader.tasklist类，并创建方法；
+这些方法代理你提供的函数，每个方法代理一个相同名字的函数，方法名以连接符(-)为前缀
+
+====
+Clojure提供compile函数：
+(compile lib)
+
+compile函数对运行环境要求很苛刻：
+(1) 要编译的lib必须从classpath可以访问；
+(2) 类文件生成目录(*complile-path*)必须在classpath中，默认为Clojure的启动目录。
+
+Clojure为类本身生成一个class文件，为类的每个函数或方法生成一个类，
+名字包含__init的类很特殊，它在第一次加载时执行lib的顶级代码。
+Clojure的这种模块性允许我们在运行时动态替换单个函数。
+
