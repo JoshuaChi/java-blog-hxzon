@@ -1,0 +1,27 @@
+﻿（hxzon学习笔记）clojure-与java一起工作-java类
+
+by hxzon
+========
+1，代理
+
+在Clojure中，可以使用代理来扩展一个类：
+(proxy class-and-interfaces super-cons-args & fns)
+
+代理就是java中的匿名内部类。
+proxy创建了代理类的一个实例。
+
+proxy机制是完全通用的，可以用在任意Java对象。
+
+user=> (.start (Thread.
+              (proxy [Runnable] [] (run [] (println "I ran!")))))
+user=> I ran!
+
+在Java中必须实现接口的所有方法，但在Clojure中不必如此。
+
+user=> (proxy [Callable] [])
+#<Object$Callable clojure.proxy.java.lang.Object$Callable@11e0c13>
+
+如果忽略方法实现，Clojure将提供一个默认实现，该实现抛出异常UnsupportedOperationException。
+
+========
+2，

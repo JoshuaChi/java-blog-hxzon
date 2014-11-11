@@ -32,8 +32,7 @@ Reflection warning, NO_SOURCE_PATH:11:1 - reference to field length can't be res
 然后获取字符串”test”的长度。
 当直接传入”test”的没有反射警告，返回长度4。
 当绑定了”test”到a，然后获取a长度的时候，反射警告产生了
-reference to field length can't be resolved
-。
+reference to field length can't be resolved。
 
 为什么字面量(literal)的字符串”test”就不会产生反射警告，而var a却会呢？
 道理很简单，macro会在编译的时候展开，因此

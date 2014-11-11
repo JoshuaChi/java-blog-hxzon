@@ -1,0 +1,126 @@
+﻿（hxzon学习笔记）clojure-与java一起工作-数组
+
+by hxzon
+========
+1，可以使用seq将任意Java数组包装成Clojure序列。
+
+user=> (seq (make-array String 5))
+(nil nil nil nil nil)
+
+====
+2，创建数组。
+
+==
+创建一维数组 (make-array class length)。
+
+user=> (make-array String 5)
+#<String[] [Ljava.lang.String;@5f6303>
+
+==
+创建多维数组 (make-array class dim & more-dims)。
+
+user=> (make-array String 2 2)
+#<String[][] [[Ljava.lang.String;@766a24>
+
+==
+一系列类似int-array的函数用来创建Java基础类型数组。
+
+user=> (int-array 5)
+#<int[] [I@1742700>
+
+====
+3，
+
+3.1，to-array函数直接将集合转化为数组：
+(to-array sequence)
+
+说明：转换的结果为Object数组。
+
+user=> (to-array ["Easier" "array" "creation"])
+#<Object[] [Ljava.lang.Object;@cf66b>
+
+====
+3.2，into-array函数也能将集合转换为数组，并且可以指定数组元素类型：
+(into-array type seq)。type可选。
+
+user=> (into-array String ["Easier" "array" "creation"])
+#<String[] [Ljava.lang.String;@110c31>
+
+(into-array CharSequence ["a" "b" "c"]) 
+;= #<CharSequence[] [Ljava.lang.CharSequence;@5acad437>
+
+生成原始类型数组。
+(into-array Long/TYPE (range 5))
+;= #<long[] [J@21e3cc77>
+
+如果忽略类型参数，into-array则根据第一个元素猜测数组元素的类型。
+
+(into-array ["a" "b" "c"])
+;= #<String[] [Ljava.lang.String;@4413515e>
+
+====
+3.3，aclone
+function
+Usage: (aclone array)
+
+Returns a clone of the Java array. Works on arrays of known types.
+
+====
+4，
+aset 设置Java数组项值：
+一维数组 (aset java-array index value)
+多维数组 (aset java-array index-dim1 index-dim2 ... value)
+
+aget 获取Java数组项值：
+一维数组 (aget java-array index)
+多维数组 (aget java-array index-dim1 index-dim2 ...)
+
+alength获取数字长度：
+(alength java-array)
+
+对多维数组处理的性能问题，见
+《（hxzon学习笔记）clojure-与java一起工作-类型提示》“Use Primitive Arrays Judiciously”部分。
+
+====
+aset-boolean， aset-byte， aset-char， aset-double， aset-float， aset-int， aset-long， aset-short 。
+
+aset-char
+function
+Usage: (aset-char array idx val)
+       (aset-char array idx idx2 & idxv)
+
+Sets the value at the index/indices. 
+Works on arrays of char. 
+Returns val.
+
+=======
+5，（数组循环）
+
+map和reduce只能用于容纳对象的序列，如果应用于数组，会引起装箱。
+
+====
+5.1，amap函数转换Java数组的每个元素：
+(amap a idx ret expr)
+
+amap创建数组的克隆，并绑定到变量ret，
+对数组a每一个元素执行expr表达式，idx绑定到数组元素索引，
+表达式结果赋值给克隆的数组对应的位置，最后返回克隆的数组（即ret）。
+
+user=> (def strings (into-array ["some" "strings" "here"]))
+#'user/strings
+
+user=> (seq (amap strings idx _ (.toUpperCase (aget strings idx))))
+("SOME" "STRINGS" "HERE")
+
+====
+5.2，areduce：
+(areduce a idx ret init expr)
+
+areduce开始用init初始化ret，然后对每一个数组a元素计算表达式expr，将计算结果赋给ret，
+最后返回ret（即表达式的最后一次计算值）。
+
+user=> (areduce strings idx ret 0 (max ret (.length (aget strings idx))))
+7
+
+上面的代码计算数组strings中，最长字符串的长度。
+
