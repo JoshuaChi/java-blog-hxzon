@@ -23,7 +23,7 @@ hxzon摘要：
 续延可以理解成是一种广义的闭包。
 闭包就是一个函数加上一些指向闭包创建时可见的词法变量的指针。
 续延则是一个函数加上一个指向其创建时所在的整个栈的指针。
-当续延被求值时，它返回的是使用自己的栈拷贝算出的结果，而没有用当前栈。
+当续延被求值时，它返回的是使用自己的“栈拷贝”算出的结果，而没有用当前栈。
 如果某个续延是在 T1 时刻创建的，而在 T2 时刻被求值，那么它求值时使用的将是 T1 时刻的栈。
 
 使用续延的搜索方式带来了一种编写程序的新思路：
@@ -32,7 +32,8 @@ hxzon摘要：
 dft-node 的优势在于，可以同时运行它的多个实例。
 而通过续延，则能非常自然地维护两个正在进行的遍历操作的状态。
 
-续延的过人之处在于，即使没有持久性的数据结构与之关联，它同样可以在任何的计算过程中轻松保存我们的位置。
+续延的过人之处在于，即使没有持久性的数据结构与之关联，
+它同样可以在任何的计算过程中轻松保存我们的位置。
 这一计算甚至也不需要具有有限数量的状态，只要重启它们有限次就行了。
 
 "continuation-passingstyle" (续延传递风格)
@@ -57,12 +58,11 @@ dft-node 的优势在于，可以同时运行它的多个实例。
 Scheme 和 Common Lisp 在几个主要方面存在着不同，
 其中之一就是：前者拥有显式的续延支持。
 本节展示的是续延在Scheme 中的工作方式。
-([示例代码 20.1] 列出了 Scheme 和 Common Lisp 间一些其他的区别。)
+([图 20.1] 列出了 Scheme 和 Common Lisp 间一些其他的区别。)
 
 续延是一个代表着计算的将来的函数。
 不管是哪一个表达式被求值，总会有谁在翘首以待它将要返回的值。
 例如，在
-
 (/ (- x 1) 2)
 中，当求值 (- x 1) 时，外面的 / 表达式就在等着这个值，
 同时，还有另外一个式子也在等着它的值，依此类推下去，
@@ -70,7 +70,6 @@ Scheme 和 Common Lisp 在几个主要方面存在着不同，
 
 无论何时，我们都可以把续延视为带一个参数的函数。
 如果上面的表达式被输入到 toplevel，那么当子表达式 (- x 1) 被求值时，续延将是：
-
 (lambda (val) (/ val 2))
 也就是说，接下来的计算可以通过在返回值上调用这个函数来重现。
 如果该表达式在下面的上下文中出现
@@ -91,11 +90,12 @@ Scheme 和 Common Lisp 在几个主要方面存在着不同，
 
 在 Scheme 中，续延和函数同样是第一类对象。
 你可以要求 Scheme 返回当前的续延，然后它将为你生成一个只有单个参数的函数，以表示未来的计算。
-你可以任意长时间地保存这个对象，然后在你调用它时，它将重启当它被创建时所发生的计算。
+你可以任意长时间地保存这个对象，然后在你调用它时，它将“重启”“当它被创建时所发生的计算”。
 
+====
 [图 20.1]： Scheme 和 Common Lisp 之间的一些区别
 
-1,在 Common Lisp 眼中，一个符号的 symbol-value 和 symbol-function 是不一样的，而 Scheme 对两者不作区分。
+【1】在 Common Lisp 眼中，一个符号的 symbol-value 和 symbol-function 是不一样的，而 Scheme 对两者不作区分。
 在 Scheme 里面，变量只有唯一对应的值，它可以是个函数，也可以是另一种对象。
 因此，在 Scheme 中就不需要 #' 或者 funcall 了。
 
@@ -108,11 +108,11 @@ Common Lisp 的：
 (let ((f (lambda (x) (1+ x))))
   (f 2))
 
-2,由于 Scheme 只有一个名字空间，因而它没有必要为各个名字空间专门设置对应的赋值操作符(例如 defun 和 setq )。
+【2】由于 Scheme 只有一个名字空间，因而它没有必要为各个名字空间专门设置对应的赋值操作符(例如 defun 和 setq )。
 取而代之，它使用 define ，define 的作用和 defvar 大致相当，同时用 set! 替代了 setq 。
 在用 set! 为全局变量赋值前，必须先用 define 创建这个变量。
 
-3,在 Scheme 中，通常用 define 定义有名函数，它行使着 defun 和 defvar 在 Common Lisp 中的功能。
+【3】在 Scheme 中，通常用 define 定义有名函数，它行使着 defun 和 defvar 在 Common Lisp 中的功能。
 
 Common Lisp 的：
 
@@ -123,42 +123,45 @@ Common Lisp 的：
 (define foo (lambda (x) (1+ x)))
 (define (foo x) (1+ x))
 
-4,在 Common Lisp 中，函数的参数按从左到右的顺序求值。
+【4】在 Common Lisp 中，函数的参数按从左到右的顺序求值。
 而在 Scheme 中，有意地不对求值顺序加以规定。
 (并且语言的实现者对于忘记这点的人幸灾乐祸。)
 
-5,Scheme 不用 t 和 nil ，相应的，它有 #t 和 #f 。
+【5】Scheme 不用 t 和 nil ，相应的，它有 #t 和 #f 。
 空列表，()，在某些实现里为真，而在另一些实现里为假。
 
-6,cond 和 case 表达式里的默认子句在 Scheme 中带有 else 关键字，而不是 Common Lisp 中的 t 。
+【6】cond 和 case 表达式里的默认子句在 Scheme 中带有 else 关键字，而不是 Common Lisp 中的 t 。
 
-7,某些内置操作符的名字被改掉了：consp 成了 pair? ，而 null 则是 null? ，mapcar (几乎) 是 map ，等等。
+【7】某些内置操作符的名字被改掉了：consp 成了 pair? ，而 null 则是 null? ，mapcar (几乎) 是 map ，等等。
 通常根据上下文，应该能看出这些操作符的意思。
 
 
-
+====
 续延可以理解成是一种广义的闭包。
 闭包就是一个函数加上一些指向闭包创建时可见的词法变量的指针。
 续延则是一个函数加上一个指向其创建时所在的整个栈的指针。
 当续延被求值时，它返回的是使用自己的栈拷贝算出的结果，而没有用当前栈。
 如果某个续延是在 T1 时刻创建的，而在 T2 时刻被求值，那么它求值时使用的将是 T1 时刻的栈。
 
-Scheme 程序通过内置操作符 call-with-current-continuation (缩写为 call/cc) 来访问当前续延。
-当一个程序在一个单个参数的函数上调用 call/cc 时：
+Scheme 程序通过内置操作符 call-with-current-continuation (缩写为 call/cc) 来“访问”当前续延。
+当一个程序“在一个单个参数的函数上”调用 call/cc 时：
 
 (call-with-current-continuation
   (lambda (cc)
     ...))
 
-这个函数将被传进另一个代表当前续延的函数。
+这个函数将被传进另一个“代表当前续延”的函数。
 通过将 cc 的值存放在某个地方，我们就可以保存在 call/cc 那一点上的计算状态。
+
+====
+（hxzon：深入理解）
 
 在这个例子里，我们 append 出一个列表，列表的最后一个元素是一个 call/cc 表达式的返回值：
 
 > (define frozen)
 FROZEN
 > (append '(the call/cc returned)
-  (list (call-with-current-continuation
+  (list (call-with-current-continuation        ;hxzon：本续延之后的代码：先 list，然后 append，然后 toplevel 。
       (lambda (cc)
         (set! frozen cc)
         'a))))
@@ -170,7 +173,7 @@ FROZEN
 无论我们传给 frozen 什么值，这个值都将作为 call/cc 的值返回：
 
 > (frozen 'again)
-(THE CALL/CC RETURNED AGAIN)
+(THE CALL/CC RETURNED AGAIN)        ;hxzon：求值了'again，然后执行 list，然后 append，然后 toplevel 。
 
 续延不会因为被求值而用完。
 它们可以被重复调用，就像任何其他的函数型对象一样：
@@ -178,18 +181,21 @@ FROZEN
 > (frozen 'thrice)
 (THE CALL/CC RETURNED THRICE)
 
-当我们在某些其他的计算里调用一个续延时，我们可以更清楚地看到所谓返回到原先的栈上是什么意思：
+当我们在某些其他的计算里调用一个续延时，
+我们可以更清楚地看到所谓“返回到原先的栈上”是什么意思：
 
 > (+ 1 (frozen 'safely))
 (THE CALL/CC RETURNED SAFELY)
 
-这里，紧接着的 + 当 frozen 调用时被忽略掉了。
+这里，紧接着的 + 当 frozen 调用时“被忽略掉了”。
 后者返回到了它首次被创建时的栈上：先经过 list ，然后是 append ，直到 toplevel。
-如果 frozen 像正常函数调用那样返回了一个值，那么上面的表达式将在试图给一个列表加 1 时产生一个错误。
+如果 frozen 像正常函数调用那样返回了一个值，
+那么上面的表达式将在试图给一个列表加 1 时产生一个错误。（hxzon：深入理解。丢掉当前栈，返回到原先的栈上）
 
+====
 各续延并不会每人都分到自己的一份栈的拷贝。
 它们可能跟其他续延或者当前正在进行的计算共享一些变量。
-在下面这个例子里，两个续延共享了同一个栈：
+在下面这个例子里，两个续延“共享了同一个栈”：
 
 > (define froz1)
 FROZ1
@@ -200,7 +206,7 @@ FROZ2
     (lambda (cc)
       (set! froz1 cc)
       (set! froz2 cc)))
-  (set! x (1+ x))
+  (set! x (1+ x))        ;hxzon：从这里开始，是调用续延，将执行的代码
   x)
 1
 
@@ -213,13 +219,14 @@ FROZ2
 
 由于 call/cc 表达式的值将被丢弃，所以无论我们给 froz1 和 froz2 什么参数都无关紧要。
 
+====
 现在能保存计算的状态了，我们可以用它做什么呢？第 21-24 章致力于使用续延的应用。
 这里将要考察一个比较简单的例子，它能够体现出使用保存状态编程的特色：
-假设有一组树，我们想从每棵树都取出一个元 素，组成一个列表，直到获得一个满足某种条件的组合。
+假设有一组树，我们想从每棵树都取出一个元素，组成一个列表，直到获得一个满足某种条件的组合。
 
 树可以用嵌套列表来表示。
 第 5.6 节上描述了一种将一类树表示成列表的方法。
-这里我们采用另一种方法，允许内部节点带有(原子的) 值，以及任意数量的孩子。
+这里我们采用另一种方法，允许内部节点带有(原子的)值，以及任意数量的孩子。
 在这种表示方法里，内部节点变成了一个列表；
 其 car 包含保存在这个节点上的值，其 cdr 包含该节点孩子的表示。
 例如，[图 20.2] 里显示的两棵树可以被表示成：
@@ -227,48 +234,62 @@ FROZ2
 (define t1 '(a (b (d h)) (c e (f i) g)))
 (define t2 '(1 (2 (3 6 7) 4 5)))
 
+（hxzon：用点对来表示：
+参考：http://gajon.org/trees-linked-lists-common-lisp/
 
-a 1
+car,cdr即first，rest。
+car为父，cdr为子。
 
-b c 2
+(a . (B . (C .nil)))
+B= (b (D . nil))
+D= (d . (h . nil))
+C= (c (e . (F . (g . nil))))
+F= (f . (i . nil))
 
-d e f g 3 4 5
+）
 
-h i 6 7
-
-(a) t1 (b) t2
 [图 20.2]： 两棵树
+a-b,c
+b-d
+d-h
+c-e,f,g
+f-i
+
+1-2
+2-3,4,5
+3-6,7
 
 [示例代码 20.3]： 用续延来遍历树
 
-(define (dft tree)
+(define (dft tree)        ;hxzon：不用续延的深度优先遍历
   (cond ((null? tree) ())
-    ((not (pair? tree)) (write tree))
+    ((not (pair? tree)) (write tree))        ;hxzon：如果不是点对，打印
     (else (dft (car tree))
       (dft (cdr tree)))))
 
-(define *saved* ())
+----
+(define *saved* ())        ;hxzon：保存续延的列表，后进先出
 
 (define (dft-node tree)
-  (cond ((null? tree) (restart))
-    ((not (pair? tree)) tree)
-    (else (call-with-current-continuation
+  (cond ((null? tree) (restart))        ;hxzon：如果已经结束，返回到最近的续延
+    ((not (pair? tree)) tree)        ;hxzon：如果不是点对，返回该节点
+    (else (call-with-current-continuation         ;hxzon：如果是点对，处理该点对的头，同时压入新的续延
         (lambda (cc)
-          (set! *saved*
+          (set! *saved*        ;hxzon：压入新的续延。？该续延接下来执行什么？
             (cons (lambda ()
-                (cc (dft-node (cdr tree))))
+                (cc (dft-node (cdr tree))))        ;hxzon：？
               *saved*))
-          (dft-node (car tree)))))))
+          (dft-node (car tree)))))))        ;hxzon：处理该点对的头
 
 (define (restart)
-  (if (null? *saved*)
+  (if (null? *saved*)        ;hxzon：已没有续延，返回DONE
     'done
-    (let ((cont (car *saved*)))
-      (set! *saved* (cdr *saved*))
-      (cont))))
+    (let ((cont (car *saved*)))        ;hxzon：弹出最近的续延
+      (set! *saved* (cdr *saved*))        ;hxzon：移出最近的续延
+      (cont))))        ;hxzon：调用最近的续延
 
-(define (dft2 tree)
-  (set! *saved* ())
+(define (dft2 tree)        ;hxzon：使用续延的深度优先遍历
+  (set! *saved* ())        ;hxzon：将续延列表重新设为空
   (let ((node (dft-node tree)))
     (cond ((eq? node 'done) ())
       (else (write node)
@@ -283,7 +304,8 @@ h i 6 7
 ABDHCEFIG()
 
 函数 dft-node 按照同样的路径遍历这棵树，但每次只处理一个节点。
-当 dft-node 到达一个节点时，它跟着节点的 car 走，并且在 *saved* 里压入一个续延来浏览其 cdr 部分。
+当 dft-node 到达一个节点时，它跟着节点的 car 走，
+并且在 *saved* 里压入一个续延来浏览其 cdr 部分。
 
 > (dft-node t1)
 A
@@ -326,10 +348,10 @@ dft-node 的优势在于，可以同时运行它的多个实例。
 
 > (set! *saved* ())
 ()
-> (let ((node1 (dft-node t1)))
+> (let ((node1 (dft-node t1)))        ;hxzon：从t1取出一个节点node1
   (if (eq? node1 'done)
     'done
-    (list node1 (dft-node t2))))
+    (list node1 (dft-node t2))))        ;hxzon：从t2取出一个节点，与node1组成列表
 (A 1)
 > (restart)
 (A 2)
@@ -347,7 +369,8 @@ dft-node 的优势在于，可以同时运行它的多个实例。
 对于诸如本例的简单情形，要保存我们在树中的位置还不算太难。
 树是持久性的数据结构，所以我们至少有办法找到 "我们在树中的位置"。
 
-续延的过人之处在于，即使没有持久性的数据结构与之关联，它同样可以在任何的计算过程中轻松保存我们的位置。
+续延的过人之处在于，即使“没有”持久性的数据结构“与之关联”，
+它同样可以在任何的计算过程中轻松保存我们的位置。
 这一计算甚至也不需要具有有限数量的状态，只要重启它们有限次就行了。
 
 正如第24 章将要展示的，这两种考虑被证实在 Prolog 的实现中至关重要。
@@ -367,10 +390,10 @@ Scheme 的续延给了我们两样东西：
 
 续延被创建时所有变量的绑定。
 
-计算的状态 从那时起将要发生什么。
+计算的状态，即“从那时起将要发生什么”。
 
 在一个词法作用域的 Lisp 里，闭包给了我们前者。
-可以看出我们也能使用闭包来获得后者，办法是把计算的状态同样也保存在变量绑定里。
+可以看出我们也能使用闭包来获得后者，办法是“把计算的状态同样也保存在变量绑定”里。
 
 [示例代码 20.4] 续延传递宏
 
@@ -432,7 +455,7 @@ Scheme 的续延给了我们两样东西：
 =values 的定义显示了这个续延的用场。
 只要是用 =defun 定义的函数，都必须通过 =values 来返回值，或者调用另一个使用 =values 的函数。
 =values 的语法与 Common Lisp 的values 相同。
-如果有个带有相同数量参数的 =bind 等着它的话，它可以返回多值， 但它不能返回多值到 toplevel。
+如果有个带有相同数量参数的 =bind 等着它的话，它可以返回多值，但它不能返回多值到 toplevel。
 
 参数 *cont* 告诉那个由 =defun 定义的函数对其返回值做什么。
 当 =values 被宏展开时，它将捕捉 *cont* ，并用它模拟从函数返回值的过程。表达式
@@ -471,6 +494,7 @@ BAR
 
 例如在 add1 的函数体里，*cont* 就是一个形参而非全局变量。
 这个区别是很重要的，因为如果 *cont* 不是一个局部变量的话这些宏将无法工作。 (注3)
+
 [示例代码 20.4] 中的第三个宏，=bind ，其用法和 multiple-value-bind 相同。
 它接受一个参数列表，一个表达式，以及一个代码体：
 参数将被绑定到表达式返回的值上，而代码体在这些绑定下被求值。
@@ -548,16 +572,10 @@ ADD1
     (format nil "9 + 1 = ~A" y)))
 "9 + 1 = 10"
 
+====
 [示例代码 20.5] 总结了所有因续延传递宏而引入的限制。
 如果有函数既不保存续延，也不调用其他保存续延的函数，那它就没有必要使用这些特殊的宏。
 比如像list 这样的内置函数就没有这个需要。
-
-[示例代码 20.6] 中把来自[示例代码 20.3] 的代码（注4） 从Scheme 翻译成了Common Lisp，并且用续延传递宏代替了Scheme 续延。
-以同一棵树为例，dft2 和之前一样工作正常：
-
-【注4】译者注：这段代码与原书有一些出入：首先 (setq saved nil) 被改为 (defvar saved nil)；
-其次将restart 改为re-start 以避免和Common Lisp 已有的符号冲突，
-并且将re-start 的定义放在dft-node 的定义之前以确保后者在编译时可以找到re-start 的定义。
 
 [示例代码 20.5] 续延传递宏的限制
 
@@ -577,6 +595,15 @@ ADD1
     (=bind (z) (baz x)
       (format t "Hum.")
       (=values x y z))))
+
+====
+[示例代码 20.6] 中把来自[示例代码 20.3] 的代码（注4） 
+从Scheme 翻译成了Common Lisp，并且用续延传递宏代替了Scheme 续延。
+以同一棵树为例，dft2 和之前一样工作正常：
+
+【注4】译者注：这段代码与原书有一些出入：首先 (setq saved nil) 被改为 (defvar saved nil)；
+其次将restart 改为re-start 以避免和Common Lisp 已有的符号冲突，
+并且将re-start 的定义放在dft-node 的定义之前以确保后者在编译时可以找到re-start 的定义。
 
 [示例代码 20.6] 使用续延传递宏的树遍历
 
@@ -606,9 +633,11 @@ ADD1
     (cond ((eq node 'done) (=values nil))
       (t (princ node)
         (re-start)))))
+
 > (setq t1 '(a (b (d h)) (c e (f i) g))
   t2 '(1 (2 (3 6 7) 4 5)))
 (1 (2 (3 6 7) 4 5))
+
 > (dft2 t1)
 ABDHCEFIG
 NIL
@@ -637,7 +666,7 @@ NIL
 
 第21–24 章都以某种方式依赖于续延。
 这些章节将显示续延是一种能力非凡的抽象。
-它可能不会很快，如果是在语言层面之上，用宏实现的话，其性能可能会更会大打折扣。
+它可能不会很快，如果是在语言层面之上，用宏实现的话，其性能可能会大打折扣。
 但是，我们基于续延构造的抽象层可以大大加快某些程序的编写速度，而且提高编程效率也有着其实际意义。
 
 
@@ -662,7 +691,7 @@ call/cc 可以捕捉到所有程序中任意地方的续延。
 尽管我们也能实现具有 call/cc 所有功能的操作符，但那还要做很多工作。
 本节会大略提一下，如果真要这样做的话，还有哪些事有待完成。
 
-Lisp 程序可以转换成一种称为 "continuation-passingstyle" (续延传递风格) 的形式。
+Lisp 程序可以转换成一种称为 "continuation-passing style" (续延传递风格) 的形式。
 经过完全的 CPS 转换的程序是不可读的，但我们可以通过观察被部分转换了的代码来体会这个过程的思想。
 下面这个用于求逆列表的函数：
 
