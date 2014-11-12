@@ -1,6 +1,7 @@
 ﻿《实用common lisp编程》第13章，超越列表：点对单元的其他用法
 http://www.gigamonkeys.com/book/beyond-lists-other-uses-for-cons-cells.html
 http://www.gigamonkeys.com/book/
+
 树，另见http://gajon.org/trees-linked-lists-common-lisp/
 
 Copyright © 2003-2005, Peter Seibel
@@ -9,39 +10,86 @@ Copyright © 2003-2005, Peter Seibel
 13.1 树
 13.2 集合
 13.3 查询表：alist 和plist
-13.4 DESTRUCTURING-BIND
+13.4 DESTRUCTURING-BIND （解构）
 
 ====
 13. Beyond Lists: Other Uses for Cons Cells
 
-As you saw in the previous chapter, the list data type is an illusion created by a set of functions that manipulate cons cells. Common Lisp also provides functions that let you treat data structures built out of cons cells as trees, sets, and lookup tables. In this chapter I'll give you a quick tour of some of these other data structures and the functions for manipulating them. As with the list-manipulation functions, many of these functions will be useful when you start writing more complicated macros and need to manipulate Lisp code as data.
+As you saw in the previous chapter, the list data type is an illusion created by a set of functions that manipulate cons cells. 
+Common Lisp also provides functions that let you treat data structures built out of cons cells as trees, sets, and lookup tables. 
+In this chapter I'll give you a quick tour of some of these other data structures and the functions for manipulating them. 
+As with the list-manipulation functions, many of these functions will be useful 
+when you start writing more complicated macros and need to manipulate Lisp code as data.
 
+====
 Trees
+树
 
-Treating structures built from cons cells as trees is just about as natural as treating them as lists. What is a list of lists, after all, but another way of thinking of a tree? The difference between a function that treats a bunch of cons cells as a list and a function that treats the same bunch of cons cells as a tree has to do with which cons cells the functions traverse to find the values of the list or tree. The cons cells traversed by a list function, called the list structure, are found by starting at the first cons cell and following CDR references until reaching a NIL. The elements of the list are the objects referenced by the CARs of the cons cells in the list structure. If a cons cell in the list structure has a CAR that references another cons cell, the referenced cons cell is considered to be the head of a list that's an element of the outer list.1 Tree structure, on the other hand, is traversed by following both CAR and CDR references for as long as they point to other cons cells. The values in a tree are thus the atomic--non-cons-cell-values referenced by either the CARs or the CDRs of the cons cells in the tree structure.
+Treating structures built from cons cells as trees is just about as natural as treating them as lists. 
+What is a list of lists, after all, but another way of thinking of a tree?
+列表的列表。 
+The difference between a function that treats a bunch of cons cells as a list 
+and a function that treats the same bunch of cons cells as a tree has to do with which cons cells the functions traverse to find the values of the list or tree. 
+The cons cells traversed by a list function, called the list structure, 
+are found by starting at the first cons cell and following CDR references until reaching a NIL. 
+The elements of the list are the objects referenced by the CARs of the cons cells in the list structure. 
+If a cons cell in the list structure has a CAR that references another cons cell, 
+the referenced cons cell is considered to be the head of a list that's an element of the outer list.【1】
 
-For instance, the following box-and-arrow diagram shows the cons cells that make up the list of lists: ((1 2) (3 4) (5 6)). The list structure includes only the three cons cells inside the dashed box while the tree structure includes all the cons cells.
+【1】It's possible to build a chain of cons cells where the CDR of the last cons cell isn't NIL but some other atom. 
+This is called a dotted list because the last cons is a dotted pair.
 
+Tree structure, on the other hand, is traversed by following both CAR and CDR references for as long as they point to other cons cells. 
+The values in a tree are thus the atomic--non-cons-cell-values referenced by either the CARs or the CDRs of the cons cells in the tree structure.
 
+For instance, the following box-and-arrow diagram shows the cons cells that make up the list of lists: ((1 2) (3 4) (5 6)). 
+The list structure includes only the three cons cells inside the dashed box while the tree structure includes all the cons cells.
+（图）
 
-To see the difference between a list function and a tree function, you can consider how the functions COPY-LIST and COPY-TREE will copy this bunch of cons cells. COPY-LIST, as a list function, copies the cons cells that make up the list structure. That is, it makes a new cons cell corresponding to each of the cons cells inside the dashed box. The CARs of each of these new cons cells reference the same object as the CARs of the original cons cells in the list structure. Thus, COPY-LIST doesn't copy the sublists (1 2), (3 4), or (5 6), as shown in this diagram:
+To see the difference between a list function and a tree function, 
+you can consider how the functions COPY-LIST and COPY-TREE will copy this bunch of cons cells. 
+COPY-LIST, as a list function, copies the cons cells that make up the list structure. 
+That is, it makes a new cons cell corresponding to each of the cons cells inside the dashed box. 
+The CARs of each of these new cons cells reference the same object as the CARs of the original cons cells in the list structure. 
+Thus, COPY-LIST doesn't copy the sublists (1 2), (3 4), or (5 6), as shown in this diagram:
+即，copy-list不会复制子列表。
+（图）
 
+COPY-TREE, on the other hand, makes a new cons cell for each of the cons cells in the diagram 
+and links them together in the same structure, as shown in this diagram:
+（图）
 
+Where a cons cell in the original referenced an atomic value, the corresponding cons cell in the copy will reference the same value. 
+Thus, the only objects referenced in common by the original tree and the copy produced by COPY-TREE are the numbers 5, 6, and the symbol NIL.
 
-COPY-TREE, on the other hand, makes a new cons cell for each of the cons cells in the diagram and links them together in the same structure, as shown in this diagram:
+==
+Another function that walks both the CARs and the CDRs of a tree of cons cells is TREE-EQUAL, 
+which compares two trees, considering them equal if the tree structure is the same shape 
+and if the leaves are EQL (or if they satisfy the test supplied with the :test keyword argument).
 
-
-
-Where a cons cell in the original referenced an atomic value, the corresponding cons cell in the copy will reference the same value. Thus, the only objects referenced in common by the original tree and the copy produced by COPY-TREE are the numbers 5, 6, and the symbol NIL.
-
-Another function that walks both the CARs and the CDRs of a tree of cons cells is TREE-EQUAL, which compares two trees, considering them equal if the tree structure is the same shape and if the leaves are EQL (or if they satisfy the test supplied with the :test keyword argument).
-
-Some other tree-centric functions are the tree analogs to the SUBSTITUTE and NSUBSTITUTE sequence functions and their -IF and -IF-NOT variants. The function SUBST, like SUBSTITUTE, takes a new item, an old item, and a tree (as opposed to a sequence), along with :key and :test keyword arguments, and it returns a new tree with the same shape as the original tree but with all instances of the old item replaced with the new item. For example:
+Some other tree-centric functions are the tree analogs to the SUBSTITUTE and NSUBSTITUTE sequence functions and their -IF and -IF-NOT variants. 
+The function SUBST, like SUBSTITUTE, takes a new item, an old item, and a tree (as opposed to a sequence), 
+along with :key and :test keyword arguments, and it returns a new tree with the same shape as the original tree 
+but with all instances of the old item replaced with the new item. For example:
 
 CL-USER> (subst 10 1 '(1 2 (3 2 1) ((1 1) (2 2))))
 (10 2 (3 2 10) ((10 10) (2 2)))
-SUBST-IF is analogous to SUBSTITUTE-IF. Instead of an old item, it takes a one-argument function--the function is called with each atomic value in the tree, and whenever it returns true, the position in the new tree is filled with the new value. SUBST-IF-NOT is the same except the values where the test returns NIL are replaced. NSUBST, NSUBST-IF, and NSUBST-IF-NOT are the recycling versions of the SUBST functions. As with most other recycling functions, you should use these functions only as drop-in replacements for their nondestructive counterparts in situations where you know there's no danger of modifying a shared structure. In particular, you must continue to save the return value of these functions since you have no guarantee that the result will be EQ to the original tree.2
 
+SUBST-IF is analogous to SUBSTITUTE-IF. 
+Instead of an old item, it takes a one-argument function
+--the function is called with each atomic value in the tree, and whenever it returns true, 
+该函数在树的每个原子上操作。
+the position in the new tree is filled with the new value. 
+
+SUBST-IF-NOT is the same except the values where the test returns NIL are replaced. 
+
+NSUBST, NSUBST-IF, and NSUBST-IF-NOT are the recycling versions of the SUBST functions. 
+As with most other recycling functions, you should use these functions only as drop-in replacements for their nondestructive counterparts in situations 
+where you know there's no danger of modifying a shared structure. 
+In particular, you must continue to save the return value of these functions 
+since you have no guarantee that the result will be EQ to the original tree.2
+
+====
 Sets
 
 Sets can also be implemented in terms of cons cells. In fact, you can treat any list as a set--Common Lisp provides several functions for performing set-theoretic operations on lists. However, you should bear in mind that because of the way lists are structured, these operations get less and less efficient the bigger the sets get.
@@ -76,6 +124,8 @@ CL-USER> (subsetp '(3 2 1) '(1 2 3 4))
 T
 CL-USER> (subsetp '(1 2 3 4) '(3 2 1))
 NIL
+
+====
 Lookup Tables: Alists and Plists
 
 In addition to trees and sets, you can build tables that map keys to values out of cons cells. Two flavors of cons-based lookup tables are commonly used, both of which I've mentioned in passing in previous chapters. They're association lists, also called alists, and property lists, also known as plists. While you wouldn't use either alists or plists for large tables--for that you'd use a hash table--it's worth knowing how to work with them both because for small tables they can be more efficient than hash tables and because they have some useful properties of their own.
@@ -185,13 +235,31 @@ To remove a property from a symbol's plist, you can use either REMF of SYMBOL-PL
 (remprop 'symbol 'key) === (remf (symbol-plist 'symbol key))
 Being able to attach arbitrary information to names is quite handy when doing any kind of symbolic programming. For instance, one of the macros you'll write in Chapter 24 will attach information to names that other instances of the same macros will extract and use when generating their expansions.
 
+========
 DESTRUCTURING-BIND
+宏：解构
 
-One last tool for slicing and dicing lists that I need to cover since you'll need it in later chapters is the DESTRUCTURING-BIND macro. This macro provides a way to destructure arbitrary lists, similar to the way macro parameter lists can take apart their argument list. The basic skeleton of a DESTRUCTURING-BIND is as follows:
+One last tool for slicing and dicing lists that I need to cover since you'll need it in later chapters is the DESTRUCTURING-BIND macro. 
+This macro provides a way to destructure arbitrary lists, similar to the way macro parameter lists can take apart their argument list. 
+The basic skeleton of a DESTRUCTURING-BIND is as follows:
 
 (destructuring-bind (parameter*) list
   body-form*)
-The parameter list can include any of the types of parameters supported in macro parameter lists such as &optional, &rest, and &key parameters.5 And, as in macro parameter lists, any parameter can be replaced with a nested destructuring parameter list, which takes apart the list that would otherwise have been bound to the replaced parameter. The list form is evaluated once and should return a list, which is then destructured and the appropriate values are bound to the variables in the parameter list. Then the body-forms are evaluated in order with those bindings in effect. Some simple examples follow:
+
+The parameter list can include any of the types of parameters supported in macro parameter lists 
+such as &optional, &rest, and &key parameters.【5】
+
+【5】Macro parameter lists do support one parameter type, 
+&environment parameters, which DESTRUCTURING-BIND doesn't. 
+However, I didn't discuss that parameter type in Chapter 8, and you don't need to worry about it now either.
+
+And, as in macro parameter lists, any parameter can be replaced with a nested destructuring parameter list, 
+which takes apart the list that would otherwise have been bound to the replaced parameter. 
+可以嵌套解构。
+The list form is evaluated once and should return a list, which is then destructured 
+and the appropriate values are bound to the variables in the parameter list. 
+Then the body-forms are evaluated in order with those bindings in effect. 
+Some simple examples follow:
 
 (destructuring-bind (x y z) (list 1 2 3)
   (list :x x :y y :z z)) ==> (:X 1 :Y 2 :Z 3)
@@ -213,22 +281,39 @@ The parameter list can include any of the types of parameters supported in macro
 
 (destructuring-bind (&key x y z) (list :z 1 :y 2 :x 3)
   (list :x x :y y :z z)) ==> (:X 3 :Y 2 :Z 1)
-One kind of parameter you can use with DESTRUCTURING-BIND and also in macro parameter lists, though I didn't mention it in Chapter 8, is a &whole parameter. If specified, it must be the first parameter in a parameter list, and it's bound to the whole list form.6 After a &whole parameter, other parameters can appear as usual and will extract specific parts of the list just as they would if the &whole parameter weren't there. An example of using &whole with DESTRUCTURING-BIND looks like this:
+
+One kind of parameter you can use with DESTRUCTURING-BIND and also in macro parameter lists, 
+though I didn't mention it in Chapter 8, is a &whole parameter. 
+If specified, it must be the first parameter in a parameter list, and it's bound to the whole list form.【6】 
+After a &whole parameter, other parameters can appear as usual and will extract specific parts of the list 
+just as they would if the &whole parameter weren't there. 
+An example of using &whole with DESTRUCTURING-BIND looks like this:
+
+&whole绑定整个列表，且必须出现在第一个位置。
+
+【6】When a &whole parameter is used in a macro parameter list, 
+the form it's bound to is the whole macro form, including the name of the macro.
+当 &whole 出现在宏的参数列表时，它绑定整个宏形式，包括宏的名字。
+这一点，和clojure中宏的隐式参数 &form 相同。
 
 (destructuring-bind (&whole whole &key x y z) (list :z 1 :y 2 :x 3)
   (list :x x :y y :z z :whole whole))
 ==> (:X 3 :Y 2 :Z 1 :WHOLE (:Z 1 :Y 2 :X 3))
-You'll use a &whole parameter in one of the macros that's part of the HTML generation library you'll develop in Chapter 31. However, I have a few more topics to cover before you can get to that. After two chapters on the rather Lispy topic of cons cells, you can now turn to the more prosaic matter of how to deal with files and filenames.
 
-1It's possible to build a chain of cons cells where the CDR of the last cons cell isn't NIL but some other atom. This is called a dotted list because the last cons is a dotted pair.
+You'll use a &whole parameter in one of the macros that's part of the HTML generation library you'll develop in Chapter 31. 
+However, I have a few more topics to cover before you can get to that. 
+After two chapters on the rather Lispy topic of cons cells, 
+you can now turn to the more prosaic matter of how to deal with files and filenames.
 
-2It may seem that the NSUBST family of functions can and in fact does modify the tree in place. However, there's one edge case: when the "tree" passed is, in fact, an atom, it can't be modified in place, so the result of NSUBST will be a different object than the argument: (nsubst 'x 'y 'y) X.
 
-3UNION takes only one element from each list, but if either list contains duplicate elements, the result may also contain duplicates.
+【2】It may seem that the NSUBST family of functions can and in fact does modify the tree in place. 
+However, there's one edge case: when the "tree" passed is, 
+in fact, an atom, it can't be modified in place, so the result of NSUBST will be a different object than the argument: (nsubst 'x 'y 'y) X.
 
-4It's also possible to directly SETF SYMBOL-PLIST. However, that's a bad idea, as different code may have added different properties to the symbol's plist for different reasons. If one piece of code clobbers the symbol's whole plist, it may break other code that added its own properties to the plist.
+【3】UNION takes only one element from each list, 
+but if either list contains duplicate elements, the result may also contain duplicates.
 
-5Macro parameter lists do support one parameter type, &environment parameters, which DESTRUCTURING-BIND doesn't. However, I didn't discuss that parameter type in Chapter 8, and you don't need to worry about it now either.
-
-6When a &whole parameter is used in a macro parameter list, the form it's bound to is the whole macro form, including the name of the macro.
+【4】It's also possible to directly SETF SYMBOL-PLIST. 
+However, that's a bad idea, as different code may have added different properties to the symbol's plist for different reasons. 
+If one piece of code clobbers the symbol's whole plist, it may break other code that added its own properties to the plist.
 

@@ -25,6 +25,8 @@ let可以靠 lambda 来实现，即 let 是 lambda 的语法糖。
 (let ( (var expr) ... ) 
     body1 body2 ...)
 
+clojure中的let，省略了(var expr)这一层的括号，并且整个本地绑定使用方括号。
+
 Brackets are often used in place of parentheses to delimit the bindings of a let expression.
 可以使用方括号替换绑定表达式中的“名值对”括号。
 
@@ -39,6 +41,7 @@ Brackets are often used in place of parentheses to delimit the bindings of a let
 
 --
 let*，后续的局部变量可以引用前边的局部变量。
+clojure中的let，为这里的 let* 。
 
 (let ((x 1)
       (y x))	;这里 y 的值是 全局变量 x 的值。

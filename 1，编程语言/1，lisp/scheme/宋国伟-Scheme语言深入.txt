@@ -10,7 +10,9 @@ http://www.ibm.com/developerworks/cn/linux/l-schm/part3/
 一、关于符号类型
 二、关于尾递归
 三、关于过程参数的问题（重点，闭包。）
+
 四、关于continuation（另见）
+
 五、关于记录类型
 六、关于宏定义（允许不同的参数个数。）
 七、关于模块
@@ -381,6 +383,7 @@ Scheme语言中的宏定义类似于自己定义一个Scheme语言关键字，�
 (defmacro name (args ...) body ...)
 
 它等同于
+
 (define-macro (name args ...) body ...)
 
 我们来看一个简单的宏定义：

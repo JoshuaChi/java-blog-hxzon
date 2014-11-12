@@ -56,26 +56,29 @@ because it is the same as the one waiting for (if (null? x) (quote ()) (cdr x)).
 
 (cdr x)这个续延没有列出，因为它就是整个表达式的值。
 
+====
+（hxzon：知识点）
+
 Scheme allows the continuation of any expression to be captured with the procedure call/cc.
 可以使用 call/cc 捕获任何表达式的续延。 
 call/cc must be passed a procedure p of one argument. 
-传给 call/cc 的是一个过程 p， p只有一个参数。
+传给 call/cc 的是一个过程 p， p只有一个参数pp。
 call/cc constructs a concrete representation of the current continuation and passes it to p.
-call/cc 构造一个当前续延的具体表示，并传递给p的参数。
+call/cc 构造一个当前续延的具体表示，并传递给p的参数pp。
  
 The continuation itself is represented by a procedure k.
 续延本身表示为 过程k 。 
 Each time k is applied to a value, 
 it returns the value to the continuation of the call/cc application.
-每当 k 被赋值时，它返回这个值。 
+k 有一个参数 kv，它返回这个值（kv）。 
 This value becomes, in essence, the value of the application of call/cc.
-这个返回值也作为 call/cc 的返回值。
+这个返回值（kv）也作为 call/cc 的返回值。
 
 If p returns without invoking k, 
 the value returned by the procedure becomes the value of the application of call/cc.
-如果p的返回值未使用 k，这个返回值作为 call/cc 的返回值。
+如果p未调用 k，则p的返回值作为 call/cc 的返回值。
 
-----
+====
 Consider the simple examples below.
 简单的例子：
 
@@ -85,16 +88,16 @@ Consider the simple examples below.
 
 (call/cc
   (lambda (k)
-    (* 5 (k 4)))) 	; 4 	;hxzon：k被赋值为4，返回4。 
+    (* 5 (k 4)))) 	; 4 	;hxzon：(k 4)，4 作为 call/cc 的返回值。 
 
 (+ 2
-   (call/cc
+   (call/cc        ;hxzon：这个续延的后续动作是(+ 2)
      (lambda (k)
-       (* 5 (k 4))))) 	; 6
+       (* 5 (k 4))))) 	; 6        ;hxzon：4 作为 call/cc 的返回值，再加上2，得到6
 
 In the first example, the continuation is captured and bound to k, 
 but k is never used, so the value is simply the product of 5 and 4. 
-续延被捕捉，并绑定到 k 。
+第1个例子，续延被捕捉，并绑定到 k 。
 但 k 未使用，所以值为 4和5的乘积。
 
 In the second, the continuation is invoked before the multiplication, 
@@ -103,9 +106,9 @@ so the value is the value passed to the continuation, 4.
 
 In the third, the continuation includes the addition by 2; 
 thus, the value is the value passed to the continuation, 4, plus 2.
-第3个例子，续延包含了“加2”，因此，值为传递给续延的值，加上2 。
+第3个例子，续延包含了“加2”，因此，值为传递给续延的值（即4），加上2 。
 
-----
+====
 Here is a less trivial example, 
 showing the use of call/cc to provide a nonlocal exit from a recursion.
 示例：在递归中，非本地退出。
@@ -132,7 +135,7 @@ Each of the continuation invocations above
 returns to the continuation while control remains within the procedure passed to call/cc.
 上面的每个续延调用，都返回（传递给 call/cc 的）续延，即使控制流仍在过程内。
 
-----
+====
 The following example uses the continuation after this procedure has already returned.
 下面的例子，在过程已返回后使用续延。（hxzon：何以见得“已返回后”？）
 
@@ -169,7 +172,9 @@ Then, the identity procedure is applied to itself, yielding the identity procedu
 This is finally applied to "HEY!", yielding "HEY!".
 最后，这个过程传递 "HEY!" 作为它的参数，所以返回 "HEY!" 。
 
-----
+====
+（hxzon：已理解。断点库）
+
 Continuations used in this manner are not always so puzzling. 
 Consider the following definition of factorial that 
 saves the continuation at the base of the recursion before returning 1,
@@ -183,15 +188,15 @@ by assigning the top-level variable retry.
 (define factorial
   (lambda (x)
     (if (= x 0)
-        (call/cc (lambda (k) (set! retry k) 1)  )		;当 x 为 0 时（即终止时），将续延赋值给 retry 。
+        (call/cc (lambda (k) (set! retry k) 1)  )		;当 x 为 0 时（即终止时），将续延赋值给 retry 。返回 1 。
         (* x (factorial (- x 1)))  )))
 
 With this definition, factorial works as we expect factorial to work, 
 except it has the side effect of assigning retry.
 
-(factorial 4) 	; 24 ;1*2*3*4
-(retry 1) 	; 24    ;为何这个续延会将值乘以传给续延的参数？
-(retry 2) 	; 48
+(factorial 4) 	; 24         ;hxzon：4*(3*(2*(1*(1)))))
+(retry 1) 	; 24                 ;hxzon：上一次 factorial 的参数是4，所以剩余代码是：(4*3*2*1*[1])
+(retry 2) 	; 48                 ;hxzon：剩余代码：(4*3*2*1*[2])
 
 The continuation bound to retry might be described as 
 "Multiply the value by 1, then multiply this result by 2, then multiply this result by 3, then multiply this result by 4." 
@@ -203,7 +208,7 @@ we will cause the base value to be something other than 1 and hence change the e
 会使得基础值不再是1，最终得到不同的结果。
 
 (retry 2) 	; 48
-(retry 5) 	; 120
+(retry 5) 	; 120            ;hxzon：剩余代码：(4*3*2*1*[5])
 
 This mechanism could be the basis for a breakpoint package implemented with call/cc; 
 each time a breakpoint is encountered, 
@@ -212,7 +217,7 @@ so that the computation may be restarted from the breakpoint (more than once, if
 这可以作为断点库的基础。
 每当断点产生，这个断点的续延被保存，所以接下来可以多次从这个断点重新运行。
 
-----
+====
 Continuations may be used to implement various forms of multitasking. 
 续延可以用来实现各种“多任务”的形式。
 The simple "light-weight process" mechanism defined below allows multiple computations to be interleaved.

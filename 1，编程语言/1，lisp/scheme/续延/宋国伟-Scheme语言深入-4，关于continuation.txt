@@ -51,11 +51,11 @@ guile> (call/cc (lambda (k) 5))
 5
 ;;;此时过程参数k未用到，所以取过程的返回值5做为结果
 
-guile> (call/cc (lambda (k) (* 5 (k 8))))		;hxzon：将 8 绑定到 k 。和 (* 5)没有任何关系。
+guile> (call/cc (lambda (k) (* 5 (k 8))))		;hxzon：续延总是返回它的参数值，所以这里call/cc返回 8 。和 (* 5)没有任何关系。
 8
 ;;;此时过程参数k绑定为8，所以其结果为8
 
-guile> (+ 2 (call/cc (lambda (k) (* 5 (k 8)))))		;hxzon：将 8 绑定到 k 。和 (* 5)没有任何关系。
+guile> (+ 2 (call/cc (lambda (k) (* 5 (k 8)))))		;hxzon：call/cc 返回 8 ，接着执行剩下的代码，即(+ 2)。
 10
 ;;;此时结果在我们意料之中了
 
@@ -73,8 +73,7 @@ guile> (call/cc (lambda (return)
 所以(lambda (return ) ...)的结果为#t，call/cc取此值为最终结果。
 
 guile> (call/cc (lambda (return)
-				         (for-each (lambda (x) (if (< x 0) (return x)))	;hxzon：将 x 绑定到 return ，作为返回值。
-				         																;但这里为何会提前返回？call/cc的特殊功能？
+				         (for-each (lambda (x) (if (< x 0) (return x)))	;hxzon：当x小于0时，调用续延，以x为参数。
 				                '(11 22 33 44 -55 66 77))
 				        #t))
 -55
@@ -88,10 +87,10 @@ call/cc 还可以这样操作：
 
 guile> (define foo #f)
 
-guile> (call/cc (lambda (bar) (set! foo bar) 123))		;hxzon：foo变成了续延。
+guile> (call/cc (lambda (bar) (set! foo bar) 123))		;hxzon：将续延保存到foo。
 123
 
-guile> (foo 456)		;foo不是过程，但可以像过程一样调用。
+guile> (foo 456)		;hxzon：该续延没有剩余的代码，所以返回它的参数
 456
 
 guile> (foo 'abc)
@@ -182,3 +181,4 @@ foox和fooy比它们只多了一步，执行完一个display过程后再返回�
 ((call/cc bar) (foo (call/cc bar)))
 
 这样形成了，0 1 2 3 4 ......无限制的循环，由此我们解决了一个不用循环语句来形成循环的问题。
+

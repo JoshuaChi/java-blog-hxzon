@@ -5,11 +5,11 @@ http://www.ituring.com.cn/article/53793
 hxzon修订。
 
 ======
-第 20 章 续延 (continuation) . . . . . . . . . . 177
+第 20 章 续延 (continuation)
 
-20.1 Scheme 续延 . . . . . . . 177
-20.2 续延传递宏 . . . . . . . 182
-20.3 Code-Walker 和 CPS Conversion . . . . . . . . . . . . . . 186
+20.1 Scheme 续延
+20.2 续延传递宏
+20.3 Code-Walker 和 CPS Conversion
 
 -------
 hxzon摘要：
@@ -162,7 +162,7 @@ Scheme 程序通过内置操作符 call-with-current-continuation (缩写为 cal
 FROZEN
 > (append '(the call/cc returned)
   (list (call-with-current-continuation        ;hxzon：本续延之后的代码：先 list，然后 append，然后 toplevel 。
-      (lambda (cc)
+      (lambda (cc)        ;hxzon：这个函数未调用 cc，所以它的返回值作为call/cc的返回值，所以返回 'a 。
         (set! frozen cc)
         'a))))
 (THE CALL/CC RETURNED A)
@@ -173,7 +173,8 @@ FROZEN
 无论我们传给 frozen 什么值，这个值都将作为 call/cc 的值返回：
 
 > (frozen 'again)
-(THE CALL/CC RETURNED AGAIN)        ;hxzon：求值了'again，然后执行 list，然后 append，然后 toplevel 。
+(THE CALL/CC RETURNED AGAIN)        ;hxzon：续延总是返回自己的参数，所以这里返回 'again，
+;然后执行 list，然后 append，然后 toplevel 。
 
 续延不会因为被求值而用完。
 它们可以被重复调用，就像任何其他的函数型对象一样：
@@ -241,9 +242,9 @@ car,cdr即first，rest。
 car为父，cdr为子。
 
 (a . (B . (C .nil)))
-B= (b (D . nil))
+B= (b . (D . nil))
 D= (d . (h . nil))
-C= (c (e . (F . (g . nil))))
+C= (c . (e . (F . (g . nil))))
 F= (f . (i . nil))
 
 ）
@@ -264,8 +265,9 @@ f-i
 (define (dft tree)        ;hxzon：不用续延的深度优先遍历
   (cond ((null? tree) ())
     ((not (pair? tree)) (write tree))        ;hxzon：如果不是点对，打印
-    (else (dft (car tree))
+    (else (dft (car tree))         ;hxzon：如果是点对，表示（父-长兄），或（兄-弟）
       (dft (cdr tree)))))
+
 
 ----
 (define *saved* ())        ;hxzon：保存续延的列表，后进先出
@@ -275,11 +277,11 @@ f-i
     ((not (pair? tree)) tree)        ;hxzon：如果不是点对，返回该节点
     (else (call-with-current-continuation         ;hxzon：如果是点对，处理该点对的头，同时压入新的续延
         (lambda (cc)
-          (set! *saved*        ;hxzon：压入新的续延。？该续延接下来执行什么？
+          (set! *saved*        ;hxzon：压入新的续延。
             (cons (lambda ()
-                (cc (dft-node (cdr tree))))        ;hxzon：？
+                (cc (dft-node (cdr tree))))        ;hxzon：使得call/cc 返回 (dft-node (cdr tree))
               *saved*))
-          (dft-node (car tree)))))))        ;hxzon：处理该点对的头
+          (dft-node (car tree)))))))        ;hxzon：该续延接下来的代码：(dft-node (car tree))
 
 (define (restart)
   (if (null? *saved*)        ;hxzon：已没有续延，返回DONE
