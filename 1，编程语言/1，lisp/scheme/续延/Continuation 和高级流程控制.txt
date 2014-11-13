@@ -1,0 +1,541 @@
+﻿Continuation 和高级流程控制
+从专用语言中学习新技术
+Jonathan Bartlett (johnnyb@eskimo.com), 技术总监, New Medio
+2006 年 7 月 17 日
+http://www.ibm.com/developerworks/cn/linux/l-advflow.html
+
+流程控制通常非常简单：包括序列化、选择和迭代等过程。很多一直在使用这些基本控制结构的程序员都曾经经历过一段困难的时间来确定哪种流程控制是必需的。本文将简要介绍有关 continuation 的内容，并向您展示如何用最新的方法来考虑流程控制的问题。
+
+
+很多程序员在首次接触编程之后，并不会太多考虑有关流程控制的问题，因为大部分编程语言都只有几个简单的流程控制结构。然而，流程控制的内容实际上比大部分主流编程语言中提供的更为丰富。有很多并不被大多数人所知的专用语言都具有高级且有用的流程控制结构。
+高级流程控制的例子
+我们开始了解流程控制的最好方法是查看几个使用不同语言的高级流程控制结构的例子。然后可以将这些知识归纳为一个适用于高级流程控制情况的框架。
+大规模退出
+第一种高级流程控制技术您可能已经听说过：大规模退出（non-local exit）。大规模退出有几种类型，每种类型都可以划分成两类：结构化的和非结构化的。非结构化大规模退出（Unstructured non-local exit） 就是计算机科学老师警告您不要这样做的一种情况，例如可怕的 goto 语句。实际上，如果得到广泛而正确地使用，非结构化的大规模退出可能会非常有用。例如，在流程控制非常复杂的程序中，它们可以提高程序的可读性。如果复杂的流程控制不能非常自然地嵌套，那么强行使用嵌套结构会使整个程序的可读性变差，而不是变好。有关使用 goto 语句的优缺点的更多信息，请参考本文后面 参考资料 部分给出的链接。
+对于结构化的大规模退出（structured non-local exit），您可能熟悉最流行的一种类型：异常。如果您使用 C、Fortran 和 Cobol 的时间已经超过了 20 年，而且一直没有再使用过其他语言，那么请参阅下面对异常的一段简介。
+异常 (exception) 是在代码中触发错误或对错误进行局部化的一种方法。通常当错误发生时，我们希望能够对这个错误进行处理。除非我们明确下达继续操作的指示，否则其余的工作不会继续进行。例如，我们可以看一下下面使用 Java™ 语言编写的这个简单的数据库代码：
+清单 1. 简单的数据库代码的例子
+//NOTE -- this code will not compile, but that's on purpose.
+import java.sql.*;
+  ...
+  public static int testdbcode(Connection conn) {
+    //Prepare the statement
+    PreparedStatement s = conn.prepareStatement(
+       "select id from test_table where name = ?");
+    //Set the parameters
+    s.setString(1, "fred");
+    //Run the query
+    ResultSet rs = s.executeQuery()
+    //Move to the first result row
+    rs.next();
+    //Get the answer (first result parameter)
+    int id = rs.getInt(1);
+
+    return id;
+  }
+  ...
+这段代码的问题是没有错误处理，在处理数据库或其他外部实体时，每个地方都可能产生错误。例如，如果在准备查询时产生了错误，那么设置参数、运行查询以及检索结果就都没什么用了。这个查询在碰到第一个错误之后就毫无意义了。因此在 Java 语言中，提供了一些异常，这让我们可以封装一段代码，这样在碰到第一个错误时就会跳到这段代码上来。要在 Java 语言中实现这种功能，我们可以按照下面的方式重新编写这段代码：
+清单 2. 采用异常处理的简单数据库函数
+import java.sql.*;
+  ...
+  public static int testdbcode(Connection conn) {
+    try {
+      //Prepare the statement
+      PreparedStatement s = conn.prepareStatement(
+         "select id from test_table where name = ?");
+      //Set the parameters
+      s.setString(1, "fred");
+      //Run the query
+      ResultSet rs = s.executeQuery()
+      //Move to the first result row
+      rs.next();
+      //Get the answer (first result parameter)
+      int id = rs.getInt(1);
+
+      return id;
+    } catch (Exception e) {
+      //Put error handling code here
+      return -1;
+    }
+  }
+  ...
+try 中的代码块会一直执行完，除非有一条语句出现了错误。如果触发 了某个错误，就会跳过 try 中的代码块，执行 catch 中的代码块，其中变量 e 中保存了异常的信息。在 Java 中，被触发的错误都是完整的类，因此任何信息都可以放入异常中。实际上，我们可以创建多个 catch 代码块，每个代码块分别用来处理一种特定的异常类。
+在上面的代码例子中，我们处理的是系统生成的异常。不过我们也可以创建应用程序级的异常，并对其执行同样的处理。应用程序可以在任意时刻使用 throw 关键字触发异常。例如，我们可以说如果上面的代码中 ID 值为 1，那么就可以认为这是一个应用程序级的异常。我们可以使用下面的方式：
+清单 3. 触发应用程序级异常的简单数据库的例子
+import java.sql.*;
+  ...
+  public static int testdbcode(Connection conn) {
+    try {
+      //Prepare the statement
+      PreparedStatement s = conn.prepareStatement(
+         "select id from test_table where name = ?");
+      //Set the parameters
+      s.setString(1, "fred");
+      //Run the query
+      ResultSet rs = s.executeQuery()
+      //Move to the first result row
+      rs.next();
+      //Get the answer (first result parameter)
+      int id = rs.getInt(1);
+
+      //Check for application exception
+      if(id == 0) {
+        //Signal the exception
+        //Assume that InvalidUserIDException is defined elsewhere
+        throw new InvalidUserIDException();
+      }
+
+      return id;
+    } catch (InvalidUserIDException e) {
+      //Specialized error handling here
+      return -1;
+    } catch (Exception e) {
+      //Handle all other errors here
+      return -1;
+    }
+  }
+  ...
+另外，处理异常的代码没有理由只能放在函数本身中。try 和 catch 语句也可以放到任何包含函数（containing function）中。异常处理机制会展开堆栈，直到它到达一个合适的异常处理程序，此时程序就会执行异常处理代码。这种执行结构化大规模退出的能力可以极大地简化代码的编写，以及对代码的维护工作，因为在某些情况下，错误处理与实际实现功能的代码是完全分隔开的。当然，这一切都非常简单。异常处理还有几个主要的功能，这已经超出了本文介绍的范围，不过 参考资料 中的部分内容可以为您提供这方面的帮助。
+生成函数
+另外一种高级流程控制结构是生成器。生成器是一些用来生成一组值的函数，这些值会在调用这些函数时一起返回。生成器可以将当前位置加入当前函数的 “书签”，从而对编程进行简化。
+例如，假设我们希望得到这样一个函数：每次调用该函数时它都会返回从 1 开始的一个数字序列，并且每次调用这个函数时，这个序列都会不断地增加。尽管采用闭包（closure）或全局变量都很难实现该函数，但是使用生成器却很容易实现它。下面是一个 Python 生成器实现的例子：
+清单 4. 简单的 Python 生成器程序
+#This is our generator function
+def sequence(start):
+  current = start
+  while true:
+    yield current
+    current = current + 1
+
+generator_func = sequence(1)  #Create a new sequence generator starting at 1
+print generator_func.next()   #prints 1
+print generator_func.next()   #prints 2
+print generator_func.next()   #prints 3
+正如您可以看到的那样，这个生成器每次被调用时都会回到上次退出这个函数时的状态，然后继续执行，直到碰到 yield 语句。这种 “书签” 和 “从书签中重用” 的特性在大部分语言中都不是标准特性，但是它却非常有用，可以让复杂逻辑的可读性更强，并且更容易编程。
+逻辑编程
+另外一种高级流程控制是逻辑编程，它在诸如 Prolog 之类的编程语言中得到了广泛的使用。在 Prolog 中，会为计算机提供一组定义，它可以 “魔术般地” 为您解答查询和设置值。例如，请查看下面的 Prolog 程序（大写字母表示变量）：
+清单 5. Prolog 中简单的逻辑程序
+likes(john,sports).            %this asserts that john likes sports
+likes(john,food).              %this asserts that john likes food
+likes(amy,X) :- likes(john,X). %amy likes X if john likes X
+likes(brad,food).              %brad likes food
+likes(brad,television).        %brad likes television
+
+%query for a value that both amy and brad like, and write it out.
+?- likes(amy,X), likes(brad,X), write(X).
+其工作原理是 Prolog 会创建一个 john 和 brad 所喜欢东西的列表。它还给出了一条规则：凡是 amy 喜欢的东西 john 都喜欢。然后当我们执行查询时，它首先会寻找 “amy 喜欢什么” 这个问题的答案。这个问题的答案是 “john 喜欢的任何东西”。然后遍历 john 所喜欢的东西的列表，并得出第一个匹配答案，即 sports。然后展开下一个问题：brad 也必须喜欢 amy 所喜欢的东西（这是通过表达式中的 X 来表示的）。然而，sports 并不在 brad 的爱好列表里面。因此，Prolog 就会继续回溯（backtrack），并从 amy 的爱好列表中再为 X 寻找一个匹配项。下一个值是 food。然后继续检查 food 是否也在 brad 的爱好列表中。答案是肯定的，因此可以继续执行下一个步骤：打印出为 X 找到的值。
+这种编程就称为逻辑编程，因为它允许以逻辑关系的方式表达自己的目标，并让计算机来执行所有的调研工作，为这些逻辑关系找到正确的答案。对于我们的目的来说，最重要的就是所建立的惟一一种流程控制方法：回溯。这意味着在计算的任何地点，如果在对应的变量中没有找到合适的值，或者一组变量之间的某个特定关系不正确，那么程序就可以进行回溯并分配一个新值。这种编程方法简化了问题集的数量，在智能领域更是如此。
+回页首
+continuation ：流程控制工具
+到目前为止，我们已经了解了 3 种高级流程控制：大规模退出、生成函数和回溯。它们的共同点是什么呢？基本上来说，它们都有一些程序堆栈和指令指针机制。在大规模退出中，包含退出代码段的堆栈帧被帖上书签，这就是退出处理的代码块。当我们调用这个大规模退出代码块时，堆栈就会展开到书签引用的地方，指令指针也被移动到处理程序代码块所在的地方。在生成函数中，包含生成器的变量包含了一个到生成函数的堆栈帧的指针，以及一个上次离开生成函数地方的指针。在回溯中，书签被保持在上次进行赋值的地方，如果计算失败并且需要进行回溯，流程控制就返回到这个位置。
+我们可以调用这些书签的 “连续点（continue point）” —— 如果这个高级流程控制结构被调用，程序就会从此处继续执行。或者更确切地说，它们都称为 continuation（连续性）。实际上，所有这些控制结构都可以使用一个单一的流程控制函数实现：call-with-current-continuation。
+call-with-current-continuation 是 Scheme 编程语言中的一个函数，它利用了当前的堆栈帧和指令指针，并将其封装到一个可调用的实体（continuation）中，并使用这个 continuation 作为惟一的参数调用另外一个函数。continuation 是一个可调用实体，它只可以接收一个参数，这个参数然后会返回到创建这个 continuation 的地方。这听起来可能会令人感到困惑 —— 实际上它的确是比较绕口。让我们看几个例子来感受一下它实际上是如何工作的。
+首先，下面是使用 continuation 的一个简单例子
+清单 6. Continuation 的例子
+(display
+  ;;Calling the continuation will return the parameter as the return value to
+  ;;the call-with-current-continuation function.  This is the "bookmarked" location
+  (call-with-current-continuation
+    ;;Continuation variables are often written with a "k" or "kont" to remind
+    ;;yourself that it is a continuation.  In this example, "kont" will be
+    ;;the continuation.  It is a function, that, when called, will return its
+    ;;parameter to the bookmarked location.
+    (lambda (kont)
+       ;;For this example, we will simply run the continuation.  This returns
+       ;;the number 5 to the "bookmarked" location
+       (kont 5))))
+(newline)
+上面的程序会简单地显示数字 5。注意使用一个参数调用 continuation 会返回使用书签引用的位置处的值。现在，让我们来看一个稍微复杂点的例子。在这种情况中，我们将使用 continuation 作为一种提前退出的手段。这个例子是故意这样设计的，不过它可以充分展示上述方面。对于这个程序而言，我们将对一个列表中的每个数字求平方值。然而，如果在这个列表中存在任何 非数字的值，这个程序不会返回一个列表，而是只返回符号 *error*。
+清单 7. 使用 continuation 从错误条件中提前退出
+(define a '(1 2 3 4 5))
+(define b '(1 b 2 e f))
+(define (square-list the-list)
+  ;;Bookmark here
+  (call-with-current-continuation
+    ;;early-exit-k will return us to our bookmark
+    (lambda (early-exit-k)
+      ;;run the procedure
+      (map
+        (lambda (x)
+          ;;Check to see if it is a number
+          (if (number? x)
+              ;;yes it is, perform the multiplication
+              (* x x)
+              ;;no it isn't, exit _now_ with the value *error*
+              (early-exit-k '*error*)))
+        the-list))))
+;;This will square the list
+(display (square-list a))
+(newline)
+;;This will give the error
+(display (square-list b))
+(newline)
+希望上面这个例子可以就如何使用 continuation 来实现异常为您提供一些提示。
+下面这个例子展示了 continuation 另外一个不常见的属性：它们可以具有无限的范围（unlimited extent）。这意味着它与异常有所不同，continuation 可以在产生代码块的范围之外激活。当您为某个 continuation 标记一个书签时，只要这个 continuation 值是活动的，它就会强制堆栈帧也保持活动状态。因此，即使已经从创建这个 continuation 的代码块中返回，在调用这个 continuation 时，依然会恢复前面的活动堆栈帧并从此处继续执行。
+下面的例子将 continuation 保存到一个全局变量中，然后在激活这个 continuation 之前，重新激活原来的堆栈帧。
+清单 8. 使用 continuation 重新激活一个堆栈帧
+;;Global variable for the continuation
+(define k-global #f)
+
+;;We are using let* instead of let so that we can guarantee
+;;the evaluation order
+(let* (
+       (my-number 3)
+       (k
+         ;;set bookmark here
+         (call-with-current-continuation
+           ;;The continuation will be stored in "kont"
+           (lambda (kont)
+             ;;return the continuation
+             kont))))
+
+     ;;We are using "my-number" to show that the old stack
+     ;;frame is being saved.  When we revisit the continuation
+     ;;the second time, the value will remain changed.
+     (display "The value of my-number is: ")
+     (display my-number)
+     (newline)
+     (set! my-number (+ my-number 1))
+
+     ;;Save the continuation in a global variable.
+     (set! k-global k))
+
+;;Is "kontinuation" a continuation?
+(if (procedure? k-global)
+    (begin
+       (display "This is the first run, k-global is a continuation")
+       (newline)
+       ;;Send "4" to the continuation which goes to the bookmark
+       ;;which will assign it to "k"
+       (k-global 4))
+     (begin
+       ;;This occurs on the second run
+       (display "This is the second run, k-global is not a continuation, it is ")
+       (display k-global)
+       (newline)))
+利用这些特性，我们就可以创建一些有用的步骤和宏来模拟各种其他特性。
+使用 continuation 实现异常
+现在来看一下异常是什么样子：
+清单 9. 异常的例子
+try {
+     //Code here which might generate an exception
+} catch(SQLException e) { //catch a specific exception
+     //Error handling code
+} catch(Exception e) { //catch a general exception
+     //Error handling code
+}
+
+//remaining code here
+因此，我们需要做的事情主要是创建一个宏，它可以建立：
+错误处理代码块
+其他代码的位置
+所运行的代码
+因此，这个宏展开的结果 看起来必须如下所示：
+清单 10. 假设的异常宏的期望展开结果
+;;This establishes the throw function as globally available, but displays an
+;;error message if used without being in a try block.
+(define throw (lambda (x) (display "No try clause is active!") (newline)))
+
+(let* (
+       ;Save the old containing try block
+       (old-throw throw)
+       ;we are saving the results in retval because we still have to clean up after
+       ;ourselves before we can exit
+       (retval (call-with-current-continuation
+                 ;The exception will use this continuation to get back to the
+                 ;remaining code
+                 (lambda (k-exit-to-remaining-code)
+                   (let (
+                         ;This defines the exit handler
+                         (error-handler
+                           (lambda (exception)
+                              (k-exit-to-remaining-code
+                                 ;;error-handling code here
+                                 ))))
+                        ;This sets our error handler to be the official "throw" function
+                        (set! throw error-handler)
+                        ;;Regular code here
+                        ;;You can throw an exception by doing:
+                        (throw 'test-exception))))))
+
+     ;Reinstate old try block
+     (set! throw old-throw)
+
+     ;Return the result
+     retval)
+这会建立一些嵌套，从而使 throw 总是引用里面的 try 代码块。现在我们已经知道了自己希望代码是什么样子，接下来就可以编写一个宏来实现这个基础设施的所有设置了。
+清单 11. 生成异常代码的宏
+;;This establishes the throw function
+(define throw (lambda (x) (display "No try clause is active!") (newline)))
+
+;;establishes syntax for a "try" block
+(define-syntax try
+  (lambda (x)
+    (syntax-case x (catch)
+      (
+       (try expression (catch exception exception-handler-expression))
+       (syntax
+         (let* (
+                (old-throw throw)
+                (retval
+                  (call-with-current-continuation
+                    (lambda (k-exit)
+                      (let (
+                            (error-handler
+                              (lambda (exception)
+                                (k-exit exception-handler-expression))))
+                           (set! throw error-handler)
+                           expression)))))
+               (set! throw old-throw)
+               retval))))))
+
+;;Short test suite
+
+;Function that throws an error
+(define (test-function)
+  (throw 'ERROR))
+
+;Function that does not throw an error
+(define (test-function-2)
+  (display "No error is generated.")
+  (newline))
+
+;Test out our try block
+(try (test-function) (catch e (begin (display "Exception!  e is: ")
+  (display e) (newline))))
+(try (test-function-2) (catch e (begin (display "Exception!  e is: ") 
+     (display e) (newline))))
+尽管我们已经解决了大部分问题，但仍然有一些问题存在。问题来自于混合 continuation。例如，除了将 continuation 用于异常之外，如果还将它们用于其他类型的早期退出逻辑（early exit logic），那么您将遇到一个问题。仔细查看以下代码：
+清单 12. continuation 的不良交互
+;;Uses previously defined try/catch macro
+(try
+  (begin
+    (call-with-current-continuation
+      (lambda (kont)
+        (try
+          (kont 'value)  ;;jumps out of the continuation, but also skips resetting
+                         ;;the active continuation
+          (catch e (begin
+                     (display "Interior exception handler.  Exception e is: ")
+                     (display e)
+                     (newline))))))
+    ;;Because we didn't exit out through the try block in a normal fashion, this will
+    ;;actually send us _back_ to the interior catch block the first time it is called!
+    (throw 'ERROR))
+  (catch e (begin
+             (display "Exterior exception handler.  Exception e is: ")
+             (display e)
+             (newline))))
+正如您可以看到的一样，这种自由跳转的能力可能会在保留书签时带来一些难题。为了减少这些问题，Scheme 采用了一个特殊的过程 dynamic-wind。dynamic-wind 可以检测出何时有一个 continuation 跳过了某个给定的堆栈帧。我们可以在 continuation 来回跳转时重置堆栈。dynamic-wind 使用了 3 个变量，每个变量都是一个不带任何参数的过程。第一个变量是每次进入堆栈帧时都需要运行的一个过程。第二个变量是真正运行的过程。最后一个变量是每次离开堆栈帧时都需要运行的过程。下面这个例子给出了关于 dynamic-wind 如何工作的一个简短跟踪：
+清单 13. 使用 dynamic-wind 的例子
+(let (
+      (k-var (call-with-current-continuation
+               (lambda (kont)
+                 (dynamic-wind
+                   (lambda () (display "Entering frame") (newline))
+                   (lambda ()
+                     (begin
+                       (display "Running")
+                       (newline)
+                       (call-with-current-continuation
+                         (lambda (inner-kont)
+                           ;;Exit across the dynamic-wind boundary,
+                           ;;saving the current continuation
+                           (kont inner-kont)))))
+                   (lambda () (display "Leaving frame") (newline)))))))
+  (if (procedure? k-var)
+      (k-var 'the-value)
+      (begin
+        (display k-var)
+        (newline))))
+首先，它创建一个外部 continuation。然后进入这个堆栈帧，调用 “进入” 过程。然后运行一个过程，在 dynamic-wind 内部生成一个 continuation。这个 continuation 之后会通过原来的 continuation 返回。然而，由于它穿过了 dynamic-wind 线，因此会执行 “离开” 过程。然后再次执行这个内部 continuation，这会将控制权再次通过 dynamic-wind 传递，此时会再次调用 “进入” 过程。然后返回 dynamic-wind，再次调用 “离开” 过程。
+尽管这个调用序列会令人有些困扰，但是如果您将 dynamic-wind 看作是一个对长远的 continuation 的一个 “警戒线”，那么意义非常明确了。如果流程控制想要通过这个 “警戒线”（不管是通过 continuation 还是通过普通的流程控制），则必须执行适当的过程（根据方向的不同，分别是 “进入” 或 “离开” 过程）来完成清理工作。
+使用这种方法，我们可以对 try 宏中的某些问题进行预防。可以使用 dynamic-wind 来重置代码执行哪个 try/catch 代码块。代码如下：
+清单 14. 使用 dynamic-wind 来改进 try/catch
+;;This establishes the throw function as globally available, but displays an
+;;error message if used without being in a try block.
+(define throw (lambda (x) (display "No try clause is active!") (newline)))
+
+;;establishes syntax for a "try" block
+(define-syntax try
+  (lambda (x)
+    (syntax-case x (catch)
+      (
+       (try expression (catch exception exception-handler-expression))
+       (syntax
+          ;;Exit point using continuation k-exit
+          (call-with-current-continuation
+            (lambda (k-exit)
+              (let (
+                    ;;These are the two exception handlers, the old and the
+                    ;;new.  Dynamic-wind sets them up and tears them down
+                    ;;upon entering and exiting from scope
+                    (old-throw throw)
+                    (error-handler
+                      (lambda (exception)
+                        (k-exit exception-handler-expression))))
+                   (dynamic-wind
+                     ;;Entering scope -- set exception handler
+                     (lambda () (set! throw error-handler))
+                     ;;Actual processing
+                     (lambda () expression)
+                     ;;Exitting scope -- set exception handler to old value
+                     (lambda () (set! throw old-throw)))))))))))
+这个版本要简单多了，它可以满足原来的测试用例和使用 continuation 的测试用例的需求。同样，如果您认为增加一个 dynamic-wind 控件是受到了欺骗，那么 Kent Dybvig 已经展示，dynamic-wind 也可以使用 call-with-current-continuation 来实现，相信这可以消除您的疑虑。
+虽然并没有涉及 try/catch 可能会产生的非预期性行为的所有方面，但是这对于大部分情况来说这应该已经足够了。下一节将重新审视可能发生的一些问题。
+使用 continuation 的生成器
+正如前面介绍的一样，生成器是一种流程控制形式。Python 是实现生成器的最常用的一种语言。下面让我们考虑一下生成器是如何工作的，以及如何使用 continuation 来实现生成器。
+首先要创建一个生成器。这必须通过一个 continuation 或闭包来节省堆栈帧的使用。然后，我们需要返回一个值，并使用书签标记当前位置在函数中的位置。这还意味着您必须已经标记了要返回的位置。
+因此，我们的生成器有两个书签，它们可以使用 continuation 来实现。第一个书签是一个变量，但是在首次创建这个生成器时建立的。其中保存了生成器函数的当前位置。然后当我们运行这个生成器时，还会有一个 continuation，它是在调用函数中的返回点。就在返回之前，我们还需要创建当前位置的一个 continuation，并将其保存下来供下次调用使用。
+现在来看一下我们希望的 Python 风格的 Scheme 接口是什么样子：
+清单 15. 使用 Python 风格的生成器的例子
+(define-syntax generator
+   (syntax-rules ()
+     (
+       (generator (yieldfunc) body ...)
+       (let (
+             (placeholder #f)  ;;placeholder in this function
+             (return-proc #f)  ;;how to get out
+             (finished #f))    ;;whether or not it is finished
+         ;;this is the generator entrance
+         (lambda ()
+           (call-with-current-continuation
+             (lambda (tmp-return-proc)
+               ;;save the way out in "return-proc"
+               (set! return-proc tmp-return-proc)
+               (let (
+                     ;;"yieldfunc" resets the placeholder and returns the value
+                     (yieldfunc
+                       (lambda (x)
+                         (call-with-current-continuation
+                           (lambda (current-placeholder)
+                             ;;new placeholder
+                             (set! placeholder current-placeholder)
+                             ;;return value
+                             (return-proc x))))))
+
+                 ;;If the generator is done, return a special value
+                 (if finished
+                     'generator-finished
+
+                     ;;If this is the first time, there will not be a
+                     ;;placeholder established, so we just run the body.
+                     ;;If there is a placeholder, we resume to that point
+                     (if placeholder
+                       (placeholder 'unspecified)
+                       (let (
+                             (final-value (begin body ...)))
+                         (set! finished #t)
+                         (return-proc final-value))))))))))))
+
+(define sequence-generator
+  ;;Initial parameters
+  (lambda (start end increment)
+    ;;"yield" will be used to generate a single value
+    (generator (yield)
+      ;;Main function body
+      (let loop ((curval start))
+         (if (eqv? curval end)
+             curval
+             (begin
+                ;;yield the value
+                (yield curval)
+                ;;continue on
+                (loop (+ curval increment))))))))
+
+;;Example usage
+(define my-sequence (sequence-generator 1 3 1))
+(display (my-sequence))(newline)
+(display (my-sequence))(newline)
+(display (my-sequence))(newline)
+(display (my-sequence))(newline)
+这段代码理解起来有点困难。如果我们添加了查询生成器是否拥有更多值或其他状态的功能，情况就会变得更加复杂。不过要注意，这里有两个生成器范围的函数。一个是返回到调用程序的过程，另外一个是执行生成器的当前位置。返回过程保存在一个生成器范围的变量中，这看起来可能会有些奇怪，但是这种安排是必需的，只有这样才能使 continuation 调用完成之后处于活动状态的是正确版本的变量。否则，在第一次调用之后，就会恢复成在创建 continuation 时处于活动状态的版本了。
+正如前面介绍的一样，在基于异常的 continuation 情况中，问题可能会很多。通常，如果我们在启动一个生成器时有一个 try 代码块，在运行生成器是也有一个 try 代码块，并且在生成函数中触发了一个异常，那么就会遇到应该运行哪个 catch 代码块的难题？在我使用的实现中，会使用第一个 catch 代码块。这是实现这种功能最直观的方法吗？这要取决于具体的情况。然而，这些 continuation 到 continuation 的交互都可能存在问题，因为究竟哪些操作才是适当的并不十分明确。
+使用 continuation 进行回溯
+最后，让我们来看一下回溯的问题。回溯函数的接口是一个 amb 函数。这个函数可以接收一个值列表。对于每个值来说，amb 都会设置一个回溯书签。如果这个列表中的当前值不能解答问题（这可以通过调用 amb:fail 函数看出来），那么程序就会回溯到最后一个书签，并尝试新的值。如果参数不是 true，那么 amb:assert 函数就会触发 amb:fail。清单 16 给出了所使用的一些函数：
+清单 16. 在 Scheme 中使用回溯
+(let* (
+      (a (amb 1 2 3 4 5 6 7))
+      (b (amb 5 6 7 8 9 10)))
+  (amb:assert (> a b))
+  (display "a is ") (display a) (newline)
+  (display "b is ") (display b) (newline))
+当首次运行这个函数时，它会为 a 选择 1，为 b 选择 5。由于 a 小于 b，因此就会失败并回溯到上一次标记的回溯位置。在这里，是对 b 进行赋值的地方。然后尝试 b 的每个值。如果每个都不成功，那么会继续回溯到对 a 进行赋值的地方。然后使用 b 的每个值来尝试 2 是否能成功。依此类推，继续执行，直到找到 a 的一个值大于 b 为止，此时就可以继续执行后面的操作了。
+清单 17 给出了具体的实现：
+清单 17. 回溯的实现
+;AMB definition
+(define amb:fail '*)
+
+(define amb:initialize-fail
+  (lambda x
+    (set! amb:fail
+      (if (null? x)
+         (lambda () (error "amb tree exhausted!"))
+         (car x)))))
+
+(amb:initialize-fail)
+
+(define amb
+  (lambda alternatives
+    (letrec (
+             (amb-internal
+               ;;"sk" returns the value (success continuation),
+               ;;"alts is the list of values
+	       (lambda (sk alts)
+                 ;;fail if there are no alternatives
+                 (if (null? alts)
+                   (prev-amb-fail)
+                   (begin
+                      (call/cc
+                        ;;"fk" is where to go when an
+                        ;;alternative fails (failure continuation)
+                        (lambda (fk)
+                          ;;set the failure function to come back here
+                          (set! amb:fail
+                            (lambda ()
+                              (set! amb:fail prev-amb-fail)
+                              (fk 'fail)))
+                          ;;return the first alternative
+                          (sk (car alts))))
+                      ;;We get here after a failure, so we
+                      ;;run the function again using the rest
+                      ;;of the list
+                      (amb-internal sk (cdr alts))))))
+             ;;this is the previous failure function
+             (prev-amb-fail amb:fail))
+      (call/cc
+        ;;bookmark the way to the assignment into "sk"
+        (lambda (sk)
+          ;;go through each alternative
+          (amb-internal sk alternatives)
+          ;;After going through them, note that we have a failure
+          (prev-amb-fail))))))
+
+;;Calling "amb" without arguments will cause a failure.  This function
+;;just makes it a little more obvious what is supposed to be happening.
+(define amb:assert-failure
+  (lambda () (amb)))
+
+(define amb:assert
+  (lambda (pred)
+    (if (not pred) (amb:assert-failure))))
+在阅读这段代码时，要记得 “失败 continuation” 就是回溯返回到值列表的方法，“成功 continuation” 才是函数返回下一个值到正常的程序流程中的方法。
+回页首
+Continuation：从流程控制中希望获得的东西
+正如我们可以看到的一样，我们可以使用 continuation 来实现所有的高级流程控制语句。只需要使用几条语句，就可以将 continuation 构建成异常、生成器、回溯以及其他类型的高级流程控制。但是本文只不过是触及了它的表面。使用 continuation，我们还可以实现很多功能，例如将 Web 应用程序转换成更为传统的流程控制结构，以及实现用户级的线程。不幸的是，很多语言都没有实现 continuation，因此这些语言的用户都无法使用很多流程控制特性。如果某种语言只有 continuation，那么它可以尝试实现其他高级流程控制特性。
+参考资料
+学习
+您可以参阅本文在 developerWorks 全球站点上的 英文原文 。
+请阅读 developerWorks 上 Jonathan Bartlett 撰写的其他文章。
+使用非结构化大规模退出（如 goto）的问题从 1968 年开始就取得了共识，当时 Edsger Dijkstra 发表了 “Go To Statement Considered Harmful”（Communications of the ACM，1995 年 10 月）。
+Linus Torvalds 和其他人一起维护了 the case against goto was well overdone。
+Linux Device Drivers 一书给出了如何很好地利用非结构化退出的例子。
+Sun 提供了 如何在 Java 中触发异常 的教程。
+“Best Practices for Exception Handling”（O'Reilly Network，2003 年 11 月）讨论了 Java 语言中异常处理的一些问题。
+“Charming Python: Iterators and simple generators”（developerWorks，2001 年 9 月）讨论了 Python 的生成器。
+每个人都需要知道的 Python 生成器技巧。
+要学习如何进行逻辑编程，Learn Prolog Now! 是为新手准备的一份自学课程。
+如果没有 continuation，那么您必须 使用 C 进行回溯。
+如果您希望了解更多有关 continuation 起源的知识，Histories of Discoveries of Continuations: Belles-Lettres with Equivocal Tenses 介绍了它的历史。
+“用 continuation 开发复杂的 Web 应用程序”（developerWorks，2004 年 12 月）介绍了 Cocoon 如何在 Java Web 编程技术中支持 continuation 的概念。这也可以 使用 Scheme 实现，甚至使用 基于 Java 的 Scheme 实现。
+

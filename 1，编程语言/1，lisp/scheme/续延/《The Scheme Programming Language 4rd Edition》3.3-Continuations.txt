@@ -6,6 +6,7 @@ hxzon摘要：
 
 1，断点库。
 2，多任务。
+深入解析见《Scheme Continuation 三部曲（1）——深入理解 Continuation》
 
 ====
 Section 3.3. Continuations
@@ -78,6 +79,12 @@ If p returns without invoking k,
 the value returned by the procedure becomes the value of the application of call/cc.
 如果p未调用 k，则p的返回值作为 call/cc 的返回值。
 
+（hxzon：
+假设 call/cc 捕捉了当前的 continuation，并绑定到 lambda 的参数 cc，
+那么在 lambda 函数体内，一旦 cc 被直接或间接的作为过程调用，（hxzon：注意）
+那么 call/cc 会立即返回，并且提供给 cc 的参数即为 call/cc 的返回值。
+）
+
 ====
 Consider the simple examples below.
 简单的例子：
@@ -117,7 +124,7 @@ showing the use of call/cc to provide a nonlocal exit from a recursion.
   (lambda (ls)
     (call/cc
       (lambda (break)
-        (let f ([ls ls])		;定义函数f，形参名为 ls，传入实参 ls 。
+        (let f ([ls ls])		;定义内部函数f，形参名为 ls，传入实参 ls 。
           (cond
             [(null? ls) 1]
             [(= (car ls) 0) (break 0)]		;将 0 绑定到续延，并且提前返回。
@@ -136,6 +143,8 @@ returns to the continuation while control remains within the procedure passed to
 上面的每个续延调用，都返回（传递给 call/cc 的）续延，即使控制流仍在过程内。
 
 ====
+（hxzon：未理解）
+
 The following example uses the continuation after this procedure has already returned.
 下面的例子，在过程已返回后使用续延。（hxzon：何以见得“已返回后”？）
 
@@ -218,6 +227,8 @@ so that the computation may be restarted from the breakpoint (more than once, if
 每当断点产生，这个断点的续延被保存，所以接下来可以多次从这个断点重新运行。
 
 ====
+非抢占式多任务（hxzon：未理解）
+
 Continuations may be used to implement various forms of multitasking. 
 续延可以用来实现各种“多任务”的形式。
 The simple "light-weight process" mechanism defined below allows multiple computations to be interleaved.
@@ -230,37 +241,37 @@ in order to allow the others to run.
 ;定义任务队列。
 (define lwp-list '())
 
-;往队列中添加任务。
+;添加任务到队尾。
 (define lwp
   (lambda (thunk)
     (set! lwp-list (append lwp-list (list thunk))))) 
 
-;从队列中取出头部并运行。
+;启动：从队列中取出头部并运行。
 (define start
   (lambda ()
     (let ([p (car lwp-list)])
       (set! lwp-list (cdr lwp-list))
       (p))))
 
-;关键。
+;暂停：（hxzon：关键）
 (define pause
   (lambda ()
     (call/cc
       (lambda (k)
-        (lwp (lambda () (k #f)))    ;给队列中添加一个任务（匿名函数），这个任务会将续延赋值成逻辑假。
-        (start)))  ))
+        (lwp (lambda () (k #f)))    ;给队列中添加一个任务（匿名函数），这个任务以逻辑假为参数来调用续延。这里导致提前返回。
+        (start)))  ))       ;hxzon：？
 
 The following light-weight processes cooperate to print an infinite sequence of lines containing "hey!".
 下面的程序将打印出无限的行序列。
 
 (lwp (lambda () ;添加任务
         (let f () 	;定义内部函数f，方便自引用
-        	(pause) (display "h") (f))))
+        	(pause) (display "h") (f))))        ;这些任务先暂停自己，把自己的后续动作加到队尾（后续动作即“打印，再递归调用自己”）
 (lwp (lambda () (let f () (pause) (display "e") (f))))
 (lwp (lambda () (let f () (pause) (display "y") (f))))
 (lwp (lambda () (let f () (pause) (display "!") (f))))
 (lwp (lambda () (let f () (pause) (newline) (f))))
-(start)
+(start)        ;这里开始执行队列中的任务
 ; hey!
 ; hey!
 ; hey!
