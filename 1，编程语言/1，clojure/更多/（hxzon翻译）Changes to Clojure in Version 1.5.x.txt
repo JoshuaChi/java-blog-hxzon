@@ -415,7 +415,7 @@ As of 1.5, *read-eval* supports a documented set of thread-local bindings, see t
 -Dclojure.read.eval=false
 
 =======
-3 Performance Enhancements，性能改进。
+3 Performance and Memory Enhancements，性能改进。
 
 CLJ-988 Multimethod tables are now protected by a read/write lock instead of a synchronized method. 
 This should result in a performance boost for multithreaded code using multimethods.
@@ -441,6 +441,8 @@ CLJ-1000 Cache hasheq() for seqs, sets, vectors, maps and queues
 
 CLJ-1111 Allows loop to evaluate to primitive values
 允许loop求值成原始类型。
+
+* (no ticket) Move loop locals into same clearing context as loop body
 
 ======
 4 Improved error messages，异常信息改进。

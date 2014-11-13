@@ -1,7 +1,7 @@
 （hxzon翻译）Changes to Clojure in Version 1.6.x
 
 by hxzon
-（2013.12.16）（2014.3.31）
+（2013.12.16）（2014.3.31）（2014.11.11）
 https://github.com/clojure/clojure/blob/master/changes.md
 ======
 
@@ -9,7 +9,8 @@ Changes to Clojure in Version 1.6
 CONTENTS
 
 ========
-1 Compatibility and Dependencies，兼容性和依赖。
+1 Compatibility and Dependencies
+兼容性和依赖
 
 ----
 1.1 JDK Version Update
@@ -54,7 +55,8 @@ Pretty-print tables - print-table
 美化打印表格。
 
 ========
-2 New and Improved Features，新功能或改进。
+2 New and Improved Features
+新功能或改进
 
 2.1 Java API
 供java使用的api。
@@ -77,6 +79,7 @@ clojure.lang.IFn
 
 All other Java classes should be treated as implementation details, 
 and applications should avoid relying on them.
+
 以上两个包是公开的，其它的类则属于实现细节，请避免直接使用它们。
 
 To look up and call a Clojure function:
@@ -85,9 +88,9 @@ IFn plus = Clojure.var("clojure.core", "+");
 plus.invoke(1, 2);
 
 Functions in clojure.core are automatically loaded. 
-clojure.core的函数是自动加载的。
-
 Other namespaces can be loaded via require:
+
+clojure.core中的函数是自动加载的。
 
 IFn require = Clojure.var("clojure.core", "require");
 require.invoke(Clojure.read("clojure.set"));
@@ -103,7 +106,7 @@ A few, however, refer to non-function data values.
 To access these, use deref instead of fn:
 
 IFn printLength = Clojure.var("clojure.core", "*print-length*");
-Clojure.var("clojure.core", "deref").invoke(printLength);	//解引用
+Clojure.var("clojure.core", "deref").invoke(printLength);
 
 ----
 2.2 Map destructuring extended to support namespaced keys
@@ -112,7 +115,8 @@ Clojure.var("clojure.core", "deref").invoke(printLength);	//解引用
 CLJ-1318
 In the past, map destructuring with :keys and :syms 
 would not work with maps containing namespaced keys or symbols. 
-The :keys and :syms forms have been updated to allow them to match namespaced keys and bind to a local variable based on the name.
+The :keys and :syms forms have been updated to allow them 
+to match namespaced keys and bind to a local variable based on the name.
 现在允许它们匹配有命名空间的键，且绑定到本地变量。
 
 Examples:
@@ -127,6 +131,7 @@ Examples:
 
 Additionally, the :keys form can now take keywords instead of symbols. 
 This provides support specifically for auto-resolved keywords:
+
 而且，:keys 现在可以使用关键字。
 
 (let [m {:x/a 1, :y/b 2}
@@ -191,25 +196,19 @@ CLJ-1365 Add type hints for new collection hash functions
 
 ----
 2.5 bitops
-位操作。
+位操作
 
 CLJ-827 - unsigned-bit-shift-right
 
 A new unsigned-bit-shift-right (Java's >>>) has been added to the core library. 
 The shift distance is truncated to the least 6 bits (per the Java specification for long >>>).
 
+Examples:
+ (unsigned-bit-shift-right 2r100 1) ;; 2r010
+ (unsigned-bit-shift-right 2r100 2) ;; 2r001
+ (unsigned-bit-shift-right 2r100 3) ;; 2r000
+
 添加了新函数，无符号右位移。
-
-Examples: 
-
-(unsigned-bit-shift-right 2r100 1) 
-;; 2r010 
-
-(unsigned-bit-shift-right 2r100 2) 
-;; 2r001 
-
-(unsigned-bit-shift-right 2r100 3) 
-;; 2r000
 
 ----
 2.6 clojure.test
@@ -220,14 +219,14 @@ CLJ-1352 - fix regression in CLJ-866
 
 Added a new clojure.test/test-vars function that takes a list of vars, 
 groups them by namespace, and runs them with their fixtures.
-
 添加了一个新方法clojure.test/test-vars 。
 
-
 ========
-3 Enhancements，增强。
+3 Enhancements
+增强
 
-3.1 Printing，打印。
+3.1 Printing
+打印
 
 CLJ-908 Print metadata for functions when print-meta is true and remove errant space at beginning.
 
@@ -235,11 +234,14 @@ CLJ-937 pprint cl-format now supports E, F, and G formats for ratios.
 比例数支持使用E，F，G来格式化。
 
 ----
-3.2 Error messages，改进异常信息。
+3.2 Error messages
+异常信息
 
 CLJ-1248 Include type information in reflection warning messages
+
 CLJ-1099 If non-seq passed where seq is needed, 
-error message now is an ExceptionInfo with the instance value, retrievable via ex-data.
+error message now is an ExceptionInfo with the instance value,
+ retrievable via ex-data.
 
 CLJ-1083 Fix error message reporting for "munged" function names (like a->b).
 
@@ -250,7 +252,8 @@ CLJ-1102 Better handling of exceptions with empty stack traces.
 CLJ-939 Exceptions thrown in the top level ns form are reported without file or line number.
 
 ----
-3.3 Documentation strings，改进文档。
+3.3 Documentation strings
+文档字符串
 
 CLJ-1164 Fix typos in clojure.instant/validated and other internal instant functions.
 
@@ -267,7 +270,8 @@ CLJ-1304 Fix minor typos in documentation and comments
 CLJ-1302 Mention that keys and vals order are consistent with seq order
 
 ----
-3.4 Performance，性能。
+3.4 Performance
+性能
 
 CLJ-858 Improve speed of STM by removing System.currentTimeMillis.
 通过移除System.currentTimeMillis，提升STM速度。
@@ -278,7 +282,8 @@ CLJ-669 clojure.java.io/do-copy: use java.nio for Files
 commit Reduce overhead of protocol callsites by removing unneeded generated cache fields.
 
 ----
-3.5 Other enhancements，其它改进。
+3.5 Other enhancements
+其它改进
 
 CLJ-908 Make default-data-reader-fn set!-able in REPL, similar to data-readers.
 
@@ -314,7 +319,8 @@ CLJ-1354 Make APersistentVector.SubVector public so other collections can access
 CLJ-1353 Make awt run headless during the build process
 
 ========
-4 Bug Fixes，bug修复。
+4 Bug Fixes
+bug修复
 
 CLJ-1018 Make range consistently return infinite sequence of start with a step of 0.
 当step为0时，range返回无限列表。
@@ -333,9 +339,9 @@ CLJ-1154 Make Compile.java flush but not close stdout so errors can be reported.
 
 CLJ-1161 Remove bad version.properties from sources jar.
 
-
 CLJ-1175 Fix invalid behavior of Delay/deref if an exception is thrown 
-- exception will now be rethrown on subsequent calls and not enter a corrupted state.
+- exception will now be rethrown on subsequent calls 
+and not enter a corrupted state.
 delay解引用时，如果发生异常，
 
 CLJ-1171 Fix several issues with instance? to make it consistent when used with apply.
