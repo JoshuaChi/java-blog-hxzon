@@ -1,0 +1,319 @@
+﻿论面向组合子程序设计方法（九）-南无阿弥陀佛
+
+论面向组合子程序设计方法 之九 南无阿弥陀佛
+
+http://www.blogjava.net/ajoo/articles/27850.html
+
+其实，前面我还忘了提一个非常重要的基本组合子：singleton。 
+这里补充提一下： 
+java代码: 
+
+class SingletonComponent implements Component{ 
+  private final Component c; 
+  private Object val; 
+  public Class getType(){ 
+    return c.getType(); 
+  } 
+  public synchronized Object create(Dependency dep){ 
+    if(val!=null) return val; 
+    val = c.create(dep); 
+    return val; 
+  } 
+  public synchronized Class verify(Dependency dep){ 
+    if(val!=null) return val.getClass(); 
+    else return c.verify(dep); 
+  } 
+} 
+
+
+代码没什么可说的，就是最简单的singleton模式。 
+
+用这个组合子，我们可以对任意的Component做singleton。 
+
+下面接着说monad。 
+
+有了bind，很多的功能都可以自然推演出来了。 
+
+比如我们前面用来刁难pico的那个例子，甚至，为了更强调复杂性，我们可以给B和A再另外增加一些参数，这些参数要求从容器解析（毕竟，我们之所以需要容器，就是为了自动解析一些依赖关系，要是全部依赖关系都hard-code，意义就不大了）： 
+java代码: 
+
+void A createA(){ 
+  B b = new B(...); 
+  return new A(b,b, ...); 
+}
+
+
+用bind，我们的思路可以是这样： 
+1。用B的构造函数生成一个Component。 
+2。这个Component生成一个对象， 
+3。这个产生的对象被传递给一个对应A的Component当作参数。这一步可以用bind来搞定。 
+
+
+java代码: 
+
+
+Component b_component = Components.ctor(B.class); 
+return new BoundComponent(b_component, new Binder(){ 
+  public Component bind(Object b){ 
+    final Component arg = Components.value(b); 
+    return new WithArgument( 
+      new WithArgument(a, 0, arg), 
+    1, arg); 
+  } 
+}); 
+
+
+
+Components.value(Object)是我们写的一个对ValueComponent的封装静态函数。 
+为了避免总写冗长的new SomeComponent(...)，我们把一些常用的基本Component都写成名字较短的静态函数，放在Components类里面。 
+
+这样，我们可以写Components.value(obj)，而不是new ValueComponent(obj)。 
+要是觉得敲键盘还是麻烦，你甚至可以创建一个Components对象cc。然后到处用这个对象： 
+cc.value(obj)。舒服些了吧？ 
+
+
+从上面的例子，我们可以看到，那个直接创建对象的createA函数中的两个步骤，在我们高阶的Component中也被分为两部。 
+而在两个步骤之间的信息传递（那个b变量，从第一个步骤取得，然后在第二个步骤使用），则被用bind操作实现了。 
+
+到这，也许我们该伸伸懒腰了。舒服地往椅子背上一靠，说：“啊。终于干完了！我可以用高阶逻辑来模拟任何直接硬编码创建对象的逻辑了”。 
+
+这话倒也没错，有了bind，我们不再被局限于“构造函数注射”，“setter注射”，“静态工厂注射”等寥寥几个注射方式；我们甚至可以对所谓的ioc type嗤之以鼻：“什么type1, type2？不过是我们可以处理的无数种情况中的几种特例而已！”。 
+我们可以处理if-else，可以处理循环，递归，任何可以直接用java写出来的对象创建方式，我们都可以在高阶逻辑上得到对应的组合版本，只 要我们有足够的原子组合子。（所谓原字组合子，不过是：FunctionComponent, BeanComponent，ValueComponent几种） 
+
+比如，对应于： 
+
+java代码: 
+
+X createX(){ 
+  A a = A.instance(...); 
+  if(a.isX(...)){ 
+    return new X(...); 
+  } 
+  else{ 
+    return new Y(a, ...).getX(...); 
+  } 
+}
+
+
+这里，所有的省略号都代表可能需要从容器解析的参数。使用高阶Component对象而不是直接调用createX()函数的一个原因，就是我们想要把依赖解析隐藏起来并且集中灵活地配置和管理。 
+
+
+对此，我们可以写成： 
+java代码: 
+
+Component a_component = Components.static_method(A.class, "instance"); 
+return new BoundComponent(a_component, new Binder(){ 
+  public Component bind(final Object a){ 
+    final Component isx_component = Components.method(a, "isX"); 
+    return new BoundComponent(isx_component, new Binder(){ 
+      public Component bind(Object isx){ 
+        final Boolean v = (Boolean)isx; 
+        if(v.booleanValue()){ 
+          return Components.ctor(X.class); 
+        } 
+        else{ 
+          final Coponent y_component = 
+           new WithArgument(Components.ctor(Y.class), 0, 
+              Components.value(a)); 
+          return new BoundComponent(y_component, new Binder(){ 
+            public Component bind(Object y){ 
+              return Components.method(y, "getX"); 
+            } 
+          }); 
+          
+        } 
+      } 
+    }); 
+  } 
+});
+
+
+稍微有点绕，如果你到此有点糊涂的话，请重温一下前面的简单的bind的例子，只要体会了bind的具体意义，上面的代码不过是几层bind的嵌套。 
+
+
+好，如果你理解了bind，那么应该能够看懂上面的这段代码了。它其实就是那个createX函数的严格翻译。 
+
+功能确实很强大了，就是这代码写起来这个烦啊！对比一下createX和这个高阶版本吧。我发现如果我多看几眼这个所谓的"co"的代码，我简直都要吐！如果说createX这个函数的代码是正常人说话，那么这个高阶代码就是唐僧念经：“南无阿弥陀佛，南无阿弥陀佛，南无阿弥陀佛...”，天啊！ 
+
+
+如果我们真要Combinator-oriented起来，难道要整天写这种蹩脚代码？是不是我们吐啊吐的就会习惯了呢？ 
+pico的各个ComponentAdapter其实倒也就是这么写，可是pico没有bind，你很少需要写这么深的嵌套，甚至很少需要写匿名类。 
+如果我们把我们的组件系统比喻作pascal语言的话，pico的那些decorator充其量不过是一个dos的批处理，不，远不如批处理灵活，应该也就是一个简单的用户界面上的几个按钮。 
+
+那么有没有什么办法来简化语法呢？ 
+
+倒是有一个想法： 
+1。把Component从接口变成一个抽象类。然后把一些常用的二元组合，比如bind，比如withArgument，withProperty，比如method，ifelse，都放在这个抽象类里面。这样， 
+
+我们就可以避免写： 
+new SingletonComponent(c)，而写c.singleton()。 
+我们就可以避免写： 
+new BoundComponent(c1, ...)，而写：c1.bind(...)。 
+可以避免写： 
+new WithArgument(c, 0, arg)，而写：c.withArgument(0, arg)。 
+可以避免写： 
+java代码: 
+
+new BoundComponent(c1, new Binder(){ 
+  public Component bind(Object obj){ 
+    return Components.method(obj, "method"); 
+  } 
+});
+
+
+
+而写成： 
+java代码: 
+
+c1.method("method");
+
+
+
+可以避免写： 
+java代码: 
+
+new BoundComponent(c1, new Binder(){ 
+  public Component bind(Object obj){ 
+    if(((Boolean)obj).booleanValue()){ 
+      return a; 
+    } 
+    else return b; 
+  } 
+});
+
+
+而写成： 
+java代码: 
+
+c1.ifelse(a,b);
+
+
+等等等等。 
+
+这样做，从架构上确实有点损害，我们牺牲了“围绕接口”的原则，而改为围绕抽象类了。 
+
+但是，从实际效果考虑，我发现它损失的架构上的美感，远远比不上它带来的编码上的方便程度。谁让我们用的是java呢，世上没有十全十美的事情，就凑合吧。 
+
+经过这个改动，上面的对应createX的高阶代码变成： 
+
+java代码: 
+
+Component a_component = Components.static_method(A.class, "instance"); 
+return a_component.bind(new Binder(){ 
+  public Component bind(final Object a){ 
+    final Component isx_component = Components.method(a, "isX"); 
+    return isx_component.ifelse( 
+      Components.ctor(X.class), 
+      Components.ctor(Y.class) 
+        .withArgument(0, Components.value(a)) 
+        .method("getX") 
+    ); 
+  } 
+});
+
+
+
+稍微好些了。而如果我们不需要给Y的构造函数指定参数，那么效果还会更好。 
+比如对 
+java代码: 
+
+X createX(){ 
+  A a = A.instance(...); 
+  if(a.isX(...)){ 
+    return new X(...); 
+  } 
+  else{ 
+    return new Y(...).getX(...); 
+  } 
+}
+
+
+高阶代码会变成： 
+java代码: 
+
+Component a_component = Components.static_method(A.class, "instance"); 
+return a_component.method("isX").ifelse( 
+    Components.ctor(X.class), 
+    Components.ctor(Y.class) 
+      .withArgument(0, Components.value(a)) 
+      .method("getX") 
+); 
+
+
+又简洁了不少。 
+
+
+当然，说实话，如果我们把情况任意复杂化，比如： 
+
+java代码: 
+
+Y createY(){ 
+  a = A.createA(...); 
+  b = B.createB(a, ...); 
+  c = C.createC(a,b,...); 
+  return Y.create(a,b,c,...); 
+}
+
+
+要对createY写出高阶对应版本，这bind要嵌套三层，代码无论如何不可能好看了。对此，我们只能耸耸肩说：无能为力了。因为我们这里已经接触到了java语言的底线。 
+
+值得欣慰的是，至少： 
+1。对简单需求，比如pico能够处理的那些，我们的语法并不比pico麻烦。 
+2。对复杂需求，pico不能处理，而只能通过自己实现ComponentAdapter实现；而我们的co构建出来的系统，在没有剥夺你自己实 现Component的前提下，也提供了采用声明式的语法来组合的方式。至于是选择用熟悉的java语法来过程式地自己处理依赖，还是用声明式的高阶逻辑 来仍然让系统处理依赖，则是程序员的自由了。 
+
+我们推荐，除非对非常复杂的需求，还是用声明式的组合来处理更好。 
+
+
+写到这里，不得不唠叨一些语言了。就象是你也可以在c这个过程语言里面使用一些oo的技巧一样，我们在java这个oo语言里面是可以使用一些co的技巧的。 
+
+只不过，缺乏语言上的良好支持，让我们在采用co设计的时候的代价有所增大。如何权衡？是co带来的缺点（不方便调试，运行效率低，语法麻烦）大，还是它带来的好处（灵活应对变化，减少代码数量，方便重用）大，则是一个需要主观经验决定的事情了。 
+
+
+
+其实，在一个真正支持monad组合子的语言里面，createY会被类似写成这样： 
+java代码: 
+
+do 
+  a <- static_method(A.class, "createA"); 
+  b <- static_method(B.class, "createB") 
+    .withArgument(0, a); 
+  c <- static_method(C.class, "createC") 
+    .withArgument(0, a).withArgument(1, b); 
+  return (static_method(Y.class, "create") 
+    .withArgument(0,a).withArgument(1,b).withArgument(2,c); 
+  ) 
+
+
+
+
+所有的Binder匿名类会被自动生成。 
+这叫"do-notation"，是haskell里面用来方便处理monad组合子的利器。 
+
+在我开发的jaskell语言里面，对do-notation有类似的支持。 
+
+
+题外话： 
+最近，看到老庄设计的DJ里面说要支持co。我觉得，如果仅仅象java这样的所谓“支持”，那就和用C的函数指针号称支持OO一样无趣了。 
+
+一个可以说得上对co有支持的语言，即使不直接支持do-notation，也应该把写匿名类的代价降到和一个lamda函数相接近的程度。 
+即使我不能写 
+
+java代码: 
+
+a <- createA 
+b <- createB a 
+
+
+
+也要能够写成： 
+
+java代码: 
+
+createA >>= \a->createB a
+
+
+
+
+组合并不仅仅是几个简单的decorator套起来。真正复杂的co里，不同组合子之间是需要通过bind来通信的。而组合子之间的通信能力才是co强大的根源。
+发表于 2006-01-13 09:11 AJOO
+

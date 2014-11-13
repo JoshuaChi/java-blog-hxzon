@@ -1,0 +1,372 @@
+﻿论面向组合子程序设计方法（三）（四）
+
+论面向组合子程序设计方法 之三 失乐园 之补充
+
+http://www.blogjava.net/ajoo/articles/27840.html
+
+失乐园发了之后。有的朋友对“OO是一种自顶向下的方法论”的论述有些疑问。 
+
+这里补充一下。 
+
+如果认可OO是一个责任分配体系，那么自顶向下就是一个自然的逻辑结论。 
+
+
+没有分析出来“需求”，也就无所谓“责任”，于是根本就无所谓“OO”了。 
+
+这种从分析需求，分解需求，分配责任，再分析子需求，分解子需求，在子模块内分配责任的方式，被我称为“自顶向下”。 
+
+
+至于说xp, tdd和自顶向下是不矛盾的。它们也都是要依赖于需求分析的。test case是什么?不就是需求么? 
+当然，这些方法论并不要求需求百分之百的细化，它们认可变化，拥抱变化，力求变化时的代价最小。不过，不管怎么说，它们仍然是要着眼于当前的需求的，应对需求变化的能力是另外一个话题，它并不能表示这些方法论不是自顶向下。 
+
+“自底向上”确实古已有之，PO时代也确实有这个提法。但是，它的缺乏方向性，缺乏重用能力，缺乏整体组织等等弊病让它从来都没有成为设计的主流，没有成为一个主导整体或者部分设计的思想。 
+最多算是公有制体制内的私有制补充而已。PO时代它的地位就不高，到了OO时代，强调职责分配，它更是几乎沦为一个历史词汇了。 
+
+
+也许你会说，我在调用xcerces, stl的时候，难道也是自顶向下？我可从来没有给stl的作者分配过责任啊。 
+
+这其实和责任分配并不矛盾。中间如果发现可以重用的模块，只要这个模块向外承诺的责任符合我的期望，我就可以用。仍然是自顶向下，需求驱动，责任驱动。 
+而且，xcerces这些库设计的时候，也一样要假想一下需求，然后从需求出发的。（stl不是很一样，它一定程度上有CO的影子，从基本组合子逐渐演绎的方法在其中也有体现，比如那个iterator和所有围绕iterator的算法等）
+发表于 2006-01-13 05:43 AJOO
+
+论面向组合子程序设计方法 之四 燃烧的荆棘
+
+http://www.blogjava.net/ajoo/articles/27841.html
+
+唧唧歪歪一大堆。肯定早有人不耐烦了。 
+"你丫还有没有点实在的东西呀？" 
+要是我，可能也早就忍不住了。 
+
+好，好。我其实并没有忘记前面说的那个logging的例子。卖了这么长时间的关子，除了有想形而上的虚荣心外，也是想给大家多一点时间来嚼一下这个例子，让熟悉OO的朋友肚子里面多少有个腹稿。 
+
+下面，我来继续上回书说到的这个logging。 
+
+前面列举了那么一大堆乱七八糟的需求，不知道是不是有人和我一样看着这些繁杂的条目闹心。我在做的时候其实只想了五六条需求，就已经开始烦了。何况还有一 些暂时不知道如何抉择的几个疑问点。最初Kiss出来的那个logger实现明显不能用了。refactor的价值也有限。 
+
+怎么办？智慧果也许给了我们智慧，但是这智慧毕竟是有限的。侧头看去，蓦然看见荆棘里跳动的火焰，那是上帝的光芒么？ 
+
+好，既然这条路看来比较坎坷，换条路试试看也未尝不可。走这条路的好处在于，我们可以暂时不用理会这些讨厌的“需求”了。CO这个方法论不是以需求为中心，而是从底层的组合子出发，就像小孩子摆弄积木，我们只管发挥自己的想象力，看看我们能摆弄出些什么东西来就好了。 
+
+
+如果一切顺利，我们希望能够跨越瀚海高山，走到流着奶和蜜的土地。所有这些乱七八糟的需求，我们希望他们能够被简单地配置，或者至少能够通过声明式的方法来“声明”，而不是通过过程式的方法来“实现”。 
+
+出发之前，鼓舞以下士气先。 
+前面charon说，这种东西类似公理系统。确实，非常非常类似。不过，门槛并不像这个名字听来那么吓人的高。我们并不需要一下子就完全把完备性考虑清楚，我们不是上帝，没有这么大本事。 
+
+类似于xp + refactoring，我们的组合子的建造也一样可以摸着石头过河，走一步看一步的。 
+
+比如，假如我的Logger接口定义的时候没有print函数而只有println，那么后面我们会发现在制造打印当前时间的组合子的时候会出现麻烦。不过，没关系，等到意识到我们需要一个print()函数的时候，回过头来refactor也是可以的。 
+
+
+为了说明这点，我们现在假设Logger接口是这样： 
+
+java代码: 
+
+interface Logger{ 
+  println(int level, String msg); 
+  printException(Throwable e); 
+}
+
+
+
+好，路漫漫而修远兮，我们就这样按照上帝的昭示上路吧，虽然前路云封雾锁。 
+
+
+
+首先，任何组合子系统的建立，都起步于最最基本最最简单的组合子。然后再一步步组合。 
+
+比如，布尔代数必然起步于true和false；自然数起步于0，1，然后就可以推演出整个系统。 
+
+那么，对Logger来说，有0和1吗？ 
+
+有的。 
+
+0就是一个什么都不做的Logger。 
+
+java代码: 
+
+class NopLogger implements Logger{ 
+  public void println(int level, String msg){} 
+  public void printException(Throwable e){} 
+}
+
+
+
+（注，不要小看这个什么都不做的Logger，它的作用大着呢。你能想象一个没有0的整数系统吗？） 
+
+什么是1呢？一个直接向文件中打印信息的应该就是一个1了。 
+伪码如下： 
+
+java代码: 
+
+class FileLogger implements Logger{ 
+  public void println(int level, String msg){ 
+    write msg to log file. 
+  } 
+  public void printException(Throwable e){ 
+    write exceptioon to log file. 
+  } 
+}
+
+
+那么，怎么实现这个类呢？ 
+
+这里，我们遇到一个东西要抉择，文件打开是要关闭的。那么谁负责打开文件？谁负责关闭？是否要在构造函数中new FileOutputStream()？，然后再提供一个close()函数来close这个stream？ 
+
+答案是：不要。 
+
+无论是ioc也好，还是CO的组合方法也好，一个原则就是要尽量保持事情简单。那么，什么最简单？我们此处真正需要的是什么？一个file么？ 
+不，其实一个PrintWriter就足够了。 
+当然，最终文件必须还是要通过代码打开，关闭。但是，既然反正也要打开文件，我们这里不去管也不会增加什么工作量，对么？那么为什么不乐得清闲呢？ 
+“先天下之忧而忧”这种思想是最最要不得的。 
+
+
+于是，最简单的1应该是这样： 
+
+java代码: 
+
+class WriterLogger implements Logger{ 
+  private final PrintWriter writer; 
+  public void println(int level, String msg){ 
+    writer.println(msg); 
+  } 
+  public void printException(Throwable e){ 
+    e.printStackTrace(writer); 
+  } 
+  WriterLogger(PrintWriter writer){ 
+     this.writer = writer; 
+  } 
+} 
+
+
+
+“哈！还说什么CO。你这不是剽窃ioc pattern吗？” 
+完了，被抓个现形。还真是ioc pattern。其实，世界上本来没有什么新东西，所谓“方法论”，本来是一种思考方法，而不是说形式上必然和别人不同。不过，说我剽窃，我就剽窃吧。 
+
+
+好。最简单的原子写出来了。希望到现在，你还是会觉得：“介，介有什么呀？” 
+
+
+下面来看组合规则。都可以弄些什么组合规则呢？让我来掰着脚指头数一数。 
+有一点作为thumb of rule需要注意的：每个组合规则尽量简单，并且只做一件事。 
+
+1。顺序。把若干个logger对象顺序写一遍，自然是一种组合方式。 
+
+java代码: 
+
+class SequenceLogger implements Logger{ 
+  public void println(int level, String msg){ 
+    foreach(l: loggers){ 
+      l.println(level, msg); 
+    } 
+  } 
+  public void printException(Throwable e){ 
+    foreach(l:loggers){ 
+      l.printException(e); 
+    } 
+  } 
+  private final Logger[] loggers; 
+  SequenceLogger(Logger[] ls){ 
+    this.loggers = ls; 
+  } 
+}
+
+
+
+
+2。逻辑分支。当消息的重要程度等于某一个级别的时候，写logger1，否则写logger2。 
+java代码: 
+
+class FilteredLogger implements Logger{ 
+  private final Logger logger1; 
+  private final Logger logger2; 
+  private final int lvl; 
+  public void println(int level, String msg){ 
+    if(level==lvl)logger1.println(level, msg); 
+    else logger2.println(level, msg); 
+  } 
+  public void printException(Throwable e){ 
+    if(lvl==ERROR) logger1.printException(e); 
+    else logger2.printException(e); 
+  } 
+}
+
+
+为了简洁，下面的例子我就不写构造函数了。 
+
+
+3。忽略。当消息的重要程度大于等于某一个值的时候，我们写入logger1，否则写入logger2。 
+java代码: 
+
+class IgnoringLogger implements Logger{ 
+  private final Logger logger1; 
+  private final Logger logger2; 
+  private final int lvl; 
+  public void println(int level, String msg){ 
+    if(level>=lvl)logger1.println(level, msg); 
+    else logger2.println(level, msg); 
+  } 
+  public void printException(Throwable e){ 
+    if(lvl<=ERROR) logger1.printException(e); 
+    else logger2.printException(e); 
+  } 
+}
+
+
+
+其实，2和3本来可以统一成一个组合规则的，都是根据消息重要程度来判断logger走向的。如果我用的是一个函数式语言，我会毫不犹豫地用一个predicate函数来做这个抽象。 
+可惜，java中如果我要这么做，就要引入一个额外的interface，还要多做两个adapter来处理ignore和filter，就为了节省一个类和几行代码，这样做感觉不是很值得，所以就keep it stupid了。 
+
+
+
+对了。我说“CO不看需求”了么？如果说了，对不起，我撒谎了。 
+CO确实不是一个以需求为中心的方法论。它有自己的组合系统要关心。 
+但是需求也仍然在CO中有反映。我们前面提出的那些需求比如打印系统时间什么的不会被无中生有地实现。 
+只不过，在CO里面，这些需求不再影响系统架构，而是被实现为一个一个独立的组合子。同时，我们抛开需求之间复杂的逻辑关系，上来直奔主题而去就好了。 
+
+4。对exception直接打印getMessage()。 
+
+java代码: 
+
+class ErrorMessageLogger implements Logger{ 
+  private final PrintWriter out; 
+  private final Logger logger; 
+  public void println(int level, String msg){ 
+     logger.println(level, msg); 
+  } 
+  public void printException(Throwable e){ 
+     out.println(e.getMessage()); 
+  } 
+} 
+
+
+
+5。对了，该处理NeptuneException了。如果一个exception是NeptuneException，打印execution trace。 
+
+java代码: 
+
+class NeptuneExceptionLogger implements Logger{ 
+  private final PrintWriter out; 
+  private final Logger logger; 
+  public void println(int level, String msg){ 
+    logger.println(level, msg); 
+  } 
+  public void printException(Throwable e){ 
+    if(e instanceof NeptuneException){ 
+      ((NeptuneException)e).printExecutionTrace(out); 
+    } 
+    else{ 
+      logger.printException(e); 
+    } 
+  } 
+} 
+
+
+
+6。对EvaluationException，照猫画虎。 
+java代码: 
+
+class JaskellExceptionLogger implements Logger{ 
+  private final PrintWriter out; 
+  private final Logger logger; 
+  public void println(int level, String msg){ 
+    logger.println(level, msg); 
+  } 
+  public void printException(Throwable e){ 
+    if(e instanceof EvaluationException){ 
+      ((EvaluationException)e).printEvaluationTrace(out); 
+    } 
+    else{ 
+      logger.printException(e); 
+    } 
+  } 
+} 
+
+
+
+7。在每行消息前打印系统时间。 
+java代码: 
+
+class TimestampLogger implements Logger{ 
+  private final Logger logger; 
+  public void println(int level, String msg){ 
+    logger.println(level, new Date().toString()+": " + msg); 
+  } 
+  public void printException(Throwable e){ 
+    logger.println(ERROR, new Date().toString()+": "); 
+    logger.printException(e); 
+  } 
+}
+
+
+这个类其实可以再注射近来一个DateFormat来控制日期格式。但是这不是重点，我们忽略掉了它。 
+可是，这个类有一个很别扭的地方，在printException中，我们必须要把系统时间单独打印在一行，然后再打印异常信息。 
+
+这可不是我们想要的效果。我们本来是想让系统时间出现在同一行的。 
+怎么办？回头看看，如果Logger接口多一个print函数，一切就迎刃而解了。重构。 
+
+java代码: 
+
+class TimestampLogger implements Logger{ 
+  private final Logger logger; 
+  private boolean freshline = true; 
+  private void printTimestamp(int level){ 
+    if(freshline){ 
+      logger.print(level, new Date().toString()+": "); 
+    } 
+  } 
+  public void print(int level, String msg){ 
+    printTimestamp(level); 
+    logger.print(level, msg); 
+    freshline = false; 
+  } 
+  public void println(int level, String msg){ 
+    printTimestamp(level); 
+    logger.println(msg); 
+    freshline = true; 
+  } 
+  public void printException(Throwable e){ 
+    printTimestamp(ERROR); 
+    logger.printException(e); 
+    freshline = true; 
+  } 
+}
+
+
+
+当然，前面的一些组合子也都要增加这个print函数。相信这应该不难。就留给大家做个练习吧。 
+
+
+好啦。到现在，我们手里已经有两个基本组合子，7个组合规则。应该已经可以组合出来不少有意义没意义的东西了。 
+
+为了避免写一大堆的new和冗长的类名字，我们做一个facade类，来提供简短点的名字，节省我们一些键盘损耗。 
+
+java代码: 
+
+class Loggers{ 
+  static Logger nop(){return new NopLogger();} 
+  static Logger writer(PrintWriter writer){ 
+    return new WriterLogger(writer); 
+  } 
+  static Logger writer(OutputStream out){ 
+    return writer(new PrintWriter(out, true)); 
+  } 
+  static Logger filter(int lvl, Logger l1, Logger l2){ 
+    return new FilteredLogger(lvl, l1, l2); 
+  } 
+  static Logger ignore(...){...} 
+  static Logger timestamp(...){...} 
+  ... 
+}
+
+
+
+这样，在用这些组合子的时候大概代码能够好看一点吧。 
+
+
+好了，走了这么远，（虽然很多人可能还是觉得根本没看见什么激动人心的东西吧？都是简单得不能再简单的小类，有什么了不起的呢？）。让我们停下脚步，看看这么信马由缰把我们带到了哪里吧。 
+
+
+下一回，我们会试着用这些组合子和组合规则来看看能不能对付前面提出的那些乱七八糟的需求。
+发表于 2006-01-13 05:46 AJOO
+

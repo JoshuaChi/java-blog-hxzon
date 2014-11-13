@@ -1,0 +1,363 @@
+﻿论面向组合子程序设计方法（七）-重构
+
+论面向组合子程序设计方法 之七 重构
+
+http://www.blogjava.net/ajoo/articles/27844.html
+
+迄今，发现典型的几种疑问是： 
+1。组合子的设计要求正交，要求最基本，这是不是太难达到呢？ 
+2。面对一些现实中更复杂的需求，组合子怎样scale up呢？ 
+
+其实，这两者都指向一个答案：重构。 
+
+
+要设计一个完全正交，原子到不可再分的组合子，也许不是总是那么容易。但是，我们并不需要一开始就设计出来完美的组合子设计。 
+
+比如，我前面的logging例子，TimestampLogger负责给在一行的开头打印当前时间。 
+然后readonly提出了一个新的需要：打印调用这个logger的那个java文件的类名字和行号。 
+
+分析这个需求，可以发现，两者都要求在一行的开始打印一些东西。似乎有些共性. 
+这个"在行首打印一些前缀"就成了一个可以抽象出来的共性.于是重构: 
+
+java代码: 
+
+interface Factory{ 
+  String create(); 
+} 
+class PrefixLogger implements Logger{ 
+  private final Logger logger; 
+  private final Factory factory; 
+  private boolean freshline = true; 
+
+  private void prefix(int lvl){ 
+    if(freshline){ 
+      Object r = factory.create(); 
+      if(r!=null) 
+        logger.print(lvl, r); 
+      freshline = false; 
+    } 
+  } 
+  public void print(int lvl, String s){ 
+    prefix(lvl); 
+    logger.print(lvl, s); 
+  } 
+  public void println(int lvl, String s){ 
+    prefix(lvl); 
+    logger.println(lvl, s); 
+    freshline = true; 
+  } 
+  public void printException(int lvl, Throwable e){ 
+    prefix(lvl); 
+    logger.printException(lvl, e); 
+    freshline = true; 
+  } 
+}
+
+
+这里，Factory接口用来抽象往行首打印的前缀。这个地方之所以不是一个String，是因为考虑到生成这个前缀可能是比较昂贵的（比如打印行号，这需要创建一个临时异常对象） 
+
+另外，真正的Logger接口，会负责打印所有的原始类型和Object类型，例子中我们简化了这个接口，为了演示方便。 
+
+
+然后，先重构timestamp: 
+
+java代码: 
+
+class TimestampFactory implements Factory{ 
+  private final DateFormat fmt; 
+  public String create(){ 
+    return fmt.format(new Date()); 
+  } 
+}
+
+
+
+这样，就把timestamp和“行首打印”解耦了出来。 
+
+
+下面添加TraceBackFactory，负责打印当前行号等源代码相关信息。 
+java代码: 
+
+interface SourceLocationFormat{ 
+  String format(StackTraceElement frame); 
+} 
+class TraceBackFactory implements Factory{ 
+  private final SourceLocationFormat fmt; 
+  public String create(){ 
+    final StackTraceElement frame = getNearestUserFrame(); 
+    if(frame!=null) 
+      return fmt.format(frame); 
+    else return null; 
+  } 
+  private StackTraceElement getNearestUserFrame(){ 
+    final StackTraceElement[] frames = new Throwable().getStackTrace(); 
+    foreach(frame: frames){ 
+      if(!frame.getClassName().startsWith("org.mylogging")){ 
+        //user frame 
+        return frame; 
+      } 
+    } 
+    return null; 
+  } 
+}
+
+
+
+具体的SourceLocationFormat的实现我就不写了。 
+
+注意，到现在为止，这个重构都是经典的oo的思路，划分责任，按照责任定义Factory, SourceLocationFormat等等接口，依赖注入等。完全没有co的影子。 
+
+这也说明，在co里面，我们不是不能采用oo，就象在oo里面，我们也可以围绕某个接口按照co来提供一整套的实现一样，就象在oo里面，我们也可以在函数内部用po的方法来实现某个具体功能一样。 
+
+
+下面开始对factory做一些co的勾当： 
+先是最简单的： 
+
+java代码: 
+
+class ReturnFactory implements Factory{ 
+  private final String s; 
+  public String create(){return s;} 
+}
+
+
+
+然后是两个factory的串联， 
+
+java代码: 
+
+class ConcatFactory implements Factory{ 
+  private final Factory[] fs; 
+  public String create(){ 
+    StringBuffer buf = new StringBuffer(); 
+    foreach(f: fs){ 
+      buf.append(f.create()); 
+    } 
+    return buf.toString(); 
+  } 
+}
+
+
+
+
+
+最后，我们把这几个零件组合在一起： 
+
+java代码: 
+
+Logger myprefix(Logger l){ 
+  Factory timestamp = new TimestampFactory(some_date_format); 
+  Factory traceback = new TraceBackFactory(some_location_format); 
+  Factory both = new ConcatFactory( 
+    timestamp, 
+    new ReturnFactory(" - "), 
+    traceback, 
+    new ReturnFactory(" : ") 
+  ); 
+  return new PrefixLogger(both, l); 
+}
+
+
+
+如此，基本上，在行首添加东西的需求就差不多了，我们甚至也可以在行尾添加东西，还可以重用这些factory的组合子。 
+
+另一点我想说明的是：这种重构是相当局部的，仅仅影响几个组合子，而并不影响整个组合子框架。 
+
+
+真正影响组合子框架的，是Logger接口本身的变化。假设，readonly提出了一个非常好的意见：printException应该也接受level，因为我们应该也可以选择一个exception的重要程度。 
+
+
+那么，如果需要做这个变化，很不幸的是，所有的实现这个接口的类都要改变。 
+
+这是不是co的一个缺陷呢？ 
+
+
+我说不是。 
+即使是oo，如果你需要改动接口，所有的实现类也都要改动。co对这种情况，其实还是做了很大的贡献来避免的： 
+只有原子组合子需要实现这个接口，而派生的组合子和客户代码，根本就不会被波及到。 
+而co相比于oo，同样面对相同复杂的需求，往往原子组合子的数目远远小于实际上要实现的语义数，大量的需求要求的语义，被通过组合基本粒子来实现。也因此会减少直接实现这个接口的类的数目，降低了接口变化的波及范围。 
+
+
+那么，这个Logger接口是怎么来的呢？ 
+
+它的形成来自两方面： 
+
+1。需求。通过oo的手段分配责任，最后分析出来的一个接口。这个接口不一定是最简化的，因为它完全是外部需求驱动的。 
+
+2。组合子自身接口简单性和完备性的需要。有些时候，我们发现，一个组合子里面如果没有某个方法，或者某个方法如果没有某个参数，一些组合就无法成立。这很可能说明我们的接口不是完备的。（比如那个print函数）。 
+此时，就需要改动接口，并且修改原子组合子的实现。 
+因为这个变化完全是基于组合需求的完备性的，所以是co方法本身带来的问题，而不能推诿于oo设计出来的接口。 
+也因为如此，基本组合子个数的尽量精简就是一个目标。能够通过基本组合子组合而成的，就可以考虑不要直接实现这个接口。 
+当然，这里面仍然有个权衡： 
+通过组合出来的不如直接实现的直接，可理解性，甚至可调试性，性能都会有所下降。 
+而如果选择直接实现接口，那么就要做好接口一旦变化，就多出一个类要改动这个类的心理准备。 
+
+如何抉择，没有一定之规。 
+
+而因为1和2的目标并不完全一致，很多时候，我们还需要在1和2之间架一个adapter以避免两个目标的冲突。 
+
+比如说，实际使用中，我可能希望Logger接口提供不要求level的println函数，让它的缺省值取INFO就好了。 
+
+但是，这对组合子的实现来说却是不利的。这时，我们也许就要把这个实现要求的Logger接口和组合子的Logger接口分离开来。（比如把组合子单独挪到一个package中）。 
+
+
+
+Logger这个例子是非常简单的，它虽然来自于实际项目，但是项目对logging的需求并不是太多，所以一些朋友提出了一些基于实际使用的一些问题，我只能给一个怎么做的大致轮廓，手边却没有可以运行的程序。 
+
+
+那么，下面一个例子，我们来看看一个我经过了很多思考比较完善了的ioc容器的设计。这个设计来源于yan container。 
+
+
+先说一下ioc容器的背景知识。 
+
+所谓ioc容器，是一种用来组装用ioc模式（或者叫依赖注射）设计出来的类的工具。 
+一个用ioc设计出来的类，本身对ioc容器是一无所知的。使用它的时候，可以根据实际情况选择直接new，直接调用setter等等比较直接的方法，但是，当这样的组件非常非常多的时候，用一个ioc容器来统一管理这些对象的组装就可以被考虑。 
+
+
+拿pico作为例子，对应这样一个类： 
+
+java代码: 
+
+class Boy{ 
+  private final Girl girl; 
+  public Boy(Girl g){ 
+    this.girl = g; 
+  } 
+... 
+}
+
+
+
+我们自然可以new Boy(new Girl()); 
+
+没什么不好的。 
+
+但是，如果这种需要组装的类太多，那么这个组装就变成一件累人的活了。 
+
+于是，pico container提供了一个统一管理组建的方法： 
+java代码: 
+
+
+picocontainer container = new DefaultContainer(); 
+container.registerComponentImplementation(Boy.class); 
+container.registerComponentImplementation(Girl.class); 
+
+
+
+
+这个代码，很可能不是直接写在程序里面，而是先读取配置文件或者什么东西，然后动态地调用这段代码。 
+
+最后，使用下面的方法来取得对象： 
+
+java代码: 
+
+Object obj = container.getComponentInstance(Boy.class);
+
+
+
+注意，这个container.getXXX，本身是违反ioc的设计模式的，它主动地去寻找某个组件了。所以，组件本身是忌讳调用这种api的。如果你在组件级别的代码直接依赖ioc容器的api，那么，恭喜你，你终于成功地化神奇为腐朽了。 Laughing 
+
+
+这段代码，实际上应该出现在系统的最外围的组装程序中。 
+
+当然，这是题外话。 
+
+
+那么，我们来评估一下pico先， 
+
+1。让容器自动寻找符合某个类型的组件，叫做auto-wiring。这个功能方便，但是不能scale up。一旦系统复杂起来，就会造成一团乱麻，尤其是有两个组件都符合这个要求的时候，就会出现二义性。所以，必须提供让配置者或者程序员显示指定使用哪个 组件的能力。所谓manual-wire。 
+当然，pico实际上是提供了这个能力的，它允许你使用组件key或者组件类型来显示地给某个组件的某个参数或者某个property指定它的那个girl。 
+
+但是，pico的灵活性就到这里了，它要求你的这个girl必须被直接登记在这个容器中，占用一个宝贵的全局key，即使这个girl只是专门为这个body临时制造的夏娃。 
+
+在java中，遇到这种情况： 
+
+java代码: 
+
+void A createA(){ 
+  B b = new B(); 
+  return new A(b,b); 
+}
+
+
+
+我们只需要把b作为一个局部变量，构造完A，b就扔掉了。然而，pico里面这不成，b必须被登记在这个容器中。这就相当于你必须要把b定义成一个全局变量一样。 
+pico的对应代码： 
+
+java代码: 
+
+container.registerComponent("b" new CachingComponentAdapter(new ConstructorInjectionComponentAdapter(B.class)));
+container.registerComponent("a", new ConstructorInjectionComponentAdapter(A.class));
+
+
+
+这里，为了对应上面java代码中的两个参数公用一个b的实例的要求，必须把a登记成一个singleton。 CachingComponentAdapter负责singleton化某个组件，而 ConstructorInjectionComponentAdapter就是一个调用构造函数的组建匹配器。 
+
+
+当然，这样做其实还是有麻烦的，当container不把a登记成singleton的时候（pico缺省都登记成singleton，但是你可以换缺省不用singleton的container。），麻烦就来了。 
+
+大家可以看到，上面的createA()函数如果调用两次，会创建两个A对象，两个B对象，而用这段pico代码，调用两次getComponentInstance("a")，会生成两个A对象，但是却只有一个B对象！因为b被被迫登记为singleton了。 
+
+
+
+
+
+2。pico除了支持constructor injection，也支持setter injection甚至factory method injection。（对最后一点我有点含糊，不过就假设它支持）。所以，跟spring对比，除了没有一个配置文件，life-cycle不太优雅之 外，什么都有了。 
+
+但是，这就够了吗？如果我们把上面的那个createA函数稍微变一下： 
+
+java代码: 
+
+A createA(){ 
+  B b = new B(); 
+  return new A(b, b.createC(x_component)); 
+}
+
+
+
+
+现在，我们要在b组件上面调用createC()来生成一个C对象。完了，我们要的既不是构造函数，也不是工厂方法，而是在某个临时组件的基础上调用一个函数。 
+
+缺省提供的几个ComponentAdapter这时就不够用了，我们被告知要自己实现ComponentAdapter。 
+
+实际上，pico对很多灵活性的要求的回答都是：自己实现ComponentAdapter。 
+
+
+这是可行的。没什么是ComponentAdapter干不了的，如果不计工作量的话。 
+
+一个麻烦是：我们要直接调用pico的api来自己解析依赖了。我们要自己知道是调用container.getComponentInstance("x_component")还是container.getComponentInstance(X.class)。 
+第二个麻烦是：降低了代码重用。自己实现ComponentAdapter就得自己老老实实地写，如果自己的component adapter也要动态设置java bean setter的话，甭想直接用SetterInjectionComponentAdapter，好好看java bean的api吧。 
+
+
+其实，我们可以看出，pico的各种ComponentAdapter正是正宗的decorator pattern。什么CachingComponentAdapter，什么SynchronizedComponentAdapter，都是decorator。 
+
+但是，这也就是decorator而已了。因为没有围绕组合子的思路开展设计，这些decorator显得非常随意，没有什么章法，没办法支撑起整个的ComponentAdapter的架构。 
+
+下一章，我们会介绍yan container对上面提出的问题以及很多其他问题的解决方法。 
+
+yan container的口号是：只要你直接组装能够做到的，容器就能做到。 
+不管你是不是用构造函数，静态方法，java bean，构造函数然后再调用某个方法，等等等等。 
+而且yan container的目标是，你几乎不用自己实现component adapter，所有的需求，都通过组合各种已经存在的组合子来完成。 
+
+
+对我们前面那个很不厚道地用来刁难pico的例子，yan的解决方法是： 
+
+
+java代码: 
+
+b_component = Components.ctor(B.class).singleton(); 
+a_component = Components.ctor(A.class) 
+  .withArgument(0, b_component) 
+  .withArgument(1, b_component.method("createC"));
+
+
+
+b_component不需要登记在容器中，它作为局部component存在。 
+是不是非常declarative呢？ 
+
+
+下一节，你会发现，用面向组合子的方法，ioc容器这种东西真的不难。我们不需要仔细分析各种需求，精心分配责任。让我们再次体验一下吊儿郎当不知不觉间就天下大治的感觉吧。 
+
+待续。
+发表于 2006-01-13 05:56 AJOO
+

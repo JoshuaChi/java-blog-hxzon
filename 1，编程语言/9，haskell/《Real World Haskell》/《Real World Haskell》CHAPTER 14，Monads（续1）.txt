@@ -1,0 +1,433 @@
+﻿《Real World Haskell》CHAPTER 14，Monads（续1）
+
+Putting a Few Misconceptions to Rest
+We’ve now seen enough examples of monads in action to have some feel for what’s
+going on. Before we continue, there are a few oft-repeated myths about monads that
+we’re going to address. You’re bound to encounter these assertions “in the wild,” so
+you might as well be prepared with a few good retorts:
+Monads can be hard to understand
+We’ve already shown that monads “fall out naturally” from several problems.
+We’ve found that the best key to understanding them is to explain several concrete
+examples, and then talk about what they have in common.
+Monads are only useful for I/O and imperative coding
+While we use monads for I/O in Haskell, they’re valuable for many other purposes
+as well. We’ve already used them for short-circuiting a chain of computations,
+hiding complicated state, and logging. Even so, we’ve barely scratched the surface.
+Monads are unique to Haskell
+Haskell is probably the language that makes the most explicit use of monads, but
+people write them in other languages, too, ranging from C++ to OCaml. They
+happen to be particularly tractable in Haskell, due to donotation, the power and
+inference of the type system, and the language’s syntax.
+Monads are for controlling the order of evaluation
+Building the Logger Monad
+The definition of our Loggertype is very simple:
+-- file: ch14/Logger.hs
+newtype Logger a = Logger { execLogger :: (a, Log) }
+It’s a pair, where the first element is the result of an action, and the second is a list of
+messages logged while that action was run.
+
+We’ve wrapped the tuple in a newtypeto make it a distinct type. The  runLoggerfunction
+extracts the tuple from its wrapper. The function that we’re exporting to execute a
+logged action, runLogger, is just a synonym for execLogger:
+-- file: ch14/Logger.hs
+runLogger = execLogger
+Our recordhelper function creates a singleton list of the message that we pass it:
+-- file: ch14/Logger.hs
+record s = Logger ((), [s])
+The result of this action is (), so that’s the value we put in the result slot.
+Let’s begin our Monadinstance with return, which is trivial. It logs nothing and stores
+its input in the result slot of the tuple:
+-- file: ch14/Logger.hs
+instance Monad Logger where
+return a = Logger (a, [])
+Slightly more interesting is  (>>=), which is the heart of the monad. It combines an action
+and a monadic function to give a new result and a new log:
+-- file: ch14/Logger.hs
+-- (>>=) :: Logger a -> (a -> Logger b) -> Logger b
+m >>= k = let (a, w) = execLogger m
+n = k a
+(b, x) = execLogger n
+in Logger (b, w ++ x)
+Let’s spell out explicitly what is going on. We use runLoggerto extract the result  afrom
+the action  m, and we pass it to the monadic function  k. We extract the result  bfrom that
+in turn, and put it into the result slot of the final action. We concatenate the logs  wand
+xto give the new log.
+Sequential Logging, Not Sequential Evaluation
+Our definition of (>>=)ensures that messages logged on the left will appear in the new
+log before those on the right. However, it says nothing about when the values aand b
+are evaluated: (>>=)is lazy.
+Like most other aspects of a monad’s behavior, strictness is under the control of the its
+implementor. It is not a constant shared by all monads. Indeed, some monads come in
+multiple flavors, each with different levels of strictness.
+The Writer Monad
+Our Loggermonad is a specialized version of the standard Writermonad, which can
+be found in the  Control.Monad.Writermodule of the mtlpackage. We will present a
+Writerexample in “Using Typeclasses” on page 378.
+
+========
+The Maybe Monad
+The Maybetype is very nearly the simplest instance of  Monad. It represents a computation
+that might not produce a result:
+-- file: ch14/Maybe.hs
+instance Monad Maybe where
+Just x >>= k = k x
+Nothing >>= _ = Nothing
+Just _ >> k = k
+Nothing >> _ = Nothing
+return x = Just x
+fail _ = Nothing
+If, when we chain together a number of computations over Maybeusing (>>=)or (>>),
+any of them returns Nothing, we don’t evaluate any of the remaining computations.
+Note, though, that the chain is not completely short-circuited. Each (>>=)or (>>)in
+the chain will still match a Nothingon its left and produce a Nothingon its right, all the
+way to the end. It’s easy to forget this point: when a computation in the chain fails, the
+subsequent production, chaining, and consumption of  Nothingvalues are cheap at
+runtime, but they’re not free.
+Executing the Maybe Monad
+A function suitable for executing the Maybemonad is maybe. (Remember that “execut-
+ing” a monad involves evaluating it and returning a result that’s had the monad’s type
+wrapper removed.)
+-- file: ch14/Maybe.hs
+maybe :: b -> (a -> b) -> Maybe a -> b
+maybe n _ Nothing = n
+maybe _ f (Just x) = f x
+Its first parameter is the value to return if the result is  Nothing. The second is a function
+to apply to a result wrapped in the  Justconstructor; the result of that application is
+then returned.
+Since the Maybetype is so simple, it’s about as common to simply pattern match on a
+Maybevalue as it is to call maybe. Each one is more readable in different circumstances.
+Maybe at Work, and Good API Design
+Here’s an example of Maybein use as a monad. Given a customer’s name, we want to
+find the billing address of her mobile phone carrier:
+
+-- file: ch14/Carrier.hs
+import qualified Data.Map as M
+type PersonName = String
+type PhoneNumber = String
+type BillingAddress = String
+data MobileCarrier = Honest_Bobs_Phone_Network
+| Morrisas_Marvelous_Mobiles
+| Petes_Plutocratic_Phones
+deriving (Eq, Ord)
+findCarrierBillingAddress :: PersonName
+-> M.Map PersonName PhoneNumber
+-> M.Map PhoneNumber MobileCarrier
+-> M.Map MobileCarrier BillingAddress
+-> Maybe BillingAddress
+Our first version is the dreaded ladder of code marching off the right of the screen, with
+many boilerplate caseexpressions:
+-- file: ch14/Carrier.hs
+variation1 person phoneMap carrierMap addressMap =
+case M.lookup person phoneMap of
+Nothing -> Nothing
+Just number ->
+case M.lookup number carrierMap of
+Nothing -> Nothing
+Just carrier -> M.lookup carrier addressMap
+The Data.Mapmodule’s lookupfunction has a monadic return type:
+ghci> :module +Data.Map
+ghci> :type Data.Map.lookup
+Data.Map.lookup :: (Ord k, Monad m) => k -> Map k a -> m a
+In other words, if the given key is present in the map, lookupinjects it into the monad
+using return. Otherwise, it calls  fail. This is an interesting piece of API design, though
+one that we think was a poor choice:
+• On the positive side, the behaviors of success and failure are automatically cus-
+tomized to our needs, based on the monad from which we’re calling  lookup. Better
+yet, lookupitself doesn’t know or care what those behaviors are.
+The caseexpressions just shown typecheck because we’re comparing the result of
+lookupagainst values of type Maybe.
+• The hitch is, of course, that using failin the wrong monad throws a bothersome
+exception. We have already warned against the use of fail, so we will not repeat
+ourselves here.
+In practice, everyoneuses Maybeas the result type for lookup. The result type of such a
+conceptually simple function provides generality where it is not needed:  lookupshould
+have been written to return Maybe.
+
+Let’s set aside the API question and deal with the ugliness of our code. We can make
+more sensible use of Maybe’s status as a monad:
+-- file: ch14/Carrier.hs
+variation2 person phoneMap carrierMap addressMap = do
+number <- M.lookup person phoneMap
+carrier <- M.lookup number carrierMap
+address <- M.lookup carrier addressMap
+return address
+If any of these lookups fails, the definitions of (>>=)and (>>)mean that the result of
+the function as a whole will be  Nothing, just as it was for our first attempt that used
+caseexplicitly.
+This version is much tidier, but the returnisn’t necessary. Stylistically, it makes the
+code look more regular, and perhaps more familiar to the eyes of an imperative pro-
+grammer, but behaviorally it’s redundant. Here’s an equivalent piece of code:
+-- file: ch14/Carrier.hs
+variation2a person phoneMap carrierMap addressMap = do
+number <- M.lookup person phoneMap
+carrier <- M.lookup number carrierMap
+M.lookup carrier addressMap
+When we introduced maps, we mentioned in “Partial application awkwardness” on
+page 290 that the type signatures of functions in the Data.Mapmodule often make them
+awkward to partially apply. The lookupfunction is a good example. If we  flipits ar-
+guments, we can write the function body as a one-liner:
+-- file: ch14/Carrier.hs
+variation3 person phoneMap carrierMap addressMap =
+lookup phoneMap person >>= lookup carrierMap >>= lookup addressMap
+where lookup = flip M.lookup
+
+========
+The List Monad
+
+While the Maybetype can represent either no value or one, there are many situations
+where we might want to return some number of results that we do not know in advance.
+Obviously, a list is well suited to this purpose. The type of a list suggests that we might
+be able to use it as a monad, because its type constructor has one free variable. And
+sure enough, we can use a list as a monad.
+Rather than simply present the  Prelude’s  Monadinstance for the list type, let’s try to
+figure out what an instance  oughtto look like. This is easy to do: we’ll look at the types
+of (>>=)and return, perform some substitutions, and see if we can use a few familiar
+list functions.
+The more obvious of the two functions is return. We know that it takes a type a, and
+wraps it in a type constructor mto give the type m a. We also know that the type con-
+structor here is  []. Substituting this type constructor for the type variable  mgives us the
+
+type  [] a(yes, this really is valid notation!), which we can rewrite in more familiar form
+as [a].
+We now know that returnfor lists should have the type a -> [a]. There are only a few
+sensible possibilities for an implementation of this function. It might return the empty
+list, a singleton list, or an infinite list. The most appealing behavior, based on what we
+know so far about monads, is the singleton list—it doesn’t throw away information,
+nor does it repeat it infinitely:
+-- file: ch14/ListMonad.hs
+returnSingleton :: a -> [a]
+returnSingleton x = [x]
+If we perform the same substitution trick on the type of (>>=)as we did with return,
+we discover that it should have the type [a] -> (a -> [b]) -> [b]. This seems close
+to the type of map:
+ghci> :type (>>=)
+(>>=) :: (Monad m) => m a -> (a -> m b) -> m b
+ghci> :type map
+map :: (a -> b) -> [a] -> [b]
+The ordering of the types in map’s arguments doesn’t match, but that’s easy to fix:
+ghci> :type (>>=)
+(>>=) :: (Monad m) => m a -> (a -> m b) -> m b
+ghci> :type flip map
+flip map :: [a] -> (a -> b) -> [b]
+We’ve still got a problem: the second argument of flip maphas the type  a -> b, whereas
+the second argument of  (>>=)for lists has the type  a -> [b]. What do we do about this?
+Let’s do a little more substitution and see what happens with the types. The function
+flip mapcan return any type  bas its result. If we substitute  [b]for  bin both places
+where it appears in flip map’s type signature, its type signature reads as  a -> (a ->
+[b]) -> [[b]]. In other words, if we map a function that returns a list over a list, we
+get a list of lists back:
+ghci> flip map [1,2,3] (\a -> [a,a+100])
+[[1,101],[2,102],[3,103]]
+Interestingly, we haven’t really changed how closely our type signatures match. The
+type of  (>>=)is  [a] -> (a -> [b]) -> [b], while that of  flip mapwhen the mapped
+function returns a list is [a] -> (a -> [b]) -> [[b]]. There’s still a mismatch in one
+type term—we’ve just moved that term from the middle of the type signature to the
+end. However, our juggling wasn’t in vain—we now need a function that takes a
+[[b]]and returns a [b], and one readily suggests itself in the form of concat:
+ghci> :type concat
+concat :: [[a]] -> [a]
+
+The types suggest that we should flip the arguments to map, and then  concatthe results
+to give a single list:
+ghci> :type \xs f -> concat (map f xs)
+\xs f -> concat (map f xs) :: [a] -> (a -> [a1]) -> [a1]
+This is exactly the definition of (>>=)for lists:
+-- file: ch14/ListMonad.hs
+instance Monad [] where
+return x = [x]
+xs >>= f = concat (map f xs)
+It applies  fto every element in the list  xs, and concatenates the results to return a single
+list.
+With our two core Monaddefinitions in hand, the implementations of the noncore def-
+initions that remain, (>>)and fail, ought to be obvious:
+-- file: ch14/ListMonad.hs
+xs >> f = concat (map (\_ -> f) xs)
+fail _ = []
+Understanding the List Monad
+The list monad is similar to a familiar Haskell tool, the list comprehension. We can
+illustrate this similarity by computing the Cartesian product of two lists. First, we’ll
+write a list comprehension:
+-- file: ch14/CartesianProduct.hs
+comprehensive xs ys = [(x,y) | x <- xs, y <- ys]
+For once, we’ll use bracketed notation for the monadic code instead of layout notation.
+This will highlight how structurally similar the monadic code is to the list
+comprehension:
+-- file: ch14/CartesianProduct.hs
+monadic xs ys = do { x <- xs; y <- ys; return (x,y) }
+The only real difference is that the value we’re constructing comes at the end of the
+sequence of expressions, instead of at the beginning as in the list comprehension. Also,
+the results of the two functions are identical:
+ghci> comprehensive [1,2] "bar"
+[(1,'b'),(1,'a'),(1,'r'),(2,'b'),(2,'a'),(2,'r')]
+ghci> comprehensive [1,2] "bar" == monadic [1,2] "bar"
+True
+It’s easy to be baffled by the list monad early on, so let’s walk through our monadic
+Cartesian product code again in more detail. This time, we’ll rearrange the function to
+use layout instead of brackets:
+-- file: ch14/CartesianProduct.hs
+blockyDo xs ys = do
+x <- xs
+
+y <- ys
+return (x, y)
+For every element in the list xs, the rest of the function is evaluated once, with  xbound
+to a different value from the list each time. Then for every element in the list  ys, the
+remainder of the function is evaluated once, with ybound to a different value from the
+list each time.
+What we really have here is a doubly nested loop! This highlights an important fact
+about monads: you  cannotpredict how a block of monadic code will behave unless you
+know what monad it will execute in.
+We’ll now walk through the code even more explicitly, but first let’s get rid of the do
+notation to make the underlying structure clearer. We’ve indented the code a little
+unusually to make the loop nesting more obvious:
+-- file: ch14/CartesianProduct.hs
+blockyPlain xs ys =
+xs >>=
+\x -> ys >>=
+\y -> return (x, y)
+blockyPlain_reloaded xs ys =
+concat (map (\x ->
+concat (map (\y ->
+return (x, y))
+ys))
+xs)
+If xshas the value [1,2,3], the two lines that follow are evaluated with xbound to 1,
+then to 2, and finally to 3. If yshas the value [True, False], the final line is evaluated
+sixtimes: once with xas 1and yas True; again with  xas 1and yas False; and so on.
+The returnexpression wraps each tuple in a single-element list.
+Putting the List Monad to Work
+Here is a simple brute-force constraint solver. Given an integer, it finds all pairs of
+positive integers that, when multiplied, give that value (this is the constraint being
+solved):
+-- file: ch14/MultiplyTo.hs
+guarded :: Bool -> [a] -> [a]
+guarded True xs = xs
+guarded False _ = []
+multiplyTo :: Int -> [(Int, Int)]
+multiplyTo n = do
+x <- [1..n]
+y <- [x..n]
+guarded (x * y == n) $
+return (x, y)
+
+Let’s try this in ghci:
+ghci> multiplyTo 8
+[(1,8),(2,4)]
+ghci> multiplyTo 100
+[(1,100),(2,50),(4,25),(5,20),(10,10)]
+ghci> multiplyTo 891
+[(1,891),(3,297),(9,99),(11,81),(27,33)]
+Desugaring of do Blocks
+Haskell’s dosyntax is an example of syntactic sugar: it provides an alternative way of
+writing monadic code, without using (>>=)and anonymous functions. Desugaringis
+the translation of syntactic sugar back to the core language.
+The rules for desugaring a doblock are easy to follow. We can think of a compiler as
+applying these rules mechanically and repeatedly to a doblock until no more dokey-
+words remain.
+A dokeyword followed by a single action is translated to that action by itself:
+-- file: ch14/Do.hs -- file: ch14/Do.hs 
+doNotation1 = translated1 =
+do act act
+A dokeyword followed by more than one action is translated to the first action, then
+(>>), followed by a  dokeyword and the remaining actions. When we apply this rule
+repeatedly, the entire doblock ends up chained together by applications of (>>):
+-- file: ch14/Do.hs -- file: ch14/Do.hs
+doNotation2 = translated2 =
+do act1 act1 >>
+act2 do act2
+{- ... etc. -} {- ... etc. -}
+actN actN
+finalTranslation2 =
+act1 >>
+act2 >>
+{- ... etc. -}
+actN
+The <-notation has a translation that’s worth paying close attention to. On the left of
+the  <-is a normal Haskell pattern. This can be a single variable or something more
+complicated, but a guard expression is not allowed:
+-- file: ch14/Do.hs -- file: ch14/Do.hs
+doNotation3 = translated3 =
+do pattern <- act1 let f pattern = do act2
+act2 let f pattern = do act2
+{- ... etc. -} actN
+actN f _ = fail "..."
+in act1 >>= f
+
+This pattern is translated into a letbinding that declares a local function with a unique
+name (we’re just using  fas an example). The action on the right of the  <-is then chained
+with this function using (>>=).
+What’s noteworthy about this translation is that if the pattern match fails, the local
+function calls the monad’s  failimplementation. Here’s an example using the  Maybe
+monad:
+-- file: ch14/Do.hs
+robust :: [a] -> Maybe a
+robust xs = do (_:x:_) <- Just xs
+return x
+The  failimplementation in the  Maybemonad simply returns Nothing. If the pattern
+match in the preceding function fails, we thus get Nothingas our result:
+ghci> robust [1,2,3]
+Just 2
+ghci> robust [1]
+Nothing
+Finally, when we write a  letexpression in a  doblock, we can omit the usual  inkeyword.
+Subsequent actions in the block must be lined up with the letkeyword:
+-- file: ch14/Do.hs -- file: ch14/Do.hs
+doNotation4 = translated4 =
+do let val1 = expr1 let val1 = expr1
+val2 = expr2 val2 = expr2
+{- ... etc. -} valN = exprN
+valN = exprN in do act1
+act1 act2
+act2 {- ... etc. -}
+{- ... etc. -} actN 
+actN
+Monads as a Programmable Semicolon
+Earlier in “The Offside Rule Is Not Mandatory” on page 66, we mentioned that layout
+is the norm in Haskell, but it’s not  required. We can write a  doblock using explicit
+structure instead of layout:
+-- file: ch14/Do.hs -- file: ch14/Do.hs
+semicolon = do semicolonTranslated =
+{ act1 >>
+act1; let f val1 = let val2 = expr1
+val1 <- act2; in actN
+let { val2 = expr1 }; f _ = fail "..."
+actN; in act2 >>= f
+}
+Even though this use of explicit structure is rare, the fact that it uses semicolons to
+separate expressions has given rise to an apt slogan: monads are a kind of
+
+“programmable semicolon,” because the behaviors of (>>)and (>>=)are different in
+each monad.
+Why Go Sugar-Free?
+When we write (>>=)explicitly in our code, it reminds us that we’re stitching functions
+together using combinators, not simply sequencing actions.
+As long as you feel like a novice with monads, we think you should prefer to explicitly
+write  (>>=)over the syntactic sugar of  donotation. The repeated reinforcement of
+what’s really happening seems, for many programmers, to help keep things clear. (It
+can be easy for an imperative programmer to relax a little too much from exposure to
+the IOmonad and assume that a doblock means nothing more than a simple sequence
+of actions.)
+Once you’re feeling more familiar with monads, you can choose whichever style seems
+more appropriate for writing a particular function. Indeed, when you read other peo-
+ple’s monadic code, you’ll see that it’s unusual, but by no means rare, to mix both do
+notation and (>>=)in a single function.
+The  (=<<)function shows up frequently whether or not we use  donotation. It is a flipped
+version of (>>=):
+ghci> :type (>>=)
+(>>=) :: (Monad m) => m a -> (a -> m b) -> m b
+ghci> :type (=<<)
+(=<<) :: (Monad m) => (a -> m b) -> m a -> m b
+It comes in handy if we want to compose monadic functions in the usual Haskell right-
+to-left style:
+-- file: ch14/CartesianProduct.hs
+wordCount = print . length . words =<< getContents
+
+
+
+
+
+
+
+
+
+

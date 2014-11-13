@@ -1,0 +1,431 @@
+﻿《Real World Haskell》CHAPTER 14，Monads（续2）
+
+The State Monad
+We discovered earlier in this chapter that Parsefrom Chapter 10 was a monad. It has
+two logically distinct aspects. One is the idea of a parse failing and providing a message
+with the details (we represented this using the Eithertype). The other involves carrying
+around a piece of implicit state, in our case, the partially consumed ByteString.
+This need for a way to read and write state is common enough in Haskell programs
+that the standard libraries provide a monad named Statethat is dedicated to this pur-
+pose. This monad lives in the Control.Monad.Statemodule.
+Where our Parsetype carried around a  ByteStringas its piece of state, the  Statemonad
+can carry any type of state. We’ll refer to the state’s unknown type as s.
+What’s an obvious and general thing we might want to do with a state? Given a state
+value, we inspect it, and then produce a result and a new state value. Let’s say the result
+
+can be of any type  a. A type signature that captures this idea is  s -> (a, s). Take a
+state s, do something with it, and return a result aand possibly a new state s.
+Almost a State Monad
+Let’s develop some simple code that’s almostthe Statemonad, and then take a look at
+the real thing. We’ll start with our type definition, which has exactly the obvious type
+that we just described:
+-- file: ch14/SimpleState.hs
+type SimpleState s a = s -> (a, s)
+Our monad is a function that transforms one state into another, yielding a result when
+it does so. Because of this, the Statemonad is sometimes called the state transformer
+monad.
+Yes, this is a type synonym, not a new type, and so we’re cheating a little. Bear with us
+for now; this simplifies the description that follows.
+Earlier in this chapter, we said that a monad has a type constructor with a single type
+variable, and yet here we have a type with two parameters. The key is to understand
+that we can partially apply a  typejust as we can partially apply a normal function. This
+is easiest to follow with an example:
+-- file: ch14/SimpleState.hs
+type StringState a = SimpleState String a
+Here, we’ve bound the type variable sto String. The type StringStatestill has a type
+parameter a, though. It’s now more obvious that we have a suitable type constructor
+for a monad. In other words, our monad’s type constructor is  SimpleState s, not
+SimpleStatealone.
+The next ingredient we need to make a monad is a definition for the returnfunction:
+-- file: ch14/SimpleState.hs
+returnSt :: a -> SimpleState s a
+returnSt a = \s -> (a, s)
+All this does is take the result and the current state and “tuple them up.” You may now
+be used to the idea that a Haskell function with multiple parameters is just a chain of
+single-parameter functions, but just in case you’re not, here’s a more familiar way of
+writing returnStthat makes it more obvious how simple this function is:
+-- file: ch14/SimpleState.hs
+returnAlt :: a -> SimpleState s a
+returnAlt a s = (a, s)
+Our final piece of the monadic puzzle is a definition for (>>=). Here it is, using the
+actual variable names from the standard library’s definition of (>>=)for State:
+-- file: ch14/SimpleState.hs
+bindSt :: (SimpleState s a) -> (a -> SimpleState s b) -> SimpleState s b
+
+bindSt m k = \s -> let (a, s') = m s
+in (k a) s'
+Those single-letter variable names aren’t exactly a boon to readability, so let’s see if we
+can substitute some more meaningful names:
+-- file: ch14/SimpleState.hs
+-- m == step
+-- k == makeStep
+-- s == oldState
+bindAlt step makeStep oldState =
+let (result, newState) = step oldState
+in (makeStep result) newState
+To understand this definition, remember that  stepis a function with the type
+s -> (a, s). When we evaluate this, we get a tuple, which we have to use to return a
+new function of type s -> (a, s). This is perhaps easier to follow if we get rid of the
+SimpleStatetype synonyms from bindAlt’s type signature, and then examine the types
+of its parameters and result:
+-- file: ch14/SimpleState.hs
+bindAlt :: (s -> (a, s)) -- step
+-> (a -> s -> (b, s)) -- makeStep
+-> (s -> (b, s)) -- (makeStep result) newState
+Reading and Modifying the State
+The definitions of (>>=)and returnfor the Statemonad simply act as plumbing: they
+move a piece of state around, but they don’t touch it in any way. We need a few other
+simple functions to actually do useful work with the state:
+-- file: ch14/SimpleState.hs
+getSt :: SimpleState s s
+getSt = \s -> (s, s)
+putSt :: s -> SimpleState s ()
+putSt s = \_ -> ((), s)
+The  getStfunction simply takes the current state and returns it as the result, while
+putStignores the current state and replaces it with a new one.
+Will the Real State Monad Please Stand Up?
+The only simplifying trick we played in the previous section was to use a type synonym
+instead of a type definition for SimpleState. If we had introduced a newtypewrapper at
+the same time, the extra wrapping and unwrapping would have made our code harder
+to follow.
+In order to define a  Monadinstance, we have to provide a proper type constructor as
+well as definitions for (>>=)and return. This leads us to the realdefinition of State:
+
+-- file: ch14/State.hs
+newtype State s a = State {
+runState :: s -> (a, s)
+}
+All we’ve done is wrap our  s -> (a, s)type in a  Stateconstructor. We’re automatically
+given a runStatefunction that will unwrap a Statevalue from its constructor when we
+use Haskell’s record syntax to define the type. The type of  runStateis
+State s a -> s -> (a, s).
+The definition of  returnis almost the same as for  SimpleState, except we wrap our
+function with a Stateconstructor:
+-- file: ch14/State.hs
+returnState :: a -> State s a
+returnState a = State $ \s -> (a, s)
+The definition of (>>=)is a little more complicated, because it has to use  runStateto
+remove the Statewrappers:
+-- file: ch14/State.hs
+bindState :: State s a -> (a -> State s b) -> State s b
+bindState m k = State $ \s -> let (a, s') = runState m s
+in runState (k a) s'
+This function differs from our earlier bindStonly in adding the wrapping and unwrap-
+ping of a few values. By separating the “real work” from the bookkeeping, we’ve hope-
+fully made it clearer what’s really happening.
+We modify the functions for reading and modifying the state in the same way, by adding
+a little wrapping:
+-- file: ch14/State.hs
+get :: State s s
+get = State $ \s -> (s, s)
+put :: s -> State s ()
+put s = State $ \_ -> ((), s)
+Using the State Monad: Generating Random Values
+We’ve already used Parse, our precursor to the Statemonad, to parse binary data. In
+that case, we wired the type of the state we were manipulating directly into the Parse
+type.
+The Statemonad, by contrast, accepts any type of state as a parameter. We supply the
+type of the state to give, for example, State ByteString.
+The Statemonad will probably feel more familiar to you than many other monads if
+you have a background in imperative languages. After all, imperative languages are all
+about carrying around some implicit state, reading some parts, and modifying others
+through assignment, which is just what the Statemonad is for.
+
+So instead of unnecessarily cheerleading for the idea of using the Statemonad, we’ll
+begin by demonstrating how to use it for something simple: pseudorandom value gen-
+eration. In an imperative language, there’s usually an easily available source of uni-
+formly distributed pseudorandom numbers. For example, in C, there’s a standard
+randfunction that generates a pseudorandom number, using a global state that it
+updates.
+Haskell’s standard random value generation module is named System.Random. It allows
+the generation of random values of any type, not just numbers. The module contains
+several handy functions that live in the IOmonad. For example, a rough equivalent of
+C’s randfunction would be the following:
+-- file: ch14/Random.hs
+import System.Random
+rand :: IO Int
+rand = getStdRandom (randomR (0, maxBound))
+(The  randomRfunction takes an inclusive range within which the generated random
+value should lie.)
+The  System.Randommodule provides a typeclass,  RandomGen, that lets us define new
+sources of random  Intvalues. The type  StdGenis the standard  RandomGeninstance. It
+generates pseudorandom values. If we had an external source of truly random data, we
+could make it an instance of  RandomGenand get truly random, instead of merely
+pseudorandom, values.
+Another typeclass,  Random, indicates how to generate random values of a particular type.
+The module defines Randominstances for all of the usual simple types.
+Incidentally, the definition of  randhere reads and modifies a built-in global random
+generator that inhabits the IOmonad.
+A First Attempt at Purity
+After all of our emphasis so far on avoiding the IOmonad wherever possible, it would
+be a shame if we were dragged back into it just to generate some random values. Indeed,
+System.Randomcontains pure random number generation functions.
+The traditional downside of purity is that we have to get or create a random number
+generator, and then ship it from the point we created it to the place where it’s needed.
+When we finally call it, it returns a newrandom number generator—we’re in pure code,
+remember, so we can’t modify the state of the existing generator.
+If we forget about immutability and reuse the same generator within a function, we get
+back exactly the same “random” number every time:
+-- file: ch14/Random.hs
+twoBadRandoms :: RandomGen g => g -> (Int, Int)
+twoBadRandoms gen = (fst $ random gen, fst $ random gen)
+
+Needless to say, this has unpleasant consequences:
+ghci> twoBadRandoms `fmap` getStdGen
+Loading package old-locale-1.0.0.0 ... linking ... done.
+Loading package old-time-1.0.0.0 ... linking ... done.
+Loading package random-1.0.0.0 ... linking ... done.
+Loading package mtl-1.1.0.1 ... linking ... done.
+(639600350314210417,639600350314210417)
+The randomfunction uses an implicit range instead of the user-supplied range employed
+by randomR. The  getStdGenfunction retrieves the current value of the global standard
+number generator from the IOmonad.
+Unfortunately, correctly passing around and using successive versions of the generator
+does not make for palatable reading. Here’s a simple example:
+-- file: ch14/Random.hs
+twoGoodRandoms :: RandomGen g => g -> ((Int, Int), g)
+twoGoodRandoms gen = let (a, gen') = random gen
+(b, gen'') = random gen'
+in ((a, b), gen'')
+Now that we know about the Statemonad, though, it looks like a fine candidate to
+hide the generator. The  Statemonad lets us manage our mutable state tidily, while
+guaranteeing that our code will be free of other unexpected side effects, such as mod-
+ifying files or making network connections. This makes it easier to reason about the
+behavior of our code.
+Random Values in the State Monad
+Here’s a Statemonad that carries around a StdGenas its piece of state:
+-- file: ch14/Random.hs
+type RandomState a = State StdGen a
+The type synonym is, of course, not necessary, but it’s handy. It saves a little key-
+boarding, and if we want to swap another random generator for  StdGen, it would reduce
+the number of type signatures we’d need to change.
+Generating a random value is now a matter of fetching the current generator, using it,
+then modifying the state to replace it with the new generator:
+-- file: ch14/Random.hs
+getRandom :: Random a => RandomState a
+getRandom =
+get >>= \gen ->
+let (val, gen') = random gen in
+put gen' >>
+return val
+
+We can now use some of the monadic machinery that we saw earlier to write a much
+more concise function for giving us a pair of random numbers:
+-- file: ch14/Random.hs
+getTwoRandoms :: Random a => RandomState (a, a)
+getTwoRandoms = liftM2 (,) getRandom getRandom
+E X E R C I S E
+1. Rewrite getRandomto use donotation.
+Running the State Monad
+As we’ve already mentioned, each monad has its own specialized evaluation functions.
+In the case of the Statemonad, we have several to choose from:
+runState
+Returns both the result and the final state
+evalState
+Returns only the result, throwing away the final state
+execState
+Throws the result away, returning only the final state
+The evalStateand  execStatefunctions are simply compositions of  fstand  sndwith
+runState, respectively. Thus, of the three,  runStateis the one most worth remembering.
+Here’s a complete example of how to implement our getTwoRandomsfunction:
+-- file: ch14/Random.hs
+runTwoRandoms :: IO (Int, Int)
+runTwoRandoms = do
+oldState <- getStdGen
+let (result, newState) = runState getTwoRandoms oldState
+setStdGen newState
+return result
+The call to  runStatefollows a standard pattern: we pass it a function in the  Statemonad
+and an initial state. It returns the result of the function and the final state.
+The code surrounding the call to  runStatemerely obtains the current global  StdGen
+value, and then replaces it afterwards so that subsequent calls to  runTwoRandomsor other
+random generation functions will pick up the updated state.
+What About a Bit More State?
+It’s a little hard to imagine writing much interesting code in which there’s only a single
+state value to pass around. When we want to track multiple pieces of state at once, the
+usual trick is to maintain them in a data type. The following is an example of keeping
+track of how many of random numbers we are handing out:
+
+-- file: ch14/Random.hs
+data CountedRandom = CountedRandom {
+crGen :: StdGen
+, crCount :: Int
+}
+type CRState = State CountedRandom
+getCountedRandom :: Random a => CRState a
+getCountedRandom = do
+st <- get
+let (val, gen') = random (crGen st)
+put CountedRandom { crGen = gen', crCount = crCount st + 1 }
+return val
+This example happens to consume both elements of the state, and it constructs a com-
+pletely new state, every time we call into it. More frequently, we’re likely to read or
+modify only part of a state. This function gets the number of random values generated
+so far:
+-- file: ch14/Random.hs
+getCount :: CRState Int
+getCount = crCount `liftM` get
+This example illustrates why we used record syntax to define our CountedRandomstate.
+It gives us accessor functions that we can glue together with getto read specific pieces
+of the state.
+If we want to partially update a state, the code doesn’t come out quite so appealingly:
+-- file: ch14/Random.hs
+putCount :: Int -> CRState ()
+putCount a = do
+st <- get
+put st { crCount = a }
+Here, instead of a function, we’re using record update syntax. The expression
+st { crCount = a }creates a new value that’s an identical copy of  st, except in its
+crCountfield, which is given the value a. Because this is a syntactic hack, we don’t get
+the same kind of flexibility as with a function. Record syntax may not exhibit Haskell’s
+usual elegance, but it at least gets the job done.
+There is a function named modifythat combines the getand putsteps. It takes as ar-
+gument a state transformation function, but it’s hardly more satisfactory—we still can’t
+escape from the clumsiness of record update syntax:
+-- file: ch14/Random.hs
+putCountModify :: Int -> CRState ()
+putCountModify a = modify $ \st -> st { crCount = a }
+
+========
+Monads and Functors
+Functors and monads are closely related. The terms are borrowed from a branch of
+mathematics called category theory, but they did not make the transition to Haskell
+completely unscathed.
+In category theory, a monad is built from a functor. You might expect that in Haskell,
+the Monadtypeclass would thus be a subclass of Functor, but it isn’t defined as such in
+the standard Prelude—an unfortunate oversight.
+However, authors of Haskell libraries use a workaround: when programmers define an
+instance of  Monadfor a type, they almost always write a  Functorinstance for it, too. You
+can expect that you’ll be able to use the  Functortypeclass’s  fmapfunction with any
+monad.
+If we compare the type signature of  fmapwith those of some of the standard monad
+functions that we’ve already seen, we get a hint as to what fmapon a monad does:
+ghci> :type fmap
+fmap :: (Functor f) => (a -> b) -> f a -> f b
+ghci> :module +Control.Monad
+ghci> :type liftM
+liftM :: (Monad m) => (a1 -> r) -> m a1 -> m r
+Sure enough, fmaplifts a pure function into the monad, just as liftMdoes.
+Another Way of Looking at Monads
+Now that we know about the relationship between functors and monads, if we look
+back at the list monad, we can see something interesting. Specifically, take a look at
+the definition of (>>=)for lists:
+-- file: ch14/ListMonad.hs
+instance Monad [] where
+return x = [x]
+xs >>= f = concat (map f xs)
+Recall that fhas type a -> [a]. When we call  map f xs, we get back a value of type
+[[a]], which we have to “flatten” using concat.
+Consider what we could do if Monadwas a subclass of Functor. Since  fmapfor lists is
+defined to be map, we could replace mapwith fmapin the definition of (>>=). This is not
+very interesting by itself, but suppose we go further.
+The concatfunction is of type  [[a]] -> [a]. As we mentioned, it flattens the nesting
+of lists. We could generalize this type signature from lists to monads, giving us the
+“remove a level of nesting” type  m (m a) -> m a. The function that has this type is
+conventionally named join.
+
+If we had definitions of  joinand  fmap, we wouldn’t need to write a definition of
+(>>=)for every monad, because it would be completely generic. Here’s what an alter-
+native definition of the  Monadtypeclass might look like, along with a definition of
+(>>=):
+-- file: ch14/AltMonad.hs
+import Prelude hiding ((>>=), return)
+class Functor m => AltMonad m where
+join :: m (m a) -> m a
+return :: a -> m a
+(>>=) :: AltMonad m => m a -> (a -> m b) -> m b
+xs >>= f = join (fmap f xs)
+Neither definition of a monad is “better,” because if we have joinwe can write (>>=)
+and vice versa, but the different perspectives can be refreshing.
+Removing a layer of monadic wrapping can, in fact, be useful in realistic circumstances.
+We can find a generic definition of joinin the Control.Monadmodule:
+-- file: ch14/MonadJoin.hs
+join :: Monad m => m (m a) -> m a
+join x = x >>= id
+Here are some examples of what it does:
+ghci> join (Just (Just 1))
+Just 1
+ghci> join Nothing
+Nothing
+ghci> join [[1],[2,3]]
+[1,2,3]
+
+=======
+The Monad Laws and Good Coding Style
+
+In “Thinking More About Functors” on page 249, we introduced two rules for how
+functors should always behave:
+-- file: ch14/MonadLaws.hs
+fmap id == id 
+fmap (f . g) == fmap f . fmap g
+There are also rules for how monads ought to behave. The three laws described in the
+following paragraphs are referred to as the monad laws. A Haskell implementation
+doesn’t enforce these laws—it’s up to the author of a Monadinstance to follow them.
+The monad laws are simply formal ways of saying “a monad shouldn’t surprise me.”
+In principle, we could probably get away with skipping over them entirely. It would be
+a shame if we did, however, because the laws contain gems of wisdom that we might
+otherwise overlook.
+
+Reading the laws
+You can read each of the following laws as “the expression on the left
+of the ==is equivalent to that on the right.”
+The first law states that returnis a left identityfor (>>=):
+-- file: ch14/MonadLaws.hs
+return x >>= f === f x
+Another way to phrase this is that there’s no reason to use returnto wrap up a pure
+value if all you’re going to do is unwrap it again with  (>>=). It’s actually a common
+style error among programmers new to monads to wrap a value with return, and then
+unwrap it with (>>=)a few lines later in the same function. Here’s the same law written
+with donotation:
+-- file: ch14/MonadLaws.hs
+do y <- return x
+f y === f x
+This law has practical consequences for our coding style: we don’t want to write un-
+necessary code, and the law lets us assume that the terse code will be identical in its
+effect to the more verbose version.
+The second monad law states that returnis a right identityfor (>>=):
+-- file: ch14/MonadLaws.hs
+m >>= return === m
+This law also has style consequences in real programs, particularly if you’re coming
+from an imperative language: there’s no need to use returnif the last action in a block
+would otherwise be returning the correct result. Let’s look at this law in donotation:
+-- file: ch14/MonadLaws.hs
+do y <- m
+return y === m
+Once again, if we assume that a monad obeys this law, we can write the shorter code
+with the knowledge that it will have the same effect as the longer code.
+The final law is concerned with associativity:
+-- file: ch14/MonadLaws.hs
+m >>= (\x -> f x >>= g) === (m >>= f) >>= g
+This law can be a little more difficult to follow, so let’s look at the contents of the
+parentheses on each side of the equation. We can rewrite the expression on the left as
+follows:
+-- file: ch14/MonadLaws.hs
+m >>= s
+where s x = f x >>= g
+
+On the right, we can also rearrange things:
+-- file: ch14/MonadLaws.hs
+t >>= g
+where t = m >>= f
+We’re now claiming that the following two expressions are equivalent:
+-- file: ch14/MonadLaws.hs
+m >>= s === t >>= g
+This means that if we want to break up an action into smaller pieces, it doesn’t matter
+which subactions we hoist out to make new actions, provided we preserve their order-
+ing. If we have three actions chained together, we can substitute the first two and leave
+the third in place, or we can replace the second two and leave the first in place.
+Even this more complicated law has a practical consequence. In the terminology of
+software refactoring, the  extract methodtechnique is a fancy term for snipping out a
+piece of inline code, turning it into a function, and calling the function from the site of
+the snipped code. This law essentially states that this technique can be applied to mo-
+nadic Haskell code.
+We’ve now seen how each of the monad laws offers us an insight into writing better
+monadic code. The first two laws show us how to avoid any unnecessary use of
+return. The third suggests that we can safely refactor a complicated action into several
+simpler ones. We can now safely let the details fade, with the knowledge that our “do
+what I mean” intuitions won’t be violated when we use properly written monads.
+Incidentally, a Haskell compiler cannot guarantee that a monad actually follows the
+monad laws. It is the responsibility of a monad’s author to satisfy—or, preferably, prove
+to—himself that his code follows the laws.
+

@@ -1,0 +1,484 @@
+﻿论面向组合子程序设计方法（十一）-微步毂纹生
+
+论面向组合子程序设计方法 之十一 微步毂纹生
+
+http://www.blogjava.net/ajoo/articles/27846.html
+
+最近。age0提出了一个OO设计的问题。因为这个例子更加贴近生活，是我们老百姓所喜闻乐见的商场折扣问题，所以我准备改铉更张用这个例子了。具体的例子请看： 
+http://forum.javaeye.com/viewtopic.php?t=17714&start=0 
+
+简要的说，需求是： 
+引用:
+有这样一家超市，对顾客实行会员制，会员目前分为两个等级：金卡及银卡。 
+每次会员购物时，都会根据会员等级提供不同的折扣优惠和返点。
+
+这个需求并不复杂。任何一个普通的java程序员都可以轻松搞定。 
+age0就给出了几个方案供大家选择。 
+
+一个大家普遍认可的方案是： 
+java代码: 
+
+// client: 
+
+string id = input_id; 
+
+Member member = Members.GetMemberByID(id); 
+
+int discount = member.GetDiscount(); 
+int point = member.GetReturnPoint(); 
+
+// service 
+
+class Members 
+{ 
+        static public Member GetMemberByID(string id) 
+        { 
+                string type = GetMemberTypeByID(id); 
+                
+                switch(type) 
+                { 
+                        case "金卡": 
+                                return new GoldenMember(); 
+                        
+                        case "银卡" 
+                                return new SilverMember(); 
+                } 
+                
+                return null; 
+        } 
+        
+        static protected string GetMemberTypeByID(id) 
+        { 
+                string type; 
+        
+                // get type by id 
+                ... 
+        
+        
+                return type;        
+        } 
+} 
+
+class Member 
+{ 
+        protected Member() 
+        { 
+        } 
+        
+        virtual public GetDiscount() 
+        { 
+                return 0; 
+        } 
+        
+        virtual public GetReturnPoint() 
+        { 
+                return 0; 
+        } 
+} 
+
+class GoldenMember 
+{ 
+        override public GetDiscount() 
+        { 
+                return 10; 
+        } 
+        
+        override public GetReturnPoint() 
+        { 
+                return 1.5; 
+        } 
+} 
+
+class SilverMember 
+{ 
+        override public GetDiscount() 
+        { 
+                return 5; 
+        } 
+        
+        override public GetReturnPoint() 
+        { 
+                return 1; 
+        } 
+} 
+
+
+也就是说，你不是说不同级别的客户有不同的折扣策略吗？策略模式啊。老子design pattern白学了？哈哈。 
+
+这个方案其实不错。简明易懂。可以轻易扩展出白金卡，钻石卡，九天十地菩萨摇头怕怕霹雳金刚雷电卡等等。 
+
+不过，age0同学开始憋坏了。他不知道跟老板进了什么谗言，老板愣插进来乱七八糟地提了一大堆新的需求。比如： 
+引用:
+对于女性会员，决定在3.8当天在原来的优惠基础上增加5个百分点的折扣
+
+所谓“始作俑者，岂无后乎？”，坏消息还不算完，总结起来，目前的需求如下： 
+引用:
+
+1. 会员等级折扣，会员等级是最重要的分类，大部分方案都会在等级上面作文章，所以单独归为一类 
+2. 条件型折扣，只有在符合特定条件下才会发生的折扣，比如前面针对女性会员节日的折扣 
+3. 货物优惠折扣，这些方案根据货物制定，举个例子：客户单独买电视或音响不会有任何折扣，一起买则会得到5%的折扣，电视+音响+DVD组合更会得到7%的折扣。 
+
+在一般情况下，这些折扣方案所产生的折扣是累加的（1+2+3），但是不排除其他可能性，例如2中可能出现的排它性条件折扣，也就是说这些折扣方案有可能会出现相对复杂的组合关系。
+
+而且，更要命的是，不知道明天age0同学会不会又给老板出什么损招。（这老板莫不是age0的小舅子？ Laughing ） 
+
+于是，早先的OO设计面对这种乱拳打死老师傅的外行老板，有些秀才遇到兵的感觉了。 
+
+在那个帖子的后面，一些高手还提出了一些OO的改进方案。不过，比我们最初看到的那个策略模式就复杂的多了。 
+
+本文里，我们还是看看CO怎么处理这种问题。 
+
+
+首先，大致分析一下我们的处境。所谓“动手的不如动嘴的”，我们上面有一个对技术狗屁不通却喜欢指手画脚的老板，还有一个让大家恨得牙痒痒的age0这个 狗头军师。这让我们对我们真正需要处理的需求茫然不知所措。老板今天说对女性优惠，明天就可能说对单身18岁以下，胸围32C以上的才给优惠（我们有着从 来不惮以最坏的恶意推测自己老板的美德），肯给老板“大功告成”的干脆白送，外带小费。（NND，开始YY自己是那个老板了Smile） 
+
+从技术上说，这些“如何折扣”完全是非常多变的需求。把这些需求写成OO，CO，AO, PO并不是关键。我们最主要的目的是把他们写在一个统一的容易更改的模块中。不管明天老板出什么新的妖蛾子，我们都在一个模块中更改或者增添新的需求。 
+
+这个模块可以用Java, groovy, ruby, xml，这些都是可以考虑的方案。 
+Quake Wang就用bean shell的脚本写了一个解决方法。 
+java代码: 
+
+
+public class BeanShellDiscountStrategy implements DiscountStrategy { 
+    public static final String DISCOUNT_BY_POINT = "if(member.point > 5) return 0.05; else return 0.02;"; 
+    public static final String DISCOUNT_BY_GENDER = "if(member.gender == 0) return 0.01; else return 0.03;"; 
+    
+    private Interpreter i = new Interpreter(); 
+    private String discountScript; 
+
+    public BeanShellDiscountStrategy(Member member, String discountScript) { 
+        this.discountScript = discountScript; 
+        try { 
+            i.set("member", member); 
+        } catch (EvalError e) { 
+            throw new RuntimeException(e); 
+        } 
+    } 
+
+    public double getDiscount() { 
+        try { 
+            return ((Double) i.eval(discountScript)).doubleValue(); 
+        } catch (EvalError e) { 
+            throw new RuntimeException(e); 
+        } 
+    } 
+
+    //getters and setters 
+    public String getDiscountScript() { 
+        return discountScript; 
+    } 
+
+    public void setDiscountScript(String discountScript) { 
+        this.discountScript = discountScript; 
+    } 
+}
+
+
+这个方法，把多变的业务逻辑转移到bean shell脚本中，一定程度地减少了工作量。我们可以用ioc，把不同的脚本注射进去来得到不同的行为。 
+
+然而，这个方法对复杂的业务逻辑并没有提供什么本质性的解决方案。它没有提供把简单的规则组合成复杂规则的方法。比如前面age0给我们提出的“排他 性”。三个规则，如果第一个成功了，就用第一个，否则顺序执行第二个，第三个，直到某一个规则成功。这种逻辑，实际上已经不是在操作具体折扣，而是在操作 规则本身。 
+
+我们希望能够写： 
+exclusive(rule1, rule2, rule3)，而不用关心rule1, rule2, rule3到底都是些什么rule。 
+
+类似的规则还有一些，比如：如果rule1返回true，才计算rule2；如果rule1返回false，才计算rule2；如果rule1的 返回值等于某个预定值，才计算rule2；只有rule1和rule2都返回true，才计算rule3；把rule1和rule2的结果加起来；把一系 列的rule的返回值起来；取rule1, rule2, rule3中返回值最大的。等等等等。这些，简单地用bean shell脚本是没用的。 
+
+
+头大了吧？嘿嘿。 
+
+其实，这是好消息呀。 
+
+我们前面分析了，老板是凶残的，斗争是残酷的，需求是不可预测的。但是，上面的这些组合，却是往往不会变的。因为老板毕竟还是人嘛，他的逻辑毕竟还是跑不出我们普通的“如果，那么”，与，或，非，加减乘除等等。 
+
+变化的，往往只是老板怎么组织这些“如果，那么”罢了。 
+
+变化的东西我们不好掌握，但是这些不变的东西还是可以啃一啃的。如果我们把这些搞定了。那么不管age0给老板出什么馊主意，我们都可以更轻松的应对。 
+
+比如： 
+java代码: 
+
+Rule single = married.not(); 
+Rule young = age < 18; 
+Rule good = breast > 32C; 
+Rule boss_likes = and(single, young, good); 
+Rule boss_pays = and(boss_likes, 大功告成able); 
+Rule paid_by_boss = boss_pays.then(120); 
+Rule big_discount = boss_likes.then(50); 
+Rule boss_afair = exclusive(paid_by_boss, big_discount); 
+
+
+
+哈，老板啊，您的代号为“选美”的折扣计划搞定了。 
+
+
+嗯。yy结束。理想是真美好啊。那么，怎么变成现实呢？熟读经典yy文学（武侠小说，比如说）的我们，一定知道被狗屎运缠身所烦恼的主角的成功方 法，那就是：夏梦————对不起，是“瞎蒙”，拼音输入给搞错了。（传说yy大师金老先生从前的yy情人就叫夏梦还是“瞎蒙”来着？小生八卦功力浅薄，也 不知是否和老先生的作品yy风格有不可说的联系？） 
+
+就是说，管你东邪吸毒多狠，管你大轮明王多拽，老子我一不用研究你的武功招式，二不用找领导给你穿小鞋，闭着眼睛，乱走一气凌波微步你也拿我没辙。咱就是运气好，你咬我？ 
+
+
+咱们下面就来当一把段呆子。把你的ipod nano耳机戴上，音乐音量放到最大，不要理老板在那唧唧歪歪，什么折扣？什么客户？俗！ 
+咱们还是研究一些伏羲六十四卦，洛神的美妙步法（或者美妙身材也行啊。哈哈）。 
+
+所谓太极生两仪，两仪生四象（不是“思想”，更不是“死相”），一个rule的基本是什么？其实很简单，不过是两条： 
+1。它是否能用？一个对大mm美女的rule不能用在如花身上。 
+2。它生成的结果。 
+
+这个rule还要知道很多facts。于是，一个Rule的接口可以这样定义： 
+
+java代码: 
+
+interface Rule{ 
+  boolean apply(RuleContext facts, Variant result); 
+}
+
+
+返回的boolean值表现这个rule是否可用。 
+那个Variant类型的result是一个placeholder，用来接收rule生成的结果。 
+RuleContext给rule提供所有需要的信息。 
+
+完了，Rule的定义就这样了。失望吧？ 
+
+下面来看看前面我们说到的那些组合： 
+ExclusiveRule用来实现排他性组合： 
+
+java代码: 
+
+class ExclusiveRule implements Rule{ 
+  private final Rule[] rules; 
+  boolean apply(RuleContext facts, Variant result){ 
+    for(Rule rule: rules){ 
+      if(rule.apply(facts, result)) 
+        return true; 
+    } 
+    return false; 
+  } 
+}
+
+
+java代码: 
+
+IfElseRule用来实现简单的if-else逻辑： 
+class IfElseRule implements Rule{ 
+  private Rule cond; 
+  private Rule consequence; 
+  private Rule alternative; 
+  boolean apply(RuleContext facts, Variant result){ 
+    if(!cond.apply(facts, result)){ 
+      return false; 
+    } 
+    if(result.getBoolean()){ 
+      return consequence.apply(facts, result); 
+    } 
+    else{ 
+      return alternative.apply(facts, result); 
+    } 
+  } 
+}
+
+
+
+NotRule用来把一个rule的bool返回值取反： 
+java代码: 
+
+class NotRule implements Rule{ 
+  private Rule rule 
+  boolean apply(RuleContext facts, Variant result){ 
+    if(!rule.apply(facts, result)) return false; 
+    result.setBoolean(!result.getBoolean()); 
+  } 
+}
+
+
+AndRule用来把两个rule的bool值进行逻辑与： 
+java代码: 
+
+class AndRule implements Rule{ 
+  private Rule rule1; 
+  private Rule rule2; 
+  boolean apply(RuleContext facts, Variant result){ 
+    if(rule1.apply(facts, result)){ 
+      if(!result.getBoolean()) 
+        return true; 
+    } 
+    if(rule2.apply(facts, result){ 
+      if(!result.getBoolean()){ 
+        return true; 
+      } 
+    } 
+    result.setBoolean(true); 
+    return true; 
+  } 
+}
+
+
+类似地，OrRule用来进行逻辑或。 
+
+其他的加减乘除，取最大值，都可以用类似的方法实现。我就不赘述了。 
+
+另外一点需要注意的，是我们实现了ifelse，但是前面所述的组合逻辑中我们只是说如果mm漂漂就如何，没有说不漂漂如何。不能简单地认为不漂漂就不给折扣，在排它性组合中，一个规则是否被应用了决定后续其它规则是否有机会被执行。 
+
+不过，我们仍然可以用ifelse来处理单纯if的情况。只需要定义一个NilRule就好了。这个Rule干脆不返回任何值，它永远都是一个不会被应用的规则（也就是说，apply()函数必然返回false） 
+java代码: 
+
+
+class NilRule implements Rule{ 
+  boolean apply(RuleContext facts, Variant result){ 
+    return false; 
+  } 
+} 
+
+
+这样，new IfElseRule(ppmm_rule, big_discount_rule, new NilRule());就是一个仅仅对ppmm有效的rule。 
+
+上面的这些Rule的基本组合实现，还是有一些重构的空间的。不过目前的实现更加简单，也足以表达CO的思想，所以，进一步的重构我就不做了。 
+
+在前面YY时，我们用了rule1.then(...), rule.not()这种东西。而现在的Rule接口只有一个apply()，要做rule.not()必须写"new NotRule(rule)"，语法上相对繁琐一些。 
+
+为此，我们可以把Rule从接口变成抽象类，把一些常见的组合子放进去，于是我们就可以有rule.not(), rule.ifelse(a,b), rule.then(a), rule.unless(b)等等更加方便干净的语法了。 
+
+呵呵，到此为止，我们的迷你规则引擎已经建设得七七八八了。之所以这么顺利，都要归功于你的ipod的音乐，它让我们可以把老板的喋喋不休抛在一边，装作就象盘古开天辟地以来就从来没有那些混账需求一样。世界清静了，我们才得以专心欣赏洛神曼妙的步履和身材。 
+
+
+学会了伏羲八卦，实现了这些可以反复重用的组合规则之后，就剩下实现具体的原子规则了。比如，取得客户性别，胸围等。 
+
+这些信息我们都假设可以从RuleContext得到。 
+
+那么，可以写一个SimpleRule来简化这些原子规则的创建： 
+
+java代码: 
+
+abstract class SimpleRule extends Rule{ 
+  boolean apply(RuleContext facts, Variant result){ 
+    result.set(run(facts)); 
+    return true; 
+  } 
+  abstract Object run(RuleContext facts); 
+}
+
+
+
+对取得性别这个原子规则，我们就可以这样写： 
+java代码: 
+
+class GenderRule extends SimpleRule{ 
+  Object run(RuleContext facts){ 
+    return facts.getGender(); 
+  } 
+} 
+
+
+这些原子规则可能不多，也可能不少。不过，总之是比把所有逻辑都实现在一起要简单多了。而且，如果使用一些脚本语言来包装这些规则的话，这些原子规则往往可以很简单地从closure中直接构造出来，不用每次单独写一个java类。 
+
+实际上，当你发现你需要在一个Rule实现里面放很多代码的时候，往往可以停下来想一想了，很有可能这个Rule本身可以有若干个小规则组合而成，不用费劲写了。 
+
+最后，让我们精彩回放段呆子凌波微步戏鸠摩智的片断（一个应用我们这个mini rule engine的测试代码）： 
+
+
+java代码: 
+
+package jfun.cre.demo.test; 
+
+
+import java.util.Calendar; 
+import java.util.Date; 
+
+import jfun.cre.Rule; 
+
+import jfun.cre.Variant; 
+import jfun.cre.demo.MyRuleContext; 
+import jfun.cre.demo.MyRules; 
+import junit.framework.TestCase; 
+
+public class SimpleTestCase extends TestCase{ 
+  private Rule getRule(){ 
+    final Rule gold_member = MyRules.discountByMember("gold", 0.1); 
+    final Rule silver_member = MyRules.discountByMember("silver", 0.05); 
+    final Rule platinum_member = MyRules.discountByMember("platinum", 0.2); 
+    final Rule by_member = MyRules.any(new Rule[]{platinum_member, 
+        gold_member, silver_member}); 
+    
+    
+    
+    final Rule is_female = MyRules.isGender("female"); 
+    final Rule is_female_day = MyRules.isMonth(Calendar.MARCH) 
+        .and(MyRules.isDay(8)); 
+    final Rule female_discount = is_female.and(is_female_day) 
+        .then(MyRules.discount(0.05)); 
+    
+    
+    
+    final Rule tvspeaker = MyRules.purchased(new String[]{"tv","speaker"}) 
+        .then(MyRules.discount(0.05)); 
+    final Rule tvspeakerdvd = MyRules.purchased(new String[]{"tv","speaker","dvd"}) 
+        .then(MyRules.discount(0.07)); 
+    final Rule by_purchase = MyRules.any(new Rule[]{tvspeakerdvd, tvspeaker}); 
+    
+    final Rule final_discount = MyRules.productDouble(new Rule[]{ 
+      by_member, female_discount, by_purchase 
+    }); 
+    return final_discount; 
+  } 
+  public void test1(){ 
+    final MyRuleContext mrc = new MyRuleContext(); 
+    final Variant result = new Variant(); 
+    assertTrue(getRule().apply(mrc, result)); 
+    assertEquals(0.837, result.getDouble()); 
+  } 
+  public void test2(){ 
+    final MyRuleContext mrc = new MyRuleContext(){ 
+      public Date getNow(){ 
+        Calendar cal = getCalendar(); 
+        cal.setTime(super.getNow()); 
+        cal.set(Calendar.MONTH, Calendar.MARCH); 
+        cal.set(Calendar.DAY_OF_MONTH, 8); 
+        return cal.getTime(); 
+      } 
+    }; 
+    final Variant result = new Variant(); 
+    assertTrue(getRule().apply(mrc, result)); 
+    assertEquals(0.837*0.95d, result.getDouble()); 
+  } 
+}
+以上是直接用java来使用这个库。更爽一点的，是用脚本语言做一个dsl出来，我用jaskell做了一个，长成这个样子：
+
+我刚刚完成了用jaskell给我的这个rule combinator包装的外壳，结果程序如下： 
+jaskell代码: 
+
+
+final_discount where 
+  Calendar = jaskell.java.import "java.util.Calendar"; 
+  isMonth m = eq(m, cre.datepart "MONTH"); 
+  isDay d = eq(d, cre.datepart "DAY_OF_MONTH"); 
+  purchase ctxt = ctxt.getPurchasedProducts[]; 
+  purchased product = do {products=purchase} $ 
+    products.contains[product]; 
+  purchased_all products = cre.and(jaskell.prelude.map purchased products); 
+  discount d = return (1-d); 
+  cardtype ctxt = ctxt.getCardType[]; 
+  gender ctxt = ctxt.getGender[]; 
+  discountByMember type v = (eq type cardtype).then (discount v); 
+  gold_member = discountByMember "gold" 0.1; 
+  silver_member = discountByMember "silver" 0.05; 
+  platinum_member = discountByMember "platinum" 0.2; 
+  by_member = cre.any[platinum_member, gold_member, silver_member]; 
+  is_female = eq "female" gender; 
+  is_female_day = cre.and[isMonth(Calendar.MARCH), isDay 8]; 
+  female_discount = discount 0.05 `when cre.and[is_female, is_female_day]; 
+  tvspeaker = discount 0.05 `when purchased_all["tv", "speaker"]; 
+  tvspeakerdvd = discount 0.07 `when purchased_all["tv", "speaker", "dvd"]; 
+  by_purchase = cre.any[tvspeakerdvd, tvspeaker]; 
+  final_discount = cre.fold (*) 1 [by_member, female_discount, by_purchase]; 
+end
+
+
+
+那个"do{product=purchased} $"对应的就是"do product<-purchased"。 
+
+这个Rulet库的api文档可以在这里看到：
+
+Rulet API
+
+在这里下载：
+
+doownload from codehaus
+发表于 2006-01-13 06:06 AJOO
+

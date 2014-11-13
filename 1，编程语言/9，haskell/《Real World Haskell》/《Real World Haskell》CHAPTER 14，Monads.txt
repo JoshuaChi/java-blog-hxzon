@@ -1,0 +1,439 @@
+﻿《Real World Haskell》CHAPTER 14，Monads
+
+
+In Chapter 7, we talked about the IOmonad, but we intentionally kept the discussion
+narrowly focused on how to communicate with the outside world. We didn’t discuss
+what a monad is.
+We’ve already seen in Chapter 7 that the IOmonad is easy to work with. Notational
+differences aside, writing code in the IOmonad isn’t much different from coding in any
+other imperative language.
+When we had practical problems to solve in earlier chapters, we introduced structures
+that, as we will soon see, are actually monads. We aim to show you that a monad is
+often an obviousand usefultool to help solve a problem. We’ll define a few monads in
+this chapter, to show how easy it is.
+Revisiting Earlier Code Examples
+Maybe Chaining
+Let’s take another look at the parseP5function that we wrote in Chapter 10:
+-- file: ch10/PNM.hs
+matchHeader :: L.ByteString -> L.ByteString -> Maybe L.ByteString
+-- "nat" here is short for "natural number"
+getNat :: L.ByteString -> Maybe (Int, L.ByteString)
+getBytes :: Int -> L.ByteString
+-> Maybe (L.ByteString, L.ByteString)
+parseP5 s =
+case matchHeader (L8.pack "P5") s of
+Nothing -> Nothing
+Just s1 ->
+case getNat s1 of
+Nothing -> Nothing
+Just (width, s2) ->
+
+case getNat (L8.dropWhile isSpace s2) of
+Nothing -> Nothing
+Just (height, s3) ->
+case getNat (L8.dropWhile isSpace s3) of
+Nothing -> Nothing
+Just (maxGrey, s4)
+| maxGrey > 255 -> Nothing
+| otherwise ->
+case getBytes 1 s4 of
+Nothing -> Nothing
+Just (_, s5) ->
+case getBytes (width * height) s5 of
+Nothing -> Nothing
+Just (bitmap, s6) ->
+Just (Greymap width height maxGrey bitmap, s6)
+When we introduced this function, it threatened to march off the right side of the page
+if it got much more complicated. We brought the staircasing under control using the
+(>>?)function:
+-- file: ch10/PNM.hs
+(>>?) :: Maybe a -> (a -> Maybe b) -> Maybe b
+Nothing >>? _ = Nothing
+Just v >>? f = f v
+We carefully chose the type of (>>?)to let us chain together functions that return a
+Maybevalue. So long as the result type of one function matches the parameter of the
+next, we can chain functions returning Maybetogether indefinitely. The body of (>>?)
+hides the details of whether the chain of functions we build is short-circuited some-where, due to one returning Nothing, or whenever it is completely evaluated.
+Implicit State
+Useful as (>>?)was for cleaning up the structure of parseP5, we had to incrementally
+consume pieces of a string as we parsed it. This forced us to pass the current value of
+the string down our chain of Maybes, wrapped up in a tuple. Each function in the chain
+put a result into one element of the tuple and the unconsumed remainder of the string
+into the other:
+-- file: ch10/PNM.hs
+parseP5_take2 :: L.ByteString -> Maybe (Greymap, L.ByteString)
+parseP5_take2 s =
+matchHeader (L8.pack "P5") s >>?
+\s -> skipSpace ((), s) >>?
+(getNat . snd) >>?
+skipSpace >>?
+\(width, s) -> getNat s >>?
+skipSpace >>?
+\(height, s) -> getNat s >>?
+\(maxGrey, s) -> getBytes 1 s >>?
+(getBytes (width * height) . snd) >>?
+\(bitmap, s) -> Just (Greymap width height maxGrey bitmap, s)
+
+skipSpace :: (a, L.ByteString) -> Maybe (a, L.ByteString)
+skipSpace (a, s) = Just (a, L8.dropWhile isSpace s)
+Once again, we were faced with a pattern of repeated behavior: consume some string,
+return a result, and return the remaining string for the next function to consume. How-ever, this pattern was more insidious. If we wanted to pass another piece of information
+down the chain, we’d have to modify nearly every element of the chain, turning each
+two-tuple into a three-tuple!
+We addressed this by moving the responsibility for managing the current piece of string
+out of the individual functions in the chain, and into the function that we used to chain
+them together:
+-- file: ch10/Parse.hs
+(==>) :: Parse a -> (a -> Parse b) -> Parse b
+firstParser ==> secondParser = Parse chainedParser
+where chainedParser initState =
+case runParse firstParser initState of
+Left errMessage ->
+Left errMessage
+Right (firstResult, newState) ->
+runParse (secondParser firstResult) newState
+We also hid the details of the parsing state in the ParseStatetype. Even the getState
+and  putStatefunctions don’t inspect the parsing state, so any modification to
+ParseStatewill have no effect on any existing code.
+Looking for Shared Patterns
+When we look at the preceding examples in detail, they don’t seem to have much in
+common. Obviously, they’re both concerned with chaining functions together and
+hiding details to let us write tidier code. However, let’s take a step back and consider
+them in lessdetail.
+First, let’s look at the type definitions:
+-- file: ch14/Maybe.hs
+data Maybe a = Nothing
+| Just a
+-- file: ch10/Parse.hs
+newtype Parse a = Parse {
+runParse :: ParseState -> Either String (a, ParseState)
+}
+The common feature of these two types is that each has a single type parameter on the
+left of the definition, which appears somewhere on the right. These are thus generic
+types, which know nothing about their payloads.
+
+Next, we’ll examine the chaining functions that we wrote for the two types:
+ghci> :type (>>?)
+(>>?) :: Maybe a -> (a -> Maybe b) -> Maybe b
+ghci> :type (==>)
+(==>) :: Parse a -> (a -> Parse b) -> Parse b
+These functions have strikingly similar types. If we were to turn those type constructors
+into a type variable, we’d end up with a single more abstract type:
+-- file: ch14/Maybe.hs
+chain :: m a -> (a -> m b) -> m b
+Finally, in each case, we have a function that takes a “plain” value and “injects” it into
+the target type. For  Maybe, this function is simply the value constructor  Just, but the
+injector for Parseis more complicated:
+-- file: ch10/Parse.hs
+identity :: a -> Parse a
+identity a = Parse (\s -> Right (a, s))
+Again, it’s not the details or complexity that we’re interested in, it’s the fact that each
+of these types has an “injector” function, which looks like this:
+-- file: ch14/Maybe.hs
+inject :: a -> m a
+It is  exactlythese three properties, and a few rules about how we can use them together,
+that define a monad in Haskell. Let’s revisit the preceding list in condensed form:
+• A type constructor m.
+• A function of type  m a -> (a -> m b) -> m bfor chaining the output of one function
+into the input of another.
+• A function of type a -> m afor injecting a normal value into the chain, that is, it
+wraps a type awith the type constructor m.
+The properties that make the Maybetype a monad are its type constructor Maybe a, our
+chaining function (>>?), and the injector function Just.
+For Parse, the corresponding properties are the type constructor Parse a, the chaining
+function (==>), and the injector function identity.
+We intentionally have said nothing about how the chaining and injection functions of
+a monad should behave, because this almost doesn’t matter. In fact, monads are
+ubiquitous in Haskell code precisely because they are so simple. Many common pro-
+gramming patterns have a monadic structure: passing around implicit data or short-
+circuiting a chain of evaluations if one fails, to choose but two.
+
+========
+The Monad Typeclass
+We can capture the notions of chaining and injection, and the types that we want them
+to have, in a Haskell typeclass. The standard Preludealready defines just such a type-
+class, named Monad:
+-- file: ch14/Maybe.hs
+class Monad m where
+-- chain
+(>>=) :: m a -> (a -> m b) -> m b
+-- inject
+return :: a -> m a
+Here, (>>=)is our chaining function. We’ve already been introduced to it in “Sequenc-
+ing” on page 186. It’s often referred to as  bind, as it binds the result of the computation
+on the left to the parameter of the one on the right.
+Our injection function is return. As we noted in “The True Nature of Return” on page
+187, the choice of the name returnis a little unfortunate. That name is widely used in
+imperative languages, where it has a fairly well-understood meaning. In Haskell, its
+behavior is much less constrained. In particular, calling returnin the middle of a chain
+of functions won’t cause the chain to exit early. A useful way to link its behavior to its
+name is that it returnsa pure value (of type a) into a monad (of type m a). But really,
+“inject” would be a better name.
+While (>>=)and  returnare the core functions of the  Monadtypeclass, it also defines two
+other functions. The first is (>>). Like  (>>=), it performs chaining, but it ignores the
+value on the left:
+-- file: ch14/Maybe.hs
+(>>) :: m a -> m b -> m b
+a >> f = a >>= \_ -> f
+We use this function when we want to perform actions in a certain order, but don’t
+care what the result of one is. This might seem pointless: why would we not care what
+a function’s return value is? Recall, though, that we defined a  (==>&)combinator earlier
+to express exactly this. Alternatively, consider a function such as  print, which provides
+a placeholder result that we do not need to inspect:
+ghci> :type print "foo"
+print "foo" :: IO ()
+If we use plain (>>=), we have to provide, as its righthand side, a function that ignores
+its argument:
+ghci> print "foo" >>= \_ -> print "bar"
+"foo"
+"bar"
+
+But if we use (>>), we can omit the needless function:
+ghci> print "baz" >> print "quux"
+"baz"
+"quux"
+As we just showed, the default implementation of (>>)is defined in terms of (>>=).
+The second noncore  Monadfunction is  fail, which takes an error message and does
+something to make the chain of functions fail:
+-- file: ch14/Maybe.hs
+fail :: String -> m a
+fail = error
+Beware of fail
+Many  Monadinstances don’t override the default implementation of
+failthat we show here, so in those monads,  failuses error. Calling
+erroris usually highly undesirable, since it throws an exception that
+callers either cannot catch or will not expect.
+Even if you know that right now you’re executing in a monad that has
+faildo something more sensible, we still recommend avoiding it. It’s
+far too easy to cause yourself a problem later when you refactor your
+code and forget that a previously safe use of failmight be dangerous in
+its new context.
+To revisit the parser that we developed in Chapter 10, here is its Monadinstance:
+-- file: ch10/Parse.hs
+instance Monad Parse where
+return = identity
+(>>=) = (==>)
+fail = bail
+And Now, a Jargon Moment
+There are a few terms of art around monads that you may not be familiar with. These
+aren’t formal, but they’re commonly used, so it’s helpful to know about them:
+• Monadicsimply means “pertaining to monads.” A monadic typeis an instance of
+the Monadtypeclass; a monadic valuehas a monadic type.
+• When we say that a type “is a monad,” this is really a shorthand way of saying that
+it’s an instance of the Monadtypeclass. Being an instance of Monadgives us the nec-
+essary monadic triple of type constructor, injection function, and chaining
+function.
+• In the same way, a reference to “the Foomonad” implies that we’re talking about
+the type named Fooand that it’s an instance of Monad.
+
+• An  actionis another name for a monadic value. This use of the word probably
+originated with the introduction of monads for I/O, where a monadic value such
+as  print "foo"can have an observable side effect. A function with a monadic return
+type might also be referred to as an action, though this is a little less common.
+Using a New Monad: Show Your Work!
+In our introduction to monads, we showed how some preexisting code was already
+monadic in form. Now that we are beginning to grasp what a monad is and have seen
+the  Monadtypeclass, let’s build a monad with foreknowledge of what we’re doing. We’ll
+start out by defining its interface, and then we’ll put it to use. Once we have those out
+of the way, we’ll finally build it.
+Pure Haskell code is wonderfully clean to write, but, of course, it can’t perform I/O.
+Sometimes, we’d like to have a record of decisions we made, without writing log
+information to a file. Let’s develop a small library to help with this.
+Recall the globToRegexfunction that we developed in “Translating a glob Pattern into
+a Regular Expression” on page 202. We will modify it so that it keeps a record of each
+of the special pattern sequences that it translates. We are revisiting familiar territory
+for a reason: it lets us compare nonmonadic and monadic versions of the same code.
+To start off, we’ll wrap our result type with a Loggertype constructor:
+-- file: ch14/Logger.hs
+globToRegex :: String -> Logger String
+Information Hiding
+We’ll intentionally keep the internals of the Loggermodule abstract:
+-- file: ch14/Logger.hs
+module Logger
+(
+Logger
+, Log
+, runLogger
+, record
+) where
+Hiding the details like this has two benefits: it grants us considerable flexibility in how
+we implement our monad, and more importantly, it gives users a simple interface.
+Our Loggertype is purely a  typeconstructor. We don’t export the  valueconstructor
+that a user would need to create a value of this type. All they can use  Loggerfor is writing
+type signatures.
+The  Logtype is just a synonym for a list of strings, to make a few signatures more
+readable. We use a list of strings to keep the implementation simple:
+
+-- file: ch14/Logger.hs
+type Log = [String]
+Instead of giving our users a value constructor, we provide them with a function,
+runLogger, that evaluates a logged action. This returns both the result of an action and
+whatever was logged while the result was being computed:
+-- file: ch14/Logger.hs
+runLogger :: Logger a -> (a, Log)
+Controlled Escape
+The  Monadtypeclass doesn’t provide any means for values to escape their monadic
+shackles. We can inject a value into a monad using  return. We can extract a value from
+a monad using (>>=)but the function on the right, which can see an unwrapped value,
+has to wrap its own result back up again.
+Most monads have one or more runLogger-like functions. The notable exception is of
+course IO, which we usually escape from simply by exiting a program.
+A monad execution function runs the code inside the monad and unwraps its result.
+Such functions are usually the only means provided for a value to escape from its mo-
+nadic wrapper. The author of a monad thus has complete control over how whatever
+happens inside the monad gets out.
+Some monads have several execution functions. In our case, we can imagine a few
+alternatives to  runLogger: one might return only the log messages, whereas another
+might return just the result and drop the log messages.
+Leaving a Trace
+When executing inside a Loggeraction, the user code calls recordto record something:
+-- file: ch14/Logger.hs
+record :: String -> Logger ()
+Since recording occurs in the plumbing of our monad, our action’s result supplies no
+information.
+Usually, a monad will provide one or more helper functions such as our record. These
+are our means for accessing the special behaviors of that monad.
+Our module also defines the Monadinstance for the Loggertype. These definitions are
+all that a client module needs in order to be able to use this monad.
+Here is a preview, in ghci, of how our monad will behave:
+ghci> let simple = return True :: Logger Bool
+ghci> runLogger simple
+(True,[])
+
+When we run the logged action using runLogger, we get back a pair. The first element
+is the result of our code; the second is the list of items logged while the action executed.
+We haven’t logged anything, so the list is empty. Let’s fix that:
+ghci> runLogger (record "hi mom!" >> return 3.1337)
+(3.1337,["hi mom!"])
+Using the Logger Monad
+Here’s how we kick off our glob-to-regexp conversion inside the Loggermonad:
+-- file: ch14/Logger.hs
+globToRegex cs =
+globToRegex' cs >>= \ds ->
+return ('^':ds)
+There are a few coding style issues worth mentioning here. The body of the function
+starts on the line after its name. This gives us some horizontal whitespace. We’ve also
+“hung” the parameter of the anonymous function at the end of the line. This is common
+practice in monadic code.
+Remember the type of (>>=): it extracts the value on the left from its Loggerwrapper,
+and passes the unwrapped value to the function on the right. The function on the right
+must, in turn, wrap itsresult with the  Loggerwrapper. This is exactly what returndoes.
+It takes a pure value, and wraps it in the monad’s type constructor:
+ghci> :type (>>=)
+(>>=) :: (Monad m) => m a -> (a -> m b) -> m b
+ghci> :type (globToRegex "" >>=)
+(globToRegex "" >>=) :: (String -> Logger b) -> Logger b
+Even when we write a function that does almost nothing, we must call returnto wrap
+the result with the correct type:
+-- file: ch14/Logger.hs
+globToRegex' :: String -> Logger String
+globToRegex' "" = return "$"
+When we call recordto save a log entry, we use (>>)instead of (>>=)to chain it with
+the following action:
+-- file: ch14/Logger.hs
+globToRegex' ('?':cs) =
+record "any" >>
+globToRegex' cs >>= \ds ->
+return ('.':ds)
+Recall that this is a variant of (>>=)that ignores the result on the left. We know that
+the result of recordwill always be (), so there’s no point in capturing it.
+We can use donotation, which we first encountered in “Sequencing” on page 186, to
+tidy up our code somewhat:
+
+-- file: ch14/Logger.hs
+globToRegex' ('*':cs) = do
+record "kleene star"
+ds <- globToRegex' cs
+return (".*" ++ ds)
+The choice of donotation versus explicit (>>=)with anonymous functions is mostly a
+matter of taste, although almost everyone’s taste is to use  donotation for anything
+longer than about two lines. There is one significant difference between the two styles,
+though, which we’ll return to in “Desugaring of do Blocks” on page 344.
+Parsing a character class mostly follows the same pattern that we’ve already seen:
+-- file: ch14/Logger.hs
+globToRegex' ('[':'!':c:cs) =
+record "character class, negative" >>
+charClass cs >>= \ds ->
+return ("[^" ++ c : ds)
+globToRegex' ('[':c:cs) =
+record "character class" >>
+charClass cs >>= \ds ->
+return ("[" ++ c : ds)
+globToRegex' ('[':_) =
+fail "unterminated character class"
+Mixing Pure and Monadic Code
+Based on the code we’ve seen so far, monads seem to have a substantial shortcoming:
+the type constructor that wraps a monadic value makes it tricky to use a normal, pure
+function on a value trapped inside a monadic wrapper. Here’s a simple illustration of
+the apparent problem. Let’s say we have a trivial piece of code that runs in the Logger
+monad and returns a string:
+ghci> let m = return "foo" :: Logger String
+If we want to find out the length of that string, we can’t simply call length. The string
+is wrapped, so the types don’t match up:
+ghci> length m
+<interactive>:1:7:
+Couldn't match expected type `[a]'
+against inferred type `Logger String'
+In the first argument of `length', namely `m'
+In the expression: length m
+In the definition of `it': it = length m
+So far, to work around this, we’ve something like the following:
+ghci> :type m >>= \s -> return (length s)
+m >>= \s -> return (length s) :: Logger Int
+We use (>>=)to unwrap the string, and then write a small anonymous function that
+calls lengthand rewraps the result using return.
+
+This need crops up often in Haskell code. You won’t be surprised to learn that a short-
+hand already exists: we use the  liftingtechnique that we introduced for functors in
+“Introducing Functors” on page 244. Lifting a pure function into a functor usually
+involves unwrapping the value inside the functor, calling the function on it, and re-
+wrapping the result with the same constructor.
+We do exactly the same thing with a monad. Because the Monadtypeclass already pro-
+vides the (>>=)and returnfunctions that know how to unwrap and wrap a value, the
+liftMfunction doesn’t need to know any details of a monad’s implementation:
+-- file: ch14/Logger.hs
+liftM :: (Monad m) => (a -> b) -> m a -> m b
+liftM f m = m >>= \i ->
+return (f i)
+When we declare a type to be an instance of the Functortypeclass, we have to write our
+own version of fmapspecially tailored to that type. By contrast, liftMdoesn’t need to
+know anything of a monad’s internals, because they’re abstracted by  (>>=)and
+return. We need to write it only once, with the appropriate type constraint.
+The liftMfunction is predefined for us in the standard Control.Monadmodule.
+To see how liftMcan help readability, we’ll compare two otherwise identical pieces of
+code. First, we’ll look at the familiar kind that does not use liftM:
+-- file: ch14/Logger.hs
+charClass_wordy (']':cs) =
+globToRegex' cs >>= \ds ->
+return (']':ds)
+charClass_wordy (c:cs) =
+charClass_wordy cs >>= \ds ->
+return (c:ds)
+Now we can eliminate the (>>=)and anonymous function cruft with liftM:
+-- file: ch14/Logger.hs
+charClass (']':cs) = (']':) `liftM` globToRegex' cs
+charClass (c:cs) = (c:) `liftM` charClass cs
+As with fmap, we often use liftMin infix form. An easy way to read such an expression
+is “apply the pure function on the left to the result of the monadic action on the right.”
+The liftMfunction is so useful that  Control.Monaddefines several variants, which com-
+bine longer chains of actions. We can see one in the last clause of our  globToRegex'
+function:
+-- file: ch14/Logger.hs
+globToRegex' (c:cs) = liftM2 (++) (escape c) (globToRegex' cs)
+escape :: Char -> Logger String
+escape c
+| c `elem` regexChars = record "escape" >> return ['\\',c]
+| otherwise = return [c]
+where regexChars = "\\+()^$.{}]|"
+
+The liftM2function that we use here is defined as follows:
+-- file: ch14/Logger.hs
+liftM2 :: (Monad m) => (a -> b -> c) -> m a -> m b -> m c
+liftM2 f m1 m2 =
+m1 >>= \a ->
+m2 >>= \b ->
+return (f a b)
+It executes the first action, then the second, and then combines their results using the
+pure function  f, and wraps that result. In addition to  liftM2, the variants in
+Control.Monadgo up to liftM5.
+

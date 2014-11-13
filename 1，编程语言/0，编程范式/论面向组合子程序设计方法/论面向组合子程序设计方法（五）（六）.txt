@@ -1,0 +1,400 @@
+﻿论面向组合子程序设计方法（五）（六）
+
+论面向组合子程序设计方法 之五 新约
+
+http://www.blogjava.net/ajoo/articles/27842.html
+
+每个小孩刚开始走路的时候都是跌跌撞撞的。 
+我们不自量力，妄图踩着上帝的步伐前进。结果就是这么几个简单的象白开水似的类。失望吗？是不是造物试图模仿造物主本身就是一种可笑的狂妄呢？ 
+
+别急，让我们失声痛哭之前先看看我们这几步走的是不是一钱不值。 
+
+1。logger可以把信息打印到log文件中。
+
+容易，直接创建一个WriterLogger就好了。 
+
+2。不同的重要程度的信息也许可以打印到不同的文件中？象websphere，有error.log, info.log等。 
+如果这样，那么什么重要程度的信息进入error.log，什么进入warning.log，什么进入info.log也需要决定。
+
+不同的文件吗？好办啊。就是不同的PrintWriter对象了。 
+java代码: 
+
+Logger err_log = writer(err_writer); 
+Logger warning_log = writer(warning_writer); 
+Logger info_log = writer(info_writer);
+
+
+
+各个文件记录不同重要程度的信息是么？ 
+java代码: 
+
+err_log = filter(ERROR, err_log, nop()); 
+warning_log = filter(WARNING, warning_log, nop()); 
+info_log = filter(INFO, info_log, nop());
+
+
+最终把三个不同的logger串联起来就是了： 
+java代码: 
+
+Logger logger = sequence(err_log, warning_log, info_log);
+
+
+
+
+3。也许可以象ant一样把所有的信息都打印到一个文件中。 
+
+这就更简单了，就一个是WriterLogger。 
+
+
+4。每条logging信息是否要同时打印当前的系统时间？也是一个需要抉择的问题。 
+
+拿不定主意是么？没关系，想好了再告诉我。 
+反正，如果你需要系统时间，我只需要 
+java代码: 
+
+
+logger = timestamp(logger);
+
+
+
+
+
+
+5。不仅仅是log文件，我们还希望能够在标准错误输出上直接看见错误，普通的信息可以打印到log文件中，对错误信息，我们希望log文件和标准输出上都有。 
+
+可以创建针对标准输出的Logger，然后和打印log 文件的logger串联起来。 
+java代码: 
+
+
+Logger std_logger = writer(new PrintWriter(System.err)); 
+std_logger = ignore(ERROR, std_logger); 
+logger = sequence(std_logger, logger); 
+
+
+
+
+
+
+6。标准输出上的东西只要通知我们出错了就行，大概不需要详细的stack trace，所以exception stack trace可以打印到文件中，而屏幕上有个简短的exception的message就够了。 
+
+这里需要对std_logger稍微改写一下： 
+java代码: 
+
+PrintWriter out = new PrintWriter(System.err); 
+std_logger = new ErrorMessageLogger(out, writer(out)); 
+std_logger = ignore(ERROR, std_logger, nop()); 
+
+
+用ErrorMessageLogger来改写对异常的log逻辑。 
+
+
+
+7。warning似乎也应该输出到屏幕上。 
+
+好啊。就是把ignore函数里面的ERROR换成WARNING就好了 
+java代码: 
+
+std_logger = ignore(WARNING, std_logger, nop());
+
+
+
+
+8。不管文件里面是否要打印当前系统时间，屏幕上应该可以选择不要打印时间。 
+
+对std_logger不掉用timestamp就是了。 
+
+9。客户应该可以通过命令行来决定log文件的名字。 
+
+这条和logger组合子其实没什么关系。 
+
+10。客户可以通过命令行来决定log的细节程度，比如，我们只关心info一样级别的信息，至于debug, verbose的信息，对不起，不要打印。 
+
+生成那个最终使用的Logger对象的时候，再ignore一下就行了： 
+
+java代码: 
+
+logger = ignore(some_level, logger, nop());
+
+
+
+
+11。neptune生成的是一些Command对象，这些对象运行的时候如果出现exception，这些exception会带有execution trace，这个execution trace可以告诉我们每个调用栈上的Command对象在原始的neptune文件中的位置（行号）。 
+这种exception叫做NeptuneException，它有一个printExecutionTrace(PrintWriter)的方法来打印execution trace。 
+所以，对应NeptuneException，我们就不仅仅是printStackTrace()了，而是要在printStackTrace()之前调用printExecutionTrace()。 
+
+NeptuneExceptionLogger就是给这个准备的呀。 
+
+12。neptune使用的是jaskell语言，如果jaskell脚本运行失败，一个EvaluationException会被抛出，这个 类有一个printEvaluationTrace(PrintWriter)的方法来打印evaluation trace，这个trace用来告诉我们每个jaskell的表达式在脚本文件中的位置。 
+所以，对应EvaluationException，我们要在printStackTrace()之前，调用printEvaluationTrace()。 
+
+JaskellExceptionLogger 
+
+
+13。execution trace和evaluation trace应该被打印到屏幕上和log文件两个地方。 
+
+这就是说，上面两个Logger应该被应用到std_logger和logger两个对象中。 
+
+
+14。因为printExecutionTrace()和printEvaluationTrace()本身已经打印了这个异常的getMessage()，所以，对这两种异常，我们就不再象对待其它种类的异常那样在屏幕上打印getMessage()了，以免重复。 
+
+就是说，一旦一个exception被发现是NeptuneException，那么ErrorMessageLogger就要被跳过了。 
+java代码: 
+
+    final Logger err_logger = new ErrorMessageLogger(writer); 
+    final Logger jaskell_logger = new JaskellExceptionLogger(writer, err_logger); 
+    final Logger neptune_logger = new NeptuneExceptionLogger(writer, jaskell_logger); 
+    return neptune_logger;
+
+
+这个neptune_logger先判断异常是不是NeptuneException，如果是，直接处理，否则，传递给 jaskell_logger。jaskell_logger继续判断，如果不是它感兴趣的，再传递给ErrorMessageLogger来做最后的缺 省处理。 
+
+
+15。也许还有一些暂时没有想到的需求， 比如不是写入log文件，而是画个图之类的变态要求。 
+
+放马过来吧。看我们的组合子能不能对付。 
+
+
+很惊讶地发现，就这么几个小儿科似的积木，就似乎全部解决了曾让我们烦恼的这些需求？ 
+
+为了给大家一个完整的印象，下面是我实际项目中使用这些组合子应对上面这些需求的代码： 
+java代码: 
+
+public class StreamLogger { 
+  private final OutputStream out; 
+  
+  /** 
+   * To create a StreamLogger object. 
+   * @param out the OutputStream object that the log message should go to. 
+   */ 
+  public StreamLogger(OutputStream out) { 
+    this.out = out; 
+  } 
+  
+  /** 
+   * To get the OutputStream that the log messages should go to. 
+   */ 
+  public OutputStream getStream() { 
+    return out; 
+  } 
+  private static Logger getBaseLogger(PrintWriter writer){ 
+    final Logger nop = new NopLogger(); 
+    final Logger base = Loggers.logger(writer); 
+    final Logger neptune_logger = new NeptuneExceptionLogger(writer, nop); 
+    final Logger jaskell_logger = new JaskellExceptionLogger(writer, nop); 
+    return Loggers.sequence( 
+        new Logger[]{neptune_logger, jaskell_logger, base} 
+    ); 
+  } 
+  private static Logger getEchoLogger(PrintWriter writer){ 
+    return new ErrorMessageLogger(writer); 
+  } 
+  private static Logger getErrorLogger(PrintWriter writer){ 
+    final Logger err_logger = new ErrorMessageLogger(writer); 
+    final Logger jaskell_logger = new JaskellExceptionLogger(writer, err_logger); 
+    final Logger neptune_logger = new NeptuneExceptionLogger(writer, jaskell_logger); 
+    return neptune_logger; 
+  } 
+  /** 
+   * Get the Logger instance. 
+   * @param min_level the minimal critical level for a log message to show up in the log. 
+   * @return the Logger instance. 
+   */ 
+  public Logger getDefaultLogger(int min_level){ 
+    final PrintWriter writer = new PrintWriter(out, true); 
+    final PrintWriter err = new PrintWriter(System.err, true); 
+    final PrintWriter warn = new PrintWriter(System.out, true); 
+    final Logger all = Loggers.sequence(new Logger[]{ 
+        Loggers.ignore(getErrorLogger(err), Logger.ERROR), 
+        Loggers.filter(getEchoLogger(warn), Logger.WARNING), 
+        getBaseLogger(writer) 
+      } 
+    ); 
+    return Loggers.ignore(all, min_level); 
+  } 
+}
+
+
+
+为了偷懒，我没有用配置文件，就是把这些策略硬编码进java了。好在上面的代码非常declarative，改起来也很容易。 
+
+没习惯读代码的朋友。这里奉劝还是读一读吧。很多时候，代码才是说明问题的最好手段。我相信，只有读了代码，你才能真正尝到CO的味道。 
+
+
+有朋友问，你这个东西和decorator pattern有什么区别呀？乍看上去，还真是长得差不多呢。不都是往现有的某个对象上面附加一些功能吗？ 
+也许是把。我不知道象SequenceLogger这种接受一个数组的，是否也叫做对数组的decorator；也不知道IgnoreLogger接受了两个Logger对象，这个decorator究竟是修饰谁的呢？ 
+
+其实，叫什么名字无所谓。我这里要讲的，是一种从基本粒子推演组合的思路。形式上它也许碰巧象decorator, 象ioc。但是正如workinghard所说（这句话深得我心），思路的切入点不同。 
+
+如果你仔细看上面的代码，也许你会有所感觉：对Logger的千奇百怪的组合本身已经有点象一个程序代码了。 
+如果用伪码表示： 
+
+java代码: 
+
+  all_logger = ignore messages below ERROR for getErrorLogger(err); 
+          filter messages except WARNING for getEchoLogger(warn); 
+          baseBaseLogger(writer); 
+  ignore messages below lvl for all_logger;
+
+
+当组合子越来越多，需求越来越复杂，这个组合就会越来越象个程序。 
+
+这里，实际上，（至少我希望如此），我们的思维已经从打印什么什么东西上升为在Logger这个级别的组装了。 
+
+这也就是所谓higher order logic的意思。 
+
+
+所谓combinator-oriented，在这里，就体现为系统性地在高阶逻辑的层面上考虑问题，而不是如decorator那样的零敲碎打的几个功能模块。 
+大量的需求逻辑被以声明式的方式在高阶逻辑中实现，而基本的组合子只负责实现原字操作。 
+
+
+当然，缺点也是明显的，对此我不讳言： 
+
+高阶逻辑不容易调试，当我们使用一个组合了十几层的复杂的Logger对象的时候（真正用了co这种情况不少见），一旦出现bug，跟踪的时候我们就会发现象是陷入了一个迷宫，从一个组合子跟踪进入另一个组合子，绕来绕去。 
+
+另外，异常的stack trace也无法反映组合层次关系，造成错误定位麻烦。
+
+
+
+这也许不是co本身的问题，而是因为java这种oo语言对co没有提供语言上的支持。但是无论如何，这对在java中大规模使用co造成了障碍。 
+
+也许你还无法理解。平时我们在java中用那么几个decorator，本身非常简单，所以debug, trace都不是问题。可是，一旦oriented起来，情况就不同了。街上有两辆车和成千上万辆车，对交通造成的压力截然不同。 
+
+
+还有朋友，对co如何把握有疑问。难道co就是瞎猫碰死耗子么？ 
+
+其实，无论co还是oo，对设计者都是有一定要求的。 
+oo要求你了解需求，并且经验丰富，也要有一点点运气。 
+co也要求经验，这个经验是设计组合子系统的经验。什么样的组合子是好的？怎么才算是足够简单？什么组合规则是合理的？等等，这些，也有规律可循，就像oo的各种模式一样。同时，也可以refactor。毕竟，怎么简单地想问题比怎么分解复杂问题可能还是要容易掌握一点。 
+
+不过，co对经验的要求稍微小一点，但是对数学和逻辑的基本功要求则多了一点。有了一些数学和逻辑方面的基本功，那么设计组合子就会轻松的多。 
+
+co也要有一点点运气。所以遇到你怎么想也想不明白的情况，就别死抗啦，也许这个问题就抽象不出组合子来，或者以我们普通人的智慧抽象不出来。 
+
+
+
+co是银弹吗？当然不是，至少以我的功力没有这种自信。 
+遇到复杂的问题我也是先分解需求，面向接口的。只有问题的规模被控制在了一定的范围，我才会试图用co来解决问题。靠着对co的一些经验和感觉，一旦发现了可以组合子化的概念，成果会非常显著。 
+
+
+而且，co和oo关注的层面也不同。co是针对一个单独的概念（这点倒有点象ao），一点一点演绎，构成一个可以任意复杂的系统，一个好的co也 会大大减少需要引入的概念数。而oo是处理大量互相或者有联系，或者没有联系的概念，研究怎么样把一个看上去复杂的系统的复杂度控制住。所以两者并不是互 相排斥的。自顶向下，自底向上，也许还是两手一起抓更好些。 
+
+这段时间应用co做了几个软件后，感觉co最擅长的领域是： 
+问题域有比较少的概念，概念简明清晰（比如logger, predicate, factory，command），但是对概念的实现要求非常灵活的场合。 
+这种时候，用oo就有无处下嘴之感。毕竟概念已经分解了，职责也清楚，就是怎么提供一个可以灵活适应变化的体系，而对这个，oo并没有提供一个方法论。基本上就是用po的方法吭哧吭哧硬做。而co此时就可以大展用武之地。弥补这个空隙。 
+
+
+
+看过圣经的，也许有感觉，旧约里面的上帝严厉，经典，就像是一个纯粹的fp语言，每个程序员都被迫按照函数式，组合子的方式思考问题，你感觉困难？那是你不够虔诚。你们人不合我的心意，我淹死你们！ 
+
+
+而新约里面，明显添加了很多人情味儿。上帝通过自己的儿子和人们和解了。既然淹死一波，再来一波还是这样，那么是不是说大家应该各让一步呢？ 
+co和oo，既然各自都不能宣称自己就是银弹，那么为什么不能拉起手来呢？我们不是神，不可能真正按照神的方式用基本粒子组合演化世界，所以就别 象清教徒一样苦苦追求不可能的目标了。但是，上帝的组合之道毕竟相当巧妙，在有些时候荆棘里面出现火焰的时候，我们又何必固执地拒绝造物主的好意呢？礼貌 地说一声：“谢了！老大”。不是皆大欢喜？ 
+
+
+这一节我们继续讲解了这个logging的例子。实际上，logging是一个非常简单的组合子，下面如果大家对这个例子有疑问，我会尽力解答。 
+
+然后，我们会进军下一个例子。
+发表于 2006-01-13 05:52 AJOO
+
+论面向组合子程序设计方法 之六 oracle
+
+http://www.blogjava.net/ajoo/articles/27843.html
+
+不少朋友说我的阐述很苍白无力。这让我很苦恼。我确实是拚了命地想把问题说清楚，我也有实际non-trivial的项目经验，怎么就说不明白呢？哎！ 
+
+所以，还是不能不多罗嗦一下，希望能够再阐述得明白一点。 
+
+
+其实，所谓co，有心的朋友也许能够感觉到，它很象是设计一门语言。 
+它有顺序/分支，有函数调用，异常处理，基本上一个程序设计语言有的东西它都有了。这些顺序/分支作为语言的基础设施，而一些应对具体需求的原子操作，（比如WriterLogger，比如NeptuneExceptionLogger）则可以看作是语言的扩展或者库。 
+
+只不过，c/c++/java是有编译器来把源代码转化成目标代码。而co的组合子则是利用了宿主语言（比如java）本身的能力来实现各个组合子的语义。可以说，co是在设计一门语言中的语言。 
+
+
+最近这段时间，流行过一阵LOP（language oriented programming），就是用domain-specific-language来处理一些特定的domain需求。 
+为什么会有这种说法呢？还是因为domain的需求多变灵活，不容易琢磨，所以人们发现用一个灵活的语言比用一些功能相对死板的库更容易对付。 
+但是dsl的实现不是那么容易的。而co是不是可以说给我们提供了一个相对廉价的创建自己的domain specific language的途径呢? 
+我们虽然不能说 
+java代码: 
+
+if level > 1 then logger1 else logger2
+
+
+至少可以退而求其次，写出 
+java代码: 
+
+ignore(1, logger1, logger2);
+
+
+
+
+
+
+
+当然，这种子语言相比于宿主语言，缺乏调试器的帮助，缺乏编译器的优化，缺乏各种ide的支持，可用性程度是大大不如的。 
+
+但是，它也有它的好处，那就是，不用额外进行一次编译；写出来的东西和宿主语言无缝集成；可以自动利用宿主语言里面的一切设施。等等。 
+
+那么如果把co作为一个语言来考虑，是不是会给我们一些别的启示呢？ 
+
+oz曾经质疑，所谓的co，怎样决定基本的组合子？怎么样才知道组合子够用了？ 
+
+那么，设计语言的时候，怎么设计基本的语言设施？怎么样知道这个设施是不足，还是太多呢？ 
+这是个大话题，语言设计非常有争议性和主观性。但是，也仍然是有些共性的。比如，几乎所有的语言都支持顺序，if/else，递归/循环，函数定义等。相当多我们熟悉的语言还支持异常处理，字符串，整数等。 
+
+我们难道不能从这里借鉴一些东西？如果我们把基本的nop, 顺序，分支作为启动co的基本要求，这算不算是一个可以遵循的guidline呢？ 
+
+另外，不同的语言，根据它所面向的领域，还有一些不同的内建操作，比如perl，面向文本处理，所以内建了regexp，而c/c++因为直接面对机器硬件模型，所以提供了指针。 
+那么，根据我们的组合子所要面对的应用类型，我们也可以预先定义一些内建的原始组合子，比如那个WriterLogger。 
+
+
+一般来说，对general purpose的语言，设计的基础设施都是非常”基础“的，基础到几乎不会有什么设施是多余的。同时，也基础到一般人都可以没有什么困难地掌握基本的语法语义。 
+那么这些语言用这么有限的聊聊几个设施怎么对应它不可能预见的各种现实中的需求呢？ 
+
+我们平时对可以用简单的if-else，顺序，循环就可以做几乎任何我们能想到的事情感到惊讶了吗？对某个语言能否处理复杂的需求担忧了吗？ 
+
+为什么没有呢？就在于”组合“的威力。就是那么几个简单的设施，组合起来却可以具有巨大的力量。 
+
+同样，在设计组合子的时候，如果我们遵循这些共性，同时在和具体需求磨合的时候积极改进组合子本身，应该就可以达到一个可以满意的组合子系统。 
+
+
+说到这里，可能有人问：你不是说组合子系统是脱离需求自己发展的吗？ 
+
+
+这个，怎么说呢？还是说语言。设计一个语言，原则上是设计一些和具体需求没有耦合的基础设施，然后让写具体应用的人组合这些基础设施达到我们语言设计者不可能都预见到的某些具体效果。 
+但是，在语言设计和逐渐发展过程中，仍然会从用户（就是程序员）那里得到反馈，什么样的需求是他们需要的，什么样的设施不好用，然后设计者再进行改进。 
+
+一个语言，一般不会是某个具体需求通过划分责任，自顶向下的设计，最后作为这个需求的附属模块被开发出来。更多的情况，是语言的设计者对可能面对的需求有 一个大致了解，并且知道这种可能的需求是变化的，不确定的，于是才会从基本设施开始设计这个语言，最后交付给开发具体应用的人来使用。 
+
+
+组合子系统也遵循一样的规律。组合子的设计需要来自具体需求的灵感和纠正。但是，基本组合子本身却不能耦合于这些具体需求。 
+组合子的设计者应该对可能面对的需求有大致的了解，但是并不需要完整地预测这种多变的需求。 
+
+
+当然，组合子这种语言中的语言，还有不容易理解的弱点。当组合层次增多，逻辑变得复杂，这个复杂的组合子可不象写在一般的程序设计语言里面的代码那样简明，java繁琐的语法让这种语言中的语言对一些程序员也许就象是神庙里面的神谕一样难以理解，甚至让人望而生畏。 
+
+这一半是因为java本身没有提供对这种高阶逻辑的直接支持，组合的语法相对繁琐。如果用haskell，使用语言提供的do-notation，形式上的复杂程度就没了。 
+
+另一方面，高阶逻辑都是有这种弱点的。 
+其实，就算是oo，相比于po，它的多态也是降低可理解性的。 
+
+因此，就象我们也不能在oo中到处override虚函数一样，组合子的使用也要有一定的度，过犹不及。 
+
+
+
+好了，没有实际例子的论述已经太长了。肯定已经有人昏昏欲睡了。 
+
+
+做个调查，我下面的例子有几个选择： 
+
+1。简单的predicate。就是一个具有bool is(Object v);方法的接口。 
+2。ant的FileSelector。一个predicate的变体。 
+3。swing提到的jdbc的action。负责数据库操作的组合子。 
+4。yan container的component。负责从任意的构造函数，工厂方法，java bean以及它们的任意组合来产生和注射组件。比pico/spring灵活很多。 
+5。neptune的command，负责调用任何ant task以及其它的可能返回一个java对象的函数。是一个一般化了的ant task。
+
+
+
+这些东西都是基于组合子的。大家觉得对哪一个更有兴趣呢？我有些拿不定主意哪个更合适。
+发表于 2006-01-13 05:54 AJOO
+

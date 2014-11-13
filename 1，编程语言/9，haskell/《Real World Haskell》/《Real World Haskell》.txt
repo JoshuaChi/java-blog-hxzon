@@ -1,5 +1,4 @@
-﻿Real World Haskell
-Code You Can Believe In
+﻿《Real World Haskell：Code You Can Believe In》
 By Bryan O'Sullivan, John Goerzen, Donald Bruce Stewart
 Publisher: O'Reilly Media
 Released: November 2008

@@ -1,0 +1,289 @@
+﻿论面向组合子程序设计方法（十）-还是重构
+论面向组合子程序设计方法 之十 还是重构
+
+http://www.blogjava.net/ajoo/articles/27845.html
+
+已经有点感觉用ioc container来说明co不见得是个好主意了。 
+这个container的例子举出来，明显提出意见的人比那个简单的logging例子少了很多。 
+毕竟连pico是怎么回事，怎么用，很多人都还不见得了了。更不提多少人对pico的用法就是一个很in的fancy factory。买椟还珠。 
+
+
+
+不过，既然开始了，让我还是有始有终吧。 
+
+
+这章还是让我们看看co的refactor。 
+
+其实，很多人问：怎样把握co里面的基本组合子的度；什么样的组合子算是基本；怎样做到正交；多少的基本组合子才算够用；怎么知道这个组合子会被用到等等。 
+
+
+其实，答案都来自重构。 
+
+没有谁一下子就作对的。co比起oo，我感觉在设计上反而更容易避免过度设计。 
+
+为什么？ 
+
+设计oo的时候，你要分析需求，设计各个模块的通信接口，这个过程，同样需要经验，同样需要摸索，同样没有一踀而就的捷径。 
+
+但是，oo设计的时候又要避免过度，一些时候，在是否通过接口预留灵活性，提取容易变化的部分，或者是尽量简单之间，还是有冲突的。你需要做一个艰难的猜测和抉择。 
+而一旦抉择作出，以后如果发现事情进展不如所愿，那么改动接口的代价相当的大。 
+
+
+而如果使用co，在设计简单的各个组合子的时候，你会以一种非常渐进式的方式来发现：哦，原来的组合子设计不够正交，有这个地方可以抽出来，好，抽出来，把波及到的几个组合子的设计修改一下。 
+
+因为组合子都非常简单，这个变化的波及范围一般来说相当小。 
+
+
+好，空话少说，我们还是看具体例子。 
+
+
+现在，我们发现，除了withArgument, withProperty，我们还希望更灵活地设置参数，比如，我们希望说： 
+对组件X的各个参数，类型为A的，选取以"a1"标识的组件作为参数值，其它的按照缺省方式。 
+对组件Y的各个参数，类型为A的，选取以"a2"标识的组件为参数值，其它的按照缺省方式。
+
+
+
+这个需求有几个点： 
+1。需要能够通过key来直接指定某个某个组件，相当于一个"ref"。 
+2。需要对参数配置有除了按照参数位置之外的更灵活的配置（比如，按照参数类型）。
+
+
+
+对第一点，我们制作以下的组合子来对应。（看，我们是可以随着需求虽然丰富我们的基本组合子的集合的） 
+我们期望做一个UseKey组合子，它可以从容器里面取得另外一个用某个key标识的组件，然后把一切动作都delegate过去。 
+
+java代码: 
+
+class UseKey extends Component{ 
+  private final Object key; 
+  public Object create(Dependency dep){ 
+    //????????? 
+  } 
+  .... 
+}
+
+
+
+
+可是，一开始写代码，就发现，这个代码写不下去！我们需要得到这个容器，才能从这个容器里面取得那个要delegate的组件。可是这个可爱容器对象在哪里呀？ 
+
+仔细分析下来，发现，没有办法。唯一的办法是修改Dependency接口，让它除了帮助解析参数和property之外，再提供给我们当前容器的信息。 
+
+Dependency接口变为： 
+
+
+java代码: 
+
+interface Dependency{ 
+  Object getArgument(int i, Class type); 
+  Object getProperty(Object key, Class type); 
+  Container getContainer(); 
+}
+
+
+
+
+Wow！要改接口了！其实，这一点也不可怕。为什么？ 
+
+co还有另外一个优点我们一直没有提及：细节封装。这个封装不是一般OO意义上的封装，而是说：把要实现的接口细节封装起来，让客户通过预定义好的组合方式来扩展，而不是象oo那样让用户实现实现这个接口来扩展。 
+
+其实，如果用户使用的都是Component对象，而创建Component对象都是通过： 
+java代码: 
+
+Container.getInstance(Object key); 
+
+
+这种方式，那么，Dependency这个接口已经实际上沦为我们的内部实现细节了。用户根本不需要知道存在这么一个接口。 
+实际上，当我们的组合子足够丰富之后，完全可以把Dependency接口隐藏在包内部，彻底地对用户屏蔽这个接口。 
+如此，客户的扩展完全通过组合Component对象，而不是实现Component接口并且调用Dependency接口。 
+不管这个Dependency接口是如何设计的，如何变化，我们都可以把变化隔离在我们包内部，而不会影响用户。 
+
+好吧。现在假设我们修改了Dependency接口，那么UseKey可以被写为： 
+
+java代码: 
+
+class UseKey extends Component{ 
+  private final Object key; 
+  public Object create(Dependency dep){ 
+     final Component c = dep.getContainer().getComponent(key); 
+     if(c==null)throw new ComponentNotFoundException(...); 
+     return c.create(dep); 
+  } 
+  .... 
+}
+
+
+
+
+然后，更灵活的参数配置。对这个，我们可以借鉴bind操作，做一个对参数的bind。 
+
+
+java代码: 
+
+interface ParameterBinder{ 
+  Component bind(int i, Class type); 
+} 
+
+
+
+不知道你从Binder接口和ParameterBinder接口看出点什么没有？ 
+1。Binder, ParameterBinder接口都是给用户去实现的。 
+2。这两个接口都不暴露Component的细节，它们的参数和返回值都不涉及Component的接口签名，客户在实现这两个接口的时候，完全不必关心象Dependency接口这种细节。 
+3。返回值都是Component，这样，所有的Component组合子都可以被自由使用。 
+
+实际上，monad组合子就是通过这种方式来在高阶逻辑的层次上隐藏底层细节。 
+
+
+
+java代码: 
+
+class ParameterBoundDependency implements Dependency{ 
+  private final Dependency dep; 
+  private final ParameterBinder binder; 
+  public Object getArgument(int i, Class type){ 
+    return binder.bind(i, type).create(dep); 
+  } 
+  ... 
+}
+
+
+java代码: 
+
+ParameterBoundComponent extends Component{ 
+  private final Component c; 
+  private final ParameterBinder binder; 
+  public Object create(Dependency dep){ 
+    return c.create(new ParameterBoundDependency(dep, binder)); 
+  } 
+  ... 
+}
+
+
+用ParameterBinder来做一个Dependency的decorator，问题得到了解决。 
+
+
+然后我们来使用ParameterBoundComponent，为了书写简便，我们假设Component类有一个函数叫做bind (ParameterBinder binder)。另外Components类有一个useKey(Object key)函数来生成一个Component对象，用来指向容器内的另外一个组件。 
+
+于是，上面的需求被实现为： 
+
+java代码: 
+
+Component x = ...; 
+Component x2 = x.bind(new ParameterBinder(){ 
+  public Component bind(int i, Class type){ 
+    if(type.equals(A.class)){ 
+      return Components.useKey("a1"); 
+    } 
+    else{ 
+      //???? 行1 
+    } 
+  } 
+});
+
+
+这个x2组件，就是为了实现“当参数类型为A，使用a1，否则使用缺省方式”。 
+可是，在行1处，再次遇到了障碍。这个所谓的“缺省方式”，怎么表示？ 
+。 
+
+经过思考，我们决定实现一个useArgument(int i, Class type)这样一个组合子，这个组合子可以主动在当前的Dependency对象中选择某个参数作为自己的值。这样，上面的行1就可以写作： 
+java代码: 
+
+Component x = ...; 
+Component x2 = x.bind(new ParameterBinder(){ 
+  public Component bind(int i, Class type){ 
+    if(type.equals(A.class)){ 
+      return Components.useKey("a1"); 
+    } 
+    else{ 
+      return Components.useArgument(i, type);// 行1 
+    } 
+  } 
+});
+
+
+
+下面来实现一个UseArgument类： 
+
+java代码: 
+
+
+class UseArgument extends Component{ 
+  private final int i; 
+  private final Class type; 
+  public Object create(Dependency dep){ 
+    return dep.getArgument(i, type); 
+  } 
+  ..... 
+}
+
+
+
+哈。完美。一切仍然尽在掌握。 
+我们可以以几乎任何方式来customizer组件的参数和property。 
+
+实际上，如果我们回头看看，甚至可以发现，withArgument(int i, Class type)完全可以用bind(ParameterBinder)来重写： 
+java代码: 
+
+
+Component withArgument(Component c, final int i, final Component arg){ 
+  return c.bind(new ParameterBinder(){ 
+    public Component bind(int k, Class type){ 
+      if(k==i) return arg; 
+      else return Components.useArgument(k, type); 
+    } 
+  }); 
+}
+
+
+
+我们很开心地看到，原来的WithArgument类，WithProperty类都可以扫进垃圾箱了。我们只需要实现更加简单的ParameterBinder接口就可以搞定一切。哈。 
+
+
+同时，希望你也看到了隐藏这些具体的WithArgument，ValueComponent类，而用静态工厂函数withArgument(), value()来代替的好处： 
+我们可以自由地重构。当发现某个组合子本身并非最简单，而是可以从一些更简单的组合子推演出来，我们只需要改动这些静态工厂函数，而不必告诉用 户：对不起，我的设计改了，不想要WithArgument类了，你能不能改改你的那段new WithArgument(...)的代码？ 
+
+
+co让用户只关注接口，而不要管某个功能是直接实现的，还是组合出来的。静态工厂函数提供了对这个细节的封装。 
+
+
+另外一个也许会比较常见的需求，是用一个数组来一次性指定某个组件的所有参数，比如： 
+
+java代码: 
+
+c.withArguments(new Component[]{c1, c2, c3});
+
+
+
+这个功能用bind非常非常好实现： 
+
+java代码: 
+
+Component withArguments(final Component[] args){ 
+  return bind(new ParameterBinder(){ 
+    public Component bind(int i, Class type){ 
+      return args[i]; 
+    } 
+  }); 
+}
+
+
+
+当然，你还可以举一反三地提出很多其它的定制参数和property的方法。 
+
+
+好了。今天就到这里。在结束前，我来先提出两个新的需求： 
+1。希望对一些用到Logger对象的类注射Logger实例，而这个Logger实例需要用这个使用Logger对象的类对象来创建，这样，这个Logger对象可以静态地知道谁在使用它，而不必每次都构造一个异常来取得StackTrace。 
+比如， 
+java代码: 
+
+new ClassX(..., Loggers.instance(ClassX.class), ...);
+
+
+怎样在容器级别全局地规定这个规则呢？我们不知道哪些组件需要注射Logger，也不知道这些组件在哪个参数注射Logger对象。 
+
+2。怎样提供缺省参数？这样，如果某个参数的需要可以在容器中解析，则拥这个解析出来的实例，否则，使用一个缺省组件。 
+
+在下一节，我们会通过这两个例子来继续解释co的重构过程。	
+
+发表于 2006-01-13 05:57 AJOO
+
