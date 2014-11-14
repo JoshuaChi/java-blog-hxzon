@@ -1,16 +1,19 @@
 ﻿《实用common lisp编程》第20章，特殊操作符（续）
 
-CHAPTER 20 The Special Operators . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 245
-Controlling Evaluation. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 245
-Manipulating the Lexical Environment. . . . . . . . . . . . . . . . . . . . . . . . . . . 246
-Local Flow of Control. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 248
-Unwinding the Stack. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 252
-Multiple Values. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 256
-EVAL-WHEN. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 258
-Other Special Operators. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 260
+Controlling Evaluation
+Manipulating the Lexical Environment
+Local Flow of Control
+Unwinding the Stack
 
-==========
+==
 Multiple Values
+EVAL-WHEN
+Other Special Operators
+
+========
+Multiple Values
+多值
+
 Another feature of Common Lisp that I’ve mentioned in passing—in Chapter 11, when I discussed 
 GETHASH—is the ability for a single formto return multiple values. I’ll discuss it in greater detail 
 now. It is, however, slightly misplaced in a chapter on special operators since the ability to 
@@ -42,8 +45,8 @@ like the mechanism for passing arguments into functions is. Almost all language 
 that return the value of some subform will “pass through” multiple values, returning all the 
 values returned by the subform. Thus, a function that returns the result of calling VALUESor 
 VALUES-LISTwill itself return multiple values—andso will another function whose result 
-comes from calling the first function. And so on.
-11
+comes from calling the first function. And so on.【11】
+
 But when a form is evaluated in a value position, only the primary value will be used, 
 which is why the previous addition form works the way you’d expect. The special operator 
 MULTIPLE-VALUE-CALLprovides the mechanism for getting your hands on the multiple values 
@@ -70,7 +73,7 @@ CL-USER> (multiple-value-list (values 1 2))
 CL-USER> (values-list (multiple-value-list (values 1 2)))
 1
 2
-11. A small handful of macros don’t pass through extra return values of the forms they evaluate. In 
+【11】. A small handful of macros don’t pass through extra return values of the forms they evaluate. In 
 particular, the PROG1macro, which evaluates a number of forms like a PROGNbefore returning the 
 value of the first form, returns that form’s primary value only. Likewise, PROG2, which returns the 
 value of the second of its subforms, returns only the primary value. The special operator 
@@ -94,13 +97,17 @@ CL-USER> *x*
 1
 CL-USER> *y*
 23/34
+
+========
 EVAL-WHEN
+
 A special operator you’ll need to understand in order towrite certain kinds of macros is 
 EVAL-WHEN. For some reason, Lisp books often treat EVAL-WHENas a wizards-only topic. But the 
 only prerequisite to understanding EVAL-WHENis an understanding of how the two functions 
 LOADand COMPILE-FILEinteract. And understanding EVAL-WHENwill be important as you start 
 writing certain kinds of more sophisticated macros, such as the ones you’ll write in Chapters 24 
 and 31.
+
 I’ve touched briefly on the relation between LOADand COMPILE-FILEin previous chapters, 
 but it’s worth reviewing again here. The job of LOADis to load a file and evaluate all the top-level 
 forms it contains. The job of COMPILE-FILEis to compile a source file into a FASL file, which 
@@ -108,11 +115,11 @@ can then be loaded with LOADsuch that (load "foo.lisp")and (load "foo.fasl")are 
 Because LOADevaluates each form before reading the next, the side effects of evaluating 
 forms earlier in the file can affect how forms later in the form are read and evaluated. For 
 instance, evaluating an IN-PACKAGEform changes the value of *PACKAGE*, which will affect the 
-way subsequent forms are read.12
-Similarly, a DEFMACROform early in a file can define a macro 
-that can then be used by code later in the file.
-13
-12. The reason loading a file with an IN-PACKAGEform in it has no effect on the value of *PACKAGE*
+way subsequent forms are read.【12】
+Similarly, a DEFMACRO form early in a file can define a macro 
+that can then be used by code later in the file.【13】
+
+【12】 The reason loading a file with an IN-PACKAGEform in it has no effect on the value of *PACKAGE*
 after LOADreturns is because LOADbinds *PACKAGE*to its current value before doing anything 
 else. In other words, something equivalent to the following LETis wrapped around the rest of the 
 code in LOAD:
@@ -120,7 +127,8 @@ code in LOAD:
 Any assignment to *PACKAGE*will be to the new binding, and the old binding will be restored 
 when LOADreturns. It also binds the variable *READTABLE*, which I haven’t discussed, in the 
 same way.
-13. In some implementations, you may beable to get away with evaluating DEFUNs that use undefined 
+
+【13】 In some implementations, you may beable to get away with evaluating DEFUNs that use undefined 
 macros in the function body as long as the macros are defined before the function is actually 
 called. But that works, if at all, only when LOADing the definitions from source, not when compiling 
 with COMPILE-FILE, so in general macro definitions mustbe evaluated before they’re used.
@@ -148,13 +156,14 @@ is, roughly speaking, one that will be compiled intocode that will be run when t
 Thus, all forms that appear directly at the top level of a source file are compiled as top-level 
 forms. Similarly, any forms appearing directly in a top-level PROGNare compiled as top-level forms 
 since the PROGNitself doesn’t doanything—it just groups together its subforms, which will be 
-run when the FASL is loaded.
-14
+run when the FASL is loaded.【14】
+
 Similarly, forms appearing directly in a MACROLETor 
 SYMBOL-MACROLETare compiled as top-level forms because after the compiler has expanded 
 the local macros or symbol macros, there will be no remnant of the MACROLETor 
 SYMBOL-MACROLETin the compiled code. Finally, the expansion of a top-level macro 
 form will be compiled as a top-level form.
+
 Thus, a DEFUNappearing at the top level of a source file is a top-level form—the code that 
 defines the function and associates it with its name will run when the FASL is loaded—but the 
 forms within the body of the function, which won’t run until the function is called, aren’t toplevel forms. Most forms are compiled the same when compiled as top-level and non-top-level 
@@ -164,7 +173,8 @@ EVAL-WHENcompiled as a top-level form. When :compile-toplevelis present, the fil
 will evaluate the subformsat compile time. When :load-toplevelis present, it will compile the 
 subforms as top-level forms. If neither of these situations is present in a top-level EVAL-WHEN, 
 the compiler ignores it.
-14. By contrast, the subforms in a top-level LETaren’t compiled as top-level forms because they’re 
+
+【14】 By contrast, the subforms in a top-level LETaren’t compiled as top-level forms because they’re 
 not run directly when the FASL is loaded. They will run, but it’s in the runtime context of the 
 bindings established by the LET. Theoretically, a LETthat binds no variables could be treated like 
 a PROGN, but it’s not—the forms appearing in a LETare never treated as top-level forms.
@@ -181,6 +191,7 @@ when loading from sourceby expanding into an EVAL-WHENlike the following:
 *PACKAGE*will be set at compile time because of the :compile-toplevelsituation, set 
 when the FASL is loaded because of :load-toplevel, and set when the source is loaded because 
 of the :execute.
+
 There are two ways you’re most likely to use EVAL-WHEN. One is if you want to write macros 
 that need to save some information at compile time to be used when generating the expansion 
 of other macro forms in the same file. This typically arises with definitional macros where a 
@@ -196,20 +207,24 @@ in an EVAL-WHENwith :compile-toplevel, the definitions will be available when th
 expansion function runs. You’ll probably want to include :load-topleveland :executeas well 
 since the macros will also need the function definitions after the file is compiled and loaded or 
 if you load the source instead of compiling.
+
+========
 Other Special Operators
+
 The four remaining special operators, LOCALLY, THE, LOAD-TIME-VALUE, and PROGV, all allow 
 you to get at parts of the underlying language that can’t be accessed any other way. LOCALLY
 and THEare part of Common Lisp’s declaration system, which is used to communicate things 
 to the compiler that don’t affect the meaning of your code but that may help the compiler 
-generate better code—faster, clearer error messages, and so on.
-15
-I’ll discuss declarations 
-briefly in Chapter 32.
+generate better code—faster, clearer error messages, and so on.【15】
+
+I’ll discuss declarations briefly in Chapter 32.
+
 The other two, LOAD-TIME-VALUEand PROGV, are infrequently used, and explaining the 
 reason why you might ever wantto use them would take longer than explaining what they do. 
 So I’ll just tell you what they do so you know they’re there. Someday you’ll hit on one of those 
 rare times when they’re just the thing, and then you’ll be ready.
-15. The one declaration that has an effect on the semantics of a program is the SPECIALdeclaration 
+
+【15】 The one declaration that has an effect on the semantics of a program is the SPECIALdeclaration 
 mentioned in Chapter 6.
 
 LOAD-TIME-VALUEis used, as its name suggests, to create a value that’s determined at load 
@@ -219,6 +234,7 @@ LOAD-TIME-VALUEform to refer to that value. In other words, instead of writing t
 (defvar *loaded-at* (get-universal-time))
 (defun when-loaded () *loaded-at*)
 you can write the following:
+
 (defun when-loaded () (load-time-value (get-universal-time)))
 In code not processed by COMPILE-FILE, LOAD-TIME-VALUEis evaluated once when the 
 code is compiled, which may be when you explicitly compile a function with COMPILEor earlier 
@@ -237,3 +253,4 @@ And that’s it for special operators. In the next chapter, I’ll get back to h
 topics and show you how to use Common Lisp’s package system to take control of your 
 namespaces so you can write libraries and applications that can coexist without stomping on 
 each other’s names.
+

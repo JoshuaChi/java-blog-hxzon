@@ -161,10 +161,10 @@ return-from用来从块结构中提前返回。
 ---
 3.2，tagbody 和 go ，一种相当底层的goto结构。
 
-tagbody含有一系列标记和形式。（即标记必须出现在tagbody的最顶层。）
-形式按顺序求值，而标记则被忽略。
+tagbody含有一系列”标签“和形式。（即”标签“必须出现在tagbody的最顶层。）
+形式按顺序求值，而标签则被忽略。
 整个tagbody返回nil。
-go立即跳转到任何标记上，求值过程将从紧跟着该标记的那个形式开始继续执行。
+go立即跳转到任何标签上，求值过程将从紧跟着该标签的那个形式开始继续执行。
 
 很少使用tagbody，因为使用已有的循环宏更方便。
 但是，在将其他语言的算法转译成common lisp时很有用。
@@ -246,10 +246,10 @@ and go back to step S2.
 ----
 4.1，block，tagbody
 
-可以正常使用block和tagbody来管理单一函数内的控制流，
+可以正常使用 block 和 tagbody 来管理单一函数内的控制流，
 但也可以将它们与闭包一起使用，
 可以强制从栈底部的函数立即非本地返回。
-因为block名字和tagbody标记可以被block或tagbody词法作用域之内的任何代码所闭合。
+因为 block 的名字和 tagbody 的标签，都可以被 block 或 tagbody 词法作用域之内的任何代码所闭合。
 
 (defun foo ()
   (format t "Entering foo~%")
@@ -291,7 +291,7 @@ NIL
 
 没有办法让块外的语句从该块上返回，除非通过调用一个在block的词法作用域内部封装的闭包。
 
-block名字和tagbody标记在某个重要方面与“词法变量绑定”不同。
+block名字和tagbody标签在某个重要方面与“词法变量绑定”不同。
 词法绑定具有无限时效，这意味着在绑定形式返回后，绑定也可以保持效果。
 而block和tagbody具有动态时效，只有当block和tagbody在栈上时，
 才能通过return-from回到一个block，或者通过go回到一个tagbody标记上。

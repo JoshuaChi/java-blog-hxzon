@@ -26,7 +26,7 @@ Continuation 就是一个表达式被求值之后，接下来要做的事情。
 温馨提示：接下来的内容可能会让你的大脑感到不适，建议先阅读这篇文章。
 
 ====
-I. 非本地退出
+I. 非本地退出（hxzon：已理解）
 
 Non-local exit，翻译成中文即“非本地退出”。
 非本地退出是初学 continuation 很好的例子，因为它逻辑简单，并且体现了 continuation 的三个特性，：
@@ -49,7 +49,7 @@ continuation is represented by procedure，也就是说可以视 continuation �
   (call/cc 
    (lambda (return) 
      (for-each (lambda (element)
-                 (test element return)
+                 (test element return)        ;hxzon：调用续延，导致call/cc立即返回
                  (printf "~a~%" element)) ; print
                lst)
      #f)))
@@ -75,7 +75,7 @@ continuation is represented by procedure，也就是说可以视 continuation �
 跳到了 cc 定义的 continuation，怎么知道这个 continuation 是什么呢？
 分析一下它的值被用来做什么了。
 由于 search-zero 的整个函数体都被 call/cc 包起来了，所以 call/cc 的返回值刚好就是 search-zero 的返回值，
-而这个值接下来被用来执行的操作就是输出到屏幕 —— 这就是 cc 的内容，
+而这个值接下来被用来执行的操作就是“输出到屏幕” —— 这就是 cc 的内容，
 test 利用 cc 令 search-zero 中的 call/cc 返回 'found-zero，随后这个结果被输出到了屏幕上。
 
 实际上还没完，R5RS描述道，“ The continuation represents an entire (default) future for the computation”。
@@ -85,23 +85,26 @@ search-zero 是在顶层被调用的，所以 cc 还包括“提示下一个输�
 也就是说， cc 中包含着一个无限的操作 —— 一时难以理解是吧，但事实就是如此，哈哈哈。
 
 ====
+生成器（hxzon：已理解）
+
 再看一个生成器，它接收一个列表作为参数，每次被调用的时候就返回一个元素，有点像 python 的 yield：
 
 (define (generate-one-element-at-a-time lst)
+
   ;; Hand the next item from a-list to "return" or an end-of-list marker
-  (define (control-state return)
+  (define (control-state return)     ;hxzon：定义函数 control-state，它被call//cc调用，所以return是“续延1”
     (for-each 
      (lambda (element)
        (call/cc
-        (lambda (resume-here)
+        (lambda (resume-here)        ;hxzon：resume-here是“续延2”
           ;; Grab the current continuation
-          (set! control-state resume-here) ;; !!!
+          (set! control-state resume-here) ;; !!!        ;hxzon：control-state变成了”续延2“
           (return element))))
-     lst)
-    (return 'end))
+     lst)        ;hxzon：(for-each lfn lst)
+    (return 'end))        ;hxzon：for-each执行完后，返回'end
 
-  (define (generator)
-    (call/cc control-state)) 
+  (define (generator)        ;hxzon：定义函数generator
+    (call/cc control-state))         ;hxzon：为了非本地退出。control-state是续延。
 
   ;; Return the generator 
   generator)
@@ -109,7 +112,7 @@ search-zero 是在顶层被调用的，所以 cc 还包括“提示下一个输�
 (define generate-digit
   (generate-one-element-at-a-time '(0 1 2)))
 
-> (generate-digit)
+> (generate-digit)       ;hxzon：？应该只是返回generator，并没有调用，为何会执行？
 0
 > (generate-digit)
 1
@@ -165,23 +168,25 @@ x 明明是个 continuation，怎么变成10了？？
 
 我曾经被这几个“奇怪的现象”困扰了好一阵子。但是想清楚 get-cc 的不透明性及其缘由就明白了。
 实际上，经过 define 之后， x 获得了一个 continuation，这个 continuation 是什么呢？
-……是获取一个值，然后绑定到 x —— 恰好就是 define 所做的事情。
+……是获取一个值，然后绑定到 x —— 恰好就是 define 所做的事情。（hxzon：注意）
 所以再以10为参数调用 x 的时候， continuation 把10绑定到 x，x 又被绑定了一次，就变成数字10了。
 但是直接对 (get-cc) apply 10的时候，却提示错误，
 这是因为这个 (get-cc) 接下来被用来当成函数调用了，所以给它传一个10之后，这个10就被当做函数执行，显然这是不对的。
 
 get-cc 是个神奇的函数，就是获取它这个位置上的 continuation， 
-(get-cc) 自己被用来做了什么事，它返回的 continuation 就对别人做同样的事，以彼之道，还施彼身。
+(get-cc) 自己被用来做了什么事，它返回的 continuation 就对别人做同样的事，以彼之道，还施彼身。（hxzon：深入理解）
 
 如果你感到有点晕，别急着往下看，先消化一下。
 接下来这个表达式，你能看出它的返回值是什么吗？
+
 (let ([x (get-cc)]) (x (lambda (unused) "我擦")))
 
 也许你能马上猜到结果，但是不一定能马上明白。
 我们仍然从 (get-cc) 开始分析。
 我们看到 (get-cc) 被用来绑定到 x上，随后以 (lambda (unused) "我擦")) 为参数调用 x。
 现在开始还施彼身。
-于是，接下来 (lambda (unused) "我擦")) 也被绑定到 x 上，然后用参数 (lambda (unused) "我擦")) 调用新的 x，显然这个参数没有用上，
+于是，接下来 (lambda (unused) "我擦")) 也被绑定到 x 上，
+然后用参数 (lambda (unused) "我擦")) 调用新的 x，显然这个参数没有用上，
 所以 x 直接返回了“我擦”。真是我擦啊……
 
 ====
@@ -209,20 +214,22 @@ get-cc 是个神奇的函数，就是获取它这个位置上的 continuation，
 
 ====
 III. 移花接木
+生产者消费者（hxzon：已理解）
+
 
 这一部分只讲解一个例子，不过这个例子更绕~ V神跟我说，monad 就是给一个函数打很多个孔，然后灵活地组合，
 我觉得 continuation 也是给函数打孔，而且不同函数打的孔还可以对接起来。
 
 生产者-消费者问题是检验多任务机制的经典问题，我们可以用 continuation 模拟这个过程，即生成-消费-再生产-再消费-...
 
-(define dish #f)
+(define dish #f)     ;hxzon：盘子
 
-(define (put! fruit) (set! dish fruit))
+(define (put! fruit) (set! dish fruit))       ;hxzon：在盘子上放水果
 
-(define (get!) (let ([fruit dish]) (set! dish #f) fruit))
+(define (get!) (let ([fruit dish]) (set! dish #f) fruit))       ;hxzon：取走盘子上的水果
 
 (define (consumer do-other-stuff)
-  (let loop ()
+  (let loop ()          ;hxzon：定义一个本地函数loop
     (when dish
       (printf "C: get a ~a~%" (get!))
       (set! do-other-stuff (call/cc do-other-stuff))
@@ -232,10 +239,16 @@ III. 移花接木
   (for-each (lambda (fruit)
               (put! fruit)
               (printf "P: put a ~a~%" fruit)
-              (set! do-other-stuff (call/cc do-other-stuff)))
+              (set! do-other-stuff (call/cc do-other-stuff)))    ; do-other-stuff 为 consumer，所以把 producer 自己变成了续延
             '("apple" "strawberry" "peach"  "grape")))
 
 (producer consumer)
+
+（hxzon理解：
+producer 先放入苹果，接着进入 (call/cc consumer) 。
+consumer 取出苹果，接着进入 (call/cc  ”producer的续延“ ) 。
+producer的续延，是放入草莓，然后进入 (call/cc consumber) 。
+）
 
 producer 通过 for-each “生产”了几个水果，每生成一个就放进盘子里，
 并通过 call/cc 把控制权交给 consumer，
@@ -254,10 +267,13 @@ C: get a grape
 实际上这段程序有两个过程交替运行，我们知道多任务控制流的一个关键就是，
 保存每个任务的上下文，让它切出去再返回的时候能接着执行，就像没有发生过切换一样。
 这个任务，continuation 完全胜任。
+
 How does it works?
 producer 往盘子里放水果之后，通过 call/cc 调用 consumer，它的 continuation 就传进 consumer 了
-（consumer 的 do-other-stuff 就是 producer 的 continuation）， consumer 取出水果之后，就能通过这个 continuation 回到 producer，
-同时它也把自己的 continuation 传给了 producer。两个函数通过互传 continuation 的方式实现切换和恢复。
+（consumer 的 do-other-stuff 就是 producer 的 continuation）， 
+consumer 取出水果之后，就能通过这个 continuation 回到 producer，
+同时它也把自己的 continuation 传给了 producer。
+两个函数通过互传 continuation 的方式实现切换和恢复。
 
 ====
 IV. 模拟多任务
@@ -268,6 +284,7 @@ IV. 模拟多任务
 如果是几个独立的进程，如何并发执行呢？
 
 (define lwp-list '())
+
 (define lwp
   (lambda (thunk)
     (set! lwp-list (append lwp-list (list thunk)))))
@@ -282,8 +299,8 @@ IV. 模拟多任务
   (lambda ()
     (call/cc
       (lambda (k)
-        (lwp (lambda () (k #f)))
-        (start)))))        ;hxzon：？
+        (lwp (lambda () (k #f)))        ;
+        (start)))))        ;
 
 (lwp (lambda () (let f () (pause) (display "h") (f))))
 (lwp (lambda () (let f () (pause) (display "e") (f))))
@@ -291,7 +308,8 @@ IV. 模拟多任务
 (lwp (lambda () (let f () (pause) (display "!") (f))))
 (lwp (lambda () (let f () (pause) (newline) (f))))
 
-lwp 即 ligth-weight process, lwp-list 是进程表，不难看出 lwp 和 start 的作用分别是添加一进程到进程表、和从进程表里取出一个进程并执行，
+lwp 即 ligth-weight process, lwp-list 是进程表，
+不难看出 lwp 和 start 的作用分别是添加一进程到进程表、和从进程表里取出一个进程并执行，
 理解这段程序的关键在于 pause。
 
 pause 是这些进程真正的调度者，它不仅有副作用，而且也不具有引用透明性，所以难以理解，我们分析一下。
@@ -306,7 +324,7 @@ pause 是这些进程真正的调度者，它不仅有副作用，而且也不�
 pause 把剩余操作打包成 continuation 放到进程表尾，然后就执行下一个进程了。（hxzon：注意）
 最后的执行结果就是不停的打印 "hey!"：
 
-> (start)
+> (start)            ;hxzon：启动
 hey!
 hey!
 hey!

@@ -17,6 +17,7 @@ Local Flow of Control
 Unwinding the Stack
 20.4 从栈上回退
 
+==
 Multiple Values
 20.5 多值
 
@@ -226,6 +227,21 @@ might expand into this code that uses SYMBOL-MACROLET:
 When the expression (list x y z)is evaluated, the symbols x, y, and zwill be replaced 
 with their expansions, such as (slot-value #:g149 'x).【4】
 
+【4】It’s not required that WITH-SLOTS be implemented with SYMBOL-MACROLET
+—in some implementations, WITH-SLOTS may walk the code provided and generate an expansion with x, y, and z
+already replaced with the appropriate SLOT-VALUE forms.
+ You can see how your implementation 
+does it by evaluating this form:
+
+(macroexpand-1 '(with-slots (x y z) obj (list x y z)))
+
+However, walking the body is much easier for the Lisp implementation to do than for user code 
+to do; to replace x, y, and zonly when they appear in value positions requires a code walker that 
+understands the syntax of all special operators and that recursively expands all macro forms in 
+order to determine whether their expansions include the symbols in value positions. The Lisp 
+implementation obviously has such a code walker atits disposal, but it’s one of the few parts of 
+Lisp that’s not exposed to users of the language.
+
 ==
 本地符号宏 symbol-macrolet
 
@@ -252,45 +268,40 @@ and macros. I’ve mentioned all four of these special operators in passingbecau
 the underlying mechanisms used byother language features. They’re BLOCK, RETURN-FROM, 
 TAGBODY, and GO. 
 
-The first two, BLOCKand RETURN-FROM, are used together to write code that【4】. 
-
-It’s not required that WITH-SLOTS be implemented with SYMBOL-MACROLET
-—in some implementations, WITH-SLOTS may walk the code provided and generate an expansion with x, y, and z
-already replaced with the appropriate SLOT-VALUE forms.
- You can see how your implementation 
-does it by evaluating this form:
-
-(macroexpand-1 '(with-slots (x y z) obj (list x y z)))
-
-However, walking the body is much easier for the Lisp implementation to do than for user code 
-to do; to replace x, y, and zonly when they appear in value positions requires a code walker that 
-understands the syntax of all special operators and that recursively expands all macro forms in 
-order to determine whether their expansions include the symbols in value positions. The Lisp 
-implementation obviously has such a code walker atits disposal, but it’s one of the few parts of 
-Lisp that’s not exposed to users of the language.
-
+The first two, BLOCK and RETURN-FROM, are used together to write code that 
 returns immediately from a section of code—I discussed RETURN-FROM in Chapter 5 as a way 
-to return immediately from a function, but it’s more general than that. The other two, TAGBODY
-and GO, provide a quite low-level gotoconstruct that’s the basis for all the higher-level looping 
-constructs you’ve already seen.
+to return immediately from a function, but it’s more general than that. 
+block 和 return-from 用来从中途返回。
 
+The other two, TAGBODY and GO, 
+provide a quite low-level goto construct that’s the basis for all the higher-level looping 
+constructs you’ve already seen.
+tagbody 和 go ，则用来提供其它语言中 goto 的机制。
+
+====
 The basic skeleton of a BLOCKform is this:
 
 (block name
 form*)
 
-The nameis a symbol, and the formsare Lisp forms. The forms are evaluated in order, and 
+The nameis a symbol, and the forms are Lisp forms. The forms are evaluated in order, and 
 the value of the last form is returned as the value of the BLOCK unless a RETURN-FROM is used to 
 return from the block early. A RETURN-FROM form, as you saw in Chapter 5, consists of the name 
+return-from 使得在块中提前返回。
 of the block to return from and, optionally, a form that provides a value to return. When a 
 RETURN-FROM is evaluated, it causes the named BLOCK to return immediately. If RETURN-FROM
 is called with a return value form, the BLOCK will return the resulting value; otherwise, the 
 BLOCK evaluates to NIL.
+return-from 第一个参数是块的名字，第二个参数则作为块的返回值，它是可选的。
 
 A BLOCK name can be any symbol, which includes NIL. Many of the standard control 
 construct macros, such as DO, DOTIMES, and DOLIST, generate an expansion consisting of a 
-BLOCKnamed NIL. This allows you to use the RETURNmacro, which is a bit of syntactic sugar for 
-(return-from nil ...), to break out of such loops. Thus, the following loop will print at most 
+BLOCK named NIL. This allows you to use the RETURN macro, which is a bit of syntactic sugar for 
+(return-from nil ...), to break out of such loops. 
+块的名字可以是任意符号，包括 nil 。
+许多控制结构，例如 do，dotimes，dolist，都隐式包含一个名为nil的块，所以可用 return 宏来退出。
+
+Thus, the following loop will print at most 
 ten random numbers, stopping as soon as it gets a number greater than 50:
 
 (dotimes (i 10)
@@ -299,8 +310,10 @@ ten random numbers, stopping as soon as it gets a number greater than 50:
 (if (> answer 50) (return))))
 
 Function-defining macros such as DEFUN, FLET, and LABELS, on the other hand, wrap their 
-bodies in a BLOCKwith the same name as the function. That’s why you can use RETURN-FROMto 
+bodies in a BLOCK with the same name as the function. That’s why you can use RETURN-FROM to 
 return from a function.
+定义函数的许多宏，例如 defun，flet，labels，都将代码体包在一个与函数同名的块中，
+所以也可以用 return-from 退出。
 
 ====
 TAGBODY and GO have a similar relationship to each other as BLOCK and RETURN-FROM: 
@@ -310,12 +323,14 @@ of a TAGBODY is as follows:
 (tagbody
 tag-or-compound-form*)
 
-where each tag-or-compound-formis either a symbol, called a tag, or a nonempty list form. 
+where each tag-or-compound-form is either a symbol, called a tag, or a nonempty list form. 
 The list forms are evaluated in order and the tags ignored, except as I’ll discuss in a moment. 
-After the last form of the TAGBODYis evaluated, the TAGBODYreturns NIL. Anywhere within the 
-lexical scope of the TAGBODYyou can use the GOspecial operator to jumpimmediately to any of 
-the tags, and evaluation will resume with the form following the tag.For instance, you can 
+tagbody的体内是一系列的标签和形式。形式按顺序执行，而标签被忽略。
+After the last form of the TAGBODY is evaluated, the TAGBODY returns NIL. Anywhere within the 
+lexical scope of the TAGBODY you can use the GO special operator to jump immediately to any of 
+the tags, and evaluation will resume with the form following the tag. For instance, you can 
 write a trivial infinite loop with TAGBODY and GO like this:
+当执行到 go 时，会跳转到它指定的标签。
 
 (tagbody
 top
@@ -323,8 +338,9 @@ top
 (go top))
 
 Note that while the tag names must appear at the top level of the TAGBODY, not nested 
-within other forms, the GOspecial operator can appear anywhere within the scope of the 
+within other forms, the GO special operator can appear anywhere within the scope of the 
 TAGBODY. This means you could write a loop that loops a random number of times like this:
+注意，标签只能在tagbody顶层出现，而go则可以在任意词法范围内的位置。
 
 (tagbody
 top
@@ -340,9 +356,10 @@ b (print 'b) (if (zerop (random 2)) (go a))
 c (print 'c) (if (zerop (random 2)) (go b)))
 
 This form will jump around randomly printing as, bs, and cs until eventually the last 
-RANDOMexpression returns 1 and the control falls off the end of the TAGBODY.
+RANDOM expression returns 1 and the control falls off the end of the TAGBODY.
 
-TAGBODYis rarely used directly since it’s almost always easier to write iterative constructs 
+==
+TAGBODY is rarely used directly since it’s almost always easier to write iterative constructs 
 in terms of the existing looping macros. It’s handy, however, for translating algorithms written 
 in other languages into Common Lisp, either automatically or manually. 
 An example of an automatic translation tool is the FORTRAN–to–Common Lisp translator, f2cl, that translates 
@@ -423,11 +440,13 @@ sanity check of algorithm-sby evaluating this:
 If your refactorings are all valid, this expression should evaluate to the same list each time.
 
 After pushing the pieces around a bit, you might end up with something like this:
+
 (defun algorithm-s (n max)
 (loop for seen from 0
 when (< (* (- max seen) (random 1.0)) n)
 collect seen and do (decf n)
 until (zerop n)))
+
 While it may not be immediately obvious that this code correctly implements Algorithm S, 
 if you got here via a series of functions that all behave identically to the original literal translation 
 of Knuth’s recipe, you’d have good reason to believe it’s correct.
@@ -439,32 +458,35 @@ Unwinding the Stack
 Another aspect of the language that special operators give you control over is the behavior of 
 the call stack. For instance, while you normally use BLOCK and TAGBODY to manage the flow of 
 control within a single function, you can also use them, in conjunction with closures, to force
-block和tagbody的流程控制，是在单个函数内。 
+前面的示例中，block和tagbody的流程控制，都是在单个函数内。 
 an immediate nonlocal return from a function further down on the stack. That’s because BLOCK
 names and TAGBODY tags can be closed over by any code within the lexical scope of the BLOCK
 or TAGBODY. For example, consider this function:
+它们也可以用在闭包中，从而使栈回退。
 
 (defun foo ()
-(format t "Entering foo~%")
-(block a
-(format t " Entering BLOCK~%")
-(bar #'(lambda () (return-from a)))
-(format t " Leaving BLOCK~%"))
-(format t "Leaving foo~%"))
+	(format t "Entering foo~%")
+	(block a
+		(format t " Entering BLOCK~%")
+		(bar #'(lambda () (return-from a)))        ;hxzon：在匿名函数中退出
+		(format t " Leaving BLOCK~%"))
+	(format t "Leaving foo~%"))
 
 The anonymous function passed to baruses RETURN-FROM to return from the BLOCK. But 
 that RETURN-FROM doesn’t get evaluated until the anonymous function is invoked with FUNCALL
 or APPLY. Now suppose bar looks like this:
 
 (defun bar (fn)
-(format t " Entering bar~%")
-(baz fn)
-(format t " Leaving bar~%"))
+	(format t " Entering bar~%")
+	(baz fn)
+	(format t " Leaving bar~%"))
+
 Still, the anonymous function isn’t invoked. Now look at baz.
+
 (defun baz (fn)
-(format t " Entering baz~%")
-(funcall fn)
-(format t " Leaving baz~%"))
+	(format t " Entering baz~%")
+	(funcall fn)        ;hxzon：该匿名函数直到此时，才被调用
+	(format t " Leaving baz~%"))
 
 Finally the function is invoked. But what does it mean to RETURN-FROM a block that’s 
 several layers up on the call stack? Turns out it works fine—the stack is unwound back to the 
@@ -476,7 +498,7 @@ Entering foo
 Entering BLOCK
 Entering bar
 Entering baz
-Leaving foo
+Leaving foo        ;hxzon：baz，bar，block a 的剩余部分，都没有执行
 NIL
 
 Note that the only “Leaving . . .” message that prints is the one that appears after the BLOCK
@@ -486,14 +508,16 @@ Because the names of blocks are lexically scoped, a RETURN-FROM always returns f
 smallest enclosing BLOCK in the lexical environment where the RETURN-FROM form appears 
 even if the RETURN-FROM is executed in a different dynamic context. For instance, bar could 
 also contain a BLOCK named a, like this:
+块的名字是词法范围的，所以下边额外插入一个块，名字也为a，没有任何影响。
 
 (defun bar (fn)
-(format t " Entering bar~%")
-(block a (baz fn))
-(format t " Leaving bar~%"))
+	(format t " Entering bar~%")
+	(block a (baz fn))
+	(format t " Leaving bar~%"))
 
-This extra BLOCK won’t change the behavior of fooat all—the name ais resolved lexically, 
+This extra BLOCK won’t change the behavior of foo at all—the name ais resolved lexically, 
 at compile time, not dynamically, so the intervening block has no effect on the RETURN-FROM. 
+
 Conversely, the name of a BLOCK can be used only by RETURN-FROMs appearing within the 
 lexical scope of the BLOCK; there’s no way for code outside the block to return from the block 
 except by invoking a closure that closes over a RETURN-FROM from the lexical scope of the BLOCK.
@@ -501,22 +525,28 @@ except by invoking a closure that closes over a RETURN-FROM from the lexical sco
 TAGBODY and GO work the same way, in this regard, as BLOCK and RETURN-FROM. When you 
 invoke a closure that contains a GO form, if the GO is evaluated, the stack will unwind back to the 
 appropriate TAGBODY and then jump to the specified tag.
+tagbody 和 go 的工作方式相同。
 
 BLOCK names and TAGBODY tags, however, differ from lexical variable bindings in one 
 important way. As I discussed in Chapter 6, lexical bindings have indefinite extent, meaning 
+虽然块的名字，和 tagbody 的标签，都是词法范围，但它们和词法变量绑定有一点不同。
 the bindings can stick around even after the binding form has returned. BLOCKs and TAGBODYs, 
+词法变量绑定的生存期，是“永久的”，
 on the other hand, have dynamic extent—you can RETURN-FROM a BLOCK or GO to a TAGBODY tag 
 only while the BLOCK or TAGBODY is on the call stack. In other words, a closure that captures a 
-block name or TAGBODY tag can be passed downthe stack to be invoked later, but it can’t be 
-returned upthe stack. If you invoke a closure that tries to RETURN-FROM a BLOCK, after the BLOCK
+而块的名字，和 tagbody 的标签，只在栈中有效。
+block name or TAGBODY tag can be passed down the stack to be invoked later, but it can’t be 
+returned up the stack. If you invoke a closure that tries to RETURN-FROM a BLOCK, after the BLOCK
 itself has returned, you’ll get an error. Likewise, trying to GO to a TAGBODY that no longer exists 
 will cause an error.【7】
 
 【7】 This is a pretty reasonable restriction—it’s not entirely clear what it’d mean to return from a form 
 that has already returned—unless, of course, you’re a Scheme programmer. Scheme supports 
+从一个已经返回的形式中返回，是难以理解的。
 continuations, a language construct that makes it possible to return from the same function call 
 more than once. But for a variety of reasons, few, if any, languages other than Scheme support 
 this kind of continuation.
+不过，scheme有“续延”。
 
 It’s unlikely you’ll need to use BLOCK and TAGBODY yourself for this kindof stack unwinding. 
 But you’ll likely be using them indirectly whenever you use the condition system, so understanding 
@@ -534,33 +564,39 @@ from earlier Lisp dialects that didn’t have Common Lisp’s condition system. 
 shouldn’t be confused with try/catchand try/exceptconstructs from languages such as Java 
 and Python.
 
-CATCH and THROW are the dynamic counterparts of BLOCKand RETURN-FROM. That is, you 
-wrap CATCHaround a body of code and then use THROWto cause the CATCHform to return 
-immediately with a specified value. The difference is thatthe association between a CATCHand 
-THROWis established dynamically—instead of a lexically scoped name, the label for a CATCHis 
-an object, called a catch tag, and any THROWevaluated within the dynamic extent of the CATCH
-that throws that object will unwind the stack back to the CATCHform and cause it to return 
-immediately. Thus, you can write a version of the foo, bar, and bazfunctions from before using 
-CATCH and THROW instead of BLOCKand RETURN-FROMlike this:
+CATCH and THROW are the dynamic counterparts of BLOCK and RETURN-FROM. That is, you 
+catch 和 throw 是 块 和 return-from 的“动态版本”。
+wrap CATCH around a body of code and then use THROW to cause the CATCH form to return 
+immediately with a specified value. The difference is that the association between a CATCH and 
+THROW is established dynamically—instead of a lexically scoped name, the label for a CATCH is 
+但是 catch 和 throw 的关联，是通过一个对象（称为“捕捉标签”），而不是一个词法范围的名字。
+an object, called a catch tag, and any THROW evaluated within the dynamic extent of the CATCH
+that throws that object will unwind the stack back to the CATCH form and cause it to return 
+immediately. Thus, you can write a version of the foo, bar, and baz functions from before using 
+CATCH and THROW instead of BLOCK and RETURN-FROM like this:
 
 (defparameter *obj* (cons nil nil)) ; i.e. some arbitrary object
+
 (defun foo ()
-(format t "Entering foo~%")
-(catch *obj*
-(format t " Entering CATCH~%")
-(bar)
-(format t " Leaving CATCH~%"))
-(format t "Leaving foo~%"))
+	(format t "Entering foo~%")
+	(catch *obj*
+		(format t " Entering CATCH~%")
+		(bar)
+		(format t " Leaving CATCH~%"))
+	(format t "Leaving foo~%"))
+
 (defun bar ()
-(format t " Entering bar~%")
-(baz)
-(format t " Leaving bar~%"))
+	(format t " Entering bar~%")
+	(baz)
+	(format t " Leaving bar~%"))
+
 (defun baz ()
-(format t " Entering baz~%")
-(throw *obj* nil)
-(format t " Leaving baz~%"))
+	(format t " Entering baz~%")
+	(throw *obj* nil)         ;hxzon：如果在这之前，有人改变了 *obj* 的值，则会导致 throw 抛出另一个对象，那catch就捕捉不到。
+	(format t " Leaving baz~%"))
 
 Notice how it isn’t necessary to pass a closure down the stack—baz can call THROW directly. 
+它们的好处是不用再传递一个闭包。
 The result is quite similar to the earlier version.
 
 CL-USER> (foo)
@@ -571,280 +607,68 @@ Entering baz
 Leaving foo
 NIL
 
-However, CATCHand THROWare almost toodynamic. In both the CATCHand the THROW, the 
+However, CATCH and THROW are almost toodynamic. In both the CATCH and the THROW, the 
 tag form is evaluated, which means their values are both determined at runtime. Thus, if some 
-code in barreassigned or rebound *obj*, the THROWin bazwouldn’t throw to the same CATCH. 
-This makes CATCHand THROWmuch harder to reason about than BLOCKand RETURN-FROM. The 
-only advantage, which the version of foo, bar, and bazthat use CATCHand THROWdemonstrates, 
-is there’s no need topass down a closure in order for low-level code to return from a CATCH—
-any code that runs within the dynamic extent of a CATCHcan cause it to return by throwing the 
+code in barreassigned or rebound *obj*, the THROW in baz wouldn’t throw to the same CATCH. 
+This makes CATCH and THROW much harder to reason about than BLOCK and RETURN-FROM. The 
+only advantage, which the version of foo, bar, and baz that use CATCH and THROW demonstrates, 
+is there’s no need to pass down a closure in order for low-level code to return from a CATCH—
+any code that runs within the dynamic extent of a CATCH can cause it to return by throwing the 
 right object.
+
 In older Lisp dialects that didn’t have anything like Common Lisp’s condition system, 
-CATCHand THROWwere used for error handling. However,to keep them manageable, the catch 
-tags were usually just quoted symbols, so you couldtell by looking at a CATCHand a THROW
+CATCH and THROW were used for error handling. However,to keep them manageable, the catch 
+tags were usually just quoted symbols, so you could tell by looking at a CATCH and a THROW
 whether they would hook up at runtime. In Common Lisp you’ll rarely have any call to use 
-CATCHand THROWsince the condition system is so much more flexible.
-The last special operatorrelated to controlling the stack is another one I’ve mentioned in 
-passing before—UNWIND-PROTECT. UNWIND-PROTECTlets you control what happens as the 
+CATCH and THROW since the condition system is so much more flexible.
+在早期，还没有状况系统，所以使用它们来完成异常的处理。
+
+====
+unwind-protect（hxzon：”回退保护“，相当于java中的finally）
+
+The last special operator related to controlling the stack is another one I’ve mentioned in 
+passing before—UNWIND-PROTECT. UNWIND-PROTECT lets you control what happens as the 
 stack unwinds—to make sure that certain code always runs regardless of how control leaves 
 the scope of the UNWIND-PROTECT, whether by a normal return, by a restart being invoked, or 
-by any of the ways discussed in this section.
-9
-The basic skeleton of UNWIND-PROTECTlooks like this:
+by any of the ways discussed in this section.【9】
+【9】. UNWIND-PROTECT is essentially equivalent to try/finally constructs in Java and Python.
+
+
+The basic skeleton of UNWIND-PROTECT looks like this:
+
 (unwind-protect protected-form
 cleanup-form*)
-The single protected-formis evaluated, and then, regardless of how itreturns, the cleanupformsare evaluated. If the protected-formreturns normally, then whatever it returns is returned 
-from the UNWIND-PROTECTafter the cleanup forms run. The cleanup forms are evaluated in the 
+
+The single protected-formis evaluated, and then, regardless of how itreturns, the cleanupforms are evaluated. 
+If the protected-formreturns normally, then whatever it returns is returned 
+from the UNWIND-PROTECT after the cleanup forms run. The cleanup forms are evaluated in the 
 same dynamic environment as the UNWIND-PROTECT, so the same dynamic variable bindings, 
 restarts, and condition handlers will be visible to code in cleanup forms as were visible just 
 before the UNWIND-PROTECT.
-You’ll occasionally use UNWIND-PROTECTdirectly. More often you’lluse it as the basis for 
+
+You’ll occasionally use UNWIND-PROTECT directly. More often you’lluse it as the basis for 
 WITH-style macros, similar to WITH-OPEN-FILE, that evaluate any number of body forms in a 
+”with风格“的宏。
 context where they have access to some resource that needs to be cleaned up after they’re 
 done, regardless of whether they return normally or bail via a restart or other nonlocal exit. For 
 example, if you were writing a database library that defined functions open-connectionand 
-close-connection, you might write a macro like this:
-10
-9. UNWIND-PROTECTis essentially equivalent to try/finallyconstructs in Java and Python.
-10. And indeed, CLSQL, the multi-Lisp, multidatabase SQL interface library, provides a similar 
+close-connection, you might write a macro like this:【10】
+
+【10】 And indeed, CLSQL, the multi-Lisp, multidatabase SQL interface library, provides a similar 
 macro called with-database. CLSQL’s home page is at http://clsql.b9.com.
 
 (defmacro with-database-connection ((var &rest open-args) &body body)
 `(let ((,var (open-connection ,@open-args)))
 (unwind-protect (progn ,@body)
 (close-connection ,var))))
+
 which lets you write code like this:
+
 (with-database-connection (conn :host "foo" :user "scott" :password "tiger")
 (do-stuff conn)
 (do-more-stuff conn))
-and not have to worry about closing the database connection, since the UNWIND-PROTECTwill 
+
+and not have to worry about closing the database connection, since the UNWIND-PROTECT will 
 make sure it gets closedno matter what happens in the body of the with-database-connection
 form.
-Multiple Values
-Another feature of Common Lisp that I’ve mentioned in passing—in Chapter 11, when I discussed 
-GETHASH—is the ability for a single formto return multiple values. I’ll discuss it in greater detail 
-now. It is, however, slightly misplaced in a chapter on special operators since the ability to 
-return multiple values isn’t provided by just one or two special operators but is deeply integrated 
-into the language. The operators you’ll most often use when dealing with multiple values are 
-macros and functions, not special operators. But it is the case that the basic ability to get at 
-multiple return values is provided by a special operator, MULTIPLE-VALUE-CALL, upon which 
-the more commonly used MULTIPLE-VALUE-BINDmacro is built.
-The key thing to understand about multiple values is that returning multiple values is 
-quite different from returning a list—if a form returns multiple values, unless you do something specific to capture the multiple values, all but the primary valuewill be silently discarded. 
-To see the distinction, consider the function GETHASH, which returns two values: the value 
-found in the hash table and a boolean that’s NILwhen no value was found.If it returned those 
-two values in a list, every time you called GETHASHyou’d have to take apart the list to get at the 
-actual value, regardless of whether you cared about the second return value. Suppose you have 
-a hash table, *h*, that contains numeric values. If GETHASHreturned a list, you couldn’t write 
-something like this:
-(+ (gethash 'a *h*) (gethash 'b *h*))
-because +expects its arguments to be numbers, not lists. But because the multiple value mechanism silently discards the secondary return value when it’s not wanted, this form works fine.
-There are two aspects to using multiple values—returning multiple values and getting at the 
-nonprimary values returned by forms that return multiple values. The starting points for returning 
-multiple values are the functions VALUESand VALUES-LIST. These are regular functions, not 
-special operators, so their arguments are passedin the normal way. VALUEStakes a variable 
-number of arguments and returns them as multiple values; VALUES-LISTtakes a single list and 
-returns its elements as multiple values. In other words:
-(values-list x) ≡(apply #'values x)
-
-The mechanism by which multiple values are returned is implementation dependent just 
-like the mechanism for passing arguments into functions is. Almost all language constructs 
-that return the value of some subform will “pass through” multiple values, returning all the 
-values returned by the subform. Thus, a function that returns the result of calling VALUESor 
-VALUES-LISTwill itself return multiple values—andso will another function whose result 
-comes from calling the first function. And so on.
-11
-But when a form is evaluated in a value position, only the primary value will be used, 
-which is why the previous addition form works the way you’d expect. The special operator 
-MULTIPLE-VALUE-CALLprovides the mechanism for getting your hands on the multiple values 
-returned by a form. MULTIPLE-VALUE-CALLis similar to FUNCALLexcept that while FUNCALLis 
-a regular function and, therefore, can see and pass ononly the primary values passed to it, 
-MULTIPLE-VALUE-CALLpasses, to the function returned by its first subform, allthe values 
-returned by the remaining subforms.
-(funcall #'+ (values 1 2) (values 3 4))  →4
-(multiple-value-call #'+ (values 1 2) (values 3 4)) →10
-However, it’s fairly rare that you’ll simply wantto pass all the values returned by a function 
-onto another function. More likely, you’ll want to stash the multiple values in different variables and then do something with them. The MULTIPLE-VALUE-BINDmacro, which you saw in 
-Chapter 11, is the most frequently used operatorfor accepting multiple return values. Its skeleton looks like this:
-(multiple-value-bind (variable*) values-form
-body-form*)
-The values-formis evaluated, and the multiple values it returns are bound to the variables. 
-Then the body-formsare evaluated with those bindings in effect. Thus:
-(multiple-value-bind (x y) (values 1 2)
-(+ x y)) →3
-Another macro, MULTIPLE-VALUE-LIST, is even simpler—it takes a single form, evaluates 
-it, and collects the resulting multiple values intoa list. In other words,it’s the inverse of 
-VALUES-LIST.
-CL-USER> (multiple-value-list (values 1 2))
-(1 2)
-CL-USER> (values-list (multiple-value-list (values 1 2)))
-1
-2
-11. A small handful of macros don’t pass through extra return values of the forms they evaluate. In 
-particular, the PROG1macro, which evaluates a number of forms like a PROGNbefore returning the 
-value of the first form, returns that form’s primary value only. Likewise, PROG2, which returns the 
-value of the second of its subforms, returns only the primary value. The special operator 
-MULTIPLE-VALUE-PROG1is a variant of PROG1that returns all the values returned by the first 
-form. It’s a minor wart that PROG1doesn’t already behave like MULTIPLE-VALUE-PROG1, but 
-neither is used often enough that it matters much. The ORand CONDmacros are also not always 
-transparent to multiple values, returning only the primary value of certain subforms.
-
-However, if you find yourself using MULTIPLE-VALUE-LISTa lot, it may be a sign that some 
-function should be returning a list to start with rather than multiple values.
-Finally, if you want to assign multiple values returned by a form to existing variables, you 
-can use VALUESas a SETFable place. For example:
-CL-USER> (defparameter *x* nil)
-*X*
-CL-USER> (defparameter *y* nil)
-*Y*
-CL-USER> (setf (values *x* *y*) (floor (/ 57 34)))
-1
-23/34
-CL-USER> *x*
-1
-CL-USER> *y*
-23/34
-EVAL-WHEN
-A special operator you’ll need to understand in order towrite certain kinds of macros is 
-EVAL-WHEN. For some reason, Lisp books often treat EVAL-WHENas a wizards-only topic. But the 
-only prerequisite to understanding EVAL-WHENis an understanding of how the two functions 
-LOADand COMPILE-FILEinteract. And understanding EVAL-WHENwill be important as you start 
-writing certain kinds of more sophisticated macros, such as the ones you’ll write in Chapters 24 
-and 31.
-I’ve touched briefly on the relation between LOADand COMPILE-FILEin previous chapters, 
-but it’s worth reviewing again here. The job of LOADis to load a file and evaluate all the top-level 
-forms it contains. The job of COMPILE-FILEis to compile a source file into a FASL file, which 
-can then be loaded with LOADsuch that (load "foo.lisp")and (load "foo.fasl")are essentially equivalent.
-Because LOADevaluates each form before reading the next, the side effects of evaluating 
-forms earlier in the file can affect how forms later in the form are read and evaluated. For 
-instance, evaluating an IN-PACKAGEform changes the value of *PACKAGE*, which will affect the 
-way subsequent forms are read.12
-Similarly, a DEFMACROform early in a file can define a macro 
-that can then be used by code later in the file.
-13
-12. The reason loading a file with an IN-PACKAGEform in it has no effect on the value of *PACKAGE*
-after LOADreturns is because LOADbinds *PACKAGE*to its current value before doing anything 
-else. In other words, something equivalent to the following LETis wrapped around the rest of the 
-code in LOAD:
-(let ((*package* *package*)) ...)
-Any assignment to *PACKAGE*will be to the new binding, and the old binding will be restored 
-when LOADreturns. It also binds the variable *READTABLE*, which I haven’t discussed, in the 
-same way.
-13. In some implementations, you may beable to get away with evaluating DEFUNs that use undefined 
-macros in the function body as long as the macros are defined before the function is actually 
-called. But that works, if at all, only when LOADing the definitions from source, not when compiling 
-with COMPILE-FILE, so in general macro definitions mustbe evaluated before they’re used.
-
-COMPILE-FILE, on the other hand, normally doesn’t evaluate the forms it’s compiling; it’s 
-when the FASL is loaded that the forms—or their compiled equivalents—will be evaluated. 
-However, COMPILE-FILEmust evaluate some forms, such as IN-PACKAGEand DEFMACROforms, 
-in order to keep the behavior of (load "foo.lisp")and (load "foo.fasl")consistent.
-So how do macros such as IN-PACKAGEand DEFMACROwork when processed by 
-COMPILE-FILE? In some pre–Common Lisp versions of Lisp, the file compiler simply knew it 
-should evaluate certain macros in addition tocompiling them. Common Lisp avoided the need 
-for such kludges by borrowing the EVAL-WHENspecial operator from Maclisp. This operator, as 
-its name suggests, allows you to control when specific bits of code are evaluated. The skeleton 
-of an EVAL-WHENform looks like this:
-(eval-when (situation*)
-body-form*)
-There are three possible situations—:compile-toplevel, :load-toplevel, and :execute—
-and which ones you specify controls when the body-formswill be evaluated. An EVAL-WHEN
-with multiple situations is equivalent to several EVAL-WHENforms, one per situation, each with 
-the same body code. To explain the meaning of the three situations, I’ll need to explain a bit 
-about how COMPILE-FILE, which is also referred to as thefile compiler, goes about compiling 
-a file.
-To explain how COMPILE-FILEcompiles EVAL-WHENforms, I need to introduce a distinction between compiling top-levelforms and compiling non-top-level forms. A top-level form 
-is, roughly speaking, one that will be compiled intocode that will be run when the FASL is loaded. 
-Thus, all forms that appear directly at the top level of a source file are compiled as top-level 
-forms. Similarly, any forms appearing directly in a top-level PROGNare compiled as top-level forms 
-since the PROGNitself doesn’t doanything—it just groups together its subforms, which will be 
-run when the FASL is loaded.
-14
-Similarly, forms appearing directly in a MACROLETor 
-SYMBOL-MACROLETare compiled as top-level forms because after the compiler has expanded 
-the local macros or symbol macros, there will be no remnant of the MACROLETor 
-SYMBOL-MACROLETin the compiled code. Finally, the expansion of a top-level macro 
-form will be compiled as a top-level form.
-Thus, a DEFUNappearing at the top level of a source file is a top-level form—the code that 
-defines the function and associates it with its name will run when the FASL is loaded—but the 
-forms within the body of the function, which won’t run until the function is called, aren’t toplevel forms. Most forms are compiled the same when compiled as top-level and non-top-level 
-forms, but the semantics of an EVAL-WHENdepend on whether it’s being compiled as a toplevel form, compiled as a non-top-level form, or simply evaluated, combined with what situations are listed in its situation list.
-The situations :compile-topleveland :load-toplevelcontrol the meaning of an 
-EVAL-WHENcompiled as a top-level form. When :compile-toplevelis present, the file compiler 
-will evaluate the subformsat compile time. When :load-toplevelis present, it will compile the 
-subforms as top-level forms. If neither of these situations is present in a top-level EVAL-WHEN, 
-the compiler ignores it.
-14. By contrast, the subforms in a top-level LETaren’t compiled as top-level forms because they’re 
-not run directly when the FASL is loaded. They will run, but it’s in the runtime context of the 
-bindings established by the LET. Theoretically, a LETthat binds no variables could be treated like 
-a PROGN, but it’s not—the forms appearing in a LETare never treated as top-level forms.
-
-When an EVAL-WHENis compiled as a non-top-level form, it’s either compiled like a PROGN, 
-if the :executesituation is specified, or ignored. Similarly, an evaluated EVAL-WHEN—which 
-includes top-level EVAL-WHENs in a source file processed by LOADand EVAL-WHENs evaluated 
-at compile time because they appear as subforms of a top-level EVAL-WHENwith the 
-:compile-toplevelsituation—is treated like a PROGNif :executeis present and ignored otherwise.
-Thus, a macro such as IN-PACKAGEcan have the necessary effect at both compile time and 
-when loading from sourceby expanding into an EVAL-WHENlike the following:
-(eval-when (:compile-toplevel :load-toplevel :execute)
-(setf *package* (find-package "PACKAGE-NAME")))
-*PACKAGE*will be set at compile time because of the :compile-toplevelsituation, set 
-when the FASL is loaded because of :load-toplevel, and set when the source is loaded because 
-of the :execute.
-There are two ways you’re most likely to use EVAL-WHEN. One is if you want to write macros 
-that need to save some information at compile time to be used when generating the expansion 
-of other macro forms in the same file. This typically arises with definitional macros where a 
-definition early in a file can affect the code generated for a definition later in the same file. 
-You’ll write this kind of macro in Chapter 24.
-The other time you might need EVAL-WHENis if you want to put the definition of a macro 
-and helper functions it uses in the samefile as code that uses the macro. DEFMACROalready 
-includes an EVAL-WHENin its expansion so the macro definition is immediately available to be 
-used later in the file. But DEFUNnormally doesn’t make function definitions available at compile 
-time. But if you use a macro in the same file as it’s defined in, you need the macro andany 
-functions it uses to be defined. If you wrap the DEFUNs of any helper functions used by the macro 
-in an EVAL-WHENwith :compile-toplevel, the definitions will be available when the macro’s 
-expansion function runs. You’ll probably want to include :load-topleveland :executeas well 
-since the macros will also need the function definitions after the file is compiled and loaded or 
-if you load the source instead of compiling.
-Other Special Operators
-The four remaining special operators, LOCALLY, THE, LOAD-TIME-VALUE, and PROGV, all allow 
-you to get at parts of the underlying language that can’t be accessed any other way. LOCALLY
-and THEare part of Common Lisp’s declaration system, which is used to communicate things 
-to the compiler that don’t affect the meaning of your code but that may help the compiler 
-generate better code—faster, clearer error messages, and so on.
-15
-I’ll discuss declarations 
-briefly in Chapter 32.
-The other two, LOAD-TIME-VALUEand PROGV, are infrequently used, and explaining the 
-reason why you might ever wantto use them would take longer than explaining what they do. 
-So I’ll just tell you what they do so you know they’re there. Someday you’ll hit on one of those 
-rare times when they’re just the thing, and then you’ll be ready.
-15. The one declaration that has an effect on the semantics of a program is the SPECIALdeclaration 
-mentioned in Chapter 6.
-
-LOAD-TIME-VALUEis used, as its name suggests, to create a value that’s determined at load 
-time. When the file compiler compiles code that contains a LOAD-TIME-VALUEform, it arranges 
-to evaluate the first subform once, when the FASL is loaded, and for the code containing the 
-LOAD-TIME-VALUEform to refer to that value. In other words, instead of writing this:
-(defvar *loaded-at* (get-universal-time))
-(defun when-loaded () *loaded-at*)
-you can write the following:
-(defun when-loaded () (load-time-value (get-universal-time)))
-In code not processed by COMPILE-FILE, LOAD-TIME-VALUEis evaluated once when the 
-code is compiled, which may be when you explicitly compile a function with COMPILEor earlier 
-because of implicit compilation performed by the implementation in the course of evaluating 
-the code. In uncompiled code, LOAD-TIME-VALUEevaluates its form eachtime it’s evaluated.
-Finally, PROGVcreates new dynamic bindings for variables whose names are determined at 
-runtime. This is mostly usefulfor implementing embedded interpreters for languages with 
-dynamically scoped variables. The basic skeleton is as follows:
-(progv symbols-list values-list
-body-form*)
-where symbols-listis a form that evaluates to a list of symbols and values-listis a form that evaluates to a list of values. Each symbol is dynamically bound to the corresponding value, and 
-then the body-formsare evaluated. The difference between PROGVand LETis that because 
-symbols-listis evaluated at runtime, the names of the variables to bind can be determined 
-dynamically. As I say, this isn’t something you need to do often.
-And that’s it for special operators. In the next chapter, I’ll get back to hard-nosed practical 
-topics and show you how to use Common Lisp’s package system to take control of your 
-namespaces so you can write libraries and applications that can coexist without stomping on 
-each other’s names.
 

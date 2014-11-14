@@ -227,7 +227,7 @@ so that the computation may be restarted from the breakpoint (more than once, if
 每当断点产生，这个断点的续延被保存，所以接下来可以多次从这个断点重新运行。
 
 ====
-非抢占式多任务（hxzon：未理解）
+非抢占式多任务（hxzon：已理解）
 
 Continuations may be used to implement various forms of multitasking. 
 续延可以用来实现各种“多任务”的形式。
@@ -258,8 +258,8 @@ in order to allow the others to run.
   (lambda ()
     (call/cc
       (lambda (k)
-        (lwp (lambda () (k #f)))    ;给队列中添加一个任务（匿名函数），这个任务以逻辑假为参数来调用续延。这里导致提前返回。
-        (start)))  ))       ;hxzon：？
+        (lwp (lambda () (k #f)))    ;给队列中添加一个任务（匿名函数），这个任务调用续延，使得call/cc提前返回。
+        (start)))  ))       ;
 
 The following light-weight processes cooperate to print an infinite sequence of lines containing "hey!".
 下面的程序将打印出无限的行序列。
@@ -267,16 +267,30 @@ The following light-weight processes cooperate to print an infinite sequence of 
 (lwp (lambda () ;添加任务
         (let f () 	;定义内部函数f，方便自引用
         	(pause) (display "h") (f))))        ;这些任务先暂停自己，把自己的后续动作加到队尾（后续动作即“打印，再递归调用自己”）
+
 (lwp (lambda () (let f () (pause) (display "e") (f))))
 (lwp (lambda () (let f () (pause) (display "y") (f))))
 (lwp (lambda () (let f () (pause) (display "!") (f))))
 (lwp (lambda () (let f () (pause) (newline) (f))))
+
 (start)        ;这里开始执行队列中的任务
 ; hey!
 ; hey!
 ; hey!
 ; hey!
 
+（hxzon理解：
+
+先添加了5个任务。接着启动。
+执行第1个任务a，它调用pause，pause添加了一个任务a1，接着启动第2个任务。
+类似，直到第5个任务，添加了新任务e1后，启动a1。
+
+a1 调用了 a 的续延，于是退出pause，接着执行”打印h“，接着递归调用 af 。
+af 调用pause，pause添加了一个任务 a2，接着启动 b1 。
+类似，直到任务e1，添加了任务 e2 后，启动 a2 。
+a2 调用了 a1 的续延，于是退出pause，接着执行”打印h“，接着递归调用 af ，
+从而加入任务 a3，并启动 b2 。
+）
 
 See Section 12.11 for an implementation of engines, which support preemptive multitasking, with call/cc.
 （preemptive，先发制人）
