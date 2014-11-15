@@ -281,15 +281,15 @@ The following light-weight processes cooperate to print an infinite sequence of 
 
 （hxzon理解：
 
-先添加了5个任务。接着启动。
-执行第1个任务a，它调用pause，pause添加了一个任务a1，接着启动第2个任务。
-类似，直到第5个任务，添加了新任务e1后，启动a1。
+简化为两个进程。
+先添加了2个任务，接着启动。
+a->pause->（添加新任务an，接着启动第2个任务b）
+b->pause->（添加新任务bn，接着启动第3个任务an）
+an调用了a的续延，于是进入原来的栈，打印，接着调用 af 。
+af->pause->（添加新任务an，接着启动第4个任务bn）
+bn调用了b的续延，于是进入原来的栈，打印，接着调用 bf 。
+bf->pause->（添加新任务bn，接着启动第5个任务an）
 
-a1 调用了 a 的续延，于是退出pause，接着执行”打印h“，接着递归调用 af 。
-af 调用pause，pause添加了一个任务 a2，接着启动 b1 。
-类似，直到任务e1，添加了任务 e2 后，启动 a2 。
-a2 调用了 a1 的续延，于是退出pause，接着执行”打印h“，接着递归调用 af ，
-从而加入任务 a3，并启动 b2 。
 ）
 
 See Section 12.11 for an implementation of engines, which support preemptive multitasking, with call/cc.

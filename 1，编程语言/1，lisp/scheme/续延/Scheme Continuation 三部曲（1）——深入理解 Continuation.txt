@@ -24,6 +24,7 @@ Continuation 就是一个表达式被求值之后，接下来要做的事情。
 下面我们通过几个小实验全面了解 continuation 的各个特性，在看每一个例子的时候，
 希望你先思考一下“这段代码的结果是什么？”、或者“为什么是这个结果？”，然后再看我的解说。
 温馨提示：接下来的内容可能会让你的大脑感到不适，建议先阅读这篇文章。
+http://community.schemewiki.org/?call-with-current-continuation
 
 ====
 I. 非本地退出（hxzon：已理解）
@@ -344,10 +345,23 @@ continuation 为程序员提供了一种强大、灵活、近乎随心所欲的�
 其实我仍然有一些小细节没有讲，有些是连自己也没明白透，有些是特意留着让你自己去发现。
 下一篇文章，我们将领略 continuation 的终极奥义，真·阴阳谜题，敬请期待。
 
+====
 Reference
+
 continuation
+http://en.wikipedia.org/wiki/Continuation
+
 call-with-current-continuation
+http://en.wikipedia.org/wiki/Call-with-current-continuation
+
 The Scheme Programming Language
+http://www.scheme.com/tspl4/
+
 R5RS
+http://www.schemers.org/Documents/Standards/R5RS/HTML/
+
 A short introduction to call-with-current-continuation
+http://community.schemewiki.org/?call-with-current-continuation
+
+http://www.r6rs.org/
 
