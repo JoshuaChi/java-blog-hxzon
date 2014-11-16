@@ -7,10 +7,11 @@ http://onclojure.com/2009/03/06/a-monad-tutorial-for-clojure-programmers-part-2/
 =======
 在Part1中，我们已经学习了最基础的2个monad：identity monad和maybe monad。
 在本节中，我们继续介绍sequence monad，并联系m-result函数进行讲解。
-最后，我会演示示2个有用的monad泛操作符。
+最后，我会演示2个有用的monad泛操作符。
 
 sequence monad（Haskell中与之对应的是list monad）是使用频率最高的monad之一。
 Clojure中也内建了这个monad，比如for。
+
 让我们看下面的例子：
 
 (for [a (range 5)
@@ -33,10 +34,10 @@ sequence的运算结果可以看作非单一性的，比如，运算结果不只
     b (range a)]
    (* a b))
  
-我们已经知道，domonad宏展开为一个m-bind的操作链，并结尾调用m-result函数。
+我们已经知道，domonad宏展开为一个m-bind的操作链，并在结尾调用m-result函数。
 下面我们要讲解如何定义m-bind和m-result，来获得循环效果。
 
-前面我们看到，m-bind调用一个代表剩余计算步骤的函数，参数是绑定值。
+前面我们看到，m-bind调用一个代表“剩余计算步骤”的函数，参数是绑定值。
 为了达到循环效果，我们要重复调用这个函数。
 第一步我们构造一个这样的函数：
 
@@ -142,6 +143,7 @@ monadic-expression代表任何有效的monad表达式，
 关于monad的理论我们下一节再讨论，那时我还会告诉你一些关于for中使用:when的事情。
 本节剩余部分主要是编程实践。
 
+====
 我们也许要问，既然Clojure已经有个let和for，
 为什么还要制造identity monad和sequence monad呢？
 答案就是在各种monad中有可共用的泛操作。
@@ -175,7 +177,7 @@ Monad库还包括许多可在任何monad中使用的操作，它们的名字都�
 同样的定义，如果使用sequence monad，将会返回一个函数，
 这个函数返回一个求和的sequence，它的值是从两个输入的sequence中计算得来。
 
-----
+====
 练习：下面的函数跟Clojure的哪个著名的内建函数等效呢？
 
 (with-monad sequence-m
@@ -188,7 +190,7 @@ Monad库还包括许多可在任何monad中使用的操作，它们的名字都�
 
 返回结果：(2 4 6 8 10)，果然跟map一样哦。
 
-----
+====
 另一个常用的monad泛函数是m-seq，他接受一个monad 表达式组成的sequence，
 返回一个结果值的sequence。
 根据domonad的规则，（m-seq [a b c]）相当于
@@ -215,7 +217,7 @@ Monad库还包括许多可在任何monad中使用的操作，它们的名字都�
 
 因为使用了sequence-m，我们可以想象成这是n层的循环。
 
-----
+====
 最后介绍m-chain，它接受一个单参数操作组成的list。
 然后把这些操作组成一个链，并使每个参数从操作链上流过。
 比如：（m-chain [a b c]）等价于

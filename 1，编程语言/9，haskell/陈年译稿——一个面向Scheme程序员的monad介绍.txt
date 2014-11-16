@@ -1,0 +1,302 @@
+﻿陈年译稿——一个面向Scheme程序员的monad介绍
+http://www.cnblogs.com/fzwudc/archive/2011/04/19/2020982.html
+http://www.ccs.neu.edu/home/dherman/research/tutorials/monads-for-schemers.txt
+
+========
+     今天整理硬盘时翻出一篇旧的翻译稿，那是多年前“计算机英语”课程上要求交的一篇作业，
+也是哥投身此行业后不多翻译过的东西（还有一篇记得是被面试时考官要求的），作为英语水平
+差强人意之人，当初挑这篇翻译是有小算盘的，代码多文字少，能少翻就少翻，免得“翻多必失”。
+
+     好久没空在博客园上发帖，只好把陈年旧货拿出来晒一晒，希望对想理解monad机制又不想学
+习范畴论的朋友有所帮助，当然高手就直接跳过算了。
+
+     说说我的心得吧，对Haskell引入程序世界的monad，先是不屑一顾，哥不需要，要副作用
+直接赋值就行了，吃饱了撑着搞那么复杂的东西干嘛。后来看许多大牛推荐，于是就有了好奇心了，
+到底是个嘛玩意，引无数英雄尽折腰的。起先企图从范畴论入门，结果苦不堪言，一直没能把这么
+抽象的东西和实际编程联系起来。后来学了一点Haskell，又看到这篇文章，才建立起一点直觉。而
+且惊奇的发现，它居然是比CPS更高的一个抽象，不仅感叹数学逻辑的力量真是强大。同样是编程序，
+数学家们居然构造出这么深刻的东西。
+
+     这里是原文链接，以下为译稿：
+一个面向Scheme程序员的monad介绍
+Dave Herman
+
+==== 
+I．简介
+ 
+    这是一篇从Lisp/Scheme角度对monad技术进行介绍的文章，读者需对延续、延续传递模式、累
+计器以及累计器传递模式有所了解。
+
+    monads 为我们提供的主要洞察是，所有编程副作用诸如变量改写、输入输出，到非终止性，都与
+计值顺序相关。而对于简单、可终止的纯lambda表达式，计算顺序是无关紧要的：无论你怎么对它进
+行归约化简，最终结果是没有差别的。但是当程序有副作用时，就必须按正确的顺序先后计值。
+（Monad不是唯一的处理副作用的范型——延续传递和A-normal模式也能处理它。但它们几个范型都
+是有关联的。）
+
+==== 
+II．延续传递模式
+ 
+     由于monad是在纯数学语义的背景下讨论副作用，我们也不妨试一试用Scheme纯函数子集来编写
+有副作用的程序。
+ 
+    (begin (turn-on-safety!)
+           (pull-trigger!))
+ 
+     在我们的纯函数Scheme中，我们必须把BEGIN表达式定义为对它两个参数的先后计值（我们将只
+考虑两个参数的情况），但最终表达式的结果是后一个参数的结果值。很自然可以这样定义：
+ 
+    (define (begin v1 v2) v2)
+ 
+    一个纯函数Scheme可能会按任意次序对程序进行求值：
+ 
+    (begin (turn-on-safety!)
+           (pull-trigger!))
+ -> (begin (turn-on-safety!)  ; effect: pull-trigger!
+           #<void>)
+ -> (begin #<void>            ; effect: turn-on-safety!
+           #<void>)
+ -> #<void>
+ 
+      这就不对了，上面这种做法可能会让我们的某一位论文委员会成员勃然大怒。让我们对程序进行
+延续传递变换（CPS），以确保其按正确的次序被求值（下面我使用[[--]]来表示对一个表达式进行
+CPS变换）：
+ 
+    [[(begin (turn-on-safety!)
+             (pull-trigger!))]]
+  = (lambda (k)
+      ([[turn-on-safety!]] (lambda (res1)
+                             ([[pull-trigger!]] (lambda (res2)
+                                                  (k res2))))))
+ 
+   这样在一个以延续传递模式编写的程序中，我们可以把BEGIN定义为：
+ 
+    (define (begin cps-exp1 cps-exp2)
+      (lambda (k)
+        (cps-exp1 (lambda (res1)
+                    (cps-exp2 (lambda (res2)
+                                (k res2)))))))
+ 
+     注意第一个表达式cps-exp1的求值结果被参数res1所接收，但随后就被忽略了（后面没有任
+何子表达式对res1再进行引用）。
+ 
+ ====
+III． 累计器传递模式
+ 
+     我们已经会编写累计器传递模式的程序，就是所有函数过程都必须有一个额外的参数，这个参数
+代表一个随着计算过程推进而不断被更新的“寄存器”。考虑一个很小的伪随机数产生器：
+ 
+    (define seed (current-time))
+ 
+    (define (rand)
+      (let ([ans (modulo (* seed 16807) 2147483647)])
+        (begin (set! seed ans)
+               ans)))
+ 
+     在每次对RAND函数的调用中，seed种子变量都被改写为新产生的随机数的值。如果我们要用
+纯Scheme实现上面的程序，我们就需要把seed种子变量作为一个额外的参数，在所有可能会更动
+它的函数过程中进行连续传递。这样导致所有函数过程现在都必须返回一个点对：一个是函数的实
+际求值结果，另一个是在函数计算过程中被更新传递的seed种子变量。
+ 
+    ;; rand : number -> (number x number)
+    (define (rand seed)
+      (let ([ans (modulo (* seed 16807) 2147483647)])
+        (cons ans ans)))
+ 
+    ;; rand-point : number -> (point x number)
+    (define (rand-point seed)
+      (let* ([r1 (rand seed)]
+             [r2 (rand (cdr r1))]
+             [r3 (rand (cdr r2))])
+        (cons (make-point (car r1) (car r2) (car r3))
+              (cdr r3))))
+ 
+    ;; rand-segment : number -> (segment x number)
+    (define (rand-segment seed)
+      (let* ([r1 (rand-point seed)]
+             [r2 (rand-point (cdr r1))])
+        (cons (make-segment (car r1) (car r2))
+              (cdr r2))))
+    ...
+ 
+   整个程序将用一个初始种子变量启动计算，象这样：
+ 
+    (run-my-program (current-time))
+ 
+     上面每个函数过程都有一对共同的特征，即它们都有一个“seed”参数，并且返回一个点对，包
+含函数结果和新产生的种子。下面让我们通过curry化seed参数把程序进一步进行抽象：
+ 
+    ;; rand : -> (number -> (number x number))
+    (define (rand)
+      (lambda (seed)
+        (let ([ans (modulo (* seed 16807) 2147483647)])
+          (cons ans ans))))
+ 
+    ;; rand-point : -> (number -> (point x number))
+    (define (rand-point)
+      (lambda (seed)
+        (let* ([r1 ((rand) seed)]
+               [r2 ((rand) (cdr r1))]
+               [r3 ((rand) (cdr r2))])
+          (cons (make-point (car r1) (car r2))
+                (cdr r2)))))
+ 
+    ;; rand-segment : -> (number -> (segment x number))
+    (define (rand-segment)
+      (lambda (seed)
+        (let* ([r1 ((rand-point) seed)]
+               [r2 ((rand-point) (cdr r1))])
+          (cons (make-segment (car r1) (car r2))
+                (cdr r2)))))
+ 
+    那些没有引用或改变seed种子值的函数过程无须做此变更。我们把有副作用的函数叫做“操作”，而
+把那些没有副作用的函数叫做“纯函数”。举例我们可以这样写一个求两点距离的函数：
+ 
+    (define (distance pt1 pt2)
+      (sqrt (+ (sqr (- (point-x pt1) (point-x pt2)))
+               (sqr (- (point-y pt1) (point-y pt2)))
+               (sqr (- (point-z pt1) (point-z pt2))))))
+ 
+     这个函数由于没有改动seed种子，所以是纯函数性的。它并没有用一个额外参数来表示当前的种
+子变量，它也没有返回一个点对。这意味着distance函数可以被任何可能具有副作用的函数调用，但
+distance函数却不能反过来调用它们（因为这有可能造成副作用作废，导致无法再将累计的seed种子
+传递给下一个操作）。
+ 
+    我们可以设置一对操作来对seed种子值做提取和赋值：
+ 
+    ;; get-seed : -> (number -> (number x number))
+    (define (get-seed)
+      (lambda (seed)
+        (cons seed seed)))
+ 
+    ;; set-seed : number -> (number -> (void x number))
+    (define (set-seed new)
+      (lambda (old)
+        (cons (void) new)))
+ 
+    我们也可以用类型来抽象这种统一的计算模式：我们把返回值类型为alpha的操作的类型设定为
+T(alpha)，就象这样：
+    T(alpha) = number -> (alpha x number)
+ 
+    我们前面几个函数都可以被赋予类型：
+ 
+    get-seed     : -> T(number)
+    set-seed     : number -> T(void)
+    rand         : -> T(number)
+    rand-point   : -> T(point)
+    rand-segment : -> T(segment)
+ 
+    然后我们可以试一下用上面这种办法去定义BEGIN，与延续传递方式相比显著的不同就是现在是
+用累计器传递来规定计值顺序：
+ 
+    ;; begin : T(alpha) T(beta) -> T(beta)
+    (define (begin comp1 comp2)
+      (lambda (seed0)
+        (let* ([res1 (comp1 seed0)]
+               [val1 (car res1)]
+               [seed1 (cdr res1)])
+          (comp2 seed1))))
+ 
+    这个定义版本和延续传递版本都把BEGIN当作“操作组合子”：它具有两个操作作为参数，并返回
+一个新的操作。但这对我们实现rand操作用处不大：
+ 
+    (define (rand)
+      (begin (get-seed)
+             (let ([ans (modulo (* ??? 16807) 2147483647)])
+               (begin (set-seed ans)
+                      (lambda (seed)
+                        (cons ans ans))))))
+ 
+    像上面这样做，RAND函数中的第二个操作如何从前面的GET-SEED操作获得当前种子值呢？这个
+问题是因为BEGIN废弃了前一个操作的结果值。让我们编写一个新的组合子，使得第一个操作的结果
+能被后一个操作使用：
+ 
+    ;; pipe : T(alpha) (alpha -> T(beta)) -> T(beta)
+    (define (pipe comp1 build-comp2)
+      (lambda (seed0)
+        (let* ([res1 (comp1 seed0)]
+               [val1 (car res1)]
+               [seed1 (cdr res1)])
+          ((build-comp2 val1) seed1))))
+ 
+   这个新组合子获取一个操作参数，以及一个接受该操作结果值并以此构造第二个操作的函数作为另
+一个参数。最后它执行被构造出来的第二个操作。
+ 
+    (define (rand)
+      (pipe (get-seed)
+            (lambda (seed)
+              (let ([ans (modulo (* seed 16807) 2147483647)])
+                (begin (set-seed ans)
+                       (lambda (seed)
+                         (cons ans ans)))))))
+ 
+    我们还可以抽象出一个单独的把值“提升”到计算类型的新操作：
+ 
+    ;; lift : alpha -> T(alpha)
+    (define (lift v)
+      (lambda (seed)
+        (cons v seed)))
+ 
+    现在我们可以整理出最终版本的RAND函数：
+ 
+    (define (rand)
+      (pipe (get-seed)
+            (lambda (seed)
+              (let ([ans (modulo (* seed 16807) 2147483647)])
+                (begin (set-seed ans)
+                       (lift ans))))))
+ 
+    每个monad都由一个类型构造器T和两个操作组成，T被用来给这两个操作赋予类型：
+ 
+    lift : alpha -> T(alpha)
+    pipe : T(alpha) (alpha -> T(beta)) -> T(beta)
+ 
+    [这两个操作可以用其他名字命名：pipe操作有时叫bind，或者>>=，或*,还有let。而lift操作
+经常被称为unit或return。
+ 
+    还有，monad的两个操作必须满足以下三个法则：
+    (pipe (lift x) f)   = (f x)
+    (pipe m lift)       = m
+    (pipe (pipe m f) g) = (pipe m (lambda (x) (pipe (f x) g)))
+ 
+   ［ 我累了，我不想证明我们的例子符合monad法则。实际上，这可能做不到，因为我们的pipe
+版本有两个参数（而非完全curry化的）——噢，在这个问题上非终止性的证明会有麻烦。］
+ 
+     还可以给monad定义其他操作，只要它们不违反上述法则。
+ 
+      注意在我们的monad中，操作实际上是一个函数，它需要一个能获取初始值的种子。还要注意操
+作执行后将产生一个点对结果，包含一个终值以及累计下来的seed种子。由于我们实际上只对终值感
+兴趣，我们可以构造一个“run”过程来执行“monad化”操作，以得到最终值：
+ 
+    ;; T(alpha) -> alpha
+    (define (run m)
+      (car (m (current-time))))
+ 
+     注意这是唯一的从monad中退出的方式，例如从T(alpha)到alpha。“monad化”操作是基于组
+合子产生出一个操作的链条，最后用一个顶层函数把结果值”run”出来。延续传递风格的程序也需要
+这样一个顶层函数，用一个初始延续启动计值过程。
+
+====
+IV．总结
+ 
+    以上我所介绍的monad有两个主要观念：
+ 
+    1．对计值顺序做出强制规定
+    2．把累计器抽象出来
+ 
+     PIPE操作是一个从两个小的操作构造一个复合操作的组合子；它像延续传递方式一样要求这两个
+小操作必须按顺序执行。（实际上，这说明延续传递方式是monad的一种特例。）这样我们就可以给
+纯函数的核心语言加上各种副作用，并确保这些副作用以正确的顺序发生。monad对程序设计语言的
+语义研究是有益的，它让我们可以用纯函数语义（例如lambda演算）来给可变状态和一阶延续等有用
+的语言特性进行建模，然后我们可以按统一的数学抽象的方式对副作用的顺序执行进行论证推理。
+
+      在Haskell这个惰性语言中，monad被用于做各种顺序操作，特别是输入/输出，monad让所有输
+入/输出操作按正确的顺序执行。Haskell的设计者还把他们决定不放在核心语言中的各种副作用（如可
+变状态和一阶延续等）都用monad来仿真实现。
+
+==== 
+V.更多
+ 
+      以上我努力从一个程序员的视角对monad进行介绍。我没有介绍monad的数学背景，也没有介绍
+代数法则的应用。原因是当你在研究低层代码时，很难把程序同monad这个数学语义对象联系起来。所
+以我尽量坚持以一种诉诸直觉的方式介绍monad，以后再讨论它的精确定义。可学的东西还有不少啊。
+

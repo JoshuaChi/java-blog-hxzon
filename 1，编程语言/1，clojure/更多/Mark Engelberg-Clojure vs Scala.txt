@@ -5,6 +5,7 @@ http://programming-puzzler.blogspot.com/2010/08/racket-vs-clojure.html
 
 作者：Mark Engelberg | 来自：Planet Clojure
 
+====
 Last week, someone posted a question on the Clojure group asking for a comparison between Clojure and Scala. 
 Since my most popular blog post, by far, is my Racket vs Clojure post from three years ago, 
 I thought it would be good to post my response here.
@@ -13,6 +14,7 @@ Ten years ago, I would have said that my ideal dream language is one that provid
 I want to be able to choose object-oriented or functional, immutable or mutable, 
 high-level abstractions or low-level speed. 
 With respect to this ideal, Scala clearly wins, supporting more programming styles than Clojure.
+scala支持多种编程风格。
 
 I've definitely changed my tune, though, and now I actually prefer the way that Clojure constrains and shapes my thinking. 
 I argue that even though Scala may provide me with more options on how to tackle a given programming problem, 
@@ -71,11 +73,13 @@ Scala remains deeply rooted in the OO philosophy, which all too often leads to a
 
 clojure轻量级的建模。
 
+====
 Further thoughts
 
 After posting the above message, a couple people pointed out that Scala doesn't force you to build the more complicated model. 
 That's absolutely true. 
 But due to its highly detailed static type system, 
+由于scala过度详细的静态类型系统，
 Scala attracts the kind of programmers that like to carefully categorize 
 and enumerate all the possible data structures that will occur in their programs. 
 Sure, you could eschew objects in Scala and mimic Clojure by using generic maps/vectors/lists/sets for all your structured data needs, 
@@ -85,7 +89,7 @@ towards developing a more rigorous type taxonomy.
 
 In my post, I mentioned lightweight data modeling. 
 I can't stress this term enough. 
-I'd like to see it become the new catchphrase for Clojure. 
+I'd like to see it become the new catch phrase for Clojure. 
 When I used to give my "elevator pitch" for Clojure, 
 I'd talk about how it was a functional programming language, 
 a dialect of Lisp on the JVM, with some interesting concurrency constructs. 

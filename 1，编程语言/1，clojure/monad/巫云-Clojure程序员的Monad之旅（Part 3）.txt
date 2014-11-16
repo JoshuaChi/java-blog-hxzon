@@ -12,11 +12,12 @@ http://onclojure.com/2009/03/23/a-monad-tutorial-for-clojure-programmers-part-3/
 
 以sequence monad为例，数据结构为sequence，表示最终结果非唯一的运算；
 m-result是list函数，把每次运算结果转换成一个序列，序列的元素是运算的每个值转成的list；
-m-bind函数继续对序列进行处理，并把结果移出list嵌套。
+m-bind函数继续对序列进行处理，并把结果移除list嵌套。
 
 以上3个要素定义了一个monad，有些monad除了这些必要条件外，
 还增加了2个额外的定义，以实现特殊功能。
 这两个函数就是m-zero和m-plus。
+
 m-zero代表一个特殊的monad值，表示当一个运算没有返回值时的返回结果。
 例如：maybe monad中的nil，通常代表了计算过程失败。
 另一个例子是sequence monad中的空序列。
@@ -80,7 +81,7 @@ m-plus用于把查找的结果组合返回（sequence monad），
 或者一直查找，直到找到一个符合条件的值（maybe monad）。
 原则上来说，使用m-zero比使用m-plus更合适，任何使用m-plus的地方，都可以用m-zero实现。
 
-----
+====
 讲完理论，让我们熟悉几个monad。
 在本节的开头，我提到monad使用的数据结构并不总是表示运算步骤的结果，
 有时表示的是运算步骤本身。
@@ -182,6 +183,7 @@ state monad是一个非常基础的monad之一，许多monad都是state monad的
 它的state描述了数据组成的流，m-bind函数除了state monad基本的工作外，
 还检测非法值以及end-of-stream的条件。
 
+====
 state monad中的一个变形由于使用非常频繁，以至于成为了一个标准monad，这就是writer monad。
 它的state是一个累加器（在clojure.contrib.accumulators中定义），
 运算可以通过write函数进行累加。
