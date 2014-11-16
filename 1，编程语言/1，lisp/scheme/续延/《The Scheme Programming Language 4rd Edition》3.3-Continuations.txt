@@ -95,7 +95,7 @@ Consider the simple examples below.
 
 (call/cc
   (lambda (k)
-    (* 5 (k 4)))) 	; 4 	;hxzon：(k 4)，4 作为 call/cc 的返回值。 
+    (* 5 (k 4)))) 	; 4 	;hxzon：(k 4)，4 作为 call/cc 的返回值。 注意(* 5)没有执行。
 
 (+ 2
    (call/cc        ;hxzon：这个续延的后续动作是(+ 2)

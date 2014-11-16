@@ -1,0 +1,518 @@
+﻿Chapter 2，Getting Started（续1）
+http://www.scheme.com/tspl4/start.html#./start:h0
+
+Chapter 2. Getting Started
+
+Section 2.1. Interacting with Scheme
+Section 2.2. Simple Expressions
+Section 2.3. Evaluating Scheme Expressions  表达式求值
+Section 2.4. Variables and Let Expressions  变量和let表达式
+Section 2.5. Lambda Expressions  lambda表达式
+
+==
+Section 2.6. Top-Level Definitions  顶层定义
+Section 2.7. Conditional Expressions  条件表达式
+
+==
+Section 2.8. Simple Recursion  简单递归
+Section 2.9. Assignment  赋值
+
+========
+Section 2.6. Top-Level Definitions
+顶层定义
+
+The variables bound by let and lambda expressions are not visible outside the bodies of these expressions. 
+Suppose you have created an object, perhaps a procedure, that must be accessible anywhere, like + or cons. 
+What you need is a top-level definition, which may be established with define. 
+Top-level definitions, which are supported by most interactive Scheme systems, 
+are visible in every expression you enter, except where shadowed by another binding.
+
+Let's establish a top-level definition of the double-any procedure of the last section.
+
+(define double-any
+  (lambda (f x)
+    (f x x)))
+
+The variable double-any now has the same status as cons or the name of any other primitive procedure. 
+We can use double-any as if it were a primitive procedure.
+
+(double-any + 10) <graphic> 20
+(double-any cons 'a) <graphic> (a . a)
+
+A top-level definition may be established for any object, not just for procedures.
+
+(define sandwich "peanut-butter-and-jelly") 
+
+sandwich <graphic> "peanut-butter-and-jelly"
+
+Most often, though, top-level definitions are used for procedures.
+
+As suggested above, top-level definitions may be shadowed by let or lambda bindings.
+
+(define xyz '(x y z))
+
+(let ([xyz '(z y x)])
+  xyz) <graphic> (z y x)
+
+Variables with top-level definitions act almost as if they were bound by a let expression enclosing all of the expressions you type.
+
+Given only the simple tools you have read about up to this point, 
+it is already possible to define some of the primitive procedures provided by Scheme and described later in this book. 
+If you completed the exercises from the last section, you should already know how to define list.
+
+(define list (lambda x x))
+
+Also, Scheme provides the abbreviations cadr and cddr for the compositions of car with cdr and cdr with cdr. 
+That is, (cadr list) is equivalent to (car (cdr list)), and, similarly, (cddr list) is equivalent to (cdr (cdr list)). 
+They are easily defined as follows.
+
+(define cadr
+  (lambda (x)
+    (car (cdr x)))) 
+
+(define cddr
+  (lambda (x)
+    (cdr (cdr x))))
+
+(cadr '(a b c)) <graphic> b
+(cddr '(a b c)) <graphic> (c)
+
+====
+定义顶层函数的简写形式
+
+Any definition (define var expr) where expr is a lambda expression can be written in a shorter form that suppresses the lambda. 
+The exact syntax depends upon the format of the lambda expression's formal parameter specifier, 
+i.e., whether it is a proper list of variables, a single variable, or an improper list of variables. 
+A definition of the form
+
+(define var0
+  (lambda (var1 ... varn)
+    e1 e2 ...))
+
+may be abbreviated
+
+(define (var0 var1 ... varn)        ;(define (函数名 参数1 参数2))
+  e1 e2 ...)
+
+while
+
+(define var0
+  (lambda varr
+    e1 e2 ...))
+
+may be abbreviated
+
+(define (var0 . varr)        ;(define (函数名 点号 不定参数名))
+  e1 e2 ...)
+
+and
+
+(define var0
+  (lambda (var1 ... varn . varr)
+    e1 e2 ...))
+
+may be abbreviated
+
+(define (var0 var1 ... varn . varr)        ;(define (函数名 参数1 参数2 点号 剩余参数名))
+  e1 e2 ...)
+
+For example, the definitions of cadr and list might be written as follows.
+
+(define (cadr x)
+  (car (cdr x))) 
+
+(define (list . x) x)
+
+This book does not often employ this alternative syntax. 
+Although it is shorter, it tends to mask the reality that procedures are not intimately tied to variables, or names, as they are in many other languages. 
+This syntax is often referred to, somewhat pejoratively, 
+as the "defun" syntax for define, after the defun form provided by Lisp languages in which procedures are more closely tied to their names.
+
+Top-level definitions make it easier for us to experiment with a procedure interactively 
+because we need not retype the procedure each time it is used. 
+Let's try defining a somewhat more complicated variation of double-any, 
+one that turns an "ordinary" two-argument procedure into a "doubling" one-argument procedure.
+
+返回函数的函数：
+
+(define doubler
+  (lambda (f)
+    (lambda (x) (f x x))))
+
+doubler accepts one argument, f, which must be a procedure that accepts two arguments. 
+The procedure returned by doubler accepts one argument, which it uses for both arguments in an application of f. 
+We can define, with doubler, the simple double and double-cons procedures of the last section.
+
+(define double (doubler +))
+(double 13/2) <graphic> 13 
+
+(define double-cons (doubler cons))
+(double-cons 'a) <graphic> (a . a)
+
+We can also define double-any with doubler.
+
+(define double-any
+  (lambda (f x)
+    ((doubler f) x)))
+
+Within double and double-cons, f has the appropriate value, i.e., + or cons, 
+even though the procedures are clearly applied outside the scope of f.
+
+==
+What happens if you attempt to use a variable that is not bound by a let or lambda expression and that does not have a top-level definition? 
+Try using the variable i-am-not-defined to see what happens.
+
+(i-am-not-defined 3)
+
+Most Scheme systems print a message indicating that an unbound- or undefined-variable exception has occurred.
+
+The system should not, however, complain about the appearance of an undefined variable within a lambda expression, 
+until and unless the resulting procedure is applied. 
+The following should not cause an exception, even though we have not yet established a top-level definition of proc2.
+
+(define proc1
+  (lambda (x y)
+    (proc2 y x)))
+
+If you try to apply proc1 before defining proc2, you should get a undefined exception message. 
+Let's give proc2 a top-level definition and try proc1.
+
+(define proc2 cons)
+(proc1 'a 'b) <graphic> (b . a)
+
+When you define proc1, the system accepts your promise to define proc2, 
+and does not complain unless you use proc1 before defining proc2. 
+This allows you to define procedures in any order you please. 
+This is especially useful when you are trying to organize a file full of procedure definitions in a way that makes your program more readable. 
+It is necessary when two procedures defined at top level depend upon each other; 
+we will see some examples of this later.
+
+Exercise 2.6.1
+
+What would happen if you were to type
+(double-any double-any double-any)
+
+given the definition of double-any from the beginning of this section?
+
+Exercise 2.6.2
+
+A more elegant (though possibly less efficient) way to define cadr and cddr than given in this section is to define a procedure that composes two procedures to create a third. Write the procedure compose, such that (compose p1 p2) is the composition of p1 and p2 (assuming both take one argument). That is, (compose p1 p2) should return a new procedure of one argument that applies p1 to the result of applying p2 to the argument. Use compose to define cadr and cddr.
+Exercise 2.6.3
+
+Scheme also provides caar, cdar, caaar, caadr, and so on, with any combination of up to four a's (representing car) and d's (representing cdr) between the c and the r (see Section 6.3). Define each of these with the compose procedure of the preceding exercise.
+
+========
+Section 2.7. Conditional Expressions
+条件表达式
+
+So far we have considered expressions that perform a given task unconditionally. 
+Suppose that we wish to write the procedure abs. 
+If its argument x is negative, abs returns -x; otherwise, it returns x. 
+The most straightforward way to write abs is to determine whether the argument is negative 
+and if so negate it, using the if syntactic form.
+
+(define abs
+  (lambda (n)
+    (if (< n 0)
+        (- 0 n)
+        n))) 
+
+(abs 77) <graphic> 77
+(abs -77) <graphic> 77
+
+An if expression has the form (if test consequent alternative), where consequent is the expression to evaluate if test is true 
+and alternative is the expression to evaluate if test is false. 
+In the expression above, test is (< n 0), consequent is (- 0 n), and alternative is n.
+
+The procedure abs could be written in a variety of other ways. 
+Any of the following are valid definitions of abs.
+
+(define abs
+  (lambda (n)
+    (if (>= n 0)
+        n
+        (- 0 n)))) 
+
+(define abs
+  (lambda (n)
+    (if (not (< n 0))
+        n
+        (- 0 n)))) 
+
+(define abs
+  (lambda (n)
+    (if (or (> n 0) (= n 0))
+        n
+        (- 0 n)))) 
+
+(define abs
+  (lambda (n)
+    (if (= n 0)
+        0
+        (if (< n 0)
+            (- 0 n)
+            n)))) 
+
+(define abs
+  (lambda (n)
+    ((if (>= n 0) + -)
+     0
+     n)))
+
+The first of these definitions asks if n is greater than or equal to zero, inverting the test. 
+The second asks if n is not less than zero, using the procedure not with <. 
+The third asks if n is greater than zero or n is equal to zero, using the syntactic form or. 
+使用了特殊形式 or 。
+The fourth treats zero separately, though there is no benefit in doing so. 
+The fifth is somewhat tricky; n is either added to or subtracted from zero, depending upon whether n is greater than or equal to zero.
+
+Why is if a syntactic form and not a procedure? 
+In order to answer this, let's revisit the definition of reciprocal from the first section of this chapter.
+为什么if是特殊形式，而不是普通函数？
+
+(define reciprocal
+  (lambda (n)
+    (if (= n 0)
+        "oops!"
+        (/ 1 n))))
+
+The second argument to the division procedure should not be zero, since the result is mathematically undefined. 
+Our definition of reciprocal avoids this problem by testing for zero before dividing. 
+Were if a procedure, its arguments (including (/ 1 n)) would be evaluated 
+before it had a chance to choose between the consequent and alternative. 
+Like quote, which does not evaluate its only subexpression, 
+if does not evaluate all of its subexpressions and so cannot be a procedure.
+如果 if 是函数，则它的两个参数都会被先求值。
+
+==
+特殊形式“or”
+
+The syntactic form or operates in a manner similar to if. 
+The general form of an or expression is (or expr ...). 
+If there are no subexpressions, i.e., the expression is simply (or), the value is false. 
+Otherwise, each expr is evaluated in turn until either (a) one of the expressions evaluates to true 
+or (b) no more expressions are left. 
+In case (a), the value is true; in case (b), the value is false.
+
+To be more precise, in case (a), the value of the or expression is the value of the last subexpression evaluated. 
+This clarification is necessary because there are many possible true values. 
+Usually, the value of a test expression is one of the two objects #t, for true, or #f, for false.
+
+(< -1 0) <graphic> #t
+(> -1 0) <graphic> #f
+
+Every Scheme object, however, is considered to be either true or false by conditional expressions and by the procedure not. 
+Only #f is considered false; all other objects are considered true.
+只有 #f 视为假，其它对象都视为真。
+
+(if #t 'true 'false) <graphic> true
+(if #f 'true 'false) <graphic> false
+(if '() 'true 'false) <graphic> true         （hxzon：注意，空列表为真）
+(if 1 'true 'false) <graphic> true
+(if '(a b c) 'true 'false) <graphic> true 
+
+(not #t) <graphic> #f
+(not "false") <graphic> #f
+(not #f) <graphic> #t 
+
+(or) <graphic> #f
+(or #f) <graphic> #f
+(or #f #t) <graphic> #t
+(or #f 'a #f) <graphic> a
+
+==
+特殊形式“and”
+
+The and syntactic form is similar in form to or, but an and expression is true if all its subexpressions are true, and false otherwise. 
+In the case where there are no subexpressions, i.e., the expression is simply (and), the value is true. 
+Otherwise, the subexpressions are evaluated in turn until either no more subexpressions are left 
+or the value of a subexpression is false. 
+The value of the and expression is the value of the last subexpression evaluated.
+
+Using and, we can define a slightly different version of reciprocal.
+
+(define reciprocal
+  (lambda (n)
+    (and (not (= n 0))
+         (/ 1 n)))) 
+
+(reciprocal 3) <graphic> 1/3
+(reciprocal 0.5) <graphic> 2.0
+(reciprocal 0) <graphic> #f
+
+In this version, the value is #f if n is zero and 1/n otherwise.
+
+The procedures =, <, >, <=, and >= are called predicates. 
+“谓词”，返回真或假的函数。谓词一般以问号结尾。
+A predicate is a procedure that answers a specific question about its arguments and returns one of the two values #t or #f. 
+The names of most predicates end with a question mark ( ? ); 
+the common numeric procedures listed above are exceptions to this rule. 
+Not all predicates require numeric arguments, of course. 
+The predicate null? returns true if its argument is the empty list () and false otherwise.
+
+(null? '()) <graphic> #t
+(null? 'abc) <graphic> #f
+(null? '(x y z)) <graphic> #f
+(null? (cdddr '(x y z))) <graphic> #t
+
+The procedure cdr must not be passed anything other than a pair, and an exception is raised when this happens. 
+Common Lisp, however, defines (cdr '()) to be (). 
+The following procedure, lisp-cdr, is defined using null? to return () if its argument is ().
+
+(define lisp-cdr
+  (lambda (x)
+    (if (null? x)
+        '()
+        (cdr x)))) 
+
+(lisp-cdr '(a b c)) <graphic> (b c)
+(lisp-cdr '(c)) <graphic> ()
+(lisp-cdr '()) <graphic> ()
+
+==
+谓词：同一性比较 eqv?
+
+Another useful predicate is eqv?, which requires two arguments. 
+If the two arguments are equivalent, eqv? returns true. 
+Otherwise, eqv? returns false.
+
+(eqv? 'a 'a) <graphic> #t
+(eqv? 'a 'b) <graphic> #f
+(eqv? #f #f) <graphic> #t
+(eqv? #t #t) <graphic> #t
+(eqv? #f #t) <graphic> #f
+(eqv? 3 3) <graphic> #t
+(eqv? 3 2) <graphic> #f
+(let ([x "Hi Mom!"])
+  (eqv? x x)) <graphic> #t
+(let ([x (cons 'a 'b)])
+  (eqv? x x)) <graphic> #t
+(eqv? (cons 'a 'b) (cons 'a 'b)) <graphic> #f
+
+As you can see, eqv? returns true if the arguments are the same symbol, boolean, number, pair, or string. 
+Two pairs are not the same by eqv? if they are created by different calls to cons, even if they have the same contents. 
+Detailed equivalence rules for eqv? are given in Section 6.2.
+两个点对，内容相同，也不一定是同一的。
+
+==
+谓词：判断对象类型
+
+Scheme also provides a set of type predicates that return true or false depending on the type of the object, 
+e.g., pair?, symbol?, number?, and string?. 
+The predicate pair?, for example, returns true only if its argument is a pair.
+
+(pair? '(a . c)) <graphic> #t
+(pair? '(a b c)) <graphic> #t
+(pair? '()) <graphic> #f
+(pair? 'abc) <graphic> #f
+(pair? "Hi Mom!") <graphic> #f
+(pair? 1234567890) <graphic> #f
+
+Type predicates are useful for deciding if the argument passed to a procedure is of the appropriate type. 
+For example, the following version of reciprocal checks first to see that its argument is a number 
+before testing against zero or performing the division.
+
+(define reciprocal
+  (lambda (n)
+    (if (and (number? n) (not (= n 0)))
+        (/ 1 n)
+        "oops!"))) 
+
+(reciprocal 2/3) <graphic> 3/2
+(reciprocal 'a) <graphic> "oops!"
+
+By the way, the code that uses reciprocal must check to see that the returned value is a number and not a string. 
+To relieve the caller of this obligation, it is usually preferable to report the error, using assertion-violation, as follows.
+assertion-violation：验证并报告错误。
+
+(define reciprocal
+  (lambda (n)
+    (if (and (number? n) (not (= n 0)))
+        (/ 1 n)
+        (assertion-violation 'reciprocal
+          "improper argument"
+          n)))) 
+
+(reciprocal .25) <graphic> 4.0
+(reciprocal 0) <graphic> exception in reciprocal: improper argument 0
+(reciprocal 'a) <graphic> exception in reciprocal: improper argument a
+
+The first argument to assertion-violation is a symbol identifying where the message originates, 
+the second is a string describing the error, 
+and the third and subsequent arguments are "irritants" to be included with the error message.
+
+====
+cond
+
+Let's look at one more conditional expression, cond, that is often useful in place of if. 
+cond is similar to if except that it allows multiple test and alternative expressions. 
+Consider the following definition of sign, which returns -1 for negative inputs, +1 for positive inputs, and 0 for zero.
+
+(define sign
+  (lambda (n)
+    (if (< n 0)
+        -1
+        (if (> n 0)
+            +1
+            0))))
+
+(sign -88.3) <graphic> -1
+(sign 0) <graphic> 0
+(sign 333333333333) <graphic> 1
+(* (sign -88.3) (abs -88.3)) <graphic> -88.3
+
+The two if expressions may be replaced by a single cond expression as follows.
+
+(define sign
+  (lambda (n)
+    (cond
+      [(< n 0) -1]
+      [(> n 0) +1]
+      [else 0])))
+
+A cond expression usually takes the form
+cond语法：
+
+(cond (test expr) ... (else expr))
+
+though the else clause may be omitted. 
+This should be done only when there is no possibility that all the tests will fail, as in the new version of sign below.
+
+(define sign
+  (lambda (n)
+    (cond
+      [(< n 0) -1]
+      [(> n 0) +1]
+      [(= n 0) 0])))
+
+These definitions of sign do not depend on the order in which the tests are performed, 
+since only one of the tests can be true for any value of n. 
+The following procedure computes the tax on a given amount of income in a progressive tax system 
+with breakpoints at 10,000, 20,000, and 30,000 dollars.
+
+(define income-tax
+  (lambda (income)
+    (cond
+      [(<= income 10000) (* income .05)]
+      [(<= income 20000) (+ (* (- income 10000) .08) 500.00)]
+      [(<= income 30000) (+ (* (- income 20000) .13) 1300.00)]
+      [else (+ (* (- income 30000) .21) 2600.00)])))
+
+(income-tax 5000) <graphic> 250.0
+(income-tax 15000) <graphic> 900.0
+(income-tax 25000) <graphic> 1950.0
+(income-tax 50000) <graphic> 6800.0
+
+In this example, the order in which the tests are performed, left to right (top to bottom), is significant.
+
+Exercise 2.7.1
+
+Define the predicate atom?, which returns true if its argument is not a pair and false if it is.
+
+Exercise 2.7.2
+
+The procedure length returns the length of its argument, which must be a list. For example, (length '(a b c)) is 3. Using length, define the procedure shorter, which returns the shorter of two list arguments. Have it return the first list if they have the same length.
+(shorter '(a b) '(c d e)) <graphic> (a b)
+(shorter '(a b) '(c d)) <graphic> (a b)
+(shorter '(a b) '(c)) <graphic> (c)
+

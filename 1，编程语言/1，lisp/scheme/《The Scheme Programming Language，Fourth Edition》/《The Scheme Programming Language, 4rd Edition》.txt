@@ -43,10 +43,10 @@ Chapter 4. Procedures and Variable Bindings  过程和变量绑定
 
 Section 4.1. Variable References  变量引用
 Section 4.2. Lambda
-Section 4.3. Case-Lambda
-Section 4.4. Local Binding  本地绑定
+Section 4.3. Case-Lambda  基于参数个数的重载
+Section 4.4. Local Binding  本地绑定（let，let*，letrec，letrec*）
 Section 4.5. Multiple Values  多值
-Section 4.6. Variable Definitions
+Section 4.6. Variable Definitions 变量定义（define）
 Section 4.7. Assignment  赋值
 
 Chapter 5. Control Operations
@@ -148,3 +148,4 @@ ISBN 978-0-262-51298-5 / LOC QA76.73.S34D93
 to order this book / about this book
 
 http://www.scheme.com
+

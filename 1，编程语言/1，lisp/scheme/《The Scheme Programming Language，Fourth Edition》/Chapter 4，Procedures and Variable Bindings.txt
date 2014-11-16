@@ -1,10 +1,24 @@
 ﻿Chapter 4，Procedures and Variable Bindings
 http://www.scheme.com/tspl4/binding.html#./binding:h0
 
+注释by hxzon
+====
+Chapter 4. Procedures and Variable Bindings  过程和变量绑定
+
+Section 4.1. Variable References  变量引用
+Section 4.2. Lambda
+Section 4.3. Case-Lambda  基于参数个数的重载
+Section 4.4. Local Binding  本地绑定（let，let*，letrec，letrec*）
+Section 4.5. Multiple Values  多值
+Section 4.6. Variable Definitions 变量定义（define）
+Section 4.7. Assignment  赋值
+
+========
 Procedures and variable bindings are the fundamental building blocks of Scheme programs. This chapter describes the small set of syntactic forms whose primary purpose is to create procedures and manipulate variable bindings. It begins with the two most fundamental building blocks of Scheme programs: variable references and lambda expressions, and continues with descriptions of the variable binding and assignment forms such as define, letrec, let-values, and set!.
 
 Various other forms that bind or assign variables for which the binding or assignment is not the primary purpose (such as named let) are found in Chapter 5.
 
+====
 Section 4.1. Variable References
 
 syntax: variable 
@@ -35,13 +49,15 @@ is okay, but the reference to g in the definition of q below is not.
   (lambda (x)
     (+ x x)))
 
+====
 Section 4.2. Lambda
 
 syntax: (lambda formals body1 body2 ...) 
 returns: a procedure 
 libraries: (rnrs base), (rnrs)
 
-The lambda syntactic form is used to create procedures. Any operation that creates a procedure or establishes local variable bindings is ultimately defined in terms of lambda or case-lambda.
+The lambda syntactic form is used to create procedures. 
+Any operation that creates a procedure or establishes local variable bindings is ultimately defined in terms of lambda or case-lambda.
 
 The variables in formals are the formal parameters of the procedure, and the sequence of subforms body1 body2 ... is its body.
 
@@ -72,9 +88,11 @@ Procedures do not have a printed representation in the usual sense. Scheme syste
  1 2 3 4) <graphic> (1 2 (3 4))
 ((lambda x x) 7 13) <graphic> (7 13)
 
+========
 Section 4.3. Case-Lambda
 
-A Scheme lambda expression always produces a procedure with a fixed number of arguments or with an indefinite number of arguments greater than or equal to a certain number. In particular,
+A Scheme lambda expression always produces a procedure 
+with a fixed number of arguments or with an indefinite number of arguments greater than or equal to a certain number. In particular,
 
 (lambda (var1 ... varn) body1 body2 ...)
 
@@ -88,21 +106,41 @@ accepts zero or more arguments, and
 
 accepts n or more arguments.
 
-lambda cannot directly produce, however, a procedure that accepts, say, either two or three arguments. In particular, procedures that accept optional arguments are not supported directly by lambda. The latter form of lambda shown above can be used, in conjunction with length checks and compositions of car and cdr, to implement procedures with optional arguments, though at the cost of clarity and efficiency.
+lambda cannot directly produce, however, a procedure that accepts, say, either two or three arguments. 
+In particular, procedures that accept optional arguments are not supported directly by lambda. 
+The latter form of lambda shown above can be used, in conjunction with length checks and compositions of car and cdr, to implement procedures with optional arguments, though at the cost of clarity and efficiency.
 
-The case-lambda syntactic form directly supports procedures with optional arguments as well as procedures with fixed or indefinite numbers of arguments. case-lambda is based on the lambda* syntactic form introduced in the article "A New Approach to Procedures with Variable Arity" [11].
+==
+The case-lambda syntactic form directly supports procedures 
+with optional arguments as well as procedures with fixed or indefinite numbers of arguments. 
+case-lambda is based on the lambda* syntactic form introduced in the article "A New Approach to Procedures with Variable Arity" [11].
+基于特殊形式 lambda* 。用于基于参数个数的重载。
+
 
 syntax: (case-lambda clause ...) 
 returns: a procedure 
 libraries: (rnrs control), (rnrs)
 
-A case-lambda expression consists of a set of clauses, each resembling a lambda expression. Each clause has the form below.
+A case-lambda expression consists of a set of clauses, each resembling a lambda expression. 
+Each clause has the form below.
 
 [formals body1 body2 ...]
 
-The formal parameters of a clause are defined by formals in the same manner as for a lambda expression. The number of arguments accepted by the procedure value of a case-lambda expression is determined by the numbers of arguments accepted by the individual clauses.
+The formal parameters of a clause are defined by formals in the same manner as for a lambda expression. 
+The number of arguments accepted by the procedure value of a case-lambda expression 
+is determined by the numbers of arguments accepted by the individual clauses.
 
-When a procedure created with case-lambda is invoked, the clauses are considered in order. The first clause that accepts the given number of actual parameters is selected, the formal parameters defined by its formals are bound to the corresponding actual parameters, and the body is evaluated as described for lambda above. If formals in a clause is a proper list of identifiers, then the clause accepts exactly as many actual parameters as there are formal parameters (identifiers) in formals. As with a lambda formals, a case-lambda clause formals may be a single identifier, in which case the clause accepts any number of arguments, or an improper list of identifiers terminated by an identifier, in which case the clause accepts any number of arguments greater than or equal to the number of formal parameters excluding the terminating identifier. If no clause accepts the number of actual parameters supplied, an exception with condition type &assertion is raised.
+When a procedure created with case-lambda is invoked, the clauses are considered in order. 
+The first clause that accepts the given number of actual parameters is selected, 
+the formal parameters defined by its formals are bound to the corresponding actual parameters, 
+and the body is evaluated as described for lambda above. 
+If formals in a clause is a proper list of identifiers, 
+then the clause accepts exactly as many actual parameters as there are formal parameters (identifiers) in formals. 
+As with a lambda formals, a case-lambda clause formals may be a single identifier, 
+in which case the clause accepts any number of arguments, 
+or an improper list of identifiers terminated by an identifier, 
+in which case the clause accepts any number of arguments greater than or equal to the number of formal parameters excluding the terminating identifier. 
+If no clause accepts the number of actual parameters supplied, an exception with condition type &assertion is raised.
 
 The following definition for make-list uses case-lambda to support an optional fill parameter.
 
@@ -113,7 +151,8 @@ The following definition for make-list uses case-lambda to support an optional f
      (do ([n n (- n 1)] [ls '() (cons x ls)])
          ((zero? n) ls))]))
 
-The substring procedure may be extended with case-lambda to accept either no end index, in which case it defaults to the end of the string, or no start and end indices, in which case substring is equivalent to string-copy:
+The substring procedure may be extended with case-lambda to accept either no end index, 
+in which case it defaults to the end of the string, or no start and end indices, in which case substring is equivalent to string-copy:
 
 (define substring1
   (case-lambda
@@ -136,15 +175,25 @@ It is even possible to require that both or neither of the start and end indices
     [(s) (substring3 s 0 (string-length s))]
     [(s start end) (substring s start end)]))
 
+========
 Section 4.4. Local Binding
+本地绑定
 
 syntax: (let ((var expr) ...) body1 body2 ...) 
 returns: the values of the final body expression 
 libraries: (rnrs base), (rnrs)
 
-let establishes local variable bindings. Each variable var is bound to the value of the corresponding expression expr. The body of the let, in which the variables are bound, is the sequence of subforms body1 body2 ... and is processed and evaluated like a lambda body.
+let establishes local variable bindings. 
+Each variable var is bound to the value of the corresponding expression expr. 
+The body of the let, in which the variables are bound, 
+is the sequence of subforms body1 body2 ... and is processed and evaluated like a lambda body.
 
-The forms let, let*, letrec, and letrec* (the others are described after let) are similar but serve slightly different purposes. With let, in contrast with let*, letrec, and letrec*, the expressions expr ... are all outside the scope of the variables var .... Also, in contrast with let* and letrec*, no ordering is implied for the evaluation of the expressions expr .... They may be evaluated from left to right, from right to left, or in any other order at the discretion of the implementation. Use let whenever the values are independent of the variables and the order of evaluation is unimportant.
+The forms let, let*, letrec, and letrec* (the others are described after let) are similar but serve slightly different purposes. 
+With let, in contrast with let*, letrec, and letrec*, 
+the expressions expr ... are all outside the scope of the variables var .... 
+Also, in contrast with let* and letrec*, no ordering is implied for the evaluation of the expressions expr .... 
+They may be evaluated from left to right, from right to left, or in any other order at the discretion of the implementation. 
+Use let whenever the values are independent of the variables and the order of evaluation is unimportant.
 
 (let ([x (* 3.0 3.0)] [y (* 4.0 4.0)])
   (sqrt (+ x y))) <graphic> 5.0 
@@ -164,12 +213,16 @@ The following definition of let shows the typical derivation of let from lambda.
      ((lambda (x ...) b1 b2 ...) e ...)]))
 
 Another form of let, named let, is described in Section 5.4, and a definition of the full let can be found on page 312.
+“已命名let”，见第5.4节。
 
+====
 syntax: (let* ((var expr) ...) body1 body2 ...) 
 returns: the values of the final body expression 
 libraries: (rnrs base), (rnrs)
 
-let* is similar to let except that the expressions expr ... are evaluated in sequence from left to right, and each of these expressions is within the scope of the variables to the left. Use let* when there is a linear dependency among the values or when the order of evaluation is important.
+let* is similar to let except that the expressions expr ... are evaluated in sequence from left to right, 
+and each of these expressions is within the scope of the variables to the left. 
+Use let* when there is a linear dependency among the values or when the order of evaluation is important.
 
 (let* ([x (* 5.0 5.0)]
        [y (- x (* 4.0 4.0))])
@@ -179,7 +232,8 @@ let* is similar to let except that the expressions expr ... are evaluated in seq
   (let* ([x y] [y x])
     (list x y))) <graphic> (1 1)
 
-Any let* expression may be converted to a set of nested let expressions. The following definition of let* demonstrates the typical transformation.
+Any let* expression may be converted to a set of nested let expressions. 
+The following definition of let* demonstrates the typical transformation.
 
 (define-syntax let*
   (syntax-rules ()
@@ -189,11 +243,13 @@ Any let* expression may be converted to a set of nested let expressions. The fol
      (let ((x1 v1))
        (let* ((x2 v2) ...) e1 e2 ...))]))
 
+====
 syntax: (letrec ((var expr) ...) body1 body2 ...) 
 returns: the values of the final body expression 
 libraries: (rnrs base), (rnrs)
 
-letrec is similar to let and let*, except that all of the expressions expr ... are within the scope of all of the variables var .... letrec allows the definition of mutually recursive procedures.
+letrec is similar to let and let*, except that all of the expressions expr ... are within the scope of all of the variables var .... 
+letrec allows the definition of mutually recursive procedures.
 
 (letrec ([sum (lambda (x)
                 (if (zero? x)
@@ -201,11 +257,22 @@ letrec is similar to let and let*, except that all of the expressions expr ... a
                     (+ x (sum (- x 1)))))])
   (sum 5)) <graphic> 15
 
-The order of evaluation of the expressions expr ... is unspecified, so a program must not evaluate a reference to any of the variables bound by the letrec expression before all of the values have been computed. (Occurrence of a variable within a lambda expression does not count as a reference, unless the resulting procedure is applied before all of the values have been computed.) If this restriction is violated, an exception with condition type &assertion is raised.
+The order of evaluation of the expressions expr ... is unspecified, 
+so a program must not evaluate a reference to any of the variables bound by the letrec expression 
+before all of the values have been computed. 
+(Occurrence of a variable within a lambda expression does not count as a reference, 
+unless the resulting procedure is applied before all of the values have been computed.) 
+If this restriction is violated, an exception with condition type &assertion is raised.
 
-An expr should not return more than once. That is, it should not return both normally and via the invocation of a continuation obtained during its evaluation, and it should not return twice via two invocations of such a continuation. Implementations are not required to detect a violation of this restriction, but if they do, an exception with condition type &assertion is raised.
+An expr should not return more than once. 
+That is, it should not return both normally and via the invocation of a continuation obtained during its evaluation, 
+and it should not return twice via two invocations of such a continuation. 
+Implementations are not required to detect a violation of this restriction, 
+but if they do, an exception with condition type &assertion is raised.
 
-Choose letrec over let or let* when there is a circular dependency among the variables and their values and when the order of evaluation is unimportant. Choose letrec* over letrec when there is a circular dependency and the bindings need to be evaluated from left to right.
+Choose letrec over let or let* when there is a circular dependency among the variables 
+and their values and when the order of evaluation is unimportant. 
+Choose letrec* over letrec when there is a circular dependency and the bindings need to be evaluated from left to right.
 
 A letrec expression of the form
 
@@ -218,17 +285,28 @@ may be expressed in terms of let and set! as
     (set! var temp) ...
     (let () body1 body2 ...)))
 
-where temp ... are fresh variables, i.e., ones that do not already appear in the letrec expression, one for each (var expr) pair. The outer let expression establishes the variable bindings. The initial value given each variable is unimportant, so any value suffices in place of #f. The bindings are established first so that expr ... may contain occurrences of the variables, i.e., so that the expressions are computed within the scope of the variables. The middle let evaluates the values and binds them to the temporary variables, and the set! expressions assign each variable to the corresponding value. The inner let is present in case the body contains internal definitions.
+where temp ... are fresh variables, i.e., ones that do not already appear in the letrec expression, one for each (var expr) pair. 
+The outer let expression establishes the variable bindings. 
+The initial value given each variable is unimportant, so any value suffices in place of #f. 
+The bindings are established first so that expr ... may contain occurrences of the variables, 
+i.e., so that the expressions are computed within the scope of the variables. 
+The middle let evaluates the values and binds them to the temporary variables, 
+and the set! expressions assign each variable to the corresponding value. 
+The inner let is present in case the body contains internal definitions.
 
 A definition of letrec that uses this transformation is shown on page 310.
 
-This transformation does not enforce the restriction that the expr expressions must not evaluate any references of or assignments to the variables. More elaborate transformations that enforce this restriction and actually produce more efficient code are possible [31].
+This transformation does not enforce the restriction that the expr expressions must not evaluate any references of or assignments to the variables. 
+More elaborate transformations that enforce this restriction and actually produce more efficient code are possible [31].
 
+====
 syntax: (letrec* ((var expr) ...) body1 body2 ...) 
 returns: the values of the final body expression 
 libraries: (rnrs base), (rnrs)
 
-letrec* is similar to letrec, except that letrec* evaluates expr ... in sequence from left to right. While programs must still not evaluate a reference to any var before the corresponding expr has been evaluated, references to var may be evaluated any time thereafter, including during the evaluation of the expr of any subsequent binding.
+letrec* is similar to letrec, except that letrec* evaluates expr ... in sequence from left to right. 
+While programs must still not evaluate a reference to any var before the corresponding expr has been evaluated, 
+references to var may be evaluated any time thereafter, including during the evaluation of the expr of any subsequent binding.
 
 A letrec* expression of the form
 
@@ -240,7 +318,9 @@ may be expressed in terms of let and set! as
   (set! var expr) ...
   (let () body1 body2 ...))
 
-The outer let expression creates the bindings, each assignment evaluates an expression and immediately sets the corresponding variable to its value, in sequence, and the inner let evaluates the body. let is used in the latter case rather than begin since the body may include internal definitions as well as expressions.
+The outer let expression creates the bindings, each assignment evaluates an expression 
+and immediately sets the corresponding variable to its value, in sequence, and the inner let evaluates the body. 
+let is used in the latter case rather than begin since the body may include internal definitions as well as expressions.
 
 (letrec* ([sum (lambda (x)
                  (if (zero? x)
@@ -259,7 +339,9 @@ The outer let expression creates the bindings, each assignment evaluates an expr
           [f (lambda () (lambda () g))])
   (eq? (g) g)) <graphic> exception: attempt to reference undefined variable f
 
+========
 Section 4.5. Multiple Values
+多值
 
 syntax: (let-values ((formals expr) ...) body1 body2 ...) 
 syntax: (let*-values ((formals expr) ...) body1 body2 ...) 
@@ -274,18 +356,31 @@ let-values is a convenient way to receive multiple values and bind them to varia
 (let*-values ([(a b) (values 1 2)] [(a b) (values b a)])
   (list a b)) <graphic> (2 1)
 
+========
 Section 4.6. Variable Definitions
+变量定义
 
 syntax: (define var expr) 
 syntax: (define var) 
+
 syntax: (define (var0 var1 ...) body1 body2 ...) 
 syntax: (define (var0 . varr) body1 body2 ...) 
 syntax: (define (var0 var1 var2 ... . varr) body1 body2 ...) 
+
 libraries: (rnrs base), (rnrs)
 
-In the first form, define creates a new binding of var to the value of expr. The expr should not return more than once. That is, it should not return both normally and via the invocation of a continuation obtained during its evaluation, and it should not return twice via two invocations of such a continuation. Implementations are not required to detect a violation of this restriction, but if they do, an exception with condition type &assertion is raised.
+In the first form, define creates a new binding of var to the value of expr. 
+The expr should not return more than once. 
+That is, it should not return both normally and via the invocation of a continuation obtained during its evaluation, 
+and it should not return twice via two invocations of such a continuation. 
+Implementations are not required to detect a violation of this restriction, 
+but if they do, an exception with condition type &assertion is raised.
 
-The second form is equivalent to (define var unspecified), where unspecified is some unspecified value. The remaining are shorthand forms for binding variables to procedures; they are identical to the following definition in terms of lambda.
+The second form is equivalent to (define var unspecified), where unspecified is some unspecified value. 
+
+The remaining are shorthand forms for binding variables to procedures; 
+they are identical to the following definition in terms of lambda.
+后面三种形式，是定义函数的简写方式。
 
 (define var
   (lambda formals
@@ -293,9 +388,14 @@ The second form is equivalent to (define var unspecified), where unspecified is 
 
 where formals is (var1 ...), varr, or (var1 var2 ... . varr) for the third, fourth, and fifth define formats.
 
-Definitions may appear at the front of a library body, anywhere among the forms of a top-level-program body, and at the front of a lambda or case-lambda body or the body of any form derived from lambda, e.g., let, or letrec*. Any body that begins with a sequence of definitions is transformed during macro expansion into a letrec* expression as described on page 292.
+Definitions may appear at the front of a library body, anywhere among the forms of a top-level-program body, 
+and at the front of a lambda or case-lambda body 
+or the body of any form derived from lambda, e.g., let, or letrec*. 
+Any body that begins with a sequence of definitions 
+is transformed during macro expansion into a letrec* expression as described on page 292.
 
 Syntax definitions may appear along with variable definitions wherever variable definitions may appear; see Chapter 8.
+变量定义允许出现在任何地方，例如 let 的身体中。
 
 (define x 3)
 x <graphic> 3 
@@ -319,7 +419,11 @@ x <graphic> 3
   (f 3)) <graphic> 5
 (f 3) <graphic> 4
 
-A set of definitions may be grouped by enclosing them in a begin form. Definitions grouped in this manner may appear wherever ordinary variable and syntax definitions may appear. They are treated as if written separately, i.e., without the enclosing begin form. This feature allows syntactic extensions to expand into groups of definitions.
+A set of definitions may be grouped by enclosing them in a begin form. 
+Definitions grouped in this manner may appear wherever ordinary variable and syntax definitions may appear. 
+They are treated as if written separately, i.e., without the enclosing begin form. 
+This feature allows syntactic extensions to expand into groups of definitions.
+多个变量定义，可以用 begin 包裹。
 
 (define-syntax multi-define-syntax
   (syntax-rules ()
@@ -338,30 +442,44 @@ A set of definitions may be grouped by enclosing them in a begin form. Definitio
     (sub1 (syntax-rules () [(_ e) (- e 1)])))
   (plus 7 8)) <graphic> 15
 
-Many implementations support an interactive "top level" in which variable and other definitions may be entered interactively or loaded from files. The behavior of these top-level definitions is outside the scope of the Revised6 Report, but as long as top-level variables are defined before any references or assignments to them are evaluated, the behavior is consistent across most implementations. So, for example, the reference to g in the top-level definition of f below is okay if g is not already defined, and g is assumed to name a variable to be defined at some later point.
+Many implementations support an interactive "top level" in which variable and other definitions may be entered interactively or loaded from files. 
+The behavior of these top-level definitions is outside the scope of the Revised6 Report, 
+but as long as top-level variables are defined before any references or assignments to them are evaluated, 
+the behavior is consistent across most implementations. 
+So, for example, the reference to g in the top-level definition of f below is okay if g is not already defined, 
+and g is assumed to name a variable to be defined at some later point.
 
 (define f
   (lambda (x)
     (g x)))
 
-If this is then followed by a definition of g before f is evaluated, the assumption that g would be defined as a variable is proven correct, and a call to f works as expected.
+If this is then followed by a definition of g before f is evaluated, 
+the assumption that g would be defined as a variable is proven correct, and a call to f works as expected.
 
 (define g
   (lambda (x)
     (+ x x)))
 (f 3) <graphic> 6
 
-If g were defined instead as the keyword for a syntactic extension, the assumption that g would be bound as a variable is proven false, and if f is not redefined before it is invoked, the implementation is likely to raise an exception.
+If g were defined instead as the keyword for a syntactic extension, 
+the assumption that g would be bound as a variable is proven false, 
+and if f is not redefined before it is invoked, the implementation is likely to raise an exception.
 
+========
 Section 4.7. Assignment
+赋值
 
 syntax: (set! var expr) 
 returns: unspecified 
 libraries: (rnrs base), (rnrs)
 
-set! does not establish a new binding for var but rather alters the value of an existing binding. It first evaluates expr, then assigns var to the value of expr. Any subsequent reference to var within the scope of the altered binding evaluates to the new value.
+set! does not establish a new binding for var but rather alters the value of an existing binding. 
+It first evaluates expr, then assigns var to the value of expr. 
+Any subsequent reference to var within the scope of the altered binding evaluates to the new value.
+set! 不创建新的绑定，而是修改已有绑定的值。
 
-Assignments are not employed as frequently in Scheme as in most other languages, but they are useful for implementing state changes.
+Assignments are not employed as frequently in Scheme as in most other languages, 
+but they are useful for implementing state changes.
 
 (define flip-flop
   (let ([state #f])
@@ -373,7 +491,10 @@ Assignments are not employed as frequently in Scheme as in most other languages,
 (flip-flop) <graphic> #f
 (flip-flop) <graphic> #t
 
-Assignments are also useful for caching values. The example below uses a technique called memoization, in which a procedure records the values associated with old input values so it need not recompute them, to implement a fast version of the otherwise exponential doubly recursive definition of the Fibonacci function (see page 69).
+Assignments are also useful for caching values. 
+The example below uses a technique called memoization, 
+in which a procedure records the values associated with old input values so it need not recompute them, 
+to implement a fast version of the otherwise exponential doubly recursive definition of the Fibonacci function (see page 69).
 
 (define memoize
   (lambda (proc)
@@ -394,4 +515,6 @@ Assignments are also useful for caching values. The example below uses a techniq
           (+ (fibonacci (- n 1)) (fibonacci (- n 2))))))) 
 
 (fibonacci 100) <graphic> 573147844013817084101
+
+（本章完）
 

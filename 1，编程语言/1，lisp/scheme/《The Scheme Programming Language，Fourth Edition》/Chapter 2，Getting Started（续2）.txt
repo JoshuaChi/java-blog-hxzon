@@ -1,0 +1,551 @@
+﻿Chapter 2，Getting Started（续2）
+http://www.scheme.com/tspl4/start.html#./start:h0
+
+Chapter 2. Getting Started
+
+Section 2.1. Interacting with Scheme
+Section 2.2. Simple Expressions
+Section 2.3. Evaluating Scheme Expressions  表达式求值
+Section 2.4. Variables and Let Expressions  变量和let表达式
+Section 2.5. Lambda Expressions  lambda表达式
+
+==
+Section 2.6. Top-Level Definitions  顶层定义
+Section 2.7. Conditional Expressions  条件表达式
+
+==
+Section 2.8. Simple Recursion  简单递归
+Section 2.9. Assignment  赋值
+
+========
+Section 2.8. Simple Recursion
+简单递归
+
+We have seen how we can control whether or not expressions are evaluated with if, and, or, and cond. 
+We can also perform an expression more than once by creating a procedure containing the expression and invoking the procedure more than once. 
+What if we need to perform some expression repeatedly, say for all the elements of a list or all the numbers from one to ten? 
+We can do so via recursion. 
+Recursion is a simple concept: the application of a procedure from within that procedure. 
+It can be tricky to master recursion at first, but once mastered it provides expressive power far beyond ordinary looping constructs.
+
+A recursive procedure is a procedure that applies itself. 
+Perhaps the simplest recursive procedure is the following, which we will call goodbye.
+函数递归调用自身。
+
+(define goodbye
+  (lambda ()
+    (goodbye))) 
+
+(goodbye) <graphic>
+
+This procedure takes no arguments and simply applies itself immediately. 
+There is no value after the <graphic> because goodbye never returns.
+
+Obviously, to make practical use out of a recursive procedure, we must have some way to terminate the recursion. 
+Most recursive procedures should have at least two basic elements, a base case and a recursion step. 
+The base case terminates the recursion, giving the value of the procedure for some base argument. 
+The recursion step gives the value in terms of the value of the procedure applied to a different argument. 
+In order for the recursion to terminate, the different argument must be closer to the base argument in some way.
+
+Let's consider the problem of finding the length of a proper list recursively. 
+We need a base case and a recursion step. 
+The logical base argument for recursion on lists is nearly always the empty list. 
+The length of the empty list is zero, so the base case should give the value zero for the empty list. 
+In order to become closer to the empty list, the natural recursion step involves the cdr of the argument. 
+A nonempty list is one element longer than its cdr, 
+so the recursion step gives the value as one more than the length of the cdr of the list.
+
+(define length
+  (lambda (ls)
+    (if (null? ls)
+        0
+        (+ (length (cdr ls)) 1))))
+
+(length '()) <graphic> 0
+(length '(a)) <graphic> 1
+(length '(a b)) <graphic> 2
+
+The if expression asks if the list is empty. 
+If so, the value is zero. This is the base case. 
+If not, the value is one more than the length of the cdr of the list. 
+This is the recursion step.
+
+Many Scheme implementations allow you to trace the execution of a procedure to see how it operates. 
+In Chez Scheme, for example, one way to trace a procedure is to type (trace name), 
+where name is the name of a procedure you have defined at top level. 
+If you trace length as defined above and pass it the argument '(a b c d), you should see something like this:
+跟踪函数的执行过程：
+
+|(length (a b c d))
+| (length (b c d))
+| |(length (c d))
+| | (length (d))
+| | |(length ())
+| | |0
+| | 1
+| |2
+| 3
+|4
+
+The indentation shows the nesting level of the recursion; the vertical lines associate applications visually with their values. 
+Notice that on each application of length the list gets smaller until it finally reaches (). 
+The value at () is 0, and each outer level adds 1 to arrive at the final value.
+
+Let's write a procedure, list-copy, that returns a copy of its argument, which must be a list. 
+That is, list-copy returns a new list consisting of the elements (but not the pairs) of the old list. 
+Making a copy might be useful if either the original list or the copy might be altered via set-car! or set-cdr!, which we discuss later.
+
+(list-copy '()) <graphic> ()
+(list-copy '(a b c)) <graphic> (a b c)
+
+See if you can define list-copy before studying the definition below.
+
+(define list-copy
+  (lambda (ls)
+    (if (null? ls)
+        '()
+        (cons (car ls)
+              (list-copy (cdr ls))))))
+
+The definition of list-copy is similar to the definition of length. 
+The test in the base case is the same, (null? ls). 
+The value in the base case is (), however, not 0, because we are building up a list, not a number. 
+The recursive call is the same, but instead of adding one, list-copy conses the car of the list onto the value of the recursive call.
+
+There is no reason why there cannot be more than one base case. 
+The procedure memv takes two arguments, an object and a list. 
+It returns the first sublist, or tail, of the list whose car is equal to the object, or #f if the object is not found in the list. 
+The value of memv may be used as a list or as a truth value in a conditional expression.
+
+(define memv
+  (lambda (x ls)
+    (cond
+      [(null? ls) #f]
+      [(eqv? (car ls) x) ls]
+      [else (memv x (cdr ls))])))
+
+(memv 'a '(a b b d)) <graphic> (a b b d)
+(memv 'b '(a b b d)) <graphic> (b b d)
+(memv 'c '(a b b d)) <graphic> #f
+(memv 'd '(a b b d)) <graphic> (d)
+(if (memv 'b '(a b b d))
+    "yes"
+    "no") <graphic> "yes"
+
+Here there are two conditions to check, hence the use of cond. 
+The first cond clause checks for the base value of (); no object is a member of (), so the answer is #f. 
+The second clause asks if the car of the list is the object, in which case the list is returned, 
+being the first tail whose car contains the object. 
+The recursion step just continues down the list.
+
+There may also be more than one recursion case. 
+Like memv, the procedure remv defined below takes two arguments, an object and a list. 
+It returns a new list with all occurrences of the object removed from the list.
+
+(define remv
+  (lambda (x ls)
+    (cond
+      [(null? ls) '()]
+      [(eqv? (car ls) x) (remv x (cdr ls))]
+      [else (cons (car ls) (remv x (cdr ls)))])))
+
+(remv 'a '(a b b d)) <graphic> (b b d)
+(remv 'b '(a b b d)) <graphic> (a d)
+(remv 'c '(a b b d)) <graphic> (a b b d)
+(remv 'd '(a b b d)) <graphic> (a b b)
+
+This definition is similar to the definition of memv above, except remv does not quit once it finds the element in the car of the list. Rather, it continues, simply ignoring the element. If the element is not found in the car of the list, remv does the same thing as list-copy above: it conses the car of the list onto the recursive value.
+
+Up to now, the recursion has been only on the cdr of a list. It is sometimes useful, however, for a procedure to recur on the car as well as the cdr of the list. The procedure tree-copy defined below treats the structure of pairs as a tree rather than as a list, with the left subtree being the car of the pair and the right subtree being the cdr of the pair. It performs a similar operation to list-copy, building new pairs while leaving the elements (leaves) alone.
+
+(define tree-copy
+  (lambda (tr)
+    (if (not (pair? tr))
+        tr
+        (cons (tree-copy (car tr))
+              (tree-copy (cdr tr))))))
+
+(tree-copy '((a . b) . c)) <graphic> ((a . b) . c)
+
+The natural base argument for a tree structure is anything that is not a pair, since the recursion traverses pairs rather than lists. The recursive step in this case is doubly recursive, finding the value recursively for the car as well as the cdr of the argument.
+
+At this point, readers who are familiar with other languages that provide special iteration constructs, e.g., while or for loops, might wonder whether similar constructs are required in Scheme. Such constructs are unnecessary; iteration in Scheme is expressed more clearly and succinctly via recursion. Recursion is more general and eliminates the need for the variable assignments required by many other languages' iteration constructs, resulting in code that is more reliable and easier to follow. Some recursion is essentially iteration and executes as such; Section 3.2 has more to say about this. Often, there is no need to make a distinction, however. Concentrate instead on writing clear, concise, and correct programs.
+
+Before we leave the topic of recursion, let's consider a special form of repetition called mapping. Consider the following procedure, abs-all, that takes a list of numbers as input and returns a list of their absolute values.
+
+(define abs-all
+  (lambda (ls)
+    (if (null? ls)
+        '()
+        (cons (abs (car ls))
+              (abs-all (cdr ls))))))
+
+(abs-all '(1 -2 3 -4 5 -6)) <graphic> (1 2 3 4 5 6)
+
+This procedure forms a new list from the input list by applying the procedure abs to each element. We say that abs-all maps abs over the input list to produce the output list. Mapping a procedure over a list is a fairly common thing to do, so Scheme provides the procedure map, which maps its first argument, a procedure, over its second, a list. We can use map to define abs-all.
+
+(define abs-all
+  (lambda (ls)
+    (map abs ls)))
+
+We really do not need abs-all, however, since the corresponding direct application of map is just as short and perhaps clearer.
+
+(map abs '(1 -2 3 -4 5 -6)) <graphic> (1 2 3 4 5 6)
+
+Of course, we can use lambda to create the procedure argument to map, e.g., to square the elements of a list of numbers.
+
+(map (lambda (x) (* x x))
+     '(1 -3 -5 7)) <graphic> (1 9 25 49)
+
+We can map a multiple-argument procedure over multiple lists, as in the following example.
+
+(map cons '(a b c) '(1 2 3)) <graphic> ((a . 1) (b . 2) (c . 3))
+
+The lists must be of the same length, and the procedure should accept as many arguments as there are lists. Each element of the output list is the result of applying the procedure to corresponding members of the input list.
+
+Looking at the first definition of abs-all above, you should be able to derive, before studying it, the following definition of map1, a restricted version of map that maps a one-argument procedure over a single list.
+
+(define map1
+  (lambda (p ls)
+    (if (null? ls)
+        '()
+        (cons (p (car ls))
+              (map1 p (cdr ls))))))
+
+(map1 abs '(1 -2 3 -4 5 -6)) <graphic> (1 2 3 4 5 6)
+
+All we have done is to replace the call to abs in abs-all with a call to the new parameter p. A definition of the more general map is given in Section 5.4.
+
+Exercise 2.8.1
+
+Describe what would happen if you switched the order of the arguments to cons in the definition of tree-copy.
+Exercise 2.8.2
+
+Consult Section 6.3 for the description of append and define a two-argument version of it. What would happen if you switched the order of the arguments in the call to append within your definition of append?
+Exercise 2.8.3
+
+Define the procedure make-list, which takes a nonnegative integer n and an object and returns a new list, n long, each element of which is the object.
+(make-list 7 '()) <graphic> (() () () () () () ())
+
+[Hint: The base test should be (= n 0), and the recursion step should involve (- n 1). Whereas () is the natural base case for recursion on lists, 0 is the natural base case for recursion on nonnegative integers. Similarly, subtracting 1 is the natural way to bring a nonnegative integer closer to 0.]
+
+Exercise 2.8.4
+
+The procedures list-ref and list-tail return the nth element and nth tail of a list ls.
+(list-ref '(1 2 3 4) 0) <graphic> 1
+(list-tail '(1 2 3 4) 0) <graphic> (1 2 3 4)
+(list-ref '(a short (nested) list) 2) <graphic> (nested)
+(list-tail '(a short (nested) list) 2) <graphic> ((nested) list)
+
+Define both procedures.
+
+Exercise 2.8.5
+
+Exercise 2.7.2 had you use length in the definition of shorter, which returns the shorter of its two list arguments, or the first if the two have the same length. Write shorter without using length. [Hint: Define a recursive helper, shorter?, and use it in place of the length comparison.]
+Exercise 2.8.6
+
+All of the recursive procedures shown so far have been directly recursive. That is, each procedure directly applies itself to a new argument. It is also possible to write two procedures that use each other, resulting in indirect recursion. Define the procedures odd? and even?, each in terms of the other. [Hint: What should each return when its argument is 0?]
+(even? 17) <graphic> #f
+(odd? 17) <graphic> #t
+
+Exercise 2.8.7
+
+Use map to define a procedure, transpose, that takes a list of pairs and returns a pair of lists as follows.
+(transpose '((a . 1) (b . 2) (c . 3))) <graphic> ((a b c) 1 2 3)
+
+[Hint: ((a b c) 1 2 3) is the same as ((a b c) . (1 2 3)).]
+
+Section 2.9. Assignment
+
+Although many programs can be written without them, assignments to top-level variables or let-bound and lambda-bound variables are sometimes useful. Assignments do not create new bindings, as with let or lambda, but rather change the values of existing bindings. Assignments are performed with set!.
+
+(define abcde '(a b c d e))
+abcde <graphic> (a b c d e)
+(set! abcde (cdr abcde))
+abcde <graphic> (b c d e)
+(let ([abcde '(a b c d e)])
+  (set! abcde (reverse abcde))
+  abcde) <graphic> (e d c b a)
+
+Many languages require the use of assignments to initialize local variables, separate from the declaration or binding of the variables. In Scheme, all local variables are given a value immediately upon binding. Besides making the separate assignment to initialize local variables unnecessary, it ensures that the programmer cannot forget to initialize them, a common source of errors in most languages.
+
+In fact, most of the assignments that are either necessary or convenient in other languages are both unnecessary and inconvenient in Scheme, since there is typically a clearer way to express the same algorithm without assignments. One common practice in some languages is to sequence expression evaluation with a series of assignments, as in the following procedure that finds the roots of a quadratic equation.
+
+(define quadratic-formula
+  (lambda (a b c)
+    (let ([root1 0] [root2 0] [minusb 0] [radical 0] [divisor 0])
+      (set! minusb (- 0 b))
+      (set! radical (sqrt (- (* b b) (* 4 (* a c)))))
+      (set! divisor (* 2 a))
+      (set! root1 (/ (+ minusb radical) divisor))
+      (set! root2 (/ (- minusb radical) divisor))
+      (cons root1 root2))))
+
+The roots are computed according to the well-known quadratic formula,
+
+<graphic>
+
+which yields the solutions to the equation 0 = ax2 + bx + c. The let expression in this definition is employed solely to establish the variable bindings, corresponding to the declarations required in other languages. The first three assignment expressions compute subpieces of the formula, namely -b, <graphic>, and 2a. The last two assignment expressions compute the two roots in terms of the subpieces. A pair of the two roots is the value of quadratic-formula. For example, the two roots of 2x2 - 4x - 6 are x = 3 and x = -1.
+
+(quadratic-formula 2 -4 -6) <graphic> (3 . -1)
+
+The definition above works, but it can be written more clearly without the assignments, as shown below.
+
+(define quadratic-formula
+  (lambda (a b c)
+    (let ([minusb (- 0 b)]
+          [radical (sqrt (- (* b b) (* 4 (* a c))))]
+          [divisor (* 2 a)])
+      (let ([root1 (/ (+ minusb radical) divisor)]
+            [root2 (/ (- minusb radical) divisor)])
+        (cons root1 root2)))))
+
+In this version, the set! expressions are gone, and we are left with essentially the same algorithm. By employing two let expressions, however, the definition makes clear the dependency of root1 and root2 on the values of minusb, radical, and divisor. Equally important, the let expressions make clear the lack of dependencies among minusb, radical, and divisor and between root1 and root2.
+
+Assignments do have some uses in Scheme, otherwise the language would not support them. Consider the following version of cons that counts the number of times it is called, storing the count in a variable named cons-count. It uses set! to increment the count; there is no way to achieve the same behavior without assignments.
+
+(define kons-count 0)
+(define kons
+  (lambda (x y)
+    (set! kons-count (+ kons-count 1))
+    (cons x y))) 
+
+(kons 'a '(b c)) <graphic> (a b c)
+kons-count <graphic> 1
+(kons 'a (kons 'b (kons 'c '()))) <graphic> (a b c)
+kons-count <graphic> 4
+
+Assignments are commonly used to implement procedures that must maintain some internal state. For example, suppose we would like to define a procedure that returns 0 the first time it is called, 1 the second time, 2 the third time, and so on indefinitely. We could write something similar to the definition of cons-count above:
+
+(define next 0)
+(define count
+  (lambda ()
+    (let ([v next])
+      (set! next (+ next 1))
+      v))) 
+
+(count) <graphic> 0
+(count) <graphic> 1
+
+This solution is somewhat undesirable in that the variable next is visible at top level even though it need not be. Since it is visible at top level, any code in the system can change its value, perhaps inadvertently affecting the behavior of count in a subtle way. We can solve this problem by let-binding next outside of the lambda expression:
+
+(define count
+  (let ([next 0])
+    (lambda ()
+      (let ([v next])
+        (set! next (+ next 1))
+        v))))
+
+The latter solution also generalizes easily to provide multiple counters, each with its own local counter. The procedure make-counter, defined below, returns a new counting procedure each time it is called.
+
+(define make-counter
+  (lambda ()
+    (let ([next 0])
+      (lambda ()
+        (let ([v next])
+          (set! next (+ next 1))
+          v)))))
+
+Since next is bound inside of make-counter but outside of the procedure returned by make-counter, each procedure it returns maintains its own unique counter.
+
+(define count1 (make-counter))
+(define count2 (make-counter)) 
+
+(count1) <graphic> 0
+(count2) <graphic> 0
+(count1) <graphic> 1
+(count1) <graphic> 2
+(count2) <graphic> 1
+
+If a state variable must be shared by more than one procedure defined at top level, but we do not want the state variable to be visible at top level, we can use let to bind the variable and set! to make the procedures visible at top level.
+
+(define shhh #f)
+(define tell #f)
+(let ([secret 0])
+  (set! shhh
+    (lambda (message)
+      (set! secret message)))
+  (set! tell
+    (lambda ()
+      secret))) 
+
+(shhh "sally likes harry")
+(tell) <graphic> "sally likes harry"
+secret <graphic> exception: variable secret is not bound
+
+Variables must be defined before they can be assigned, so we define shhh and tell to be #f initially. (Any initial value would do.) We'll see this structure again in Section 3.5 and a better way to structure code like this as a library in Section 3.6.
+
+Local state is sometimes useful for caching computed values or allowing a computation to be evaluated lazily, i.e., only once and only on demand. The procedure lazy below accepts a thunk, or zero-argument procedure, as an argument. Thunks are often used to "freeze" computations that must be delayed for some reason, which is exactly what we need to do in this situation. When passed a thunk t, lazy returns a new thunk that, when invoked, returns the value of invoking t. Once computed, the value is saved in a local variable so that the computation need not be performed again. A boolean flag is used to record whether t has been invoked and its value saved.
+
+(define lazy
+  (lambda (t)
+    (let ([val #f] [flag #f])
+      (lambda ()
+        (if (not flag)
+            (begin (set! val (t))
+                   (set! flag #t)))
+        val))))
+
+The syntactic form begin, used here for the first time, evaluates its subexpressions in sequence from left to right and returns the value of the last subexpression, like the body of a let or lambda expression. We also see that the alternative subexpression of an if expression can be omitted. This should be done only when the value of the if is discarded, as it is in this case.
+
+Lazy evaluation is especially useful for values that require considerable time to compute. By delaying the evaluation, we might avoid computing the value altogether, and by saving the value, we avoid computing it more than once.
+
+The operation of lazy can best be illustrated by printing a message from within a thunk passed to lazy.
+
+(define p
+  (lazy (lambda ()
+          (display "Ouch!")
+          (newline)
+          "got me")))
+
+The first time p is invoked, the message Ouch! is printed and the string "got me" is returned. Thereafter, "got me" is returned but the message is not printed. The procedures display and newline are the first examples of explicit input/output we have seen; display prints the string without quotation marks, and newline prints a newline character.
+
+To further illustrate the use of set!, let's consider the implementation of stack objects whose internal workings are not visible on the outside. A stack object accepts one of four messages: empty?, which returns #t if the stack is empty; push!, which adds an object to the top of the stack; top, which returns the object on the top of the stack; and pop!, which removes the object on top of the stack. The procedure make-stack given below creates a new stack each time it is called in a manner similar to make-counter.
+
+(define make-stack
+  (lambda ()
+    (let ([ls '()])
+      (lambda (msg . args)
+        (cond
+          [(eqv? msg 'empty?) (null? ls)]
+          [(eqv? msg 'push!) (set! ls (cons (car args) ls))]
+          [(eqv? msg 'top) (car ls)]
+          [(eqv? msg 'pop!) (set! ls (cdr ls))]
+          [else "oops"])))))
+
+Each stack is stored as a list bound to the variable ls; set! is used to change this binding for push! and pop!. Notice that the argument list of the inner lambda expression uses the improper list syntax to bind args to a list of all arguments but the first. This is useful here because in the case of empty?, top, and pop! there is only one argument (the message), but in the case of push! there are two (the message and the object to push onto the stack).
+
+(define stack1 (make-stack))
+(define stack2 (make-stack))
+(list (stack1 'empty?) (stack2 'empty?)) <graphic> (#t #t) 
+
+(stack1 'push! 'a)
+(list (stack1 'empty?) (stack2 'empty?)) <graphic> (#f #t) 
+
+(stack1 'push! 'b)
+(stack2 'push! 'c)
+(stack1 'top) <graphic> b
+(stack2 'top) <graphic> c 
+
+(stack1 'pop!)
+(stack1 'top) <graphic> a
+(list (stack1 'empty?) (stack2 'empty?)) <graphic> (#f #f) 
+
+(stack1 'pop!)
+(list (stack1 'empty?) (stack2 'empty?)) <graphic> (#t #f)
+
+As with the counters created by make-counter, the state maintained by each stack object is directly accessible only within the object. Each reference or change to this state is made explicitly by the object itself. One important benefit is that we can change the internal structure of the stack, perhaps to use a vector (see Section 6.9) instead of a list to hold the elements, without changing its external behavior. Because the behavior of the object is known abstractly (not operationally), it is known as an abstract object. See Section 12.8 for more about creating abstract objects.
+
+In addition to changing the values of variables, we can also change the values of the car and cdr fields of a pair, using the procedures set-car! and set-cdr!.
+
+(define p (list 1 2 3))
+(set-car! (cdr p) 'two)
+p <graphic> (1 two 3)
+(set-cdr! p '())
+p <graphic> (1)
+
+We can use these operators to define a queue data type, which is like a stack except that new elements are added at one end and extracted from the other. The following queue implementation uses a tconc structure. A tconc consists of a nonempty list and a header. The header is a pair whose car points to the first pair (head) of the list and whose cdr points to the last pair (end) of the list.
+
+<graphic>
+
+The last element of the list is a placeholder and not considered part of the queue.
+
+Four operations on queues are defined below: make-queue, which constructs a queue; putq!, which adds an element to the end of a queue; getq, which retrieves the element at the front of a queue; and delq!, which removes the element at the front of a queue.
+
+(define make-queue
+  (lambda ()
+    (let ([end (cons 'ignored '())])
+      (cons end end)))) 
+
+(define putq!
+  (lambda (q v)
+    (let ([end (cons 'ignored '())])
+      (set-car! (cdr q) v)
+      (set-cdr! (cdr q) end)
+      (set-cdr! q end)))) 
+
+(define getq
+  (lambda (q)
+    (car (car q)))) 
+
+(define delq!
+  (lambda (q)
+    (set-car! q (cdr (car q)))))
+
+All are simple operations except for putq!, which modifies the end pair to contain the new value and adds a new end pair.
+
+(define myq (make-queue)) 
+
+(putq! myq 'a)
+(putq! myq 'b)
+(getq myq) <graphic> a
+(delq! myq)
+(getq myq) <graphic> b
+(delq! myq)
+(putq! myq 'c)
+(putq! myq 'd)
+(getq myq) <graphic> c
+(delq! myq)
+(getq myq) <graphic> d
+
+Exercise 2.9.1
+
+Modify make-counter to take two arguments: an initial value for the counter to use in place of 0 and an amount to increment the counter by each time.
+Exercise 2.9.2
+
+Look up the description of case in Section 5.3. Replace the cond expression in make-stack with an equivalent case expression. Add mt? as a second name for the empty? message.
+Exercise 2.9.3
+
+Modify the stack object to allow the two messages ref and set!. (stack 'ref i) should return the ith element from the top of the stack; (stack 'ref 0) should be equivalent to (stack 'top). (stack 'set! i v) should change the ith element from the top of the stack to v.
+(define stack (make-stack)) 
+
+(stack 'push! 'a)
+(stack 'push! 'b)
+(stack 'push! 'c) 
+
+(stack 'ref 0) <graphic> c
+(stack 'ref 2) <graphic> a
+(stack 'set! 1 'd)
+(stack 'ref 1) <graphic> d
+(stack 'top) <graphic> c
+(stack 'pop!)
+(stack 'top) <graphic> d
+
+[Hint: Use list-ref to implement ref and list-tail with set-car! to implement set!.]
+
+Exercise 2.9.4
+
+Scheme supports vectors as well as lists. Like lists, vectors are aggregate objects that contain other objects. Unlike lists, vectors have a fixed size and are laid out in one flat block of memory, typically with a header containing the length of the vector, as in the ten-element vector below.
+<graphic>
+
+This makes vectors more suitable for applications needing fast access to any element of the aggregate but less suitable for applications needing data structures that grow and shrink as needed.
+
+Look up the basic vector operations in Section 6.9 and reimplement the stack object to use a vector instead of a list to hold the stack contents. Include the ref and set! messages of Exercise 2.9.3. Have the new make-stack accept a size argument n and make the vector length n, but do not otherwise change the external (abstract) interface.
+
+Exercise 2.9.5
+
+Define a predicate, emptyq?, for determining if a queue is empty. Modify getq and delq! to raise an exception when an empty queue is found, using assertion-violation.
+Exercise 2.9.6
+
+In the queue implementation, the last pair in the encapsulated list is a placeholder, i.e., it never holds anything useful. Recode the queue operators to avoid this wasted pair. Make sure that the series of queue operations given earlier works with the new implementation. Which implementation do you prefer?
+Exercise 2.9.7
+
+Using set-cdr!, it is possible to create cyclic lists. For example, the following expression evaluates to a list whose car is the symbol a and whose cdr is the list itself.
+(let ([ls (cons 'a '())])
+  (set-cdr! ls ls)
+  ls)
+
+What happens when you enter the above expression during an interactive Scheme session? What will the implementation of length on page 42 do when given a cyclic list? What does the built-in length primitive do?
+
+Exercise 2.9.8
+
+Define the predicate list?, which returns #t if its argument is a proper list and #f otherwise (see Section 6.3). It should return #f for cyclic lists as well as for lists terminated by objects other than ().
+(list? '()) <graphic> #t
+(list? '(1 2 3)) <graphic> #t
+(list? '(a . b)) <graphic> #f
+(list? (let ([ls (cons 'a '())])
+         (set-cdr! ls ls)
+         ls)) <graphic> #f
+
+First write a simplified version of list? that does not handle cyclic lists, then extend this to handle cyclic lists correctly. Revise your definition until you are satisfied that it is as clear and concise as possible. [Hint: Use the following "hare and tortoise" algorithm to detect cycles. Define a recursive help procedure of two arguments, the hare and the tortoise. Start both the hare and the tortoise at the beginning of the list. Have the hare advance by two cdrs each time the tortoise advances by one cdr. If the hare catches the tortoise, there must be a cycle.]
+

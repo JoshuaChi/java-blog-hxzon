@@ -1,0 +1,381 @@
+﻿Chapter 5，Control Operations（续1）
+http://www.scheme.com/tspl4/control.html#./control:h0
+
+Chapter 5. Control Operations
+
+Section 5.1. Procedure Application
+Section 5.2. Sequencing
+Section 5.3. Conditionals
+Section 5.4. Recursion and Iteration  递归和迭代
+
+Section 5.5. Mapping and Folding  映射和规约
+Section 5.6. Continuations  续延
+Section 5.7. Delayed Evaluation  延迟求值
+Section 5.8. Multiple Values  多值
+Section 5.9. Eval
+
+========
+Section 5.5. Mapping and Folding
+
+When a program must recur or iterate over the elements of a list, a mapping or folding operator is often more convenient. These operators abstract away from null checks and explicit recursion by applying a procedure to the elements of the list one by one. A few mapping operators are also available for vectors and strings.
+
+procedure: (map procedure list1 list2 ...) 
+returns: list of results 
+libraries: (rnrs base), (rnrs)
+
+map applies procedure to corresponding elements of the lists list1 list2 ... and returns a list of the resulting values. The lists list1 list2 ... must be of the same length. procedure should accept as many arguments as there are lists, should return a single value, and should not mutate the list arguments.
+
+(map abs '(1 -2 3 -4 5 -6)) <graphic> (1 2 3 4 5 6) 
+
+(map (lambda (x y) (* x y))
+     '(1 2 3 4)
+     '(8 7 6 5)) <graphic> (8 14 18 20)
+
+While the order in which the applications themselves occur is not specified, the order of the values in the output list is the same as that of the corresponding values in the input lists.
+
+map might be defined as follows.
+
+(define map
+  (lambda (f ls . more)
+    (if (null? more)
+        (let map1 ([ls ls])
+          (if (null? ls)
+              '()
+              (cons (f (car ls))
+                    (map1 (cdr ls)))))
+        (let map-more ([ls ls] [more more])
+          (if (null? ls)
+              '()
+              (cons
+                (apply f (car ls) (map car more))
+                (map-more (cdr ls) (map cdr more))))))))
+
+No error checking is done by this version of map; f is assumed to be a procedure and the other arguments are assumed to be proper lists of the same length. An interesting feature of this definition is that map uses itself to pull out the cars and cdrs of the list of input lists; this works because of the special treatment of the single-list case.
+
+procedure: (for-each procedure list1 list2 ...) 
+returns: unspecified 
+libraries: (rnrs base), (rnrs)
+
+for-each is similar to map except that for-each does not create and return a list of the resulting values, and for-each guarantees to perform the applications in sequence over the elements from left to right. procedure should accept as many arguments as there are lists and should not mutate the list arguments. for-each may be defined without error checks as follows.
+
+(define for-each
+  (lambda (f ls . more)
+    (do ([ls ls (cdr ls)] [more more (map cdr more)])
+        ((null? ls))
+      (apply f (car ls) (map car more))))) 
+
+(let ([same-count 0])
+  (for-each
+    (lambda (x y)
+      (when (= x y)
+        (set! same-count (+ same-count 1))))
+    '(1 2 3 4 5 6)
+    '(2 3 3 4 7 6))
+  same-count) <graphic> 3
+
+procedure: (exists procedure list1 list2 ...) 
+returns: see below 
+libraries: (rnrs lists), (rnrs)
+
+The lists list1 list2 ... must be of the same length. procedure should accept as many arguments as there are lists and should not mutate the list arguments. If the lists are empty, exists returns #f. Otherwise, exists applies procedure to corresponding elements of the lists list1 list2 ... in sequence until either the lists each have only one element or procedure returns a true value t. In the former case, exists tail-calls procedure, applying it to the remaining element of each list. In the latter case, exists returns t.
+
+(exists symbol? '(1.0 #\a "hi" '())) <graphic> #f 
+
+(exists member
+        '(a b c)
+        '((c b) (b a) (a c))) <graphic> (b a) 
+
+(exists (lambda (x y z) (= (+ x y) z))
+        '(1 2 3 4)
+        '(1.2 2.3 3.4 4.5)
+        '(2.3 4.4 6.4 8.6)) <graphic> #t
+
+exists may be defined (somewhat inefficiently and without error checks) as follows:
+
+(define exists
+  (lambda (f ls . more)
+    (and (not (null? ls))
+      (let exists ([x (car ls)] [ls (cdr ls)] [more more])
+        (if (null? ls)
+            (apply f x (map car more))
+            (or (apply f x (map car more))
+                (exists (car ls) (cdr ls) (map cdr more))))))))
+
+procedure: (for-all procedure list1 list2 ...) 
+returns: see below 
+libraries: (rnrs lists), (rnrs)
+
+The lists list1 list2 ... must be of the same length. procedure should accept as many arguments as there are lists and should not mutate the list arguments. If the lists are empty, for-all returns #t. Otherwise, for-all applies procedure to corresponding elements of the lists list1 list2 ... in sequence until either the lists each have only one element left or procedure returns #f. In the former case, for-all tail-calls procedure, applying it to the remaining element of each list. In the latter case, for-all returns #f.
+
+(for-all symbol? '(a b c d)) <graphic> #t 
+
+(for-all =
+         '(1 2 3 4)
+         '(1.0 2.0 3.0 4.0)) <graphic> #t 
+
+(for-all (lambda (x y z) (= (+ x y) z))
+         '(1 2 3 4)
+         '(1.2 2.3 3.4 4.5)
+         '(2.2 4.3 6.5 8.5)) <graphic> #f
+
+for-all may be defined (somewhat inefficiently and without error checks) as follows:
+
+(define for-all
+  (lambda (f ls . more)
+    (or (null? ls)
+      (let for-all ([x (car ls)] [ls (cdr ls)] [more more])
+        (if (null? ls)
+            (apply f x (map car more))
+            (and (apply f x (map car more))
+                 (for-all (car ls) (cdr ls) (map cdr more))))))))
+
+procedure: (fold-left procedure obj list1 list2 ...) 
+returns: see below 
+libraries: (rnrs lists), (rnrs)
+
+The list arguments should all have the same length. procedure should accept one more argument than the number of list arguments and return a single value. It should not mutate the list arguments.
+
+fold-left returns obj if the list arguments are empty. If they are not empty, fold-left applies procedure to obj and the cars of list1 list2 ..., then recurs with the value returned by procedure in place of obj and the cdr of each list in place of the list.
+
+(fold-left cons '() '(1 2 3 4)) <graphic> ((((() . 1) . 2) . 3) . 4) 
+
+(fold-left
+  (lambda (a x) (+ a (* x x)))
+  0 '(1 2 3 4 5)) <graphic> 55 
+
+(fold-left
+  (lambda (a . args) (append args a))
+  '(question)
+  '(that not to)
+  '(is to be)
+  '(the be: or)) <graphic> (to be or not to be: that is the question)
+
+procedure: (fold-right procedure obj list1 list2 ...) 
+returns: see below 
+libraries: (rnrs lists), (rnrs)
+
+The list arguments should all have the same length. procedure should accept one more argument than the number of list arguments and return a single value. It should not mutate the list arguments.
+
+fold-right returns obj if the list arguments are empty. If they are not empty, fold-right recurs with the cdr of each list replacing the list, then applies procedure to the cars of list1 list2 ... and the result returned by the recursion.
+
+(fold-right cons '() '(1 2 3 4)) <graphic> (1 2 3 4) 
+
+(fold-right
+  (lambda (x a) (+ a (* x x)))
+  0 '(1 2 3 4 5)) <graphic> 55 
+
+(fold-right
+  (lambda (x y a) (cons* x y a))   <graphic> (parting is such sweet sorrow
+  '((with apologies))                gotta go see ya tomorrow
+  '(parting such sorrow go ya)       (with apologies))
+  '(is sweet gotta see tomorrow))
+
+procedure: (vector-map procedure vector1 vector1 ...) 
+returns: vector of results 
+libraries: (rnrs base), (rnrs)
+
+vector-map applies procedure to corresponding elements of vector1 vector2 ... and returns a vector of the resulting values. The vectors vector1 vector2 ... must be of the same length, and procedure should accept as many arguments as there are vectors and return a single value.
+
+(vector-map abs '#(1 -2 3 -4 5 -6)) <graphic> #(1 2 3 4 5 6)
+(vector-map (lambda (x y) (* x y))
+  '#(1 2 3 4)
+  '#(8 7 6 5)) <graphic> #(8 14 18 20)
+
+While the order in which the applications themselves occur is not specified, the order of the values in the output vector is the same as that of the corresponding values in the input vectors.
+
+procedure: (vector-for-each procedure vector1 vector2 ...) 
+returns: unspecified 
+libraries: (rnrs base), (rnrs)
+
+vector-for-each is similar to vector-map except that vector-for-each does not create and return a vector of the resulting values, and vector-for-each guarantees to perform the applications in sequence over the elements from left to right.
+
+(let ([same-count 0])
+  (vector-for-each
+    (lambda (x y)
+      (when (= x y)
+        (set! same-count (+ same-count 1))))
+    '#(1 2 3 4 5 6)
+    '#(2 3 3 4 7 6))
+  same-count) <graphic> 3
+
+procedure: (string-for-each procedure string1 string2 ...) 
+returns: unspecified 
+libraries: (rnrs base), (rnrs)
+
+string-for-each is similar to for-each and vector-for-each except that the inputs are strings rather than lists or vectors.
+
+(let ([ls '()])
+  (string-for-each
+    (lambda r (set! ls (cons r ls)))
+    "abcd"
+    "===="
+    "1234")
+  (map list->string (reverse ls))) <graphic> ("a=1" "b=2" "c=3" "d=4")
+
+========
+
+Section 5.6. Continuations
+
+Continuations in Scheme are procedures that represent the remainder of a computation from a given point in the computation. They may be obtained with call-with-current-continuation, which can be abbreviated to call/cc.
+
+procedure: (call/cc procedure) 
+procedure: (call-with-current-continuation procedure) 
+returns: see below 
+libraries: (rnrs base), (rnrs)
+
+These procedures are the same. The shorter name is often used for the obvious reason that it requires fewer keystrokes to type.
+
+call/cc obtains its continuation and passes it to procedure, which should accept one argument. The continuation itself is represented by a procedure. Each time this procedure is applied to zero or more values, it returns the values to the continuation of the call/cc application. That is, when the continuation procedure is called, it returns its arguments as the values of the application of call/cc.
+
+If procedure returns normally when passed the continuation procedure, the values returned by call/cc are the values returned by procedure.
+
+Continuations allow the implementation of nonlocal exits, backtracking [14,29], coroutines [16], and multitasking [10,32].
+
+The example below illustrates the use of a continuation to perform a nonlocal exit from a loop.
+
+(define member
+  (lambda (x ls)
+    (call/cc
+      (lambda (break)
+        (do ([ls ls (cdr ls)])
+            ((null? ls) #f)
+          (when (equal? x (car ls))
+            (break ls))))))) 
+
+(member 'd '(a b c)) <graphic> #f
+(member 'b '(a b c)) <graphic> (b c)
+
+Additional examples are given in Sections 3.3 and 12.11.
+
+The current continuation is typically represented internally as a stack of procedure activation records, and obtaining the continuation involves encapsulating the stack within a procedural object. Since an encapsulated stack has indefinite extent, some mechanism must be used to preserve the stack contents indefinitely. This can be done with surprising ease and efficiency and with no impact on programs that do not use continuations [17].
+
+procedure: (dynamic-wind in body out) 
+returns: values resulting from the application of body 
+libraries: (rnrs base), (rnrs)
+
+dynamic-wind offers "protection" from continuation invocation. It is useful for performing tasks that must be performed whenever control enters or leaves body, either normally or by continuation application.
+
+The three arguments in, body, and out must be procedures and should accept zero arguments, i.e., they should be thunks. Before applying body, and each time body is entered subsequently by the application of a continuation created within body, the in thunk is applied. Upon normal exit from body and each time body is exited by the application of a continuation created outside body, the out thunk is applied.
+
+Thus, it is guaranteed that in is invoked at least once. In addition, if body ever returns, out is invoked at least once.
+
+The following example demonstrates the use of dynamic-wind to be sure that an input port is closed after processing, regardless of whether the processing completes normally.
+
+(let ([p (open-input-file "input-file")])
+  (dynamic-wind
+    (lambda () #f)
+    (lambda () (process p))
+    (lambda () (close-port p))))
+
+Common Lisp provides a similar facility (unwind-protect) for protection from nonlocal exits. This is often sufficient. unwind-protect provides only the equivalent to out, however, since Common Lisp does not support fully general continuations. Here is how unwind-protect might be specified with dynamic-wind.
+
+(define-syntax unwind-protect
+  (syntax-rules ()
+    [(_ body cleanup ...)
+     (dynamic-wind
+       (lambda () #f)
+       (lambda () body)
+       (lambda () cleanup ...))])) 
+
+((call/cc
+   (let ([x 'a])
+     (lambda (k)
+       (unwind-protect
+         (k (lambda () x))
+         (set! x 'b)))))) <graphic> b
+
+Some Scheme implementations support a controlled form of assignment known as fluid binding, in which a variable takes on a temporary value during a given computation and reverts to the old value after the computation has completed. The syntactic form fluid-let defined below in terms of dynamic-wind permits the fluid binding of a single variable x to the value of an expression e within a the body b1 b2 ....
+
+(define-syntax fluid-let
+  (syntax-rules ()
+    [(_ ((x e)) b1 b2 ...)
+     (let ([y e])
+       (let ([swap (lambda () (let ([t x]) (set! x y) (set! y t)))])
+         (dynamic-wind swap (lambda () b1 b2 ...) swap)))]))
+
+Implementations that support fluid-let typically extend it to allow an indefinite number of (x e) pairs, as with let.
+
+If no continuations are invoked within the body of a fluid-let, the behavior is the same as if the variable were simply assigned the new value on entry and assigned the old value on return.
+
+(let ([x 3])
+  (+ (fluid-let ([x 5])
+       x)
+     x)) <graphic> 8
+
+A fluid-bound variable also reverts to the old value if a continuation created outside of the fluid-let is invoked.
+
+(let ([x 'a])
+  (let ([f (lambda () x)])
+    (cons (call/cc
+            (lambda (k)
+              (fluid-let ([x 'b])
+                (k (f)))))
+          (f)))) <graphic> (b . a)
+
+If control has left a fluid-let body, either normally or by the invocation of a continuation, and control reenters the body by the invocation of a continuation, the temporary value of the fluid-bound variable is reinstated. Furthermore, any changes to the temporary value are maintained and reflected upon reentry.
+
+(define reenter #f)
+(define x 0)
+(fluid-let ([x 1])
+  (call/cc (lambda (k) (set! reenter k)))
+  (set! x (+ x 1))
+  x) <graphic> 2
+x <graphic> 0
+(reenter '*) <graphic> 3
+(reenter '*) <graphic> 4
+x <graphic> 0
+
+A library showing how dynamic-wind might be implemented were it not already built in is given below. In addition to defining dynamic-wind, the code defines a version of call/cc that does its part to support dynamic-wind.
+
+(library (dynamic-wind)
+  (export dynamic-wind call/cc
+    (rename (call/cc call-with-current-continuation)))
+  (import (rename (except (rnrs) dynamic-wind) (call/cc rnrs:call/cc))) 
+
+  (define winders '()) 
+
+  (define common-tail
+    (lambda (x y)
+      (let ([lx (length x)] [ly (length y)])
+        (do ([x (if (> lx ly) (list-tail x (- lx ly)) x) (cdr x)]
+             [y (if (> ly lx) (list-tail y (- ly lx)) y) (cdr y)])
+            ((eq? x y) x))))) 
+
+  (define do-wind
+    (lambda (new)
+      (let ([tail (common-tail new winders)])
+        (let f ([ls winders])
+          (if (not (eq? ls tail))
+              (begin
+                (set! winders (cdr ls))
+                ((cdar ls))
+                (f (cdr ls)))))
+        (let f ([ls new])
+          (if (not (eq? ls tail))
+              (begin
+                (f (cdr ls))
+                ((caar ls))
+                (set! winders ls)))))))
+
+  (define call/cc
+    (lambda (f)
+      (rnrs:call/cc
+        (lambda (k)
+          (f (let ([save winders])
+               (lambda (x)
+                 (unless (eq? save winders) (do-wind save))
+                 (k x)))))))) 
+
+  (define dynamic-wind
+    (lambda (in body out)
+      (in)
+      (set! winders (cons (cons in out) winders))
+      (let-values ([ans* (body)])
+        (set! winders (cdr winders))
+        (out)
+        (apply values ans*)))))
+
+Together, dynamic-wind and call/cc manage a list of winders. A winder is a pair of in and out thunks established by a call to dynamic-wind. Whenever dynamic-wind is invoked, the in thunk is invoked, a new winder containing the in and out thunks is placed on the winders list, the body thunk is invoked, the winder is removed from the winders list, and the out thunk is invoked. This ordering ensures that the winder is on the winders list only when control has passed through in and not yet entered out. Whenever a continuation is obtained, the winders list is saved, and whenever the continuation is invoked, the saved winders list is reinstated. During reinstatement, the out thunk of each winder on the current winders list that is not also on the saved winders list is invoked, followed by the in thunk of each winder on the saved winders list that is not also on the current winders list. The winders list is updated incrementally, again to ensure that a winder is on the current winders list only if control has passed through its in thunk and not entered its out thunk.
+
+The test (not (eq? save winders)) performed in call/cc is not strictly necessary but makes invoking a continuation less costly whenever the saved winders list is the same as the current winders list.
+

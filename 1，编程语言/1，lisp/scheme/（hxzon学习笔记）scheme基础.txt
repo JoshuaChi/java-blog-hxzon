@@ -13,6 +13,8 @@ define，为事物定义一个名字，即 clojure 中的 def 。
 lambda，创建一个过程。类似 clojure 中的 fn 。
 （不过 clojure 的 fn 可以指定一个内部名字，用于自引用，例如递归或参数个数重载。）
 
+(lambda (var ...) body1 body2 ...)
+
 (lambda (x) (+ x 2))
 
 ==
