@@ -302,6 +302,7 @@ See page 306 for a syntax definition of case.
 
 ========
 Section 5.4. Recursion and Iteration
+递归和迭代
 
 ====
 已命名let
@@ -317,6 +318,8 @@ which is processed and evaluated like a lambda body.
 
 In addition, the variable name is bound within the body to a procedure that may be called to recur or iterate; 
 the arguments to the procedure become the new values of the variables var ....
+除了和普通的 let 做相同的事，name变量绑定到一个函数，
+它的参数将作为 let 的绑定的新值。
 
 A named let expression of the form
 
@@ -324,6 +327,7 @@ A named let expression of the form
   body1 body2 ...)
 
 can be rewritten with letrec as follows.
+等价于定义一个函数，绑定到name，再调用name。
 
 ((letrec ((name (lambda (var ...) body1 body2 ...)))
    name)
@@ -335,17 +339,18 @@ The procedure divisors defined below uses named let to compute the nontrivial di
 
 (define divisors
   (lambda (n)
-    (let f ([i 2])
+    (let f ([i 2])     ;已命名let，看成先定义一个函数f，再执行(f 2)
       (cond
         [(>= i n) '()]
-        [(integer? (/ n i)) (cons i (f (+ i 1)))]
+        [(integer? (/ n i)) (cons i (f (+ i 1)))]        ;递归调用
         [else (f (+ i 1))])))) 
 
 (divisors 5) <graphic> ()
 (divisors 32) <graphic> (2 4 8 16)
 
 The version above is non-tail-recursive when a divisor is found and tail-recursive when a divisor is not found. 
-The version below is fully tail-recursive. It builds up the list in reverse order, 
+The version below is fully tail-recursive. 
+It builds up the list in reverse order, 
 but this is easy to remedy, if desired, by reversing the list on exit.
 
 (define divisors
@@ -361,7 +366,8 @@ syntax: (do ((var init update) ...) (test result ...) expr ...)
 returns: the values of the last result expression 
 libraries: (rnrs control), (rnrs)
 
-do allows a common restricted form of iteration to be expressed succinctly. The variables var ... are bound initially to the values of init ... and are rebound on each subsequent iteration to the values of update .... The expressions test, update ..., expr ..., and result ... are all within the scope of the bindings established for var ....
+do allows a common restricted form of iteration to be expressed succinctly. 
+The variables var ... are bound initially to the values of init ... and are rebound on each subsequent iteration to the values of update .... The expressions test, update ..., expr ..., and result ... are all within the scope of the bindings established for var ....
 
 On each step, the test expression test is evaluated. If the value of test is true, iteration ceases, the expressions result ... are evaluated in sequence, and the values of the last expression are returned. If no result expressions are present, the value or values of the do expression are unspecified.
 

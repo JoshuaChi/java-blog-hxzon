@@ -2,29 +2,60 @@
 
 by hxzon
 ======
-1，define，lambda
+备注：“函数”，在scheme中称为“过程”，以下混用这两个词。
 
-clojure中的函数，在scheme中称为“过程”。
+====
+1，define
 
 define，为事物定义一个名字，即 clojure 中的 def 。
-但define还可以用来定义过程，所以同时也是 clojure 中的 defn 。
+但define还为函数定义提供了简写方式，见下文。
 
-==
-lambda，创建一个过程。类似 clojure 中的 fn 。
+====
+2，lambda，创建一个函数。类似 clojure 中的 fn 。
 （不过 clojure 的 fn 可以指定一个内部名字，用于自引用，例如递归或参数个数重载。）
 
-(lambda (var ...) body1 body2 ...)
+固定参数个数：
+(lambda (var1 var2) body1 body2 ...)
 
-(lambda (x) (+ x 2))
+不定参数个数（注意，不使用括号）：
+(lambda varr body1 body2 ...)
+
+剩余参数（使用点号）：
+(lambda (var1 var2 . varr) body1 body2 ...)
+
+示例（注意单个参数和不定参数的区别）：
+> (let ([f (lambda (x) x)])
+    (f 1))
+1
+
+> (let ([f (lambda x x)])
+    (f 1))
+(1)
+
+> (let ([f (lambda x x)])
+    (f 1 2 3 4))
+(1 2 3 4)
 
 ==
-可以使用define定义过程。
+define为定义函数，提供了简写方式。
 
+固定参数个数：
+(define (fname var1 var2) body1 body2 ...)
+
+不定参数个数：
+(define (fname . varr) body1 body2 ...)
+
+剩余参数：
+(define (fname var1 var2 . varr) body1 body2 ...)
+
+示例：
 (define (add2 x)
        (+ x 2))
 
 ====
-2，let，后续的局部变量不能引用前边的局部变量。
+3，let，本地绑定
+
+后续的局部变量不能引用前边的局部变量。
 let可以靠 lambda 来实现，即 let 是 lambda 的语法糖。
 
 (let ( (var expr) ... ) 
@@ -41,41 +72,15 @@ Brackets are often used in place of parentheses to delimit the bindings of a let
         (cons (car (cdr list1))
               (car (cdr list2))))) <graphic> ((a . d) b . e)
 
-==
-定义本地函数：
-(let f (p1 p2) body1 body2 ...)
-
 ====
-3，let*，后续的局部变量可以引用前边的局部变量。
-clojure中的let，为这里的 let* 。
+3.1，“已命名let”
 
-(let ((x 1)
-      (y x))	;这里 y 的值是 全局变量 x 的值。
-  (+ x y))
+(let f (p1 pv1 p2 pv2) body1 body2 ...)
 
-(let* ((x 1)
-       (y x))	;这里 y 的值是前面的局部变量 x 的值。
-  (+ x y))
+可以看成定义本地函数f，再执行(f pv1 pv2)。
+而且 f 可以体内递归调用。
 
-====
-fluid-let ，即 clojure 中的 binding 。
-
-====
-letrec，内部递归定义。
-
-(letrec ((local-even? (lambda (n)
-                        (if (= n 0) #t
-                            (local-odd? (- n 1)))))
-         (local-odd? (lambda (n)
-                       (if (= n 0) #f
-                           (local-even? (- n 1))))))
- (list (local-even? 23) (local-odd? 23)))
-
-这无法靠 let 和 let* 完成。使用 let* 时，local-even? 无法引用后边的 local-odd? 。
-
-==
-“已命名let”。
-
+例如：
 (letrec ((countdown (lambda (i)
                       (if (= i 0) 'liftoff
                           (begin
@@ -93,12 +98,45 @@ letrec，内部递归定义。
         (newline)
         (countdown (- i 1)))))
 
-定义本地函数 countdown，然后调用，以 10 为参数。
+====
+4，let*
+
+后续的局部变量可以引用前边的局部变量。
+clojure中的let，为这里的 let* 。
+
+(let ((x 1)
+      (y x))	;这里 y 的值是 全局变量 x 的值。
+  (+ x y))
+
+(let* ((x 1)
+       (y x))	;这里 y 的值是前面的局部变量 x 的值。
+  (+ x y))
 
 ====
-set! ，修改变量值。
+5，fluid-let ，即 clojure 中的 binding 。
 
-----
+临时将全局变量修改成某个值，表达式结束时恢复。
+
+====
+6，letrec，内部递归定义。
+
+(letrec ((local-even? (lambda (n)
+                        (if (= n 0) #t
+                            (local-odd? (- n 1)))))
+         (local-odd? (lambda (n)
+                       (if (= n 0) #f
+                           (local-even? (- n 1))))))
+ (list (local-even? 23) (local-odd? 23)))
+
+这无法靠 let 和 let* 完成。使用 let* 时，local-even? 无法引用后边的 local-odd? 。
+
+====
+7，letrec*
+
+====
+8，set! ，修改变量值。
+
+========
 受约束的变量：即局部变量。
 自由变量：即全局变量。
 

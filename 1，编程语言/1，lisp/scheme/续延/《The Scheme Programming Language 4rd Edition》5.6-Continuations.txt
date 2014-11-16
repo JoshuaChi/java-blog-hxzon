@@ -1,0 +1,220 @@
+﻿《The Scheme Programming Language 4rd Edition》5.6-Continuations
+
+========
+Section 5.6. Continuations
+续延
+
+Continuations in Scheme are procedures that represent the remainder of a computation from a given point in the computation. 
+They may be obtained with call-with-current-continuation, which can be abbreviated to call/cc.
+
+procedure: (call/cc procedure) 
+procedure: (call-with-current-continuation procedure) 
+returns: see below 
+libraries: (rnrs base), (rnrs)
+
+These procedures are the same. 
+The shorter name is often used for the obvious reason that it requires fewer keystrokes to type.
+
+call/cc obtains its continuation and passes it to procedure, which should accept one argument. 
+The continuation itself is represented by a procedure. 
+续延本身表示成一个函数。
+Each time this procedure is applied to zero or more values, 
+it returns the values to the continuation of the call/cc application. 
+That is, when the continuation procedure is called, it returns its arguments as the values of the application of call/cc.
+
+If procedure returns normally when passed the continuation procedure, 
+the values returned by call/cc are the values returned by procedure.
+
+Continuations allow the implementation of nonlocal exits, backtracking [14,29], 
+coroutines [16], and multitasking [10,32].
+
+The example below illustrates the use of a continuation to perform a nonlocal exit from a loop.
+示例：非本地退出
+
+(define member
+  (lambda (x ls)
+    (call/cc
+      (lambda (break)
+        (do ([ls ls (cdr ls)])
+            ((null? ls) #f)
+          (when (equal? x (car ls))
+            (break ls))))))) 
+
+(member 'd '(a b c)) <graphic> #f
+(member 'b '(a b c)) <graphic> (b c)
+
+Additional examples are given in Sections 3.3 and 12.11.
+
+The current continuation is typically represented internally as a stack of procedure activation records, 
+and obtaining the continuation involves encapsulating the stack within a procedural object. 
+Since an encapsulated stack has indefinite extent, some mechanism must be used to preserve the stack contents indefinitely. 
+This can be done with surprising ease and efficiency and with no impact on programs that do not use continuations [17].
+
+====
+procedure: (dynamic-wind in body out) 
+returns: values resulting from the application of body 
+libraries: (rnrs base), (rnrs)
+
+dynamic-wind offers "protection" from continuation invocation. 
+It is useful for performing tasks that must be performed whenever control enters or leaves body, 
+either normally or by continuation application.
+始终必须执行的代码（hxzon：类似 java 的 finally ）。
+
+The three arguments in, body, and out must be procedures and should accept zero arguments, i.e., they should be thunks. 
+Before applying body, and each time body is entered subsequently by the application of a continuation created within body, 
+the in thunk is applied. 
+Upon normal exit from body and each time body is exited by the application of a continuation created outside body, 
+the out thunk is applied.
+
+Thus, it is guaranteed that in is invoked at least once. 
+In addition, if body ever returns, out is invoked at least once.
+
+The following example demonstrates the use of dynamic-wind to be sure that an input port is closed after processing, 
+regardless of whether the processing completes normally.
+
+(let ([p (open-input-file "input-file")])
+  (dynamic-wind
+    (lambda () #f)
+    (lambda () (process p))
+    (lambda () (close-port p))))
+
+Common Lisp provides a similar facility (unwind-protect) for protection from nonlocal exits. 
+This is often sufficient. 
+unwind-protect provides only the equivalent to out, 
+however, since Common Lisp does not support fully general continuations. 
+Here is how unwind-protect might be specified with dynamic-wind.
+
+(define-syntax unwind-protect
+  (syntax-rules ()
+    [(_ body cleanup ...)
+     (dynamic-wind
+       (lambda () #f)
+       (lambda () body)
+       (lambda () cleanup ...))])) 
+
+((call/cc
+   (let ([x 'a])
+     (lambda (k)
+       (unwind-protect
+         (k (lambda () x))
+         (set! x 'b)))))) <graphic> b
+
+====
+特殊形式fluid-let：动态绑定（临时将全局变量设为某个值，稍后恢复）
+
+Some Scheme implementations support a controlled form of assignment known as fluid binding, 
+in which a variable takes on a temporary value during a given computation 
+and reverts to the old value after the computation has completed. 
+
+The syntactic form fluid-let defined below in terms of dynamic-wind permits the fluid binding of a single variable x 
+to the value of an expression e within a the body b1 b2 ....
+
+(define-syntax fluid-let
+  (syntax-rules ()
+    [(_ ((x e)) b1 b2 ...)
+     (let ([y e])
+       (let ([swap (lambda () (let ([t x]) (set! x y) (set! y t)))])
+         (dynamic-wind swap (lambda () b1 b2 ...) swap)))]))
+
+Implementations that support fluid-let typically extend it to allow an indefinite number of (x e) pairs, as with let.
+
+If no continuations are invoked within the body of a fluid-let, 
+the behavior is the same as if the variable were simply assigned the new value on entry and assigned the old value on return.
+
+(let ([x 3])
+  (+ (fluid-let ([x 5])
+       x)
+     x)) <graphic> 8
+
+A fluid-bound variable also reverts to the old value if a continuation created outside of the fluid-let is invoked.
+
+(let ([x 'a])
+  (let ([f (lambda () x)])
+    (cons (call/cc
+            (lambda (k)
+              (fluid-let ([x 'b])
+                (k (f)))))
+          (f)))) <graphic> (b . a)
+
+If control has left a fluid-let body, either normally or by the invocation of a continuation, 
+and control reenters the body by the invocation of a continuation, 
+the temporary value of the fluid-bound variable is reinstated. 
+Furthermore, any changes to the temporary value are maintained and reflected upon reentry.
+
+(define reenter #f)
+(define x 0)
+(fluid-let ([x 1])
+  (call/cc (lambda (k) (set! reenter k)))
+  (set! x (+ x 1))
+  x) <graphic> 2
+x <graphic> 0
+(reenter '*) <graphic> 3
+(reenter '*) <graphic> 4
+x <graphic> 0
+
+A library showing how dynamic-wind might be implemented were it not already built in is given below. 
+In addition to defining dynamic-wind, the code defines a version of call/cc that does its part to support dynamic-wind.
+
+(library (dynamic-wind)
+  (export dynamic-wind call/cc
+    (rename (call/cc call-with-current-continuation)))
+  (import (rename (except (rnrs) dynamic-wind) (call/cc rnrs:call/cc))) 
+
+  (define winders '()) 
+
+  (define common-tail
+    (lambda (x y)
+      (let ([lx (length x)] [ly (length y)])
+        (do ([x (if (> lx ly) (list-tail x (- lx ly)) x) (cdr x)]
+             [y (if (> ly lx) (list-tail y (- ly lx)) y) (cdr y)])
+            ((eq? x y) x))))) 
+
+  (define do-wind
+    (lambda (new)
+      (let ([tail (common-tail new winders)])
+        (let f ([ls winders])
+          (if (not (eq? ls tail))
+              (begin
+                (set! winders (cdr ls))
+                ((cdar ls))
+                (f (cdr ls)))))
+        (let f ([ls new])
+          (if (not (eq? ls tail))
+              (begin
+                (f (cdr ls))
+                ((caar ls))
+                (set! winders ls)))))))
+
+  (define call/cc
+    (lambda (f)
+      (rnrs:call/cc
+        (lambda (k)
+          (f (let ([save winders])
+               (lambda (x)
+                 (unless (eq? save winders) (do-wind save))
+                 (k x)))))))) 
+
+  (define dynamic-wind
+    (lambda (in body out)
+      (in)
+      (set! winders (cons (cons in out) winders))
+      (let-values ([ans* (body)])
+        (set! winders (cdr winders))
+        (out)
+        (apply values ans*)))))
+
+Together, dynamic-wind and call/cc manage a list of winders. 
+A winder is a pair of in and out thunks established by a call to dynamic-wind. 
+Whenever dynamic-wind is invoked, the in thunk is invoked, 
+a new winder containing the in and out thunks is placed on the winders list, 
+the body thunk is invoked, the winder is removed from the winders list, and the out thunk is invoked. 
+This ordering ensures that the winder is on the winders list only when control has passed through in and not yet entered out. 
+Whenever a continuation is obtained, the winders list is saved, and whenever the continuation is invoked, the saved winders list is reinstated. 
+During reinstatement, the out thunk of each winder on the current winders list that is not also on the saved winders list is invoked, 
+followed by the in thunk of each winder on the saved winders list that is not also on the current winders list. 
+The winders list is updated incrementally, again to ensure that a winder is on the current winders list 
+only if control has passed through its in thunk and not entered its out thunk.
+
+The test (not (eq? save winders)) performed in call/cc is not strictly necessary 
+but makes invoking a continuation less costly whenever the saved winders list is the same as the current winders list.
+

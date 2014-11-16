@@ -120,11 +120,23 @@ Here is a less trivial example,
 showing the use of call/cc to provide a nonlocal exit from a recursion.
 示例：在递归中，非本地退出。
 
+（hxzon补充：
+
+(let name ((var expr) ...)
+  body1 body2 ...)
+称为“已命名let”，等价于
+((letrec ((name (lambda (var ...) body1 body2 ...)))
+   name)
+ expr ...)
+可看成定义一个函数name，再执行(name expr...)
+
+）
+
 (define product
   (lambda (ls)
     (call/cc
       (lambda (break)
-        (let f ([ls ls])		;定义内部函数f，形参名为 ls，传入实参 ls 。
+        (let f ([ls ls])		;
           (cond
             [(null? ls) 1]
             [(= (car ls) 0) (break 0)]		;将 0 绑定到续延，并且提前返回。
@@ -265,7 +277,7 @@ The following light-weight processes cooperate to print an infinite sequence of 
 下面的程序将打印出无限的行序列。
 
 (lwp (lambda () ;添加任务
-        (let f () 	;定义内部函数f，方便自引用
+        (let f () 	;已命名let
         	(pause) (display "h") (f))))        ;这些任务先暂停自己，把自己的后续动作加到队尾（后续动作即“打印，再递归调用自己”）
 
 (lwp (lambda () (let f () (pause) (display "e") (f))))
@@ -282,12 +294,12 @@ The following light-weight processes cooperate to print an infinite sequence of 
 （hxzon理解：
 
 简化为两个进程。
-先添加了2个任务，接着启动。
-a->pause->（添加新任务an，接着启动第2个任务b）
-b->pause->（添加新任务bn，接着启动第3个任务an）
-an调用了a的续延，于是进入原来的栈，打印，接着调用 af 。
+先添加了2个任务 af，bf，接着启动。
+af->pause->（添加新任务an，接着启动第2个任务bf）
+bf->pause->（添加新任务bn，接着启动第3个任务an）
+an调用了 af 的续延，于是进入原来的栈，打印，接着递归调用 af 。
 af->pause->（添加新任务an，接着启动第4个任务bn）
-bn调用了b的续延，于是进入原来的栈，打印，接着调用 bf 。
+bn调用了 bf 的续延，于是进入原来的栈，打印，接着递归调用 bf 。
 bf->pause->（添加新任务bn，接着启动第5个任务an）
 
 ）

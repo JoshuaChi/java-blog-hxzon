@@ -113,7 +113,9 @@ search-zero 是在顶层被调用的，所以 cc 还包括“提示下一个输�
 (define generate-digit
   (generate-one-element-at-a-time '(0 1 2)))
 
-> (generate-digit)       ;hxzon：？应该只是返回generator，并没有调用，为何会执行？
+;hxzon：(gen-one-ele-at-a-time '(0 1 2))返回一个函数，然后绑定到 gen-digit 变量
+
+> (generate-digit)
 0
 > (generate-digit)
 1
@@ -230,7 +232,7 @@ III. 移花接木
 (define (get!) (let ([fruit dish]) (set! dish #f) fruit))       ;hxzon：取走盘子上的水果
 
 (define (consumer do-other-stuff)
-  (let loop ()          ;hxzon：定义一个本地函数loop
+  (let loop ()          ;hxzon：已命名let，可看成定义一个本地函数loop，再调用loop
     (when dish
       (printf "C: get a ~a~%" (get!))
       (set! do-other-stuff (call/cc do-other-stuff))
