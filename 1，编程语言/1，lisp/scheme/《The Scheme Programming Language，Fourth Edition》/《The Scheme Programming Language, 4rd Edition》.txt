@@ -32,7 +32,7 @@ Section 2.9. Assignment  赋值
 
 Chapter 3. Going Further
 
-Section 3.1. Syntactic Extension
+Section 3.1. Syntactic Extension  句法扩展，即“宏”
 Section 3.2. More Recursion
 Section 3.3. Continuations  续延
 Section 3.4. Continuation Passing Style  连续传递风格
@@ -93,6 +93,7 @@ Section 7.10. Filesystem Operations
 Section 7.11. Bytevector/String Conversions
 
 Chapter 8. Syntactic Extension
+句法扩展（即“宏”）
 
 Section 8.1. Keyword Bindings
 Section 8.2. Syntax-Rules Transformers
@@ -113,6 +114,7 @@ Section 10.3. Top-Level Programs
 Section 10.4. Examples
 
 Chapter 11. Exceptions and Conditions
+异常和状况
 
 Section 11.1. Raising and Handling Exceptions
 Section 11.2. Defining Condition Types
@@ -126,7 +128,9 @@ Section 12.3. A Set Constructor
 Section 12.4. Word Frequency Counting
 Section 12.5. Scheme Printer
 Section 12.6. Formatted Output
+
 Section 12.7. A Meta-Circular Interpreter for Scheme
+
 Section 12.8. Defining Abstract Objects
 Section 12.9. Fast Fourier Transform
 Section 12.10. A Unification Algorithm
@@ -135,7 +139,7 @@ Section 12.11. Multitasking with Engines
 References
 Answers to Selected Exercises
 Formal Syntax
-Summary of Forms
+Summary of Forms    （特殊形式，函数列表）
 
 Index
 

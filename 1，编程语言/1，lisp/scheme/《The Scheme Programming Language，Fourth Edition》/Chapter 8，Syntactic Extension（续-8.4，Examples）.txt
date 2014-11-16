@@ -1,0 +1,326 @@
+﻿Chapter 8，Syntactic Extension（续-8.4，Examples）
+http://www.scheme.com/tspl4/syntax.html#./syntax:h0
+
+Chapter 8. Syntactic Extension
+句法扩展（即“宏”）
+
+Section 8.1. Keyword Bindings
+Section 8.2. Syntax-Rules Transformers
+Section 8.3. Syntax-Case Transformers
+Section 8.4. Examples
+
+========
+Section 8.4. Examples
+
+This section presents a series of illustrative syntactic extensions defined with either syntax-rules or syntax-case, starting with a few simple but useful syntactic extensions and ending with a fairly complex mechanism for defining structures with automatically generated constructors, predicates, field accessors, and field setters.
+
+The simplest example in this section is the following definition of rec. rec is a syntactic extension that permits internally recursive anonymous (not externally named) procedures to be created with minimal effort.
+
+(define-syntax rec
+  (syntax-rules ()
+    [(_ x e) (letrec ([x e]) x)])) 
+
+(map (rec sum
+       (lambda (x)
+         (if (= x 0)
+             0
+             (+ x (sum (- x 1))))))
+     '(0 1 2 3 4 5)) <graphic> (0 1 3 6 10 15)
+
+Using rec, we can define the full let (both unnamed and named) as follows.
+
+(define-syntax let
+  (syntax-rules ()
+    [(_ ((x e) ...) b1 b2 ...)
+     ((lambda (x ...) b1 b2 ...) e ...)]
+    [(_ f ((x e) ...) b1 b2 ...)
+     ((rec f (lambda (x ...) b1 b2 ...)) e ...)]))
+
+We can also define let directly in terms of letrec, although the definition is a bit less clear.
+
+(define-syntax let
+  (syntax-rules ()
+    [(_ ((x e) ...) b1 b2 ...)
+     ((lambda (x ...) b1 b2 ...) e ...)]
+    [(_ f ((x e) ...) b1 b2 ...)
+     ((letrec ([f (lambda (x ...) b1 b2 ...)]) f) e ...)]))
+
+These definitions rely upon the fact that the first pattern cannot match a named let, since the first subform of a named let must be an identifier, not a list of bindings. The following definition uses a fender to make this check more robust.
+
+(define-syntax let
+  (lambda (x)
+    (syntax-case x ()
+      [(_ ((x e) ...) b1 b2 ...)
+       #'((lambda (x ...) b1 b2 ...) e ...)]
+      [(_ f ((x e) ...) b1 b2 ...)
+       (identifier? #'f)
+       #'((rec f (lambda (x ...) b1 b2 ...)) e ...)])))
+
+With the fender, we can even put the clauses in the opposite order.
+
+(define-syntax let
+  (lambda (x)
+    (syntax-case x ()
+      [(_ f ((x e) ...) b1 b2 ...)
+       (identifier? #'f)
+       #'((rec f (lambda (x ...) b1 b2 ...)) e ...)]
+      [(_ ((x e) ...) b1 b2 ...)
+       #'((lambda (x ...) b1 b2 ...) e ...)])))
+
+To be completely robust, the ids? and unique-ids? checks employed in the definition of unnamed let in Section 8.3 should be employed here as well.
+
+Both variants of let are easily described by simple one-line patterns, but do requires a bit more work. The precise syntax of do cannot be expressed directly with a single pattern because some of the bindings in a do expression's binding list may take the form (var val) while others take the form (var val update). The following definition of do uses syntax-case internally to parse the bindings separately from the overall form.
+
+(define-syntax do
+  (lambda (x)
+    (syntax-case x ()
+      [(_ (binding ...) (test res ...) expr ...)
+       (with-syntax ([((var val update) ...)
+                      (map (lambda (b)
+                             (syntax-case b ()
+                               [(var val) #'(var val var)]
+                               [(var val update) #'(var val update)]))
+                           #'(binding ...))])
+         #'(let doloop ([var val] ...)
+             (if test
+                 (begin (if #f #f) res ...)
+                 (begin expr ... (doloop update ...)))))])))
+
+The odd-looking expression (if #f #f) is inserted before the result expressions res ... in case no result expressions are provided, since begin requires at least one subexpression. The value of (if #f #f) is unspecified, which is what we want since the value of do is unspecified if no result expressions are provided. At the expense of a bit more code, we could use syntax-case to determine whether any result expressions are provided and to produce a loop with either a one- or two-armed if as appropriate. The resulting expansion would be cleaner but semantically equivalent.
+
+As mentioned in Section 8.2, ellipses lose their special meaning within templates of the form (... template). This fact allows syntactic extensions to expand into syntax definitions containing ellipses. This usage is illustrated by the definition below of be-like-begin.
+
+(define-syntax be-like-begin
+  (syntax-rules ()
+    [(_ name)
+     (define-syntax name
+       (syntax-rules ()
+         [(_ e0 e1 (... ...))
+          (begin e0 e1 (... ...))]))]))
+
+With be-like-begin defined in this manner, (be-like-begin sequence) has the same effect as the following definition of sequence.
+
+(define-syntax sequence
+  (syntax-rules ()
+    [(_ e0 e1 ...) (begin e0 e1 ...)]))
+
+That is, a sequence form becomes equivalent to a begin form so that, for example:
+
+(sequence (display "Say what?") (newline))
+
+prints "Say what?" followed by a newline.
+
+The following example shows how one might restrict if expressions within a given expression to require the "else" (alternative) subexpression by defining a local if in terms of the built-in if. Within the body of the let-syntax binding below, two-armed if works as always:
+
+(let-syntax ([if (lambda (x)
+                   (syntax-case x ()
+                     [(_ e1 e2 e3)
+                      #'(if e1 e2 e3)]))])
+  (if (< 1 5) 2 3)) <graphic> 2
+
+but one-armed if results in a syntax error.
+
+(let-syntax ([if (lambda (x)
+                   (syntax-case x ()
+                     [(_ e1 e2 e3)
+                      #'(if e1 e2 e3)]))])
+  (if (< 1 5) 2)) <graphic> syntax violation
+
+Although this local definition of if looks simple enough, there are a few subtle ways in which an attempt to write it might go wrong. If letrec-syntax were used in place of let-syntax, the identifier if inserted into the output would refer to the local if rather than the built-in if, and expansion would loop indefinitely.
+
+Similarly, if the underscore were replaced with the identifier if, expansion would again loop indefinitely. The if appearing in the template (if e1 e2 e3) would be treated as a pattern variable bound to the corresponding identifier if from the input form, which denotes the local version of if.
+
+Placing if in the list of literals in an attempt to patch up the latter version would not work either. This would cause syntax-case to compare the literal if in the pattern, which would be scoped outside the let-syntax expression, with the if in the input expression, which would be scoped inside the let-syntax. Since they would not refer to the same binding, they would not be free-identifier=?, and a syntax violation would result.
+
+The conventional use of underscore ( _ ) helps the programmer avoid situations like these in which the wrong identifier is matched against or inserted by accident.
+
+It is a syntax violation to generate a reference to an identifier that is not present within the context of an input form, which can happen if the "closest enclosing lexical binding" for an identifier inserted into the output of a transformer does not also enclose the input form. For example,
+
+(let-syntax ([divide (lambda (x)
+                       (let ([/ +])
+                         (syntax-case x ()
+                           [(_ e1 e2) #'(/ e1 e2)])))])
+  (let ([/ *]) (divide 2 1)))
+
+should result in a syntax violation with a message to the effect that / is referenced in an invalid context, since the occurrence of / in the output of divide is a reference to the variable / bound by the let expression within the transformer.
+
+The next example defines a define-integrable form that is similar to define for procedure definitions except that it causes the code for the procedure to be integrated, or inserted, wherever a direct call to the procedure is found.
+
+(define-syntax define-integrable
+  (syntax-rules (lambda)
+    [(_ name (lambda formals form1 form2 ...))
+     (begin
+       (define xname (lambda formals form1 form2 ...))
+       (define-syntax name
+         (lambda (x)
+           (syntax-case x ()
+             [_ (identifier? x) #'xname]
+             [(_ arg (... ...))
+              #'((lambda formals form1 form2 ...)
+                 arg
+                 (... ...))]))))]))
+
+The form (define-integrable name lambda-expression) expands into a pair of definitions: a syntax definition of name and a variable definition of xname. The transformer for name converts apparent calls to name into direct calls to lambda-expression. Since the resulting forms are merely direct lambda applications (the equivalent of let expressions), the actual parameters are evaluated exactly once and before evaluation of the procedure's body, as required. All other references to name are replaced with references to xname. The definition of xname binds it to the value of lambda-expression. This allows the procedure to be used as a first-class value. The define-integrable transformer does nothing special to maintain lexical scoping within the lambda expression or at the call site, since lexical scoping is maintained automatically by the expander. Also, because xname is introduced by the transformer, the binding for xname is not visible anywhere except where references to it are introduced by the the transformer for name.
+
+The above definition of define-integrable does not work for recursive procedures, since a recursive call would cause an indefinite number of expansion steps, likely resulting in exhaustion of memory at expansion time. A solution to this problem for directly recursive procedures is to wrap each occurrence of the lambda expression with a let-syntax binding that unconditionally expands name to xname.
+
+(define-syntax define-integrable
+  (syntax-rules (lambda)
+    [(_ name (lambda formals form1 form2 ...))
+     (begin
+       (define xname
+         (let-syntax ([name (identifier-syntax xname)])
+           (lambda formals form1 form2 ...)))
+       (define-syntax name
+         (lambda (x)
+           (syntax-case x ()
+             [_ (identifier? x) #'xname]
+             [(_ arg (... ...))
+              #'((let-syntax ([name (identifier-syntax xname)])
+                   (lambda formals form1 form2 ...))
+                  arg (... ...))]))))]))
+
+This problem can be solved for mutually recursive procedures by replacing the let-syntax forms with the nonstandard fluid-let-syntax form, which is described in the Chez Scheme User's Guide [9].
+
+Both definitions of define-integrable treat the case where an identifier appears in the first position of a structured expression differently from the case where it appears elsewhere, as does the pcar example given in the description for identifier?. In other situations, both cases must be treated the same. The form identifier-syntax can make doing so more convenient.
+
+(let ([x 0])
+  (define-syntax x++
+    (identifier-syntax
+      (let ([t x])
+        (set! x (+ t 1)) t)))
+  (let ([a x++]) (list a x))) <graphic> (0 1)
+
+The following example uses identifier-syntax, datum->syntax, and local syntax definitions to define a form of method, one of the basic building blocks of object-oriented programming (OOP) systems. A method expression is similar to a lambda expression, except that in addition to the formal parameters and body, a method expression also contains a list of instance variables (ivar ...). When a method is invoked, it is always passed an object (instance), represented as a vector of fields corresponding to the instance variables, and zero or more additional arguments. Within the method body, the object is bound implicitly to the identifier self and the additional arguments are bound to the formal parameters. The fields of the object may be accessed or altered within the method body via instance variable references or assignments.
+
+(define-syntax method
+  (lambda (x)
+    (syntax-case x ()
+      [(k (ivar ...) formals b1 b2 ...)
+       (with-syntax ([(index ...)
+                      (let f ([i 0] [ls #'(ivar ...)])
+                        (if (null? ls)
+                            '()
+                            (cons i (f (+ i 1) (cdr ls)))))]
+                     [self (datum->syntax #'k 'self)]
+                     [set! (datum->syntax #'k 'set!)])
+         #'(lambda (self . formals)
+             (let-syntax ([ivar (identifier-syntax
+                                  (vector-ref self index))]
+                          ...)
+               (let-syntax ([set!
+                             (syntax-rules (ivar ...)
+                               [(_ ivar e) (vector-set! self index e)]
+                               ...
+                               [(_ x e) (set! x e)])])
+                 b1 b2 ...))))])))
+
+Local bindings for ivar ... and for set! make the fields of the object appear to be ordinary variables, with references and assignments translated into calls to vector-ref and vector-set!. datum->syntax is used to make the introduced bindings of self and set! visible in the method body. Nested let-syntax expressions are needed so that the identifiers ivar ... serving as auxiliary keywords for the local version of set! are scoped properly.
+
+By using the general form of identifier-syntax to handle set! forms more directly, we can simplify the definition of method.
+
+(define-syntax method
+  (lambda (x)
+    (syntax-case x ()
+      [(k (ivar ...) formals b1 b2 ...)
+       (with-syntax ([(index ...)
+                      (let f ([i 0] [ls #'(ivar ...)])
+                        (if (null? ls)
+                            '()
+                            (cons i (f (+ i 1) (cdr ls)))))]
+                     [self (datum->syntax #'k 'self)])
+         #'(lambda (self . formals)
+             (let-syntax ([ivar (identifier-syntax
+                                  [_ (vector-ref self index)]
+                                  [(set! _ e)
+                                   (vector-set! self index e)])]
+                          ...)
+               b1 b2 ...)))])))
+
+The examples below demonstrate simple uses of method.
+
+(let ([m (method (a) (x) (list a x self))])
+  (m #(1) 2)) <graphic> (1 2 #(1)) 
+
+(let ([m (method (a) (x)
+           (set! a x)
+           (set! x (+ a x))
+           (list a x self))])
+  (m #(1) 2)) <graphic> (2 4 #(2))
+
+In a complete OOP system based on method, the instance variables ivar ... would likely be drawn from class declarations, not listed explicitly in the method forms, although the same techniques would be used to make instance variables appear as ordinary variables within method bodies.
+
+The final example of this section defines a simple structure definition facility that represents structures as vectors with named fields. Structures are defined with define-structure, which takes the form
+
+(define-structure name field ...)
+
+where name names the structure and field ... names its fields. define-structure expands into a series of generated definitions: a constructor make-name, a type predicate name?, and one accessor name-field and setter set-name-field! per field name.
+
+(define-syntax define-structure
+  (lambda (x)
+    (define gen-id
+      (lambda (template-id . args)
+        (datum->syntax template-id
+          (string->symbol
+            (apply string-append
+              (map (lambda (x)
+                     (if (string? x)
+                         x
+                         (symbol->string (syntax->datum x))))
+                   args))))))
+    (syntax-case x ()
+      [(_ name field ...)
+       (with-syntax ([constructor (gen-id #'name "make-" #'name)]
+                     [predicate (gen-id #'name #'name "?")]
+                     [(access ...)
+                      (map (lambda (x) (gen-id x #'name "-" x))
+                           #'(field ...))]
+                     [(assign ...)
+                      (map (lambda (x)
+                             (gen-id x "set-" #'name "-" x "!"))
+                           #'(field ...))]
+                     [structure-length (+ (length #'(field ...)) 1)]
+                     [(index ...)
+                      (let f ([i 1] [ids #'(field ...)])
+                        (if (null? ids)
+                            '()
+                            (cons i (f (+ i 1) (cdr ids)))))])
+         #'(begin
+             (define constructor
+               (lambda (field ...)
+                 (vector 'name field ...)))
+             (define predicate
+               (lambda (x)
+                 (and (vector? x)
+                      (= (vector-length x) structure-length)
+                      (eq? (vector-ref x 0) 'name))))
+             (define access
+               (lambda (x)
+                 (vector-ref x index)))
+             ...
+             (define assign
+               (lambda (x update)
+                 (vector-set! x index update)))
+             ...))])))
+
+The constructor accepts as many arguments as there are fields in the structure and creates a vector whose first element is the symbol name and whose remaining elements are the argument values. The type predicate returns true if its argument is a vector of the expected length whose first element is name.
+
+Since a define-structure form expands into a begin containing definitions, it is itself a definition and can be used wherever definitions are valid.
+
+The generated identifiers are created with datum->syntax to allow the identifiers to be visible where the define-structure form appears.
+
+The examples below demonstrate the use of define-structure.
+
+(define-structure tree left right)
+(define t
+  (make-tree
+    (make-tree 0 1)
+    (make-tree 2 3))) 
+
+t <graphic> #(tree #(tree 0 1) #(tree 2 3))
+(tree? t) <graphic> #t
+(tree-left t) <graphic> #(tree 0 1)
+(tree-right t) <graphic> #(tree 2 3)
+(set-tree-left! t 0)
+t <graphic> #(tree 0 #(tree 2 3))
+
