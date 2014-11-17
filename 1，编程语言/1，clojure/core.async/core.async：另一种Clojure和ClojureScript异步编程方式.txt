@@ -1,0 +1,57 @@
+﻿core.async：另一种Clojure和ClojureScript异步编程方式
+作者 Zef Hemel ，译者 孙镜涛 发布于 2013年7月28日
+http://www.infoq.com/cn/news/2013/07/core-async
+
+========
+虽然core.async Clojure/ClojureScript库发布还不到一个月，但是与此相关的博客帖子已经发布了很多，
+它们描述了如何有效地使用core.async在前端代码中避免“回调嵌套”，还展示了一些令人印象深刻的浏览器示例的简单代码。
+
+core.async是一个用Clojure 编写的，Clojure 和ClojureScript都能使用的库。
+Clojure是一个基于JVM的Lisp实现。ClojureScript是Clojure的一个子集，它可以将Clojure编译成JavaScript。
+core.async很好地呈现了Lisp所必须提供的宏机制的能力：
+很多其他的语言要实现core.async所做的事情必须要对语言做出改变，但是在一个Lisp中则可以通过使用宏的库来实现。
+
+正如名字所提示的，core.async是为了简化异步编程而设计的。
+它借鉴了Go语言的很多思想，特别是它的goroutine（在core.async中称为 go blocks）和通道理念。
+一个通道是一个有一个或者多个发布者和一个或者多个消费者的队列。
+它的原理很简单：发布者将数据放到队列中，消费者从队列中获取数据。
+在Clojure/ClojureScript中数据是不可变的，通道提供了一种安全的方式在线程间通信。
+但是在ClojureScript中后者并不是一个特别有趣的特性，因为JavaScript是单线程的。
+
+core.async提供了两种方式向通道写入或者从通道读取数据：阻塞式和非阻塞式。
+一个阻塞写操作会阻塞线程，直到通道有空间被写入时为止（一个通道的缓冲区大小是可配置的）；
+一个阻塞读操作会阻塞线程，直到队列中的值能够被读取到时为止。
+更有趣的是，ClojureScript仅支持异步的通道读取和写入，并且这仅在“go 语句块”中才被允许。
+Go语句块是按照同步风格编写的，在内部这些语句块会被转换成一个能够异步执行它们的状态机。
+
+想想下面这段基于core.async的代码：
+
+(let [ch (chan)]
+  (go (while true
+        (let [v (<! ch)]
+          (println "Read: " v))))
+  (go (>! ch "hi")
+      (<! (timeout 5000))
+      (>! ch "there")))
+
+在这个示例中，let引入了一个新的局部变量ch，它是一个新通道。
+在let域中定义了两个go语句块，第一个是一个永久循环，它从通道ch中读取（<!）一个新的值赋给变量v。
+然后它会把“Read:”和读取到的值打印到标准输出。
+第二个go语句块向通道ch：”hi”中写入（>!）两个值，然后它会等待5秒钟再向通道中写入“there”。
+等待5秒钟是通过一个timeout通道实现的，该通道会在设置的超时时间过后关闭自己（返回nil）。
+在Clojure REPL中运行这段代码时，它会立即返回。
+然后它将打印“Read:hi”，5秒钟之后它会打印“Read:there”。
+
+无论哪个JavaScript程序员，在看到这个while循环的时候都会感到怪异：你不能这样实现阻塞循环：浏览器将会冻结5秒钟。
+core.async的“魔力”在于，它会在内部将每一个go语句块的主体部分转换成一个状态机，并且将同步通道的读写转变成异步调用。
+如果你想获取core.async相关的更多信息，或者了解它对前端Web开发有什么影响，可以查看下面的资源：
+
+core.async公告
+通信的顺序进程 (带有内嵌的交互演示)
+core.async攻略
+使用core async避免回调嵌套
+Clojure core.async和Go：代码比较
+Think Relevance网站的采访播客：Rich Hickey谈core.async
+
+查看英文原文：core.async: A Different Approach to Asynchronous Programming with Clojure and ClojureScript
+

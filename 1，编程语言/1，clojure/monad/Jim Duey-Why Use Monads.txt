@@ -2,16 +2,26 @@
 Copyright 2009 by Jim Duey
 http://www.intensivesystems.net/tutorials/why_monads.html
 
-I was recently challenged by some very smart developers about why monads are useful. This is a quick example that I hope gives a little insight. I'm not an expert in monads and haven't used them much in the 'real world', so take this with a ton of salt.
+注释by hxzon
+========
+I was recently challenged by some very smart developers about why monads are useful. 
+This is a quick example that I hope gives a little insight. 
+I'm not an expert in monads and haven't used them much in the 'real world', so take this with a ton of salt.
 
 The examples for this article are here .
 http://www.intensivesystems.net/tutorials/code/why_monads.clj
 
+====
 Abstractions
 
-Monads are an abstraction. Like all abstractions, their benefit is that they hide accidental complexity so that the essential complexity of a problem can be seen clearly.
+Monads are an abstraction. 
+Like all abstractions, their benefit is that they hide accidental complexity so that the essential complexity of a problem can be seen clearly.
 
-Say you have a collection of functions that all accept an integer and return an integer. Except that they may also fail and return a nil value. Here are three examples:
+monad是一种抽象。
+
+Say you have a collection of functions that all accept an integer and return an integer. 
+Except that they may also fail and return a nil value. 
+Here are three examples:
 
 (defn inc-m [x]
  (when (not= x 6)
@@ -24,17 +34,27 @@ Say you have a collection of functions that all accept an integer and return an 
 (defn dec-m [x]
   (when (not= x 3)
     (dec x)))
-The internals of these three functions are very similar, which is totally beside the point. They are representing other, more complex functions.
+
+The internals of these three functions are very similar, which is totally beside the point. 
+They are representing other, more complex functions.
 
 These functions can easily be composed using 'comp'.
 
 (comp dec-m double-m inc-m)
-However, what happens when inc-m is passed a 6? It passes a nil to double-m, which blows up. It would be nice if when any function in the sequence returns a nil, that a nil is returned by the composite function. One way to do this is to rewrite the functions so that they check for a nil parameter.
+
+However, what happens when inc-m is passed a 6? 
+It passes a nil to double-m, which blows up. 
+It would be nice if when any function in the sequence returns a nil, that a nil is returned by the composite function. 
+One way to do this is to rewrite the functions so that they check for a nil parameter.
 
 (defn inc-m [x]
  (when (or (nil? x) (not= x 6))
    (inc x)))
-There are a couple of problems with that. First, we've introduced some accidental complexity into the function which clutters up the code with noise. Second, this has to be done to every function. If we overlook one, things blow up.
+
+There are a couple of problems with that. 
+First, we've introduced some accidental complexity into the function which clutters up the code with noise. 
+Second, this has to be done to every function. 
+If we overlook one, things blow up.
 
 The other option, is to compose the functions in an ad-hoc way.
 
@@ -45,9 +65,14 @@ The other option, is to compose the functions in an ad-hoc way.
         (let [x2 (double-m x1)]
           (when-not (nil? x2)
             (dec-m x2)))))))
-Except that the functions that are being composed are lost in a mess of accidental complexity. And this is only one composite function. We have to repeat this work every time we want to compose different functions.
 
+Except that the functions that are being composed are lost in a mess of accidental complexity. 
+And this is only one composite function. 
+We have to repeat this work every time we want to compose different functions.
+
+====
 The Monad Way
+monad的方式
 
 If we realize that these functions are monadic functions under the maybe-m monad, we can combine like this:
 
@@ -55,35 +80,65 @@ If we realize that these functions are monadic functions under the maybe-m monad
             (def all-m (m-chain [inc-m
                                  double-m
                                  dec-m])))
-All of the boilerplate/accidental complexity is encapsulated in the monad. Each of the functions only does what it needs to and the composition clearly shows what its components are. Beyond that, this composite function is able to be composed with other monadic functions just as easily.
 
-This example is the simplest one I could think of using the simplest monad possible. As the accidental complexity increased, the win for the monadic style would grow much faster. Hopefully, this simple example will give you a feeling for what's possible
+（accidental，adj.    意外的，偶然（发生）的;附属的；n.  偶然;次要方面）
+（boilerplate，n. 样板文件;公式化，陈词滥调）
+
+All of the boilerplate/accidental complexity is encapsulated in the monad. 
+Each of the functions only does what it needs to and the composition clearly shows what its components are. 
+Beyond that, this composite function is able to be composed with other monadic functions just as easily.
+
+This example is the simplest one I could think of using the simplest monad possible. 
+As the accidental complexity increased, the win for the monadic style would grow much faster. 
+Hopefully, this simple example will give you a feeling for what's possible
 
 But Wait!
 
-There's more. There are a whole collection of standard monad functions that operate across all monads. By using a monad, you elevate your code to a higher conceptual level. Just as the standard loop constructs hid goto's. And map, reduce and filter largely eliminate the need for loops, monads eliminate the need for various boilerplate code.
+There's more. 
+There are a whole collection of standard monad functions that operate across all monads. 
+By using a monad, you elevate your code to a higher conceptual level. 
+Just as the standard loop constructs hid goto's. 
+And map, reduce and filter largely eliminate the need for loops, monads eliminate the need for various boilerplate code.
 
-Another benefit is that monads can be combined using monad transformers. This lets their effects be combined to eliminate greater portions of boilerplate.
+Another benefit is that monads can be combined using monad transformers. 
+This lets their effects be combined to eliminate greater portions of boilerplate.
+可以使用monad转换。
 
 And finally, designing a library in a monadic form gives a frame to operate in so that you don't have to start from scratch every time.
 
 When
 
-So what are some clues that a monadic solution is possible? It seems to me that anytime you're copying and pasting code to define a new function that's similar to an existing one, there might be a monad lurking. Another clue is when you want to compose functions, but you can't feed the output of one directly to the input of another. Or when you're writing a library and want to allow the users of the libary compose functions.
+So what are some clues that a monadic solution is possible? 
+It seems to me that anytime you're copying and pasting code to define a new function that's similar to an existing one, there might be a monad lurking. 
+Another clue is when you want to compose functions, but you can't feed the output of one directly to the input of another. 
+Or when you're writing a library and want to allow the users of the libary compose functions.
 
-Programming with monads is still in its infancy, especially in languages outside of Haskell. There's a lot of exciting work to be done in that area.
+Programming with monads is still in its infancy, especially in languages outside of Haskell. 
+There's a lot of exciting work to be done in that area.
 
+====
 Another example
 
-Taking a look at a slightly more complex example could shed more light on the subject. (Much of this section is inspired, borrowed, stolen from Konrad Hinson's monad tutorial ) A finite probability distribution is represented by a map where the map keys are possible data values and the map values are the probabilities of those data values occuring. These maps are the monadic values of the distribution monad. A monadic function under this monad would accept a parameter and return such a monadic value.
+Taking a look at a slightly more complex example could shed more light on the subject. 
+(Much of this section is inspired, borrowed, stolen from Konrad Hinson's monad tutorial ) 
+A finite probability distribution is represented by a map where the map keys are possible data values and the map values are the probabilities of those data values occuring. 
+These maps are the monadic values of the distribution monad. 
+A monadic function under this monad would accept a parameter and return such a monadic value.
 
 (defn inc-p [x]
   {x 1/2 (inc x) 1/2})
-This function accepts a number and returns a probability distribution that says half the time, x is unchanged and half the time it is incremented.
+
+This function accepts a number and returns a probability distribution that says half the time, 
+x is unchanged and half the time it is incremented.
 
 (defn double-p [x]
   {x 3/4 (* 2 x) 1/4})
-This function accepts a number and returns a probability distribution that says 3/4 of the time, x is unchanged and 1/4 of the time it is doubled. Now if we wanted to compose these two functions so that the value returned by inc-p was fed as input to double-p, producing a probability distribution of all the possible return values and their probabilities, we'd do it the hard way like this.
+
+This function accepts a number and returns a probability distribution that says 3/4 of the time, 
+x is unchanged and 1/4 of the time it is doubled. 
+
+Now if we wanted to compose these two functions so that the value returned by inc-p was fed as input to double-p, 
+producing a probability distribution of all the possible return values and their probabilities, we'd do it the hard way like this.
 
 (defn all-p [x]
   (reduce (fn [dist d]
@@ -91,12 +146,23 @@ This function accepts a number and returns a probability distribution that says 
           (for [[y1 p1] (inc-p x)
                 [y2 p2] (double-p y1)]
             {y2 (* p1 p2)})))
-If we wanted to compose 3 functions, we'd have to add another line to the comprehension and add another term to the multiplication of p1 and p2. If we wanted to compose all-p with another similar function, we'd have to copy/paste this boiler plate again. Also, I banged this out pretty fast, so I'm not sure if I've missed some corner cases that would introduce bugs. Probably not, but it would require testing to have a good feeling about it. It's also interesting to note, that even doing it the hard way, we're making use of list comprehension which is an aspect of list being a monad. So even here, we're taking advantage of monads.
+
+If we wanted to compose 3 functions, we'd have to add another line to the comprehension and add another term to the multiplication of p1 and p2. 
+If we wanted to compose all-p with another similar function, we'd have to copy/paste this boiler plate again. 
+Also, I banged this out pretty fast, so I'm not sure if I've missed some corner cases that would introduce bugs. 
+Probably not, but it would require testing to have a good feeling about it. 
+It's also interesting to note, that even doing it the hard way, 
+we're making use of list comprehension which is an aspect of list being a monad. 
+So even here, we're taking advantage of monads.
 
 To compose inc-p and double-p under the dist-m monad, we'd do this.
 
 (with-monad dist-m
             (def all-p (m-chain [inc-p
                                  double-p])))
-That's almost the same as the definition of all-m above. Once you realize you're working with monadic functions, you always know that to compose them sequentially, you use m-chain. This works for all monads, even monads that you define yourself. And if you want to compose all-p with other monadic functions, m-chain does that as well.
+
+That's almost the same as the definition of all-m above. 
+Once you realize you're working with monadic functions, you always know that to compose them sequentially, you use m-chain. 
+This works for all monads, even monads that you define yourself. 
+And if you want to compose all-p with other monadic functions, m-chain does that as well.
 

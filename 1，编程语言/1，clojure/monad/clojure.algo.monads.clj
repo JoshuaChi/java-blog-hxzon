@@ -343,12 +343,12 @@
 ;; Commonly used monads
 ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
 ; Identity monad
 (defmonad identity-m
    "Monad describing plain computations. This monad does in fact nothing
     at all. It is useful for testing, for combination with monad
     transformers, and for code that is parameterized with a monad."
+;; 原对象返回，不做任何事
   [m-result identity
    m-bind   (fn m-result-id [mv f]
               (f mv))
@@ -359,6 +359,7 @@
    "Monad describing computations with possible failures. Failure is
     represented by nil, any other value is considered valid. As soon as
     a step returns nil, the whole computation will yield nil as well."
+;; 中间步骤可能会失败。nil 表示失败。某个步骤失败，则整个表达式返回 nil 。
    [m-zero   nil
     m-result (fn m-result-maybe [v] v)
     m-bind   (fn m-bind-maybe [mv f]
@@ -398,11 +399,12 @@
 (defmonad state-m
    "Monad describing stateful computations. The monadic values have the
     structure (fn [old-state] [result new-state])."
+;; 除了返回函数原先的值，还额外返回一个状态
    [m-result  (fn m-result-state [v]
-                (fn [s] [v s]))
+                (fn [s] [v s]))        ;; 返回一个函数，s为状态。
     m-bind    (fn m-bind-state [mv f]
                 (fn [s]
-                  (let [[v ss] (mv s)]
+                  (let [[v ss] (mv s)]       ;; 注意 mv 是一个函数
                     ((f v) ss))))
    ])
 

@@ -10,7 +10,7 @@ August 10th, 2010
 ======
 I've been asked by several people to explain why I use Clojure for my professional work rather than Racket.
 
-
+====
 ABOUT RACKET
 
 I have been using Racket (a dialect of Scheme) for several years to teach kids how to program. 
@@ -93,6 +93,7 @@ are even more inconsistent than the built-ins, which are already far from ideal.
 I'm sure many programmers can live with the awkwardness of the built-in data structures to get the other cool features that Racket offers, 
 but for me, it's a deal breaker.
 
+====
 ENTER CLOJURE
 
 
@@ -150,35 +151,81 @@ Clojure also makes it easy to "pour" these lazy sequences into the collection of
 Racket's lack of a built-in lazy list makes it difficult to use map/filter/etc. 
 for general processing of collections. 
 If you use map/filter/etc., you potentially generate a lot of intermediate lists. 
-You can use a stream library, but it was probably designed for other Scheme dialects with a naming scheme for the API that doesn't match Racket's built-in list functions or integrate well with Racket's other sequencing constructs. So often you end up writing the function you need from scratch (e.g., find-first-even-number) rather than composing existing building blocks. In some special cases, you can use one of the new for constructs, like in this case, for/first.
+You can use a stream library, but it was probably designed for other Scheme dialects with a naming scheme for the API 
+that doesn't match Racket's built-in list functions 
+or integrate well with Racket's other sequencing constructs. 
+So often you end up writing the function you need from scratch (e.g., find-first-even-number) rather than composing existing building blocks. 
+In some special cases, you can use one of the new for constructs, like in this case, for/first.
 
-A polymorphic approach is applied through most of Clojure's design. assoc works on vectors, hash tables, sorted hash tables, and any other "associative" collection. And again, you can hook into this with custom collections. This is far easier to remember (and more concise to write) than the proliferation of vector-set, hash-set, etc. you'd find in Racket. It also makes the various collections more interchangeable in Clojure, making it easier to test different alternatives for performance implications with fewer, more localized changes to one's code.
+A polymorphic approach is applied through most of Clojure's design. 
+assoc works on vectors, hash tables, sorted hash tables, and any other "associative" collection. 
+And again, you can hook into this with custom collections. 
+This is far easier to remember (and more concise to write) than the proliferation of vector-set, hash-set, etc. you'd find in Racket. 
+It also makes the various collections more interchangeable in Clojure, 
+making it easier to test different alternatives for performance implications with fewer, more localized changes to one's code.
 
 Summary:
 
+Clojure provides a full complement of (immutable!) data structures you need for everyday programming 
+and a bit of syntactic support for making those manipulations more concise and pleasant.
 
-Clojure provides a full complement of (immutable!) data structures you need for everyday programming and a bit of syntactic support for making those manipulations more concise and pleasant.
 All of the collections are manipulated by a small number of polymorphic functions that are easy to remember and use.
-Traversals over all collections are uniformly accomplished by a sequence abstraction that works like a lazy list, which means that Clojure's higher order sequence functions also apply to all collections.
+Traversals over all collections are uniformly accomplished by a sequence abstraction that works like a lazy list, 
+which means that Clojure's higher order sequence functions also apply to all collections.
+
+====
 CLOJURE'S NOT PERFECT
+clojure不完美的地方
+
+The IDEs available for Clojure all have significant drawbacks. 
+You can get work done in them, but any of the IDEs will probably be a disappointment relative to what you're used to from other languages (including Racket).
+
+Debugging is difficult -- every error generates a ridiculously long stack trace that lists 500 Java functions along with 
+(maybe, if you're lucky) the actual Clojure function where things went awry. 
+Many of Clojure's core functions are written with a philosophy that they make no guarantees what they do with bad input. 
+They might error, or they might just return some spurious answer that causes something to blow up far far away from the true origin of the problem.
+难以调试。
+
+Clojure inherits numerous limitations and idiosyncracies from Java. 
+No tail-call optimization, no continuations. 
+Methods are not true closures, and can't be passed directly to higher-order functions. 
+Proliferation of nil and null pointer exceptions. 
+Slow numeric performance. 
+Compromises with the way hashing and equality works for certain things to achieve Java compatibility. 
+Slow startup time.
+jvm的局限。
+
+Some people love Clojure specifically because it sits on top of Java and gives them access to their favorite Java libraries. 
+Frankly, I have yet to find a Java library I'd actually want to use. 
+Something about Java seems to turn every library into an insanely complex explosion of classes, 
+and Java programmers mistakenly seem to think that JavaDoc-produced lists of every single class and method constitutes "good documentation". 
+So for me, the Java interop is more of a nuisance than a help.
+
+Clojure has a number of cool new ideas, but many of them are unproven, and only time will tell whether they are truly valuable. 
+Some people get excited about these features, but I feel fairly neutral about them until they are more road-tested. For example:
 
 
-The IDEs available for Clojure all have significant drawbacks. You can get work done in them, but any of the IDEs will probably be a disappointment relative to what you're used to from other languages (including Racket).
-Debugging is difficult -- every error generates a ridiculously long stack trace that lists 500 Java functions along with (maybe, if you're lucky) the actual Clojure function where things went awry. Many of Clojure's core functions are written with a philosophy that they make no guarantees what they do with bad input. They might error, or they might just return some spurious answer that causes something to blow up far far away from the true origin of the problem.
+Clojure's STM implementation - seems promising, but some reports suggest that under certain contention scenarios, 
+longer transactions never complete because they keep getting preempted by shorter transactions.
 
-Clojure inherits numerous limitations and idiosyncracies from Java. No tail-call optimization, no continuations. Methods are not true closures, and can't be passed directly to higher-order functions. Proliferation of nil and null pointer exceptions. Slow numeric performance. Compromises with the way hashing and equality works for certain things to achieve Java compatibility. Slow startup time.
+agents - if the agent can't keep up with the requests demanded of it, the agent's "mailbox" will eventually exhaust all resources. 
+Perhaps this approach is too brittle for real-world development?
 
-Some people love Clojure specifically because it sits on top of Java and gives them access to their favorite Java libraries. Frankly, I have yet to find a Java library I'd actually want to use. Something about Java seems to turn every library into an insanely complex explosion of classes, and Java programmers mistakenly seem to think that JavaDoc-produced lists of every single class and method constitutes "good documentation". So for me, the Java interop is more of a nuisance than a help.
-
-Clojure has a number of cool new ideas, but many of them are unproven, and only time will tell whether they are truly valuable. Some people get excited about these features, but I feel fairly neutral about them until they are more road-tested. For example:
-
-
-Clojure's STM implementation - seems promising, but some reports suggest that under certain contention scenarios, longer transactions never complete because they keep getting preempted by shorter transactions.
-agents - if the agent can't keep up with the requests demanded of it, the agent's "mailbox" will eventually exhaust all resources. Perhaps this approach is too brittle for real-world development?
 vars - provides thread isolation, but interacts poorly with the whole lazy sequence paradigm that Clojure is built around.
-multimethods - Clojure provides a multimethod system that is far simpler than, say CLOS, but it requires you to explicitly choose preferences when there are inheritance conflicts, and early reports suggest that this limits extensibility.
+
+multimethods - Clojure provides a multimethod system that is far simpler than, say CLOS, 
+but it requires you to explicitly choose preferences when there are inheritance conflicts, and early reports suggest that this limits extensibility.
+
 protocols - This is an interesting variation on "interfaces", but it's not clear how easy it will be to compose implementations out of partial, default implementations.
-transients - Nice idea for speeding up single-threaded use of persistent data structures. Transients don't respond to all the same interfaces as their persistent counterparts, though, limiting their usefulness. Transients are already being rethought and are likely to be reworked into something new.
+
+transients - Nice idea for speeding up single-threaded use of persistent data structures. 
+Transients don't respond to all the same interfaces as their persistent counterparts, though, limiting their usefulness. 
+Transients are already being rethought and are likely to be reworked into something new.
+
 So it's hard for me to get excited about these aspects of Clojure when it remains to be seen how well these features will hold up under real-world use.
 
-I'm sure that for many programmers, Clojure's drawbacks or unproven ideas would be a deal breaker. We all care about different things. But for me, Clojure's clean coherent design of the API for working with the built-in data structures is so good, that overall, I prefer working in Clojure to working in Racket.
+I'm sure that for many programmers, Clojure's drawbacks or unproven ideas would be a deal breaker. 
+We all care about different things. 
+But for me, Clojure's clean coherent design of the API for working with the built-in data structures is so good, 
+that overall, I prefer working in Clojure to working in Racket.
+

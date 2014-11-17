@@ -121,6 +121,7 @@ the ease of using a mutable variable, the ease of working with Java primitives a
 the speed that comes from static typing, the richness of classes versus Clojure's namespaces. 
 (Actually, this last point is probably worthy of its own blog post 
 -- Clojure's namespaces are quite limited in ways that frequently cause me pain). 
+clojure的命名空间局限很大，经常让我头疼。
 
 Whenever I run up against one of these rough spots in Clojure, 
 I feel like an ascetic monk, suffering because I've chosen to deny myself the additional tools that Scala brings to the table. 
