@@ -1,0 +1,179 @@
+﻿Jim Duey-Logic Programming for the Social Web
+Copyright 2010 by Jim Duey
+http://www.intensivesystems.net/tutorials/logic_prog.html
+
+========
+Getting up to speed
+
+Writing software is hard. Managing these highly complex, yet very abstract, creations takes a great deal of concentration. It's easy to make mistakes or forget some key detail and introduce bugs, and it has always been this way.
+
+To deal with this, programmers use abstraction and composition to hide the complexity that is not directly related to the task at hand so they can focus on the complexity of the problem that they're trying to solve. This can be seen in the progression from programming in machine language to assembly language and then to higher level languages. It can also be seen in the various programming paradigms that have arisen like object oriented programming and functional programming. Each development was an attempt to hide some kinds of complexity so that the programmer didn't have to think about it. One paradigm that has been around for a long time and is extremely well suited for today's programming tasks is logic programming.
+
+What is logic programming
+
+When most programmers hear the word's 'logic programming' they think Prolog and AI. But this kind of programming can be applied to a much wider set of problems and is particularly well suited to programming for social web applications. The topic is very large, so I'm only trying to give a brief introduction and whet your appetite to learn more.
+
+What logic programming boils down to is searching through graphs. By graph, I'm referring to an abstract data structure where data is expressed as nodes and links between nodes. These searches are written mostly in a declarative style rather than an imperative one. That is, the programmer specifies what to search for rather than how to find it.
+
+A large number of very interesting problems are graph searches at their core.
+
+Social Media
+Web search
+Turn-by-turn navigaion
+Recomendation engines
+Dependency relationships
+Variable type analysis
+Natural language parsing
+Protein folding
+just to name a few. Also, Prolog is not the only logic programming language out there. For example, Kanren is another one. For this tutorial, I'll be using a subset of Kanren called mini-Kanren, which is described in the book The Reasoned Schemer. However, I've changed a couple of the function names to conform to this paper. Specifically, 'fresh' has been renamed to 'exist' and a new function named 'fresh' has been introduced. A port of the mini-Kanren system to Clojure is here. And the code for this tutorial is here.
+
+Basics
+
+Mini-Kanren (MK) is a domain specific language (DSL) that allows a programmer to write logic programs using S-expressions. For reasons explained later, functions in mini-Kanren don't return values like standard Clojure functions do. They have to be queried in a particular way and the return value extracted. This functionality is provided by the 'run' macro.
+
+(run q
+    ; some logic functions
+ )
+When expanded, 'run' produces code that will execute the enclosed MK code. This is typically thought of as performing a query, so the variable following 'run' is often 'q', though it could be any valid symbol. This logic variable must be bound to a value in order for 'run' to produce any answers. Since 'run' may produce no answers, one answer or many answers, the value returned is actually a list of values that were bound to 'q' when the enclosed logic statements were performed. Furthermore, this list is lazy. Each answer is only generated when needed.
+
+Logic variables (LV) do not have the same semantics as variables in typical programming languages. They are not assigned a value which may then be read at a future point in the code. Instead, logic variables are 'bound' to either literals or other logic variables. In MK, the binding function is '&' and the code below binds a value of 7 to the logic variable 'q'.
+
+(run q
+   (& 7 q))
+When exectued, this code will produce a result of (7). It doesn't matter which order the arguments are passed to bind.
+
+(run q
+   (& q 7))
+produces '(7)' as well. Binding a logic variable establishes a relationship between two entities. If it is not possible for such a relationship to be established, that bind operation fails. So, the following query produces no answers and returns an empty list.
+
+(run q
+   (& 9 7))
+Applications of logic functions like bind may be sequenced. For a sequence to produce an answer, every operation has to succeed. So, the following query also produces no answers since q cannot be bound both to 9 and to 7.
+
+(run q
+   (& 9 q)
+   (& q 7))
+More variables
+
+One important thing to notice is that the bind operation does not assign a value to a variable. Instead, it is a declaration of a relationship between two values. All logic programs are built out of these kinds of declarations, so logic programming is a form of 'declaritive programming' where we tell the computer what to do and not how. In order to describe more complex relationships, it is necessary to be able to declare additional logic variables. This is done with the 'exist' macro.
+
+(exist [a b c]
+   ; some logic operations
+   )
+Inside the lexical scope of the 'exist' clause, the variables a, b and c can be used to describe relationships between other logic variables. Any logic variable that has not been bound to an actual value is considered to be 'free'. And binding two free variables together leaves them both free until one or the other is bound to an actual value. The code
+
+(run q
+   (exist [a]
+      (& a 6)
+      (& q a)))
+returns a result of (6).
+
+Alternatives
+
+In imperative or functional programming, a basic operation is to choose an execution path depending on the results of a some test. In logic programming, a similar idea is to declare alternative relationships. The most common way of doing this is with the 'cond-e' operator.
+
+(run q
+   (cond-e
+      ((& q 4))
+      ((& q :not))))
+will return (4 :not) as the result. Because a logic variable cannot be bound to two different values simultaneously, the cond-e binds q to 4 first, returns that as a possible answer and then binds q to :not and returns that. This produces a list of 2 possible answers as a result of running the query. The 'e' in cond-e stands for 'every'. That is, every alternative will be attempted and cond-e will accept any number of alternatives.
+
+You'll notice that in each of the alternatives in the above example, there appears to be an extra set of parenthesis. This is because an alternative is not limited to being a single operation but may be a sequence of logical operations. If they all succeed, then that alternative succeeds. If any one of the them fails, the whole alternative fails and those relationships are not established.
+
+Lists
+
+Another foundation of programming is to be able to group values or variables so that the collection may referred to as a unit. The prime way of doing that in logic programming is to use a list. This is so common that a special notation has been developed.
+
+A list can be defined using square-brackets, '[' and ']'. The values and variables enclosed by the brackets are the elements of the list.
+
+(exist [a b c]
+   (& q [a b c]))
+In this example, a, b and c all remain free. However, q is bound to a value that is a list with 3 elements. As such, it is no longer free. Any attempt to bind q to any other value will fail. However, it is possible to bind q to any list that has three values. It is also possible to bind any of the three elements of q to any value.
+
+From the first implementation of LISP, lists have been conceptualized as one element that is the first item on the list combined with another list which represents the remainder of the list. In mini-Kanren list syntax, the separation between the first element and the rest of the list is denoted by the '|' character, which must be enclosed by square brackets. The vertical bar must be followed by one and only one item, which may be either another list literal enclosed by square brackets, or a logic variable.
+
+(exist [a b c d]
+   (& a [b | c])
+   (& a [1 | [2 | [4 d]]])
+   (& a [1 2 | [4 d]]))
+The second and third clauses are identical. The third clause is just a more concise way of stating it. Using the list notation, you can declare the 'shape' of a list and leave the filling of the blanks for other clauses.
+
+The Unknown
+
+Speaking of filling blanks, sometimes there is a need to bind a logic variable to any value. The most common place is when declaring a list. For example, to declare a list where the first element is the string 'When', you could do the following:
+
+(exist [x]
+   (& q ["When" | x]))
+However, there really isn't a need for the logic variable x, it is only declared to enable the list to be declared. For these types of things, mini-Kanren defines a special logic variable, '_'. This logic variable will always bind with any other value. So the previous example could be written as:
+
+(& q ["When" | _])
+Solving problems
+
+So how can all this be used to solve problems? Let's take a look at a classic logic problem. Given the following facts:
+
+There are five houses in a row, each of a different color and inhabited by men of different nationalities, with different pets, drinks, and cigarettes.
+The Englishman lives in the red house.
+The Spaniard owns a dog.
+Coffee is drunk in the green house.
+The Ukrainian drinks tea.
+The Old Gold smoker owns snails.
+Kools are being smoked in the yellow house.
+The green house is directly to the right of the ivory house.
+Milk is drunk in the middle house.
+The Norwegian lives in the first house on the left.
+The Chesterfield smoker lives next to the fox owner.
+Kools are smoked in the house next to the house where the horse is kept.
+The Lucky Strike smoker drinks orange juice.
+The Japanese smokes Parliaments.
+The Norwegian lives next to the blue house.
+determine what man owns the zebra.
+
+At first glance this appears intimidating and tackling this problem with the usual programming languages would involve lots of loops and keeping track of various pieces of state. However, in logic programming, the answer falls out quite naturally.
+
+This is an example of a subset of logic programming called 'constraint logic programming'. Each of the facts presented above acts as a constraint on the universe of possible answers. Taken together, they reduce an infinite number of possibile answers down to a single answer that satisfies all the constraints. So starting with facts 1 and 9, we can declare that the final answer must look something like:
+
+(& [_ _ [_ _ :milk _ _] _ _] h)
+The logic variable 'h' is going to be our answer and this clause binds it to a list that that has five elements. The middle element is also a list and it's middle element is bound to the value :milk. So each element of the outer list represents a house and each element of the inner list specifies a characteristic of that house. The third element of a house is going to be what beverage is drunk in that house and this clause says that in the middle house, milk is the beverage.
+
+(& h [[:norwegian _ _ _ _] | _])
+This clause embodies fact 10. It declares that the first element of h must be a list of 5 elements whose first element is :norwegian.
+
+(next-to [_ _ _ _ :blue] [:norwegian _ _ _ _] h)
+This clause is a little more involved and embodies fact 15. The function 'next-to' is a logic function written especially to help solve the zebra problem. It accepts three parameters and declares that the third parameter is a list where the first two parameters are adjacent to each other. In this case, the first two parameters are themselves lists.
+
+(on-right [_ _ _ _ :ivory] [_ _ _ _ :green] h)
+This clause embodies fact 6. The function 'on-right' is also a custom function and it should be pretty clear what it does.
+
+(member-o [:englishman _ _ _ :red] h)
+This clause embodies fact 2. The logic function member-o declares that h is a list with a particular value as a member. In this case, that value is also a list that has :englishman and :red in the first and last positions, respectively.
+
+(member-o [_ :kools _ _ :yellow] h)
+(member-o [:spaniard _ _ :dog _] h)
+(member-o [_ _ :coffee _ :green] h) 
+(member-o [:ukrainian _ :tea _ _] h)
+(member-o [_ :luckystrikes :oj _ _] h)
+(member-o [:japanese :parliaments _ _ _] h)
+(member-o [_ :oldgolds _ :snails _] h)
+(next-to [_ _ _ :horse _] [_ :kools _ _ _] h)
+(next-to [_ _ _ :fox _] [_ :chesterfields _ _ _] h)
+These clauses embody the remaining facts. Individually, they each constrain another aspect of the list h. Together, they limit the possible values of h to a single value. All that remains is to write a clause that will extract the result we want, namely what man has a zebra as a pet. There are a couple of things to consider. First, there is no mention of a zebra in any of facts we were presented. However, 4 other pets were given. Secondly, we don't care which house the zebra lives at, only the nationality of the man who lives there. Since h is a list, we could return each element as the result of a query like this (assuming 'zebra' is a logic function that encapsulates all the previous clauses).
+
+(run q
+   (exist [h]
+      (zebra h)
+      (member-o q h)))
+That would return a list of the elements of h. What we want instead, is the nationality of the man that has a zebra for a pet. That means we are looking for the particular element that has :zebra in the 4th position, which is easily done with:
+
+(member-o [_ _ _ :zebra _] h)
+However, this does not bind the value of that man's nationality to any variable so that it might be returned. But that is easily accomplished.
+
+(run q
+   (exist [h]
+      (zebra h)
+      (member-o [q _ _ :zebra _] h)))
+More Power
+
+More information about constraint logic programming, along with a lot of sample problems, can be found here. But logic programming is a much larger topic. Business rules engines like Drools apply logic programming to running organizations. After reading through The Reasoned Schemer, I'd recommend downloading this textbook and going through it. It'll probably take a couple of times, but it's pretty good and it's free.
+
+Logic programming is a very powerful way of approaching a large number of problems. Adding a different way of thinking to your conceptual toolbox will go a long ways toward making you a better programmer.
+

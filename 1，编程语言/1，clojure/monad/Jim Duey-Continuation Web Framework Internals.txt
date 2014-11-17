@@ -1,0 +1,255 @@
+﻿Jim Duey-Continuation Web Framework Internals
+Copyright 2009 by Jim Duey
+http://www.intensivesystems.net/tutorials/cont_m_web.html
+
+========
+Preface
+
+Web applications are a huge application space. Yet writing them is inelegant. As Rich said once, they're a throwback to the 70's style, dumb terminal app. Send a form, let the user fill it out, process the data and send another form, etc. He's right. Unfortunately within the confines of a typical browser without Javascript, that's what you're left with. I wrote a web application framework for Clojure using the continuation monad to make writing such apps easier. It also nicely demonstrates the power of the continuation monad. If you haven't read my tutorial on that monad, read that first, then come back.
+
+The code for this tutorial is here .
+
+First step
+
+I laid out the design requirements of the web framework in the previous tutorial. What they basically boil down to is the need to execute code until a response is generated, halt the execution and send the response to the user, then accept a request from the user and continue execution. Controlling the flow of execution is exactly what the continuation monad was made for.
+
+A web application is composed of a collection of functions that all accept two parameters; a value that represents the current state, or context, of the app and a value that represents the latest request from the user. These functions must then return a vector containing a result value, which could a page in HTML and an updated context value. These functions are free to update the context any way they choose in response to user requests. And they may return any response they wish, or nil indicating no response. The other class of functions are predicates. These accept two parameters, a context and a request, and return a boolean value. However, only monadic functions can be composed with the continuation monad and these functions are not monadic functions.
+
+It is possible to write a function that will convert any function that accepts a single argument into a function in the continuation monad.
+
+(defn make-monadic-fn [f]
+  (fn [x]
+    (m-result (f x))))
+
+(def c-inc (make-monadic-fn inc))
+
+(assert (= 5 ((c-inc 4) identity)))
+It works by accepting a function and creating a new function that accepts a parameter. The original function ('f') is called with the parameter, generating a result which is then wrapped in a monadic value using m-result. Converting functions that accept 2 parameters into monadic functions requires an extra step
+
+(defn make-monadic-fn [f]
+  (fn [[x y]]
+    (m-result (f x y))))
+
+(def c-+ (make-monadic-fn +))
+
+(assert (= 12 ((c-+ [4 8]) identity)))
+Since monadic functions can only accept a single parameter, we have to make it accept a list of two parameters, which it destructures into x and y. These are then passed to the original function, generating a result which is wrapped as before. Be sure to notice that value returned when the newly created monadic function is called is a monadic value. That is, it's a function that accepts a continuation and does 'the right thing' with it.
+
+For the framework, we've got more work to do. We have to accept a vector with two values, the context and request, call the original function with them producing a result. This result is actually a vector with the response and the new context. If we simply wrap this vector in a monadic value and return that, execution will continue to the next function with the wrong arguments. What we need to do is halt the execution, create a function that will continue the execution when given a new request, and then pass that function and the response in a vector back out to the top level.
+
+The first step is to create a function that will accept a vector of two variables and call the original function:
+
+(defn make-web-fn [f]
+  (fn [[context request]]
+    (let [[response new-context] (f context request)]
+       ; to be determined
+                  )))
+Now, we need to create a monadic value (a function) that will accept a continuation and do 'the right thing':
+
+(defn make-web-fn [f]
+  (fn [[context request]]
+    (let [[response new-context] (f context request)]
+       (fn [continuation]
+          ; to be determined
+                  ))))
+Determining 'the right thing' to do is a little tricky. Remember that to halt the execution and be able to restart it again, you have to return the continuation as the result. So instead of creating a monadic value like:
+
+(fn [c]
+  (c x))
+where 'x' is the value wrapped by the monadic value, we have to create one like:
+
+(fn [c]
+  c)
+That way, the continuation is passed out to the top level where it can be called later with new input. But what we need is not the raw continuation itself, we need a function that will accept a request, package that in a vector with a context and then call the continuation.
+
+(fn [c]
+  (fn [q]
+    (c [x q])))
+where c is the continuation, q is the new request and x is the context. But that's not quite right. In addition to the function to handle the next request, we also need to return the response. Since we can only return one value, that's going to have to be a vector that is destructured to extract the response and the handler of the next request.
+
+(defn make-web-fn [f]
+  (fn [[context request]]
+    (let [[response new-context] (f context request)]
+      (fn [continuation]
+        [response (fn [new-request]
+                    (continuation [new-context new-request]))]))))
+And with that, we have the kernel of the framework in hand. We can now convert web application functions into monadic functions. These monadic functions can be composed sequentially using the m-chain function. We'll define a function to give us a little more natural syntax for sequencing monadic functions.
+
+(defn web-seq [& web-fns]
+  (m-chain web-fns))
+The value returned by web-seq is itself a monadic function. So it can be assigned a name and then be used anywhere a monadic function can be. For instance in another sequence.
+
+(def ts (web-seq (make-web-fn w-inc)
+                 (make-web-fn w-*2)
+                 (make-web-fn w-inc)))
+Growing the kernel
+
+The basic kernel we've just created gives us the ability to sequentially compose web functions. Except for the case where we define a web function that doesn't generate a response but only updates the context. Using the function just defined would result in the top level being handed a vector with a nil response and a function to handle the next request. The top level could just call that function again with the same request, but there's a more elegant way of dealing with the issue. If we look at make-web-fn, we see that the response is known before the monadic value is created. So if we created a monadic value that continued the execution if the response was nil and returned that, execution would continue until a response was generated. That kind of monadic value would look like:
+
+(fn [continuation]
+  (continuation [new-context request]))
+which is the same thing as:
+
+(m-result [new-context request])
+So adding a quick check for a nil response to make-web-fn and we have
+
+(defn make-web-fn [f]
+  (fn [[context request]]
+    (let [[response new-context] (f context request)]
+      (cond
+        (nil? response) (m-result [new-context request])
+        :else (fn [continuation]
+                [response (fn [new-request]
+                          (continuation [new-context new-request]))])))))
+With these 8 lines of code, we can now sequentially compose web functions with execution being halted any time a response is generated so that the response can be sent to the user and a new request can be received so execution can continue.
+
+It's a little unwieldy to have to create a function that is then passed to make-web-fn to convert it to a monadic function. So we'll define a little macro to add some syntactic sugar.
+
+(defmacro web-fn [fn-name parms & body]
+  `(def ~fn-name
+     (make-web-fn (fn ~parms
+                    ~@body))))
+Choices, choices
+
+The next form of composition we need is to be able to execute a monadic function only if a condition is met. This is really pretty straightforward. The first thing we need is a way to test the contents of a request and a context to generate a true or false value. These kinds of functions are called predicates.
+
+(defn some-pred [context request]
+   ; code that produces a true or false
+   )
+And then we need to associate each predicate with a monadic function to be executed if that predicate is true. The 'cond' construct of clojure is a good model to follow. We'll accept a list of predicate/monadic function pairs, evaluate the predicates one at a time until we find one that returns true, then execute the associated monadic function with the context and request. However, if no predicate evaluates to true, we'll need to pass the context and request on to the next stage of execution. This is very similar to how we constructed the monadic functions above. Here's the code:
+
+(defn web-cond [& preds-conts]
+  (fn [[context request]]
+    (let [pairs (partition 2 preds-conts)
+          successes (filter (fn [[pred c]]
+                              (or (= pred :else)
+                                  (pred context request)))
+                            pairs)
+          cond-c (second (first successes))]
+      (if (nil? cond-c)
+        (m-result [context request])
+        (cond-c [context request])))))
+Round and round
+
+The last thing we need to compose web functions is the ability to repeatedly execute a monadic function while a condition is true. This means that the loop construct is going to have to accept a predicate and a monadic function. Then it will have to evaluate the predicate. Here's where it gets a little tricky. If the predicate is true, we need to execute the monadic function, then go back and test the predicate again, ad infinitum. This means executing the monadic function that we're in the middle of defining, again. But not just executing it, we have to execute it in such a way that a response may be sent to the top level and a new request be received before execution continues. Believe it or not, there is a very elegant way to accomplish all this. Recall that all looping constructs can be built out of recursion. And that the monadic function that we want to execute repeatedly will return a monadic value when called with a context and request. If we could somehow use m-bind to apply the monadic function we're in the process of creating to the monadic value, we'd be golden. In the case that the predicate failed, we'd just use m-result to allow the execution continue on. Again, the code is much more concise than the explanation.
+
+(defn web-while [pred while-c]
+  (fn this-fn [[context request]]
+    (if (pred context request)
+      (m-bind (while-c [context request]) this-fn)
+      (m-result [context request]))))
+A nice thing to have is the ability to code an 'until' style loop where the monadic function is guaranteed to be executed at least once before the predicate is checked. This is trivial to implement given the web-while construct.
+
+(defn web-until [pred until-c]
+  (web-seq until-c
+           (web-while (complement pred)
+                      until-c))))
+Ugliness
+
+So far, we've produced about 30 lines of code and can construct any web app that has any combination of screens to display in any order. This satsifies most of our design requirements. We do still need a function that will accept requests from and return responses to the web server, but that's not a complicated piece of code. However, there is one design requirement that we haven't addressed. The browser 'back' button.
+
+This is a complex issue because we have to keep track of all the places where the web app handled a request and what the context was at the time of that request. And these all have to be associated with the screens that generated each request. Let's take it a piece at a time. If we take another look at make-web-fn:
+
+(defn make-web-fn [f]
+  (fn [[context request]]
+    (let [[response new-context] (f context request)]
+      (fn [continuation]
+        [response (fn [new-request]
+                    (continuation [new-context new-request]))]))))
+The value returned by the by the newly created monadic function includes the reponse and a function to handle the next request. If we could save that function and associate it with the request it handled, we could handle repeated requests from that same web page and we'd have the tracking of what context to use 'for free'. It would be possible to handle this association at the top level. However, if we could handle it at these lower levels, we would hide that complexity and abstract it away.
+
+A key observation to make is that the history of functions that have handled a request at any point in the execution is part of the context that a request is handled in. Assuming that each request is tagged somehow with a value that identifies where in the execution history it was handled at, we could keep a hash-map of tags and request handlers in the context. Then, we could look at the tag on a new request, and if it appeared in the hash-map, we would handle it with that function. So the scenario would look like this:
+
+A page is generated for the user by the web app.
+Embedded in the page is a hidden field that tags any request generated from that page.
+The user completes that form and moves on to other pages.
+Then the user goes back in their browser history, pulls up that page again and generates a new request.
+This new request has the same tag as the previous request from this page.
+On the server, the history of request handlers is consulted and the tag is found, so the request is given to the associated function.
+The request is handled by the same function which handled the original one, with the same context as the original.
+It may not be apparent, but the place where execution of a sequence of monadic functions is halted and resumed is in the monadic functions created by make-web-fn. So we can implement all this history stuff by only changing that function. (There will be two more very minor changes elsewhere, but hardly worth mentioning.) Now, if we add our hash-map of tags/request handlers as a key/value in the context, we run the risk of key collision with the web app and we also lock the web app into using a hash-map as the context value. However, if we created a hash-map that held the request handler history as one value and the web app's context as another, we could avoid that. To make working with kind of nested hash-map structure, we'll define some utility functions. First, we'll check to see if a request has a tag that has been seen before. And second, we'll add a tag/handler pair to the history.
+
+(defn- check-history [context request]
+  (get (:history context) (:screen-id (:params request))))
+
+(defn- update-history [context request-tag handler]
+  (if (nil? request-tag)
+    context
+    (merge-with merge context
+                {:history {request-tag handler}})))
+Since the web app's context is now a value in an outer hash map, we'll need to extract it before calling the web function, so we should put that into a seperate function as well.
+
+(defn- call-web-fn [f context request]
+              (let [app-context (:app-context context)
+                    [result app-context] (f app-context request)
+                    new-context (assoc context :app-context app-context)]
+                (if (nil? result)
+                  [nil new-context]
+                  [result (update-history new-context
+                                          (:screen-id (:params request))
+                                          (:current-handler context))])))
+You'll notice that if the result from the web function is nil, that we don't update the history before continuing execution. This means that the history only gets updated when a response is sent to the user. The thing to notice is that when we do update the history, we're pulling a value from the context hash-map with a key of :current-handler. To see why this is, consider the case where the execution of a request handler passes through one or several web functions that don't return responses before coming to one that does. When we handle another request with the same tag, we want the execution path to come through the same series of web functions. But that path of execution is only known when we first start handling a request, while it isn't added to the history until the response is sent to the user. So when a request is first handled, we add the function that's handling the request to the context with a key of :current-handler. Then we can extract that value when updating the history right before we send a response to the user.
+
+So, we now need to modify make-web-fn so that it does the following:
+
+Check the history to see if a request with the current request's tag has been handled before
+If so, call the handler that handled the previous request.
+If not, call the web function, using the call-web-fn function.
+If a nil response is returned, continue execution.
+Otherwise, create a new request handler which will use a new context value that contains a pointer to the current request handler with a key of :current-handler.
+Hopefully, with all that explanation, the final version of make-web-fn is understandable.
+
+(defn make-web-fn [f]
+  (fn [[context request]]
+    (let [screen-handler (check-history context request)
+          [result new-context] (when (nil? screen-handler)
+                                 (call-web-fn f context request))]
+      (cond
+        screen-handler (fn [continuation]
+                         (screen-handler request))
+        (nil? result) (m-result [new-context request])
+        :else (fn [continuation]
+                [result (fn handler [new-request]
+                          (continuation [(assoc new-context :current-handler handler)
+                                         new-request]))])))))
+There are two other small changes we need to make since the application context is wrapped by an outer hash-map. Here they are without further comment.
+
+; the conditional construct
+(defn web-cond [& preds-conts]
+  (fn [[context request]]
+    (let [pairs (partition 2 preds-conts)
+          successes (filter (fn [[pred c]]
+                              (or (= pred :else)
+                                  (pred (:app-context context) request)))
+                            pairs)
+          cond-c (second (first successes))]
+      (if (nil? cond-c)
+        (m-result [context request])
+        (cond-c [context request])))))
+
+; the 'loop while condition is true' construct
+(defn web-while [pred while-c]
+  (fn this-fn [[context request]]
+    (if (pred (:app-context context) request)
+      (m-bind (while-c [context request])
+               this-fn)
+      (m-result [context request]))))
+Final pieces
+
+The only piece left is the one that interfaces to the web server. In this case, Compojure. It's a straightforward piece of Clojure code. It extracts the session id from the request and checks the global session hash-map to see if that session exists. If it doesn't, it starts a new one. If a session does exist, it uses the stored request handler to handle the request and generate a response, It then stores the new request handler for the session and returns the result to the web server to be sent to the user.
+
+(def sessions (ref {}))
+
+; top level request handler
+(defn handle-request [request session-start]
+  (let [session-id (get (:params request) :session-id (new-id))
+        session (get @sessions session-id)
+        [result next-handler] (if session
+                                (session request)
+                                (run-cont (session-start [{:app-context {:session-id session-id}} request])))]
+    (dosync (ref-set sessions (assoc @sessions session-id next-handler)))
+    result))
+Postscript: A surprising realization
+
+As I was coming to the end of this tutorial, something occurred to me that I hadn't considered. It is not a requirement that the web app context be a hash-map, nor is it a requirement that the request be a hash-map. They can be of any type. That was by design. What I had not considered is that a web app isn't just a web app. If you step back a little, you'll see that a web app is actually a finite state machine. At each state of execution, it accepts new input and returns a result. If you renamed the functions, this library would be one way to define and execute state machines. This is now the third way I've come across to represent FSM's in Clojure in a concise way.
+

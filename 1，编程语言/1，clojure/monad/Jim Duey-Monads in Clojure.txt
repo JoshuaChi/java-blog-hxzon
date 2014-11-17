@@ -22,8 +22,10 @@ Konrad Hinsen wrote a very good implementation of monads in Clojure and I'll not
 It is included in the clojure.contrib package, so get that installed if you want to use any of the code I present below. 
 Otherwise, all code will be standard Clojure. 
 The sample code for this tutorial is here .
+http://www.intensivesystems.net/tutorials/code/monads_101.clj
 
 Konrad also wrote a tutorial for monads using Clojure here .
+http://onclojure.com/2009/03/05/a-monad-tutorial-for-clojure-programmers-part-1/
 
 ====
 First Looks
@@ -36,7 +38,8 @@ monad只是用来组合函数。
 ; argument and return a result
 (comp f1 f2 f3)
 
-which returns a function where the output of f3 is fed to f2 and the output of that is fed to f1 producing the final answer. 
+which returns a function where the output of f3 is fed to f2 
+and the output of that is fed to f1 producing the final answer. 
 An equivalent function could be defined as:
 
 (fn [x]
@@ -49,11 +52,19 @@ Some plumbing code needs to be executed to hook them together.
 Suppose f1, f2 and f3 all accept an int and return a list of ints. 
 To compose these three functions, you would do something like,
 但是，如果f3的输出，不是f2所需的输入呢？
+假设这三个函数，输入都是int，而输出都是int列表。
 
 (fn [x]
    (mapcat f1
            (mapcat f2
                   (f3 x))))
+
+（hxzon：
+
+(mapcat f & colls) 即 (concat (map f colls)) 。
+concat，拼接多个列表。
+
+）
 
 So f3 is called with the value of x and produces a list of ints. 
 Then the inner mapcat applies f2 to each int in that list. 
@@ -72,6 +83,8 @@ monad背后的思想，是抽出这些“管道”代码，隐藏它们，只留
 ====
 Monad Mechanics
 
+（mechanics，n.力学；机械学；构成法；技术）
+
 So how to abstract the plumbing? 
 First, we have to nail down some terms. 
 In a statically typed language like Haskell, a function would have a signature 
@@ -84,8 +97,11 @@ But we can say that a group of functions expect certain kinds of arguments and r
 like we said above about f1, f2 and f3 accepting an int and returning a list of ints. 
 A group of functions that are intended to be composed using a monad 
 must all have the same signature and these are called "monadic functions". 
+用同一个monad组合在一起的函数，必须拥有相同的签名。
+这些函数称为“monadic函数”。
 Also, the values they return are referred to as "monadic values" 
 and can be thought of as containing, or wrapping, the basic values. 
+这些函数的返回值，称为“monadic值”，可以理解为“原先的值”的容器。
 
 In the above example, the monadic values are all lists of ints and the basic values are the ints. 
 A monadic function takes basic values as parameters, not monadic values. 
@@ -117,8 +133,9 @@ This is more idiomatic Clojure and is easier to write since parenthetical lists 
 Second, what's that 'm-bind' thing?
 
 m-bind is the standard name of a function that applies a monadic function to a monadic value. 
-m-bind是一个标准的函数名字，这个函数用来将monadic值应用于monadic函数。
 All monads are required to have a function named m-bind. 
+m-bind是一个标准的函数名字，这个函数用来将monadic值应用于monadic函数。
+每个monad必须有一个m-bind函数。
 
 In this case, m-bind is defined as:
 
@@ -131,7 +148,7 @@ we could then use m-bind to do the application.
 Every monad must have such a function defined, named 'm-result'. 
 So for the example we're working with:
 另一个问题是，如何将普通值（非monadic值）应用于monadic函数？
-我们用m-result函数，将普通值转成monadic值。
+我们用一个函数，将普通值转成monadic值，这个函数称为 m-result 。
 
 (m-result 6)
 
@@ -147,7 +164,7 @@ a function, named 'm-result', to convert a regular value to a monadic value
 and a function, named 'm-bind', to apply a monadic function to a monadic value. 
 A monad may then be used to easily compose monadic functions to create new monadic functions.
 所以，一个monad由三部分组成：
-一个签名，表明monadic可用于哪类函数。
+一个函数签名，表明monadic可用于哪类函数。
 一个名为m-result的函数，用来将普通值转成monadic值。
 一个名为m-bind的函数，将monadic值应用于monadic函数。
 
@@ -162,13 +179,14 @@ Here's how:
           (m-bind
               (m-bind
                   (m-bind
-                      (m-result x)
+                      (m-result x)      ;hxzon：因为 (m-bind xs f3)，所以需要先 (m-result x)
                       f3)
                    f2)
                f1)))
 
 And at first glance, that is terribly ugly. 
 However, notice that this function is independent of which monad is being used. 
+注意，这个函数不依赖于哪个monad 。
 So we could use it with any monad to compose monadic functions with that monad's signature, 
 just like comp is used to compose regular functions.
 
@@ -178,6 +196,7 @@ But it's still ugly.
 
 ====
 Do Notation
+“do”标记法：domonad（hxzon：重要）
 
 A better way to compose monadic functions is to use the 'do' notation.
 
@@ -204,12 +223,21 @@ First is the name of the monad to be used.
 Second is a vector, surrounded by brackets, of pairs of variables/expressions. 
 And finally, an expression to generate the return value.
 
+domonad表达式分三部分，
+第一部分指明用哪个monad，
+第二部分是一个向量，是一系列的“变量和表达式”对。
+第三部分是一个表达式，用来生成返回值，这个值是monadic值。
+
 Here's where it appears to get tricky. 
 In the variable/expression pairs, the expressions produce monadic values when they are evaluated. 
 So '(f3 x)' will produce a monadic value depending on what 'x' is. 
 However, the monadic value does not get assigned to 'a'. 
 Rather, 'a' can be used in the following expressions 
 to access the basic values contained inside the monadic value returned from '(f3 x)'.
+
+在“变量和表达式”对中，表达式求值得到monadic值。
+但是，该monadic值没有绑定到 a，
+a 被绑定到“普通值”。
 
 So in the above example, '(f3 x)' generates a monadic value from x, specifically a list of values. 
 Then f2 is applied to each of those values in turn 
@@ -226,6 +254,9 @@ which makes the function returned by m-comp a monadic function.
 And that function can be further composed with other monadic functions to build yet more monadic functions. 
 This is the first hint at the power contained in monads. 
 We'll see that developed further a little later on.
+
+domonad表达式返回一个monadic值，所以 m-comp 是一个 monadic 函数。
+它可以和其它monadic函数继续组合，产生更多 monadic 函数。
 
 ====
 Comprehension
@@ -265,6 +296,7 @@ when the sequence-m monad is used.
 Or to put it another way, a domonad statement is a general case of a list comprehension 
 and can also be referred as a monad comprehension. 
 That will have some interesting implications later.
+
 “列表构建”只是sequence-m的一个应用特例。
 
 ====
@@ -290,14 +322,19 @@ We'll see a concrete example of this in a short while.
 在组合小问题的解答，从而解决大问题。
 但好处不只是解决这个大问题，通过小问题答案的其它组合，还能解决其它相似的大问题。
 
-====
+（hxzon：2014.11.17，已理解）
+
+========
 More Power
 
 The sequence-m monad is a good example to use as an introduction to monads. 
 It is easy to see how a sequence can contain values of other types. 
-There are some other simple monads that pack a lot of power in deceptively simple trappings and we'll come back to those later. 
+There are some other simple monads 
+that pack a lot of power in deceptively simple trappings and we'll come back to those later. 
 Right now, though, we're going to take a look at one of the high octane monads. 
 Buckle up.
+
+（high-octane，adj.强烈的；极新颖的；高辛烷值的；高能量的）
 
 One of the most powerful concepts in functional programming is that functions are first class values. 
 That is, you can do things with functions just like you can do things with integers. 
@@ -312,15 +349,23 @@ That is, a monad can be defined where monadic functions return functions as mona
 To really grasp this concept, a clear distinction must be maintained 
 between functions that are monadic values and functions that are monadic functions.
 
+====
+（具体例子：状态monad）
+
 Let's look at a concrete example, the state-m monad. 
 The monadic values of the state-m monad are functions that take a value, the state, as a parameter 
 and produce a list that contains a return value and a new state value. 
-返回一个列表，列表包含返回值，和一个新的状态值。
+状态monad的monadic值是一个函数，
+这个函数的输入是一个状态值，
+这个函数的输出是一个列表，列表包含返回值，和一个新的状态值。
 The state value can be any kind; a struct map, a string, an integer, etc. 
+
 The monadic functions of the state-m monad are functions that take a value and return a monadic value. 
 (A function that takes a state value and generates a return value and a new state value).
+状态monad的monadic函数，输入一个值，输出一个monadic值。
 
 This is a function that is a monadic value under the state-m monad.
+作为monadic值的函数：
 
 (defn some-fn [state]
      ; do something
@@ -331,7 +376,8 @@ Notice that the function itself is the monadic value, not the state value.
 
 So let's define some functions like this where the state is an integer and each function simply increments it, 
 in addition to returning a constant value.
-接下来的例子，用一个数字表示状态，每个函数都递增这个数字。
+这个例子中，我们用一个数字表示状态，每个函数都递增这个数字。
+定义以下三个作为monadic值的函数：
 
 (defn g1 [state-int]
       [:g1 (inc state-int)])
@@ -373,6 +419,7 @@ produces
 
 ([:g1 :g2 :g3] 8)
 
+==
 Another interesting thing about the state-m monad is the existence of special functions. 
 For instance, a function like:
 另一个有趣的地方，是在特殊形式里使用 state-m 。
@@ -386,7 +433,7 @@ returns a function that can be used to get the value of the state at any point i
 (def gs1
      (domonad state-m
               [a g1
-               x (fetch-state)
+               x (fetch-state)          ;hxzon：在中途获取状态值
                b g2]
               [a x b]))
 
@@ -409,7 +456,7 @@ So, a domonad statement like:
 (def gs2
      (domonad state-m
               [a g1
-               x (set-state 50)
+               x (set-state 50)        ;hxzon：在中途修改状态值
                b g2]
               [a x b]))
 
@@ -422,8 +469,13 @@ produces
 Notice that fetch-state and set-state are not monadic values. 
 Rather, they are functions that return monadic values for the state-m monad, 
 which are functions that accept a state and return a return value and a new state. 
+
+注意，fetch-state 和 set-state 都不是monadic值。
+
 However, set-state is a monadic function because it accepts a parameter, which is the new state value, 
 and returns a function that sets the state to that value when called.
+
+但是，set-state 是 monadic函数。
 
 In reality, fetch-state and set-state are defined differently, 
 but the above is a convenient way of thinking about them.
@@ -467,6 +519,7 @@ Taking a step back for a moment, realize that the state value can be anything.
 It could be a struct map with values associated with keywords. 
 Then functions that are monadic values could update those values 
 and have the power of global mutable state yet keep the safety of side-effect-free programming. 
+
 Another interesting option is that the state can be a string which can be consumed by the functions. 
 Or an integer that is incremented or decremented.
 
@@ -482,6 +535,8 @@ This function could be used by a higher level where the state value is a list of
 one for each level in the game. 
 A monadic value at this level would be a function that allows the player to play a single maze. 
 As each maze is cleared, that function is called again with a list of remaining mazes to play.
+
+（hxzon：2014.11.17）
 
 ====
 Legalities
