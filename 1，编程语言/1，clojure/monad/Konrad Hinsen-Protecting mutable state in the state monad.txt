@@ -1,0 +1,118 @@
+﻿Konrad Hinsen-Protecting mutable state in the state monad
+June 24, 2009
+Filed under: Uncategorized — Konrad Hinsen @ 4:19 pm
+http://onclojure.com/2009/06/24/protecting-mutable-state-in-the-state-monad/
+
+========
+In part 3 of my monad tutorial for Clojure programmers, 
+I explained that the main purpose of the state monad 
+is to facilitate the implementation of stateful algorithms in a purely functional way. 
+Here I will show a somewhat different use of the state monad: 
+另一种不同的使用方式：
+protecting mutable data in such a way that it is guaranteed not to be used incorrectly. 
+I will use I/O as my example because I expect that everyone is familiar with it, 
+but the same method can also be applied to modify mutable Java data structures, such as arrays, 
+in a referentially transparent fashion.
+
+The example I will use is stream-based I/O, based on the java.io library. 
+Writing to such a stream has side-effects, so it is certainly not purely functional. 
+But even reading from a stream is not purely functional: 
+every time you call the read method, you get another return value. 
+A stream object therefore represents mutable state. 
+Passing around such an object among functions in a program 
+makes it difficult to verify that the stream is read or written to properly.
+
+Here is the basic idea of protecting state in the state monad. 
+Suppose that the only way to create your mutable object is through a function that takes a state monad value as its argument. 
+The function creates the object, calls the state monad value on it, and then destroys the object. 
+Client code never obtains a reference to the object, 
+so the only way to act on it is through state monad values that define useful operations on the object 
+(such as “read a line from the stream”). 
+To add another layer of protection, the object is wrapped in a protective data structure (such as a closure) 
+before being passed to the state monad value. 
+Only a well-defined set of state monad values gets the key to access the object, 
+meaning that only those clearly identified operations can act on the object. 
+You can then use those operations, and combine them in the state monad to define more complex operations. 
+But no matter how you try, you will never get a reference to the object that you could assign to a var, 
+pass to some function, or (ab-)use in any other way.
+
+For stream-based I/O, this approach is implemented in the library clojure.contrib.monadic-io-streams. 
+Before trying any of the examples below, 
+you have to evaluate the following form that takes care of importing the libraries:
+
+(ns monadic-io-demo
+  (:refer-clojure :exclude (read-line print println flush))
+  (:use [clojure.contrib.monadic-io-streams])
+  (:use [clojure.contrib.monads]))
+
+The :refer-clojure clause is necessary because clojure.contrib.monadic-io-streams defines a couple of names 
+that are also defined in clojure.core. 
+In general this is not a good idea, but here the names are the same as those of the Java functions that are being called, 
+which is a useful feature as well. 
+The number of good names for functions is unfortunately not unlimited!
+
+With the bookkeeping done, let’s look at a basic application:
+
+(with-reader "my-file.txt"
+  (read-line))
+
+This returns the first line of the text file “my-file.txt”. 
+To understand how this works, here is the definition of read-line:
+
+(defn read-line
+  []
+  (fn [s] [(.readLine (unlock s)) s]))
+
+The call (read-line) thus returns a state monad value: 
+a function that takes a state argument s, 
+calls the Java method readLine on the unlocked state, 
+and returns a vector containing the freshly read line and the state argument. 
+The function unlock is defined locally in a let form and is thus inaccessible from the outside. 
+It retrieves the real state value from the wrapper that only serves to protect it.
+
+Next, we need to look at with-reader:
+
+(defn with-reader
+  [reader-spec statement]
+  (with-open [r (reader reader-spec)]
+    (first (statement (lock r)))))
+
+The function reader that it calls comes from clojure.contrib.duck-streams. 
+It creates the stream reader object which is then locked (wrapped inside a closure) 
+and passed to statement, which happens to be the state monad value returned by (read-line). 
+The with-open macro ensures that the reader is closed. 
+The return value of the with-reader function is the first item in the return value of the monadic statement; 
+the second item is the state which is of no interest any more.
+
+There are two levels of protection here: 
+first, the reader object is never made accessible to the outside world. 
+It is created, injected into the monadic statement, and then made invalid by closing it. 
+The only way to get a reference would be write a monadic statement that exposes the state. 
+This is indeed possible, and the statement is even provided under the name fetch-state in clojure.contrib.monads. 
+The following piece of code returns the state value:
+
+(with-reader "my-file.txt"
+  (fetch-state))
+
+But here the second level of protection takes over: 
+the return value is the locked version of the state, which happens to be a closure. 
+That closure must be called with the right key in order to unlock the state, but the key is not accessible anywhere. 
+Only a handful of functions in clojure.contrib.monadic-io-streams can unlock the state and work on it.
+
+The typical way to do more complex I/O using this monadic approach 
+is to define complex I/O statements by composing the basic I/O statements (read, read-line, write, print, etc.) in the state monad. 
+This permits the construction of arbitrary I/O code, all in a purely functional way. 
+In the end, the compound I/O statement is applied to an I/O stream using with-reader or with-writer. 
+That part is necessarily not purely functional: 
+when reading a file, nothing guarantees that the file will be the same every time it is read. 
+But the non-functional part is now localized in a single place, 
+and the complex aspect of I/O, the composition of I/O statements to do the required work, is purely functional.
+
+====
+As I said earlier, the same approach can be applied to working with mutable arrays. 
+There would be function make-array that takes a monadic array-modifying statement as its argument. 
+This function would create an array, run it through the statement, and return the resulting modified array. 
+The only array-modifying functions would be defined as state monad values. 
+The net result would be a referentially transparent way to create a new array and have it initialized by an arbitrary algorithm. 
+However, once returned from make-array, the array would be immutable.
+

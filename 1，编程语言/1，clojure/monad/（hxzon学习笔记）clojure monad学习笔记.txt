@@ -18,6 +18,14 @@ by hxzon
            b (inc a)]
           (* a b)))
 
+let本质上就是：
+
+( (fn [a] 
+    ( (fn [b] 
+        (* a b)) 
+      (inc a) ) ) 
+  1 )
+
 一系列操作，如果需求是，假如中间步骤失败，剩下的步骤取消，然后整体返回nil 。
 
 (defn f [x]
@@ -107,6 +115,21 @@ domonad表达式分三部分：
 第三部分是一个表达式，用来生成返回值。
 
 domonad表达式返回一个monadic值，所以可被进一步组合。
+
+hxzon：
+
+(domonad mname [a av b bv c cv] r)
+展开成：
+
+(let [m-bind (:m-bind mname) ...]
+  (do
+    (m-bind av
+            (fn [a]
+              (m-bind bv
+                      (fn [b]
+                        (m-bind cv
+                                (fn [c]
+                                  (m-result r)))))))))
 
 ==
 hxzon：
