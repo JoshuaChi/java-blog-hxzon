@@ -5,7 +5,8 @@ http://www.cnblogs.com/darkluck99/archive/2012/03/16/2400714.html
 http://onclojure.com/2009/03/05/a-monad-tutorial-for-clojure-programmers-part-1/
 
 ========
-译者注，在一些Clojure同学的要求下，翻译了这个系列，虽然是09年的老文章了，但是讲解了FP的一些重要概念，不妨一读。 
+译者注，在一些Clojure同学的要求下，翻译了这个系列，
+虽然是09年的老文章了，但是讲解了FP的一些重要概念，不妨一读。 
 
 
 Monad在函数式编程中常常跟Haskell联系在一起。
@@ -83,6 +84,8 @@ Monad 用来把多个运算步骤组合成一个更大的多步运算。
 (clojure.contrib.monads/with-monad identity-m
     (m-bind 1 (fn [a] (m-bind (inc a) (fn [b] (m-result (* a b)))))))
 
+（hxzon：在结尾处使用m-result）
+
 通过结果我们看到，在一个(with-monad identity-m ...)定义的块中，
 通过m-bind组成了一个操作链，并调用m-result （后面解释）。
 对于identiy monad（indentiy-m）来说，m-result就是identiy（它的名字）。
@@ -115,9 +118,10 @@ Monad 用来把多个运算步骤组合成一个更大的多步运算。
         (* a b)))
 
 这个maybe monad，代表着运算的结果可能是有效值，也可能是nil。
-他的m-result函数仍然是identiy，这里我们就略过对m-result的讨论（在第二部分中将详细介绍）。
+他的m-result函数仍然是identity，这里我们就略过对m-result的讨论（在第二部分中将详细介绍）。
 所有的神奇都在m-bind函数中：
-（注：每个不同的monad，差别就在于对m-bind和m-result的不同实现，这里可以看到identity-m和maybe-m的区别）
+（注：每个不同的monad，差别就在于对m-bind和m-result的不同实现，
+这里可以看到identity-m和maybe-m的区别）
 
 (defn m-bind [value function]
     (if (nil? value)
@@ -133,7 +137,7 @@ Monad 用来把多个运算步骤组合成一个更大的多步运算。
 
 在part2中，我将介绍更多的monad，并且讨论一些在任何用于辅助组合运算的monad中都能使用的泛型函数。
 
-关于monad，dict.cn解释为：单位，单一体，单细胞生物，一价原子。
+巫云@：关于monad，dict.cn解释为：单位，单一体，单细胞生物，一价原子。
 我的理解，在函数式语言中，monad指“通过一种形式，把多个运行步骤组合在一起”的方式。
 
 ========
@@ -178,13 +182,16 @@ The following expression is in fact equivalent to the previous one:
 
 ( (fn [a]  ( (fn [b] (* a b)) (inc a) ) )  1 )
 
-The outermost level defines an anonymous function of a and calls with with the argument 1 – this is how we bind 1 to the symbol a. 
+The outermost level defines an anonymous function of a 
+and calls with with the argument 1 – this is how we bind 1 to the symbol a. 
 Inside the function of a, the same construct is used once more: 
 the body of (fn [a] ...) is a function of b called with argument (inc a). 
-If you don’t believe that this somewhat convoluted expression is equivalent to the original let form, just paste both into Clojure!
+If you don’t believe that this somewhat convoluted expression is equivalent to the original let form, 
+just paste both into Clojure!
 
 Of course the functional equivalent of the let form is not something you would want to work with. 
-The computational steps appear in reverse order, and the whole construct is nearly unreadable even for this very small example. 
+The computational steps appear in reverse order, and the whole construct 
+is nearly unreadable even for this very small example. 
 But we can clean it up and put the steps in the right order with a small helper function, bind. 
 We will call it m-bind (for monadic bind) right away, because that’s the name it has in Clojure’s monad library. 
 First, its definition:

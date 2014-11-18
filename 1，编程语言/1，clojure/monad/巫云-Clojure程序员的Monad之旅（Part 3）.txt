@@ -8,7 +8,8 @@ http://onclojure.com/2009/03/23/a-monad-tutorial-for-clojure-programmers-part-3/
 在开始monad高级话题之前，我们简单回顾一下monad的定义（参考Part 1和Part 2）：
 1.一种数据结构，表现运算的结果，或者运算本身。
 2.使用m-result函数，把一般的值，转换成等价的monad数据结构。
-3.使用m-bind函数，绑定一个使用monad数据结构表示的运算的值到一个名称（使用接受一个参数的函数），使这个值在接下来的运算中可用。
+3.使用m-bind函数，绑定一个使用monad数据结构表示的运算的值到一个名称（使用接受一个参数的函数），
+使这个值在接下来的运算中可用。
 
 以sequence monad为例，数据结构为sequence，表示最终结果非唯一的运算；
 m-result是list函数，把每次运算结果转换成一个序列，序列的元素是运算的每个值转成的list；
@@ -51,8 +52,8 @@ m-zero和m-plus需满足的条件：
    (* 2 a))
 
 domonad宏把let形式的语法，转换成m-bind和m-result的组合式，
-a (range 5) 等价于
 
+a (range 5) 等价于
 (m-bind (range 5) (fn [a] remaining-steps))
 
 在remaining-steps中:when语句被特殊处理：
@@ -74,12 +75,15 @@ map的结果是包含1个或0个元素的list组成的序列：
 对于偶数，返回(结果)，即m-result的值。
 concat函数把这些list连接起来成为最后的结果。
 
+==
 对于m-plus，一般跟maybe monad和sequence monad一起使用。
 一个典型的应用是查找（比如一个语法解释器，一个正则搜索，一个数据库查询），
 可能成功（有返回结果）或失败（无返回结果）。
+
 m-plus用于把查找的结果组合返回（sequence monad），
 或者一直查找，直到找到一个符合条件的值（maybe monad）。
-原则上来说，使用m-zero比使用m-plus更合适，任何使用m-plus的地方，都可以用m-zero实现。
+原则上来说，使用m-zero比使用m-plus更合适，
+任何使用m-plus的地方，都可以用m-zero实现。
 
 ====
 讲完理论，让我们熟悉几个monad。
@@ -90,6 +94,7 @@ m-plus用于把查找的结果组合返回（sequence monad），
 state monad的作用是把状态算法，用纯函数式的方式来实现。
 状态算法需要更新一些变量的值，在命令式语言中，这很普遍，
 但是却不符合纯函数式编程的基本原则，因为纯函数式语言是不允许可变数据结构的。
+
 一个解决方法是在纯函数语言中使用特殊的数据项（典型的就是Clojure的map）来存储算法所需的可变数据的当前值。
 在命令式编程中，一个函数可以通过传参，修改变量的当前值，并返回更新后的值。
 对状态的修改变成显式的数据项，在函数中传递。
@@ -99,7 +104,8 @@ state monad和我们之前看到的monad不同，他的数据结构是一个函�
 state monad的值是一个接受一个参数的函数，这个函数就是当前状态的运算。
 并且返回一个vector，vector长度为2，包括计算结果和更新后的状态。
 实际上，这些函数都是典型的闭包，并且你在程序中使用的代码和函数，都产生这样的闭包。
-就像你看到的，state monad允许你组合这些函数，使你的程序看起来跟命令式的一样，尽管他们是纯函数式的。
+就像你看到的，state monad允许你组合这些函数，
+使你的程序看起来跟命令式的一样，尽管他们是纯函数式的。
 
 让我们从一个简单的常见场景开始：你要处理的state以map形式存储。
 你可能认为map是一个命令式语言中的概念，每个key定义一个变量，两个基本的操作来读取和修改值。
@@ -214,7 +220,7 @@ state monad中的一个变形由于使用非常频繁，以至于成为了一个
            f2 (fib n2)]
        (+ f1 f2))))
 
-接着，我们用domonad代替let，并使用带有一个vetor累加器的writer monad：
+接着，我们用domonad代替let，并使用带有一个vector累加器的writer monad：
 
 (require ['clojure.contrib.accumulators :as 'accu])
 

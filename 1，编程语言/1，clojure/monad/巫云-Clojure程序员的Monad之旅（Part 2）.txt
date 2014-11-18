@@ -92,7 +92,7 @@ Sequence monad的最终定义如下：
 (defn m-result [value]
    (list value))
  
-m-result的作用是，当出现在monad绑定的右侧时返回一个值，把符号绑定到这个值。
+m-result的作用是，当出现在monad绑定的右侧时返回一个值，把符号绑定到这个值。（hxzon：？）
 在定义monad时，m-bind和m-result必须满足这个条件。
 
 在Clojure代码中表现为：
@@ -136,7 +136,7 @@ monadic-expression代表任何有效的monad表达式，
      (function2 y)))
 
 使用monad时不需要记住这些法则，除非你要创建自己的monad。
-你需要记住的是(m-result x)代表值为x的monad运算。
+你需要记住的是(m-result x)代表值为x的monad运算。（hxzon：？）
 我们前面讲过的identity monad和maybe monad，没有特别的monad表达式，此时m-result只是identity函数。
 
 现在放松一下。
@@ -152,7 +152,7 @@ monadic-expression代表任何有效的monad表达式，
 Monad库还包括许多可在任何monad中使用的操作，它们的名字都以“m-”开头。
 
 使用最频繁的monad泛函数是m-lift，
-它把一个参数为n个值参数的函数，转换成一个参数为n个monad表达式，
+它把一个“参数为n个值参数”的函数，转换成一个“参数为n个monad表达式”，
 并且返回值也是monad表达式的函数。
 这个新函数隐式调用了m-bind和m-result。
 举个简单的例子：
@@ -219,7 +219,7 @@ Monad库还包括许多可在任何monad中使用的操作，它们的名字都�
 
 ====
 最后介绍m-chain，它接受一个单参数操作组成的list。
-然后把这些操作组成一个链，并使每个参数从操作链上流过。
+然后把这些操作组成一个链，链上的每个操作，以“前一个操作的返回值”为参数。
 比如：（m-chain [a b c]）等价于
 
 (fn [arg]
@@ -247,7 +247,8 @@ Clojure的parents函数通过使用multimethod，返回一个类的的所有基�
 巫云@：这个例子相当于把n次parents操作组成了一个操作链。
 
 你可能发现了，有些类在结果中出现了不只一次，因为他们是很多类的基类。
-事实上，我们应该使用sets代替sequence来表现结果，这并不难，把sequence-m，替换成set-m即可。
+事实上，我们应该使用sets代替sequence来表现结果，
+这并不难，把sequence-m，替换成set-m即可。
 
 在Part3，我会讲:when条件表达式在循环中的使用，
 并且看看他们在monad中是如何实现的，并且还会介绍其它几个monad。
@@ -259,12 +260,14 @@ March 6, 2009
 Filed under: Libraries — Konrad Hinsen @ 1:09 pm
 
 
-In the first part of this tutorial, I have introduced the two most basic monads: the identity monad and the maybe monad. 
+In the first part of this tutorial, I have introduced the two most basic monads: 
+the identity monad and the maybe monad. 
 In this part, I will continue with the sequence monad, 
 which will be the occasion to explain the role of the mysterious m-result function. 
 I will also show a couple of useful generic monad operations.
 
-One of the most frequently used monads is the sequence monad (known in the Haskell world as the list monad). 
+One of the most frequently used monads is the sequence monad 
+(known in the Haskell world as the list monad). 
 It is in fact so common that it is built into Clojure as well, in the form of the for form. 
 Let’s look at an example:
 
@@ -273,13 +276,16 @@ Let’s look at an example:
   (* a b))
 
 A for form resembles a let form not only syntactically. 
-It has the same structure: a list of binding expressions, in which each expression can use the bindings from the preceding ones, 
+It has the same structure: a list of binding expressions, 
+in which each expression can use the bindings from the preceding ones, 
 and a final result expressions that typically depends on all the bindings as well. 
-The difference between let and for is that let binds a single value to each symbol, whereas for binds several values in sequence. 
+The difference between let and for is that let binds a single value to each symbol, 
+whereas for binds several values in sequence. 
 The expressions in the binding list must therefore evaluate to sequences, and the result is a sequence as well. 
 The for form can also contain conditions in the form of :when and :while clauses, which I will discuss later. 
 From the monad point of view of composable computations, 
-the sequences are seen as the results of non-deterministic computations, i.e. computations that have more than one result.
+the sequences are seen as the results of non-deterministic computations, 
+i.e. computations that have more than one result.
 
 Using the monad library, the above loop is written as
 
@@ -288,7 +294,8 @@ Using the monad library, the above loop is written as
    b (range a)]
   (* a b))
 
-Since we alread know that the domonad macro expands into a chain of m-bind calls ending in an expression that calls m-result, 
+Since we alread know that the domonad macro expands into 
+a chain of m-bind calls ending in an expression that calls m-result, 
 all that remains to be explained is how m-bind and m-result are defined to obtain the desired looping effect.
 
 As we have seen before, m-bind calls a function of one argument that represents the rest of the computation, 
@@ -305,9 +312,11 @@ Let’s see what this does for our example:
   (m-bind-first-try (range a)  (fn [b]
     (* a b)))))
 
-This yields (() (0) (0 2) (0 3 6) (0 4 8 12)), whereas the for form given above yields (0 0 2 0 3 6 0 4 8 12). 
+This yields (() (0) (0 2) (0 3 6) (0 4 8 12)), 
+whereas the for form given above yields (0 0 2 0 3 6 0 4 8 12). 
 Something is not yet quite right. 
-We want a single flat result sequence, but what we get is a nested sequence whose nesting level equals the number of m-bind calls. 
+We want a single flat result sequence, but what we get is a nested sequence 
+whose nesting level equals the number of m-bind calls. 
 Since m-bind introduces one level of nesting, it must also remove one. 
 That sounds like a job for concat. 
 So let’s try again:
@@ -338,7 +347,8 @@ Let’s try a quick fix:
 
 This works! 
 Our (fn [b] ...) always returns a one-element list. 
-The inner m-bind thus creates a sequence of one-element lists, one for each value of b, and concatenates them to make a flat list. 
+The inner m-bind thus creates a sequence of one-element lists, one for each value of b, 
+and concatenates them to make a flat list. 
 The outermost m-bind then creates such a list for each value of a and concatenates them to make another flat list. 
 The result of each m-bind thus is a flat list, as it should be. 
 And that illustrates nicely why we need m-result to make a monad work. 
@@ -394,7 +404,8 @@ Again this becomes a bit clearer using domonad syntax:
       y (m-result (function1 x))]
      (function2 y)))
 
-It is not necessary to remember the monad laws for using monads, they are of importance only when you start to define your own monads. 
+It is not necessary to remember the monad laws for using monads, 
+they are of importance only when you start to define your own monads. 
 What you should remember about m-result is that (m-result x) represents the monadic computation whose result is x. 
 For the sequence monad, this means a sequence with the single element x. 
 For the identity monad and the maybe monad, which I have presented in the first part of the tutorial, 
@@ -407,14 +418,16 @@ The rest of this part will be of a more pragmatic nature.
 You may have wondered what the point of the identity and sequence monads is, 
 given that Clojure already contains fully equivalent forms. 
 The answer is that there are generic operations on computations that have an interpretation in any monad. 
-Using the monad library, you can write functions that take a monad as an argument and compose computations in the given monad. 
+Using the monad library, you can write functions 
+that take a monad as an argument and compose computations in the given monad. 
 I will come back to this later with a concrete example. 
 The monad library also contains some useful predefined operations for use with any monad, which I will explain now. 
 They all have names starting with the prefix m-.
 
 ====
 Perhaps the most frequently used generic monad function is m-lift. 
-It converts a function of n standard value arguments into a function of n monadic expressions that returns a monadic expression. 
+It converts a function of n standard value arguments 
+into a function of n monadic expressions that returns a monadic expression. 
 The new function contains implicit m-bind and m-result calls. 
 As a simple example, take
 
@@ -468,7 +481,8 @@ Try it out for yourself!
 
 ====
 The final monad operation I want to mention is m-chain. 
-It takes a list of one-argument computations, and chains them together by calling each element of this list with the result of the preceding one. 
+It takes a list of one-argument computations, 
+and chains them together by calling each element of this list with the result of the preceding one. 
 For example, (m-chain [a b c]) is equivalent to
 
 (fn [arg]
@@ -498,6 +512,7 @@ In fact, we ought to use sets instead of sequences for representing the ascendan
 Well… that’s easy. 
 Just replace sequence-m by set-m and run it again!
 
-In part 3, I will come back to the :when clause in for loops, and show how it is implemented and generalized in terms of monads. 
+In part 3, I will come back to the :when clause in for loops, 
+and show how it is implemented and generalized in terms of monads. 
 I will also explain another monad or two. Stay tuned!
 

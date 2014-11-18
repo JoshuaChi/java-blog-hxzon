@@ -1,0 +1,264 @@
+﻿（hxzon学习笔记）clojure monad学习笔记
+
+by hxzon
+========
+1，monad由三部分组成：
+
+一组“函数签名相同”的函数；
+一个 m-result(v) 函数，用来将普通值（regular value，standard value）转成monadic结构（monadic value）。
+一个 m-bind(mv mf) 函数，将monadic结构应用于monadic函数。
+
+每个monad的不同，就在于 m-result 和 m-bind 函数的不同。
+
+========
+2，mayby monad
+
+(defn f [x]
+    (let [ a x
+           b (inc a)]
+          (* a b)))
+
+一系列操作，如果需求是，假如中间步骤失败，剩下的步骤取消，然后整体返回nil 。
+
+(defn f [x]
+    (domonad maybe-m
+        [ a x
+          b (inc a)]
+        (* a b)))
+
+maybe-m 的 m-result 函数是 identity ，即返回原对象。
+
+maybe-m 的 m-bind 函数：
+
+(defn m-bind [value function]
+    (if (nil? value)
+        nil
+        (function value)))
+
+无需在每一步的计算中添加检测nil的代码，m-bind悄悄的为你做了这些事。
+
+====
+(defmonad maybe-m
+   "Monad describing computations with possible failures. Failure is
+    represented by nil, any other value is considered valid. As soon as
+    a step returns nil, the whole computation will yield nil as well."
+;; 中间步骤可能会失败。nil 表示失败。某个步骤失败，则整个表达式返回 nil 。
+
+   [m-zero   nil
+
+    m-result (fn m-result-maybe [v] v)
+
+    m-bind   (fn m-bind-maybe [mv f]
+               (when-not (nil? mv) (f mv)))
+
+    m-plus   (fn m-plus-maybe [& mvs]
+               (first (drop-while nil? mvs)))
+    ])
+
+========
+3，sequence-m
+
+考虑三个函数，输入都是int，而输出都是int列表。
+
+(fn [x]
+   (mapcat f1
+           (mapcat f2
+                  (f3 x))))
+
+(mapcat f & colls) 即 (concat (map f colls)) 。
+concat，拼接多个列表。
+
+定义 m-result，将 int 转成 int列表。
+
+(defn m-result [x]
+      [x])
+
+(defn m-bind [mv mf]
+      (mapcat mf mv))
+
+
+(defn m-comp [f1 f2 f3]
+      (fn [x]
+          (m-bind
+              (m-bind
+                  (m-bind
+                      (m-result x)      ;hxzon：因为 (m-bind xs f3)，所以需要先 (m-result x)
+                      f3)
+                   f2)
+               f1)))
+
+于是可以组合在一起：
+(m-comp f1 f2 f3)
+
+==
+上面的monad其实就是 sequence-m 。
+
+(defn m-comp [f1 f2 f3]
+      (fn [x]
+          (domonad sequence-m
+                   [a (f3 x)        ;hxzon？：a 是 列表中的每个元素
+                    b (f2 a)
+                    c (f1 b)]
+                   c)))      ;hxzon：c 是最终列表中的每个元素
+
+domonad表达式分三部分：
+第一部分指明使用哪个monad 。
+第二部分是一个向量，元素是“变量-表达式”对。
+第三部分是一个表达式，用来生成返回值。
+
+domonad表达式返回一个monadic值，所以可被进一步组合。
+
+（hxzon理解：？
+
+lista=(m-bind f3 (m-result x))
+listb=(m-bind f2 lista)
+listc=(m-bind f1 listb)
+
+）
+
+==
+示例：
+
+(domonad sequence-m
+         [letters ['a 'b 'c]
+          numbers [1 2 3]]
+         [letters numbers])        ;hxzon：生成列表中的每个元素
+
+输出：
+
+([a 1] [a 2] [a 3] [b 1] [b 2] [b 3] [c 1] [c 2] [c 3])
+
+====
+; Sequence monad (called "list monad" in Haskell)
+(defmonad sequence-m
+   "Monad describing multi-valued computations, i.e. computations
+    that can yield multiple values. Any object implementing the seq
+    protocol can be used as a monadic value."
+
+   [m-result (fn m-result-sequence [v]
+               (list v))
+
+    m-bind   (fn m-bind-sequence [mv f]
+               (flatten* (map f mv)))
+
+    m-zero   (list)
+
+    m-plus   (fn m-plus-sequence [& mvs]
+               (flatten* mvs))
+    ])
+
+==
+(defn- flatten*
+  "Like #(apply concat %), but fully lazy: it evaluates each sublist
+   only when it is needed."
+  [ss]
+  (lazy-seq
+   (when-let [s (seq ss)]
+     (concat (first s) (flatten* (rest s))))))
+
+========
+4，identity-m
+
+; Identity monad
+(defmonad identity-m
+   "Monad describing plain computations. This monad does in fact nothing
+    at all. It is useful for testing, for combination with monad
+    transformers, and for code that is parameterized with a monad."
+;; 原对象返回，不做任何事
+  [m-result identity
+
+   m-bind   (fn m-result-id [mv f]
+              (f mv))
+  ])
+
+
+========
+5，状态monad
+
+(defn g1 [state-int]
+      [:g1 (inc state-int)])
+
+(defn g2 [state-int]
+      [:g2 (inc state-int)])
+
+(defn g3 [state-int]
+      [:g3 (inc state-int)])
+
+(def gs (domonad state-m
+                 [a g1
+                  b g2
+                  c g3]
+                 [a b c]))        ;hxzon：最终结果值的部分（状态部分的值会自动加入）
+
+(gs 5)
+输出：
+([:g1 :g2 :g3] 8)
+
+==
+(defn fetch-state []
+      (fn [state]
+          [state state]))
+
+
+(def gs1
+     (domonad state-m
+              [a g1
+               x (fetch-state)          ;hxzon：在中途获取状态值
+               b g2]
+              [a x b]))
+
+(gs1 3)
+输出：
+([:g1 4 :g2] 5)
+
+==
+(defn set-state [new-state]
+      (fn [old-state]
+          [old-state new-state]))
+
+(def gs2
+     (domonad state-m
+              [a g1
+               x (set-state 50)        ;hxzon：在中途修改状态值
+               b g2]
+              [a x b]))
+
+(gs2 3)
+输出：
+([:g1 4 :g2] 51)
+
+====
+; State monad
+(defmonad state-m
+   "Monad describing stateful computations. The monadic values have the
+    structure (fn [old-state] [result new-state])."
+;; 除了返回函数原先的值，还额外返回一个状态
+
+   [m-result  (fn m-result-state [v]
+                (fn [s] [v s]))        ;; 返回一个函数，s为状态。
+
+    m-bind    (fn m-bind-state [mv f]
+                (fn [s]
+                  (let [[v ss] (mv s)]       ;; 注意 mv 是一个函数
+                    ((f v) ss))))
+   ])
+
+========
+7，
+
+(defn writer-m
+  "Monad describing computations that accumulate data on the side, e.g. for
+   logging. The monadic values have the structure [value log]. Any of the
+   accumulators from clojure.contrib.accumulators can be used for storing the
+   log data. Its empty value is passed as a parameter."
+  [empty-accumulator]
+  (monad
+   [m-result  (fn m-result-writer [v]
+                [v empty-accumulator])
+    m-bind    (fn m-bind-writer [mv f]
+                (let [[v1 a1] mv
+                      [v2 a2] (f v1)]
+                  [v2 (writer-m-combine a1 a2)]))
+    ]))
+
+
