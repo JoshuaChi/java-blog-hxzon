@@ -152,6 +152,7 @@ test2=> (test1/bar)
 test2=> (test1/foo);调用test1命名空间的foo函数，出现异常，提示test1的foo函数不是公开的
 CompilerException java.lang.IllegalStateException: var: #'test1/foo is not public, compiling:(NO_SOURCE_PATH:1)  
 
+要访问私有函数，只能  @#'xx/yy  。
 
 ----
 5，解构函数参数

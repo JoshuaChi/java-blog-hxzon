@@ -108,15 +108,49 @@ domonad表达式分三部分：
 
 domonad表达式返回一个monadic值，所以可被进一步组合。
 
-（hxzon理解：？
+==
+hxzon：
 
-lista=(m-bind f3 (m-result x))
-listb=(m-bind f2 lista)
-listc=(m-bind f1 listb)
+(@#'clojure.tools.macro/expand-all 
+  '(domonad sequence-m
+            [a (f3 x)
+             b (f2 a)
+             c (f1 b)]
+            c))
 
-）
+(let* [name__1128__auto__ sequence-m 
+       m-bind (:m-bind name__1128__auto__) 
+       m-result (:m-result name__1128__auto__) 
+       m-zero (:m-zero name__1128__auto__) 
+       m-plus (:m-plus name__1128__auto__)] 
+  (do 
+    (m-bind (f3 x) 
+            (fn* ([a] 
+                   (m-bind (f2 a) 
+                           (fn* ([b] (f1 b)))))))))
 
 ==
+(@#'clojure.tools.macro/expand-all 
+  '(domonad sequence-m
+            [a (f3 x)
+             b (f2 a)
+             c (f1 a)]
+            b))
+
+(let* [name__1128__auto__ sequence-m 
+       m-bind (:m-bind name__1128__auto__) 
+       m-result (:m-result name__1128__auto__) 
+       m-zero (:m-zero name__1128__auto__) 
+       m-plus (:m-plus name__1128__auto__)] 
+  (do 
+    (m-bind (f3 x) 
+            (fn* ([a] 
+                   (m-bind (f2 a) 
+                           (fn* ([b] 
+                                  (m-bind (f1 a) 
+                                          (fn* ([c] (m-result b))))))))))))
+
+====
 示例：
 
 (domonad sequence-m
@@ -127,6 +161,62 @@ listc=(m-bind f1 listb)
 输出：
 
 ([a 1] [a 2] [a 3] [b 1] [b 2] [b 3] [c 1] [c 2] [c 3])
+
+==
+hxzon：
+
+(@#'clojure.tools.macro/expand-1 
+    '(domonad sequence-m
+         [letters ['a 'b 'c]
+          numbers [1 2 3]]
+         [letters numbers]))
+
+(clojure.algo.monads/with-monad 
+  sequence-m 
+  (m-bind [(quote a) (quote b) (quote c)] 
+          (fn [letters] 
+            (m-bind [1 2 3] 
+                    (fn [numbers] 
+                      (m-result [letters numbers]))))))
+
+==
+(@#'clojure.tools.macro/expand 
+    '(domonad sequence-m
+         [letters ['a 'b 'c]
+          numbers [1 2 3]]
+         [letters numbers]))
+
+(let* [name__1128__auto__ sequence-m 
+       m-bind (:m-bind name__1128__auto__) 
+       m-result (:m-result name__1128__auto__) 
+       m-zero (:m-zero name__1128__auto__) 
+       m-plus (:m-plus name__1128__auto__)] 
+  
+  (clojure.tools.macro/with-symbol-macros 
+    (m-bind [(quote a) (quote b) (quote c)] 
+            (fn [letters] 
+              (m-bind [1 2 3] 
+                      (fn [numbers] 
+                        (m-result [letters numbers])))))))
+
+==
+(@#'clojure.tools.macro/expand-all 
+    '(domonad sequence-m
+         [letters ['a 'b 'c]
+          numbers [1 2 3]]
+         [letters numbers]))
+
+(let* [name__1128__auto__ sequence-m 
+       m-bind (:m-bind name__1128__auto__) 
+       m-result (:m-result name__1128__auto__) 
+       m-zero (:m-zero name__1128__auto__) 
+       m-plus (:m-plus name__1128__auto__)] 
+  (do 
+    (m-bind [(quote a) (quote b) (quote c)] 
+            (fn* ([letters] 
+                   (m-bind [1 2 3] 
+                           (fn* ([numbers] 
+                                  (m-result [letters numbers])))))))))
 
 ====
 ; Sequence monad (called "list monad" in Haskell)
@@ -226,6 +316,29 @@ listc=(m-bind f1 listb)
 (gs2 3)
 输出：
 ([:g1 4 :g2] 51)
+
+====
+hxzon：
+
+(@#'clojure.tools.macro/expand-all 
+  '(domonad state-m
+            [a g1
+             x (fetch-state)          ;hxzon：在中途获取状态值
+             b g2]
+            [a x b]))
+
+(let* [name__1128__auto__ state-m 
+       m-bind (:m-bind name__1128__auto__) 
+       m-result (:m-result name__1128__auto__) 
+       m-zero (:m-zero name__1128__auto__) 
+       m-plus (:m-plus name__1128__auto__)] 
+  (do 
+    (m-bind g1 
+            (fn* ([a] 
+                   (m-bind (fetch-state) 
+                           (fn* ([x] 
+                                  (m-bind g2 
+                                          (fn* ([b] (m-result [a x b]))))))))))))
 
 ====
 ; State monad
