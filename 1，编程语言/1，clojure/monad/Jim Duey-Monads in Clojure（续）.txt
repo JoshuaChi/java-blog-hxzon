@@ -6,6 +6,8 @@ http://www.intensivesystems.net/tutorials/monads_101.html
 ========
 Legalities
 
+（legalities，n.法律上的义务；合法性，法律性( legality的名词复数 )）
+
 In our earlier definition of a monad, we stated that a monad is composed of a function signature, 
 a function named m-result and a function named m-bind. 
 What we did not mention is that m-result and m-bind cannot be just any functions. 
@@ -119,6 +121,8 @@ The paper that describes it is worth reading.
 Some things to notice about this brief statement. 
 A parser is a function that takes a string and returns a list containing a value and a new string. 
 That's the description of a state-m monad where the state is a string value.
+一个解析器是一个函数，它的输入是一个字符串，它的输出是一个列表，包含解析结果，和剩余的字符串。
+这个字符串即“状态”。
 
 Except that a parser function can also return a nil if the string does not match. 
 Implementing this will require something like a state-m monad, 
@@ -126,6 +130,8 @@ but with the ability to handle nil monadic values as well.
 
 Defining monads in Clojure is done using the 'defmonad' statement. 
 Here's how the parsing monad is implemented
+
+（hxzon：monadic值是解析器。）
 
 (defmonad parser-m
           [m-result (fn [x]
@@ -135,14 +141,14 @@ Here's how the parsing monad is implemented
            m-bind (fn [parser func]
                       (fn [strn]
                           (let [result (parser strn)]
-                               (when (not= nil result)
-                               ((func (first result)) (second result))))))
+                               (when (not= nil result)        ; 如果解析器能成功解析，则继续下一步骤
+                               ((func (first result)) (second result))))))        ; 下一步骤以解析器的解析结果为输入
 
            m-zero (fn [strn]
                       nil)
 
            m-plus (fn [& parsers]
-                      (fn [strn]
+                      (fn [strn]        ; 返回第一个成功解析的结果
                           (first
                                 (drop-while nil?
                                             (map #(% strn) parsers)))))])
@@ -155,9 +161,14 @@ But then it checks to see if the result is nil or not.
 If the result is nil, nil is returned. 
 But if the result is not nil, it is taken apart and handled just like in the state-m monad.
 
+和状态monad不同之处是，如果解析器解析失败，返回 nil 。
+
 The state-m monad didn't have an m-zero function, but this parser monad does. 
 The "nothing" value that signals a failure is a nil, so the m-zero monadic value 
 is just a function that accepts a string and returns nil.
+
+==
+（hxzon：重要）
 
 The m-plus function requires some thought. 
 Generally, in a monad, m-plus is used to combine monadic values. 
@@ -167,18 +178,26 @@ feeding the output of one as input to the next, perhaps with some plumbing code 
 You can also call all of them with identical inputs 
 and then either pick one of the results or combine all the results into a single value.
 
+m-plus 需要一些思考。
+你可以组合这些解析器调用，后一个解析器以前一个解析器的输出为输入。
+也可以从这些解析器的解析结果中挑一个，或将所有解析结果合并。
+
 Consider that we're trying to implement a recursive descent parser 
 and that requires that we attempt to parse a string with a parser, 
 and if that fails, try the next parser until one succeeds. 
+我们的需求是“递归下降”解析。
+如果一个解析器失败，则使用下一个解析器解析，直到解析成功。
 That provides the model for the m-plus function. 
 It takes as input a list of parsers and returns a function that accepts a string. 
-它以一个解析器列表为输入，输出可以解析字符串的函数。
+m-plus 用来实现这个功能。
+它以一个解析器列表为输入，输出一个函数，这个函数以字符串为参数。
 This function applies each parser to the string, one after another and produces a list of the results. 
-这个函数将字符串应用到每个解析器上，然后在解析结果中找第一个非nil结果，即成功结果。
+这个函数将字符串应用到每个解析器上，然后在解析结果中找第一个非nil结果，即解析成功的结果。
 All that remains is to find the first non-nil result and choose that as the return value. 
 Taking advantage of the fact that first, drop-while and map are all lazy, 
 m-plus applies only as many parsers as it needs to in order to get a result. 
 If no parsers succeed, a nil is returned.
+因为first，drop-while，map都是延迟的，所以，m-plus不会做多余的计算。
 
 With the monad written, let's turn our attention to parsers. 
 We already have 2, m-result and m-zero. 
@@ -196,7 +215,8 @@ so this parser is used to halt parsing when the string is empty.
 It also will match any character. 
 When it does match a character, it has to return a value representing the parsed character 
 and a new string with the parsed character removed from the front of the old string.
-将输入字符串切成两部分，第一个字符，和剩余字符串。
+这个函数用来检测字符串是否为空。
+它将输入的字符串切成两部分，第一个字符，和剩余字符串。
 
 A slightly more complicated parser applies a test to the first character of the string 
 and returns a nil if the test fails or the parsed character and a new string if the test succeeds.
@@ -213,6 +233,9 @@ Also, the parameter passed into it, 'pred', is a function that will apply a test
 and return true or false if test succeeds or fails. 
 With those two things in mind, let's look at this domonad statement.
 
+首先注意，char-test 不是解析器，它产生一个解析器。
+这个解析器用 pred 来判断解析成功还是失败。
+
 The first expression states that any-char should be applied to the string and the resulting value assigned to 'c'. 
 If any-char returns a nil, signifying that the string is empty, the parser will likewise return a nil.
 
@@ -226,11 +249,14 @@ coupled with the new state string that any-char returned.
 In this case, char-test returns the parsed character as a string. 
 This will make sense in a second.
 
+:when 是一个卫句，它是一个特殊表达式，当它返回true，后续操作才会进行。
+
 The bigger picture to notice here is that 
 threading the string being parsed through all the functions is happening under the covers and doesn't concern us now. 
 That code has been written, debugged and can be forgotten about.
 
 So, how to create a parser that matches a particular character?
+那么现在，如何创建一个解析器，用它来匹配指定的字符？
 
 (defn is-char [c]
       (char-test (partial = c)))
@@ -242,6 +268,8 @@ This parser accepts a string as input, and if the first character matches, retur
 The first being the matched char as a string and the second being the rest of the string. 
 If the first char doesn't match the parser, a nil is returned.
 
+创建一个解析器，用来匹配字符“n”：
+
 (def is-n (is-char \n))
 
 (assert (= '("n" "bc")
@@ -250,6 +278,7 @@ If the first char doesn't match the parser, a nil is returned.
 (assert (empty?
            (is-n "xbc")))
 
+====
 The next obvious parser to write is one that matches a sequence of characters, one after the other. 
 Take this one slowly because it could cause your head to explode.
 
@@ -264,10 +293,16 @@ Take this one slowly because it could cause your head to explode.
 Some things to remember to help you keep your bearings. 
 First, match-string is a function that produces a parser 
 and parsers are monadic values for the parser-m monad. 
+
+match-string 返回一个解析器。
+
 Second, m-result and is-char are also functions that produce a parser. 
+
 Third, in the variable/expression pairs in the domonad statement, 
 the expressions must evaluate to monadic values (parsers) 
 and the values assigned to the variables are the results of evaluating the parsers.
+
+在steps中，表达式是解析器，而绑定变量是解析结果。
 
 So, the first thing match-string does is see if the target string is empty. 
 If it is, simply return a parser that always returns an empty string. 
@@ -277,10 +312,14 @@ If the target string is not empty, create a new parser by calling domonad.
 This is the tricky part. 
 The first expression is a pretty standard call to is-char, which produces a parser 
 that matches the first character of the target string. 
+第一个生成一个解析器，它检查输入字符串的第一个字符，是否是目标字符串的第一个字符。
 When this parser is executed and the string being parsed matches, 
 the variable 'c' gets assigned a value of that character. 
+
 The second expression of the domonad statement 
 makes a recursive call to match-string to build a parser that matches the rest of the target string. 
+接下来，递归调用 match-string 。即检查下一个字符是否匹配。
+
 This parser is only executed if the first character of the string being parsed matched the previous parser. 
 If it did, that parser removed the first character and passed the rest of the string to be parsed to this parser. 
 If this parser matches that string, it is returned and assigned to 'cs'. 
@@ -288,7 +327,7 @@ If any string remains to be parsed, it is combined into a final value
 with the result of the final expression which is a string built out of 'c' and 'cs'. 
 Got that?
 
-==
+====
 The parsers we've looked at so far, are the basic building blocks for building a recursive descent parser. 
 However, we need ways to compose them to build more complicated parsers for arbitrary grammars. 
 So we need a small set of parser combinators. 
@@ -296,37 +335,57 @@ The basic idea is that parser combinators accept a parser or parsers
 and then modifies or composes them to produce a new parser, 
 which can then be further composed, etc., etc.
 
+我们需要一些“解析器组合子”，将若干解析器组合成一个新解析器。
+
+==
 The first parser combinator to consider is one that converts a parser from one 
 that MUST match a string to one that MAY match a string.
+
+第一个组合子，它将一个“必须匹配”解析器，变成“可选匹配”解析器。
 
 (defn optional [parser]
       (m-plus parser (m-result nil)))
 
+（hxzon：注意m-plus的实现，它的输入是一个解析器列表，然后依次使用解析器解析字符串。）
+
 Given a parser that we want to make optional, we need to create a way for the new parser to succeed 
 when the original parser fails. 
+当原始解析器失败时，我们需要让新解析器成功。
 The new parser must return a value that allows further parsing to take place, 
 but does not affect the string being parsed. 
 That is what the parser created by m-result does. 
+新解析器需要返回一个值，以便进一步解析，但不影响被解析的字符串。
 This parser is then combined with the original parser using m-plus 
 so that the original parser is attempted first and if it fails, 
 the m-result parser is executed, which returns a list composed of nil and the original string.
 
+==
 The next combinator is one which takes a list of parsers and returns the results of the first one that matches. 
 This is exactly what m-plus does, so this is just a renaming m-plus to be more in line with the other combinators.
 
+接下来一个解析器组合子，它携带一系列解析器，依次用这些解析器解析字符串，直到其中一个解析成功。
+m-plus恰好就是这个组合子。
+
 (def match-one m-plus)
 
+==
 We also need a combinator that will take a series of parsers 
 and execute them one after the other, returning the final result. 
+
+解析来一个解析器组合子，它携带一系列解析器，依次执行这些解析器，
+每个解析器以前一个解析器的解析结果为输入。
+
 A domonad statement does something similar, but requires that we know how many parsers to compose up front. 
 We would like a combinator that takes any number of parsers.
+
+这个组合子和domonad做的事类似，但？
 
 (defn match-all [& parsers]
       (let [combined-parsers (m-seq parsers)]
            (fn [strn]
                (let [result (combined-parsers strn)]
                     (when result
-                          (list (apply str (first result))
+                          (list (apply str (first result))        ; 拼接字符串
                                 (second result)))))))
 
 The function m-seq is a standard monad function that is available for all monads. 
@@ -337,9 +396,14 @@ So, we have to capture the returned value, and concatenate all the value strings
 which is then returned with the string left to parse.
 
 ==
+（match-all 更好的实现方式）
+
 Konrad Hinsen sent me this alternative to match-all. 
 Study it to increase your monad-fu. 
+学习它可以提升你的 monad 功力。
+
 The first thing to notice about the above implementation is that combined-parsers is a monadic value. 
+
 Second, the function returned by match-all looks identical to the function returned by m-bind for the parser-m, 
 if you factor out the 'apply str' call.
 
@@ -353,6 +417,8 @@ The last part of that sentence is accomplished by the expression:
 (m-result (apply str x))
 
 where x is the list of strings to be combined and returned along with the unchanged state. 
+x是字符串列表。
+
 So if we have a function that looks something like:
 
 (fn [x]
@@ -372,12 +438,17 @@ So, match-all could be written as:
 There's an even more concise way to write this, which is what Konrad actually sent me. 
 Check out the sample code and the definition of m-fmap.
 
+==
 To complete our collection of parser combinators, we need a way to match a parser repeatedly. 
 There are two variants of this combinator; 
 one that requires at least one match to succeed and one that doesn't. 
 The two are interrelated in an interesting way in that they are mutually recursive. 
+（mutually，adv.互相地，互助；对）
 Each can be succinctly described in terms of the other. 
 Handling mutual recursion in Clojure is easy.
+
+为了完善我们的解析器组合子，我们需要让一个解析器能重复匹配。
+我们需要两个组合子变体。
 
 (def one-or-more)
 
@@ -392,10 +463,13 @@ Handling mutual recursion in Clojure is easy.
 
 Other than the mutual recursion, these combinators require little additional explanation.
 
+==
 With this collection of primitive parsers and parser combinators, 
 it is possible to build a recursive descent parser for any grammar. 
 One last thing to look at are some convenience functions.
+一些便捷函数（它们也是解析器）：
 
+; 是否是其中一个字符
 (defn one-of [target-strn]
       (let [str-chars (into #{} target-strn)]
            (char-test #(contains? str-chars %))))

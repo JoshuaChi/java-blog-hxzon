@@ -11,7 +11,7 @@ monad把前一个操作的输出，到后一个操作的输入的“变换过程
 monad由三部分组成：
 
 一组“函数签名相同”的函数；
-一个 m-result(v) 函数，用来将普通值（regular value，standard value）
+一个 m-result(v) 函数，用来将普通值（regular value，standard value）（最低层输出）
 转成monadic值（monadic value，也称monadic数据结构）。
 一个 m-bind(mv mf) 函数，将monadic值应用于monadic函数。
 
@@ -23,23 +23,29 @@ m-bind 总是先将 monadic值变成普通值。
 m-zero 用来生成“失败操作”的输出。
 m-plus 用来聚合monad值。m-plus总是可以通过m-zero实现。
 
-第二部分中，可以使用:when :let :cond :then :if :else 等子句，
+domonad的steps部分，可以使用:when :let :cond :then :if :else 等子句，
 它们会被特殊处理。
+m-zero 在 :when 子句中被使用。
 
 ====
 1.1，domonad
 
 domonad表达式分三部分：
-第一部分指明使用哪个monad 。
-第二部分是一个向量，元素是“变量-表达式”对。
-第三部分是一个表达式，用来生成返回值。
+第一部分name，指明使用哪个monad 。
+第二部分steps，是一个向量，元素是“变量-表达式”对。
+第三部分expr，是一个表达式，用来生成返回值。
 
 domonad表达式返回一个monadic值，所以可被进一步组合。
 
+domonad 对 steps 和 expr 进行变换，即转成m-bind链等。
+
 hxzon：
 
+例如最简单的
+
 (domonad mname [a av b bv c cv] r)
-展开成：
+
+会展开成：
 
 (let [m-bind (:m-bind mname) ...]
   (do
@@ -51,9 +57,14 @@ hxzon：
                                 (fn [c]
                                   (m-result r)))))))))
 
-m-result 应用于 r 。
+m-result 应用于 r （最低层输出）。
 ”变量-表达式“对中，变量绑定到什么，
 取决于 m-bind 中，给 f 传什么参数。
+
+====
+1.2，defmonadfn 为了使函数参数列表不必显示声明m-bind，m-result等参数，
+借助了符号宏。这使得domonad需要使用符号宏展开。
+
 
 ========
 2，mayby monad
@@ -73,7 +84,7 @@ m-result 应用于 r 。
       (inc a) ) ) 
   1 )
 
-假如前后操作的依赖规则变成，如果某操作失败，剩下的操作取消，然后整体返回nil 。
+假如希望，某操作失败，则剩下的操作取消，且整体返回nil ：
 
 (defn f [x]
     (domonad maybe-m

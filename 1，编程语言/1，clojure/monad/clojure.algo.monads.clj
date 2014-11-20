@@ -68,11 +68,13 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn- ensure-items [n steps]
+  ;; 使用nil填充列表，从而保证列表的元素个数
   "Ensures there are at least n elements on a list, will fill up with nil
   values when list is not big enough."
   (take n (concat steps (repeat nil))))
 
 (defn- each3-steps [steps]
+  ;; 将列表转换成 ”三元组“的列表，格式如下：
   "Transforms a list in a list of triples following the form:
    [a b c] => [[a b c] [b c nil] [c nil nil]]."
   (let [n (count steps)]
@@ -121,12 +123,13 @@
       `(cond ~@(merge-cond-branches result))))
 
 (defn- add-monad-step
+  ;; 对 domonad 的”变量-表达式“部分（即steps）进行变换
   "Add a monad comprehension step before the already transformed
    monad comprehension expression mexpr."
   [mexpr steps]
-  (let [[[bform expr :as step] & _] steps]
+  (let [[[bform expr :as step] & _] steps]    ;; 对 steps 进行解构
     (cond
-      (identical? bform :when)  `(if ~expr ~mexpr ~'m-zero)
+      (identical? bform :when)  `(if ~expr ~mexpr ~'m-zero)        ;; 这里使用了 m-zero （hxzon注意）
       (identical? bform :let)   `(let ~expr ~mexpr)
       (identical? bform :cond)  (cond-statement expr mexpr add-monad-step)
       (identical? bform :then)  mexpr
@@ -136,7 +139,7 @@
       (identical? bform :else)
         (if-then-else-statement steps mexpr add-monad-step)
       :else
-        (list 'm-bind expr (list 'fn [bform] mexpr)))))
+        (list 'm-bind expr (list 'fn [bform] mexpr)))))        ;; 生成 m-bind 链（hxzon注意）
 
 (defn- monad-expr
   "Transforms a monad comprehension, consisting of a list of steps
@@ -154,6 +157,7 @@
       ; Optimization: if the result expression is equal to the result
       ; of the last computation step, we can eliminate an m-bind to
       ; m-result.
+      ;; 优化，如果返回值是最后一个步骤的值，省掉最后一个m-bind
       (reduce add-monad-step
         ls
         (rest rsteps))
@@ -162,6 +166,7 @@
         (list 'm-result expr)
         rsteps))))
 
+;; =============
 (defmacro with-monad
   "Evaluates an expression after replacing the keywords defining the
    monad operations by the functions associated with these keywords
@@ -172,7 +177,7 @@
          ~'m-result (:m-result name#)
          ~'m-zero   (:m-zero name#)
          ~'m-plus   (:m-plus name#)]
-     (with-symbol-macros ~@exprs)))
+     (with-symbol-macros ~@exprs)))        ;; hxzon：表达式中有可能使用到由 defmonadfn 定义的函数，它们的名字其实是作为符号宏。见 defmonadfn 。
 
 (defmacro domonad
   "Monad comprehension. Takes the name of a monad, a vector of steps
@@ -186,7 +191,7 @@
    are given as a vector as for the use in let, establishes additional
    bindings that can be used in the following steps."
   ([steps expr]
-    (monad-expr steps expr))
+    (monad-expr steps expr))        ;; 对 steps 和 expr 进行变换（即转成m-bind链等）
   ([name steps expr]
     (let [mexpr (monad-expr steps expr)]
       `(with-monad ~name ~mexpr))))
@@ -203,14 +208,14 @@
   {:arglists '([name docstring? attr-map? args expr]
                [name docstring? attr-map? (args expr) ...])}
   [name & options]
-  (let [[name options]  (name-with-attributes name options)
-        fn-name (symbol (str *ns*) (format "m+%s+m" (str name)))
+  (let [[name options]  (name-with-attributes name options)    ;; 取出options 中的文档字符串和元数据，作为name的元数据，如果有的话
+        fn-name (symbol (str *ns*) (format "m+%s+m" (str name)))      ;; 在name前后加上m，在前面加上当前命名空间名，作为函数名
         make-fn-body    (fn [args expr]
                           (list (vec (concat ['m-bind 'm-result        ;; 参数向量部分，在前面加入4个特殊参数
                                               'm-zero 'm-plus] args))
                                 (list `with-symbol-macros expr)))]
     (if (list? (first options))
-      ; multiple arities
+      ; multiple arities  有重载
       (let [arglists        (map first options)
             exprs           (map second options)
             ]
@@ -218,9 +223,10 @@
            (defsymbolmacro ~name (partial ~fn-name ~'m-bind ~'m-result 
                                                    ~'m-zero ~'m-plus))
            (defn ~fn-name ~@(map make-fn-body arglists exprs))))
-      ; single arity
+      ; single arity  没有重载
       (let [[args expr] options]
-        `(do
+        `(do        ;; hxzon注意：这里使用了符号宏。使用到name的地方，都会被“文本替换”成 (partial ...) 。
+           ;; 定义函数时，额外加入4个特殊参数，这里调用时，补上这4个特殊参数。
            (defsymbolmacro ~name (partial ~fn-name ~'m-bind ~'m-result 
                                                    ~'m-zero ~'m-plus))
            (defn ~fn-name ~@(make-fn-body args expr)))))))
@@ -253,7 +259,7 @@
   "Converts a monadic value containing a monadic value into a 'simple'
    monadic value."
   [m]
-  (m-bind m identity))
+  (m-bind m identity))        ;; m-bind 是额外加入的4个参数之一，见 defmonadfn 。
 
 (defmonadfn m-fmap
   "Bind the monadic value m to the function returning (f x) for argument x"

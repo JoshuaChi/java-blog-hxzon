@@ -257,7 +257,7 @@
   [symbol expansion]
   (let [meta-map (if (meta symbol) (meta symbol) {})
         meta-map (assoc meta-map :symbol-macro true)]        ;; 在元数据里标明是”符号宏“
-  `(def ~(with-meta symbol meta-map) (quote ~expansion))))
+  `(def ~(with-meta symbol meta-map) (quote ~expansion))))          ;; 符号宏，对应到第二个形式
 
 ;; 因为符号宏不是clojure原生支持，所以符号宏必须在with-symbol-macros 中使用
 (defmacro with-symbol-macros
