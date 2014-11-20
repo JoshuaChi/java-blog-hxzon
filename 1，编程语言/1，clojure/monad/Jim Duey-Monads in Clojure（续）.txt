@@ -1,0 +1,427 @@
+﻿Jim Duey-Monads in Clojure（续）
+Copyright 2009 by Jim Duey
+http://www.intensivesystems.net/tutorials/monads_101.html
+
+注释by hxzon
+========
+Legalities
+
+In our earlier definition of a monad, we stated that a monad is composed of a function signature, 
+a function named m-result and a function named m-bind. 
+What we did not mention is that m-result and m-bind cannot be just any functions. 
+They have to work together is particular ways 
+so that monadic functions can be composed freely and achieve predictable results. 
+This is succinctly stated in three Monad Laws that m-result and m-bind must conform to in order to create a monad. 
+Keep in mind that m-result converts a value into a monadic value 
+and that m-bind applies a monadic function to a value extracted from a monadic value.
+
+m-bind 和 m-result 必须一起使用。
+m-result 将普通值转成 monadic值，而 m-bind 则会先从 monadic值 中取出普通值。
+
+The first Monad Law can be written as
+
+(m-bind (m-result x) f) is equal to (f x)
+
+What this means is that whatever m-result does to 'x' to make it into a monadic value, 
+m-bind undoes before applying 'f' to 'x'.
+
+The second Monad Law can be written as
+
+(m-bind mv m-result) is equal to mv
+where 'mv' is a monadic value. 
+This law is something like a complement to the first law. 
+It basically ensures that m-result is a monadic function 
+and that whatever m-bind does to a monadic value to extract a value, 
+m-result undoes to create a monadic value.
+
+For a monad to work, m-result and m-bind are not independent functions. 
+They each depend on the others implementation. 
+These two laws state exactly how m-result and m-bind relate to each other.
+
+The third Monad Law can be written as
+
+(m-bind (m-bind mv f) g) is equal to (m-bind mv (fn [x] (m-bind (f x) g)))
+where 'f' and 'g' are monadic functions and 'mv' is a monadic value. 
+What this law is saying is that it doesn't matter whether the 'f' is applied to 'mv' and then 'g' is applied to the result, 
+or whether a new monadic function is created out of a composition of 'f' and 'g' which is then applied to 'mv'. 
+In either order, the resulting value is the same monadic value.
+
+One interesting result that arises from the fact that 
+all monads adhere to these laws is that functions can be written using only m-result and m-bind that work for all monads. 
+This raises the level at which programs can be constructed, 
+hiding many primitive details so that the overall structure of the application can be seen, unencumbered.
+
+====
+Zeros
+
+Till now, we've only discussed the monad functions m-result and m-bind, 
+since these are the minimum functions that a monad must provide to be called a monad. 
+If a monad defines a few more things in a standard way, it gains a lot more expressive power.
+
+There are many useful things that can be done using only the natural numbers. (1, 2, 3 ...) 
+However, when the concept of "nothing" is added by the zero digit, 
+the number system becomes a lot more useful. 
+In the same way, when a monad defines a "nothing" monadic value, it becomes useful in additional ways.
+
+The standard name for "nothing" monadic value is 'm-zero' and there are some laws this value has to satisfy.
+
+(m-bind m-zero f) produces m-zero
+
+Which states that any attempt to apply any monadic function to m-zero will result in m-zero.
+
+and
+
+(m-bind mv (fn [x] m-zero)) produces m-zero
+
+Which states that any monadic function that returns m-zero 
+will always result in a value of m-zero no matter what monadic value it is applied to.
+
+The m-zero value can be used to indicate failure or short circuit further processing in a domonad statement.
+
+====
+Plus
+
+Another extension that is closely related to the zero concept is that of plus. 
+A monad can define a function called 'm-plus'. 
+This function takes 2 or more monadic values and combines them in an appropriate way to produce a new monadic value. 
+There is a law that relates m-zero and m-plus
+
+(m-plus mv m-zero) produces mv
+(m-plus m-zero mv) produces mv
+
+These are just two ways to state the same thing. 
+Which is to say that m-plus ignores any m-zero values in its parameter list 
+and operates as normal on the remaining values.
+
+m-plus 忽略 m-zero 值，对其它值进行聚合。
+
+========
+Parsing
+构建解析器
+
+All of the above has been to explain what monads are. 
+The most obvious question at this point (or much earlier) is what are monads good for? 
+To illustrate this in a practical way, consider recursive descent parsing.
+
+Parsing is a way of taking a sequence of characters and extracting data from it according to a grammar. 
+Recursive descent parsing works by trying to parse a sequence of characters according to a rule 
+and if that rule fails, try to parse that same sequence with another rule. 
+It is possible to build parsers using a monad representation that is surprisingly simple. 
+The monad and other functions presented here comes from "Monadic Parsing in Haskell".
+
+The idea is that a parser is a function that takes a string and determines if it is valid or not. 
+If the string is valid according to the parser, the function returns some value that represents the parsed string 
+and whatever part of the string is left after the parser function has consumed as much as it needs. 
+If the string is not valid, a nil is returned. 
+Like all elegant ideas, this one is obvious in hindsight but arrived at only after great effort. 
+The paper that describes it is worth reading.
+
+Some things to notice about this brief statement. 
+A parser is a function that takes a string and returns a list containing a value and a new string. 
+That's the description of a state-m monad where the state is a string value.
+
+Except that a parser function can also return a nil if the string does not match. 
+Implementing this will require something like a state-m monad, 
+but with the ability to handle nil monadic values as well.
+
+Defining monads in Clojure is done using the 'defmonad' statement. 
+Here's how the parsing monad is implemented
+
+(defmonad parser-m
+          [m-result (fn [x]
+                        (fn [strn]
+                            (list x strn)))
+
+           m-bind (fn [parser func]
+                      (fn [strn]
+                          (let [result (parser strn)]
+                               (when (not= nil result)
+                               ((func (first result)) (second result))))))
+
+           m-zero (fn [strn]
+                      nil)
+
+           m-plus (fn [& parsers]
+                      (fn [strn]
+                          (first
+                                (drop-while nil?
+                                            (map #(% strn) parsers)))))])
+
+The m-result function is the same as the m-result function from the state-m monad.
+
+The m-bind function is slightly modified from the state-m monad and stated a little differently. 
+The function that is returned accepts a string and applies the parser to it, just like in the state-m monad. 
+But then it checks to see if the result is nil or not. 
+If the result is nil, nil is returned. 
+But if the result is not nil, it is taken apart and handled just like in the state-m monad.
+
+The state-m monad didn't have an m-zero function, but this parser monad does. 
+The "nothing" value that signals a failure is a nil, so the m-zero monadic value 
+is just a function that accepts a string and returns nil.
+
+The m-plus function requires some thought. 
+Generally, in a monad, m-plus is used to combine monadic values. 
+In this parser monad, the monadic values are functions. 
+To combine functions, you can call them one after another, 
+feeding the output of one as input to the next, perhaps with some plumbing code in between. 
+You can also call all of them with identical inputs 
+and then either pick one of the results or combine all the results into a single value.
+
+Consider that we're trying to implement a recursive descent parser 
+and that requires that we attempt to parse a string with a parser, 
+and if that fails, try the next parser until one succeeds. 
+That provides the model for the m-plus function. 
+It takes as input a list of parsers and returns a function that accepts a string. 
+它以一个解析器列表为输入，输出可以解析字符串的函数。
+This function applies each parser to the string, one after another and produces a list of the results. 
+这个函数将字符串应用到每个解析器上，然后在解析结果中找第一个非nil结果，即成功结果。
+All that remains is to find the first non-nil result and choose that as the return value. 
+Taking advantage of the fact that first, drop-while and map are all lazy, 
+m-plus applies only as many parsers as it needs to in order to get a result. 
+If no parsers succeed, a nil is returned.
+
+With the monad written, let's turn our attention to parsers. 
+We already have 2, m-result and m-zero. 
+They are both useful, but not very interesting.
+
+The simplest parser always matches the first character of a string or returns nil if a string is empty.
+
+(defn any-char [strn]
+      (if (= "" strn)
+          nil
+          (list (first strn) (. strn (substring 1)))))
+
+Remember that when a parser returns a nil, all parsing stops, 
+so this parser is used to halt parsing when the string is empty. 
+It also will match any character. 
+When it does match a character, it has to return a value representing the parsed character 
+and a new string with the parsed character removed from the front of the old string.
+将输入字符串切成两部分，第一个字符，和剩余字符串。
+
+A slightly more complicated parser applies a test to the first character of the string 
+and returns a nil if the test fails or the parsed character and a new string if the test succeeds.
+
+(defn char-test [pred]
+      (domonad parser-m
+               [c any-char
+                :when (pred c)]
+               (str c)))
+
+The first thing to notice is that this function, 'char-test' isn't a parser. 
+It generates a parser using a domonad statement. 
+Also, the parameter passed into it, 'pred', is a function that will apply a test to a character 
+and return true or false if test succeeds or fails. 
+With those two things in mind, let's look at this domonad statement.
+
+The first expression states that any-char should be applied to the string and the resulting value assigned to 'c'. 
+If any-char returns a nil, signifying that the string is empty, the parser will likewise return a nil.
+
+Now what the heck is that :when doing there? 
+This is called a guard. 
+It is a special expression and only permits computation to proceed if its value is logically true. 
+So what happens is that when the :when clause is hit, pred is called with the value of 'c'. 
+If the return value is false, the parser fails and returns a nil. 
+Otherwise, the parser returns whatever the final expression returns, 
+coupled with the new state string that any-char returned. 
+In this case, char-test returns the parsed character as a string. 
+This will make sense in a second.
+
+The bigger picture to notice here is that 
+threading the string being parsed through all the functions is happening under the covers and doesn't concern us now. 
+That code has been written, debugged and can be forgotten about.
+
+So, how to create a parser that matches a particular character?
+
+(defn is-char [c]
+      (char-test (partial = c)))
+
+It doesn't get much simpler. 
+This function accepts a character, then uses partial to build a function that will test an input against that character. 
+That function is then passed to char-test as a predicate, which builds the parser. 
+This parser accepts a string as input, and if the first character matches, returns a list with two strings. 
+The first being the matched char as a string and the second being the rest of the string. 
+If the first char doesn't match the parser, a nil is returned.
+
+(def is-n (is-char \n))
+
+(assert (= '("n" "bc")
+           (is-n "nbc")))
+
+(assert (empty?
+           (is-n "xbc")))
+
+The next obvious parser to write is one that matches a sequence of characters, one after the other. 
+Take this one slowly because it could cause your head to explode.
+
+(defn match-string [target-strn]
+      (if (= "" target-strn)
+          (m-result "")
+          (domonad parser-m
+                   [c (is-char (first target-strn))
+                    cs (match-string (. target-strn (substring 1)))]
+                   (str c cs))))
+
+Some things to remember to help you keep your bearings. 
+First, match-string is a function that produces a parser 
+and parsers are monadic values for the parser-m monad. 
+Second, m-result and is-char are also functions that produce a parser. 
+Third, in the variable/expression pairs in the domonad statement, 
+the expressions must evaluate to monadic values (parsers) 
+and the values assigned to the variables are the results of evaluating the parsers.
+
+So, the first thing match-string does is see if the target string is empty. 
+If it is, simply return a parser that always returns an empty string. 
+This case forms the basis of the recursion.
+
+If the target string is not empty, create a new parser by calling domonad. 
+This is the tricky part. 
+The first expression is a pretty standard call to is-char, which produces a parser 
+that matches the first character of the target string. 
+When this parser is executed and the string being parsed matches, 
+the variable 'c' gets assigned a value of that character. 
+The second expression of the domonad statement 
+makes a recursive call to match-string to build a parser that matches the rest of the target string. 
+This parser is only executed if the first character of the string being parsed matched the previous parser. 
+If it did, that parser removed the first character and passed the rest of the string to be parsed to this parser. 
+If this parser matches that string, it is returned and assigned to 'cs'. 
+If any string remains to be parsed, it is combined into a final value 
+with the result of the final expression which is a string built out of 'c' and 'cs'. 
+Got that?
+
+==
+The parsers we've looked at so far, are the basic building blocks for building a recursive descent parser. 
+However, we need ways to compose them to build more complicated parsers for arbitrary grammars. 
+So we need a small set of parser combinators. 
+The basic idea is that parser combinators accept a parser or parsers 
+and then modifies or composes them to produce a new parser, 
+which can then be further composed, etc., etc.
+
+The first parser combinator to consider is one that converts a parser from one 
+that MUST match a string to one that MAY match a string.
+
+(defn optional [parser]
+      (m-plus parser (m-result nil)))
+
+Given a parser that we want to make optional, we need to create a way for the new parser to succeed 
+when the original parser fails. 
+The new parser must return a value that allows further parsing to take place, 
+but does not affect the string being parsed. 
+That is what the parser created by m-result does. 
+This parser is then combined with the original parser using m-plus 
+so that the original parser is attempted first and if it fails, 
+the m-result parser is executed, which returns a list composed of nil and the original string.
+
+The next combinator is one which takes a list of parsers and returns the results of the first one that matches. 
+This is exactly what m-plus does, so this is just a renaming m-plus to be more in line with the other combinators.
+
+(def match-one m-plus)
+
+We also need a combinator that will take a series of parsers 
+and execute them one after the other, returning the final result. 
+A domonad statement does something similar, but requires that we know how many parsers to compose up front. 
+We would like a combinator that takes any number of parsers.
+
+(defn match-all [& parsers]
+      (let [combined-parsers (m-seq parsers)]
+           (fn [strn]
+               (let [result (combined-parsers strn)]
+                    (when result
+                          (list (apply str (first result))
+                                (second result)))))))
+
+The function m-seq is a standard monad function that is available for all monads. 
+It takes a list of monadic values and composes them sequentially, returning a monadic value (a parser). 
+The problem is that this parser doesn't return a list of the parsed string and the remaining string. 
+It returns a list of a list of strings and the string left to parse. 
+So, we have to capture the returned value, and concatenate all the value strings together into one string 
+which is then returned with the string left to parse.
+
+==
+Konrad Hinsen sent me this alternative to match-all. 
+Study it to increase your monad-fu. 
+The first thing to notice about the above implementation is that combined-parsers is a monadic value. 
+Second, the function returned by match-all looks identical to the function returned by m-bind for the parser-m, 
+if you factor out the 'apply str' call.
+
+Keep in mind that monadic values in the parser-m monad 
+are actually functions that take a string to parse and return a value and the string left to parse. 
+A monadic function for parser-m takes a value and returns a monadic value. 
+In this case, we want a function that takes a list of strings and combines them into one string, 
+and that then returns a function that, when called with a state, returns the combined string and state, unchanged. 
+The last part of that sentence is accomplished by the expression:
+
+(m-result (apply str x))
+
+where x is the list of strings to be combined and returned along with the unchanged state. 
+So if we have a function that looks something like:
+
+(fn [x]
+    (m-result (apply str x)))
+
+It would be a monadic function in parser-m and could be bound to a monadic value, a parser, 
+if that parser returned a list of strings to be combined. 
+And sounds a lot like what combined-parsers was. 
+So, match-all could be written as:
+
+(defn match-all [& parsers]
+               (m-bind (m-seq parsers)
+                       (fn [x]
+                           (m-result
+                               (apply str x)))))
+
+There's an even more concise way to write this, which is what Konrad actually sent me. 
+Check out the sample code and the definition of m-fmap.
+
+To complete our collection of parser combinators, we need a way to match a parser repeatedly. 
+There are two variants of this combinator; 
+one that requires at least one match to succeed and one that doesn't. 
+The two are interrelated in an interesting way in that they are mutually recursive. 
+Each can be succinctly described in terms of the other. 
+Handling mutual recursion in Clojure is easy.
+
+(def one-or-more)
+
+(defn none-or-more [parser]
+      (optional (one-or-more parser)))
+
+(defn one-or-more [parser]
+      (domonad
+               [a parser
+                as (none-or-more parser)]
+               (str a as)))
+
+Other than the mutual recursion, these combinators require little additional explanation.
+
+With this collection of primitive parsers and parser combinators, 
+it is possible to build a recursive descent parser for any grammar. 
+One last thing to look at are some convenience functions.
+
+(defn one-of [target-strn]
+      (let [str-chars (into #{} target-strn)]
+           (char-test #(contains? str-chars %))))
+
+(def alpha (one-of "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"))
+
+(def whitespace (one-of " \t\n\r"))
+
+(def digit (one-of "0123456789"))
+
+(def hexdigit (one-of "0123456789abcdefghABCDEFGH"))
+
+The one-of function could be implemented using is-char for the individual characters in the target string. 
+However, a more efficient implementation is to put all the characters from the target string into a hash-set 
+and then use char-test to see if a given character is contained in the set.
+
+The parsers alpha, whitespace, digit and hexdigit 
+are just like any other parser and can be similarly combined.
+
+====
+Coming Attractions
+
+That covers the basics of monads. 
+In the next tutorial, I'll show how to rewrite the parser-m monad in a single line of code.
+在下一篇文章，我将展示，如何用一行代码，来实现 parser-m 。
+
+(def parser-m (state-t maybe-m))
+
+

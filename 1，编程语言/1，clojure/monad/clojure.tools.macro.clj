@@ -1,5 +1,5 @@
 ﻿;; clojure.tools.macro.clj
-;; 0.1.2
+;; 0.1.2 注释by hxzon
 ;; https://github.com/clojure/tools.macro
 
 ;; Macrolet, symbol-macrolet, and related tools
@@ -16,13 +16,18 @@
   ^{:author "Konrad Hinsen"
      :doc "Local macros and symbol macros
            Local macros are defined by a macrolet form. They are usable only
+用 macrolet 来定义本地宏。
            inside its body. Symbol macros can be defined globally
            (defsymbolmacro) or locally (symbol-macrolet). A symbol
+用 defsymbolmacro 和 symbol-macrolet 来定义”全局符号宏“ 和 ”本地符号宏“ 。
            macro defines a form that replaces a symbol during macro
            expansion. Function arguments and symbols bound in let
            forms are not subject to symbol macro expansion.
+符号宏在宏展开时，会被替换成它们所代表的形式。
+函数参数，和let的绑定符号，不会被替换。
            Local macros are most useful in the definition of the expansion
            of another macro, they may be used anywhere. Global symbol
+因为不是clojure原生支持的，所以符号宏只能在 with-symbol-macros 中使用。
            macros can be used only inside a with-symbol-macros form."}
   clojure.tools.macro
   [:require clojure.string])
@@ -48,6 +53,7 @@
 
 (defn- protected?
   [symbol]
+  ;; 符号是否是受保护的，即它是点号开头或结尾，或是let中的绑定符号，或是函数的参数
   "Return true if symbol is a reserved symbol (starting or ending with a dot)
    or a symbol bound in a surrounding let form or as a function argument."
   (or (contains? protected-symbols symbol)
@@ -56,10 +62,11 @@
             (= "." (subs s (dec (count s))))))))
 
 (defn- expand-symbol
+  ;; 展开符号，返回该符号对应的形式
   "Expand symbol macros"
   [symbol]
-  (cond (protected? symbol)                   symbol
-        (contains? macro-symbols symbol)     (get macro-symbols symbol)
+  (cond (protected? symbol)                   symbol    ;; 如果是受保护符号，原样返回
+        (contains? macro-symbols symbol)     (get macro-symbols symbol)    ;; 取出该符号所对应的形式
         :else (let [v (try (resolve symbol)
                            (catch java.lang.ClassNotFoundException e nil))
                     m (meta v)]
@@ -72,21 +79,22 @@
   [form]
   (cond
     (seq? form)
-      (let [f (first form)]
-        (cond (contains? special-forms f)   form
+      (let [f (first form)]        ;; 如果是列表，取出第一个元素作为判断
+        (cond (contains? special-forms f)   form        ;; 如果是特殊形式，原样返回
               (and (not (protected? f))
-                   (contains? macro-fns f)) (apply (get macro-fns f) (rest form))
+                   (contains? macro-fns f)) 
+              (apply (get macro-fns f) (rest form))    ;; 如果不是受保护的，且是macro-fns，调用该macro-fn  （hxzon注意）
               (symbol? f)  (cond
-                            (protected? f)  form
+                            (protected? f)  form    ;; 受保护的符号，原样返回
                             ; macroexpand-1 fails if f names a class
-                            (class? (ns-resolve *ns* f)) form
+                            (class? (ns-resolve *ns* f)) form        ;; 如果是类名，原样返回
                             :else    (let [exp (expand-symbol f)]
                                        (if (= exp f)
                                          (clojure.core/macroexpand-1 form)
-                                         (cons exp (rest form)))))
+                                         (cons exp (rest form)))))        ;; 对第一个元素展开
               ; handle defmacro macros and Java method special forms
               :else (clojure.core/macroexpand-1 form)))
-    (symbol? form)
+    (symbol? form)    ;; 如果是符号，展开该符号
       (expand-symbol form)
      :else
        form))
@@ -102,7 +110,7 @@
 
 (declare expand-all)
 
-;; 展开形式的“第n位以后的参数”
+;; 展开形式的参数，即“第n位以后的元素”
 (defn- expand-args
   "Recursively expand the arguments of form, leaving its first
    n elements unchanged."
@@ -111,34 +119,37 @@
   ([form n]
    (doall (concat (take n form) (map expand-all (drop n form))))))
 
+;; 展开本地绑定表达式
 (defn- expand-bindings
   [bindings exprs]
   (if (empty? bindings)
-    (list (doall (map expand-all exprs)))
-    (let [[[s b] & bindings] bindings]
-      (let [b (expand-all b)]
-        (binding [protected-symbols (conj protected-symbols s)]
-          (doall (cons [s b] (expand-bindings bindings exprs))))))))
+    (list (doall (map expand-all exprs)))    ;;  如果没有绑定列表，对body进行展开
+    (let [[[s b] & bindings] bindings]        ;; 取出绑定列表的第1对绑定
+      (let [b (expand-all b)]    ;; 对绑定列表的”初始值表达式“进行展开
+        (binding [protected-symbols (conj protected-symbols s)]        ;; 绑定符号加入到受保护列表中
+          (doall (cons [s b] (expand-bindings bindings exprs))))))))     ;; 已完成第1对绑定的展开，递归处理绑定向量的下一对
 
 (defn- expand-with-bindings
   "Handle let*, letfn* and loop* forms. The symbols defined in them are
    protected from symbol macro expansion, the definitions and the body
    expressions are expanded recursively."
   [form]
-  (let [f        (first form)
-        bindings (partition 2 (second form))
-        exprs    (rest (rest form))
-        expanded (expand-bindings bindings exprs)
+  (let [f        (first form)        ;; 操作符
+        bindings (partition 2 (second form))    ;; 绑定列表
+        exprs    (rest (rest form))        ;; body
+        expanded (expand-bindings bindings exprs)        ;; 展开绑定列表和body
         bindings (vec (apply concat (butlast expanded)))
         exprs    (last expanded)]
     (cons f (cons bindings exprs))))
 
+;; 展开函数的身体（参数列表不处理）
 (defn- expand-fn-body
   [[args & exprs]]
   (binding [protected-symbols (reduce conj protected-symbols
                                      (filter #(not (= % '&)) args))]
     (cons args (doall (map expand-all exprs)))))
 
+;; 对函数进行展开（即 fn*）
 (defn- expand-fn
   "Handle fn* forms. The arguments are protected from symbol macro
    expansion, the bodies are expanded recursively."
@@ -146,7 +157,7 @@
   (let [[f & bodies] form
         name         (when (symbol? (first bodies)) (first bodies))
         bodies       (if (symbol? (first bodies)) (rest bodies) bodies)
-        bodies       (if (vector? (first bodies)) (list bodies) bodies)
+        bodies       (if (vector? (first bodies)) (list bodies) bodies)    ;; 如果没有重载，转成重载形式
         bodies       (doall (map expand-fn-body bodies))]
     (if (nil? name)
       (cons f bodies)
@@ -167,6 +178,7 @@
   (let [expanded-methods (map #(expand-args % 2) methods)]
     (cons symbol (cons interfaces expanded-methods))))
 
+;; 不同的特殊形式，有不同的展开行为
 ; Handlers for special forms that require special treatment. The default
 ; is expand-args.
 (def ^{:private true} special-form-handlers
@@ -201,6 +213,7 @@
           (map? exp) (into {} (map expand-all (seq exp)))
           :else exp)))
 
+;; 检查本地宏的符号，不允许带有命名空间限定
 (defn- check-not-qualified
   "Verify that none of the supplied symbols are namespace-qualified"
   [symbols]
@@ -211,10 +224,13 @@
                                       (map str (filter namespace symbols)))))))
   symbols)
 
+;; =============
+;; 定义本地宏
 (defmacro macrolet
   "Define local macros that are used in the expansion of exprs. The
    syntax is the same as for letfn forms."
   [fn-bindings & exprs]
+  ;; fn-bindings ”本地宏“绑定列表
   (let [names      (check-not-qualified (map first fn-bindings))
         name-map   (into {} (map (fn [n] [(list 'quote n) n]) names))
         macro-map  (eval `(letfn ~fn-bindings ~name-map))]
@@ -222,6 +238,7 @@
               macro-symbols (apply dissoc macro-symbols names)]
       `(do ~@(doall (map expand-all exprs))))))
 
+;; 定义本地符号宏
 (defmacro symbol-macrolet
   "Define local symbol macros that are used in the expansion of exprs.
    The syntax is the same as for let forms."
@@ -239,14 +256,16 @@
    inside a with-symbol-macros form."
   [symbol expansion]
   (let [meta-map (if (meta symbol) (meta symbol) {})
-        meta-map (assoc meta-map :symbol-macro true)]
+        meta-map (assoc meta-map :symbol-macro true)]        ;; 在元数据里标明是”符号宏“
   `(def ~(with-meta symbol meta-map) (quote ~expansion))))
 
+;; 因为符号宏不是clojure原生支持，所以符号宏必须在with-symbol-macros 中使用
 (defmacro with-symbol-macros
   "Fully expand exprs, including symbol macros."
   [& exprs]
   `(do ~@(doall (map expand-all exprs))))
 
+;; ============
 (defmacro deftemplate
   "Define a macro that expands into forms after replacing the
    symbols in params (a vector) by the corresponding parameters
@@ -287,11 +306,14 @@
   "To be used in macro definitions.
    Handles optional docstrings and attribute maps for a name to be defined
    in a list of macro arguments. If the first macro argument is a string,
+如果参数列表第一个元素是字符串，视为该名字的文档字符串。
    it is added as a docstring to name and removed from the macro argument
    list. If afterwards the first macro argument is a map, its entries are
    added to the name's metadata map and the map is removed from the
+如果参数列表接下来的元素是一个映射，视为该名字的元数据。
    macro argument list. The return value is a vector containing the name
    with its extended metadata map and the list of unprocessed macro
+返回该名字，以及剩下的参数。
    arguments."
   [name macro-args]
   (let [[docstring macro-args] (if (string? (first macro-args))

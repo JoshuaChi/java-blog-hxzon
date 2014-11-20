@@ -2,23 +2,70 @@
 
 by hxzon
 ========
-1，monad由三部分组成：
+1，monad
+
+monad的思想，就是把一系列操作封装成一个整体操作，
+里面的每个操作的输入，都基于前一个操作的输出。
+monad把前一个操作的输出，到后一个操作的输入的“变换过程”，抽离出来。
+
+monad由三部分组成：
 
 一组“函数签名相同”的函数；
-一个 m-result(v) 函数，用来将普通值（regular value，standard value）转成monadic结构（monadic value）。
-一个 m-bind(mv mf) 函数，将monadic结构应用于monadic函数。
+一个 m-result(v) 函数，用来将普通值（regular value，standard value）
+转成monadic值（monadic value，也称monadic数据结构）。
+一个 m-bind(mv mf) 函数，将monadic值应用于monadic函数。
 
 每个monad的不同，就在于 m-result 和 m-bind 函数的不同。
+m-result 和 m-bind 总是成对的。
+m-bind 总是先将 monadic值变成普通值。
+
+对于复杂的monad，还有m-zero 和 m-plus 两个函数。
+m-zero 用来生成“失败操作”的输出。
+m-plus 用来聚合monad值。m-plus总是可以通过m-zero实现。
+
+第二部分中，可以使用:when :let :cond :then :if :else 等子句，
+它们会被特殊处理。
+
+====
+1.1，domonad
+
+domonad表达式分三部分：
+第一部分指明使用哪个monad 。
+第二部分是一个向量，元素是“变量-表达式”对。
+第三部分是一个表达式，用来生成返回值。
+
+domonad表达式返回一个monadic值，所以可被进一步组合。
+
+hxzon：
+
+(domonad mname [a av b bv c cv] r)
+展开成：
+
+(let [m-bind (:m-bind mname) ...]
+  (do
+    (m-bind av
+            (fn [a]
+              (m-bind bv
+                      (fn [b]
+                        (m-bind cv
+                                (fn [c]
+                                  (m-result r)))))))))
+
+m-result 应用于 r 。
+”变量-表达式“对中，变量绑定到什么，
+取决于 m-bind 中，给 f 传什么参数。
 
 ========
 2，mayby monad
+
+假设有如下，一系列前后依赖的操作：
 
 (defn f [x]
     (let [ a x
            b (inc a)]
           (* a b)))
 
-let本质上就是：
+注：let本质上就是：
 
 ( (fn [a] 
     ( (fn [b] 
@@ -26,7 +73,7 @@ let本质上就是：
       (inc a) ) ) 
   1 )
 
-一系列操作，如果需求是，假如中间步骤失败，剩下的步骤取消，然后整体返回nil 。
+假如前后操作的依赖规则变成，如果某操作失败，剩下的操作取消，然后整体返回nil 。
 
 (defn f [x]
     (domonad maybe-m
@@ -60,7 +107,7 @@ maybe-m 的 m-bind 函数：
                (when-not (nil? mv) (f mv)))
 
     m-plus   (fn m-plus-maybe [& mvs]
-               (first (drop-while nil? mvs)))
+               (first (drop-while nil? mvs)))        ;hxzon：取出第一个非nil值
     ])
 
 ========
@@ -73,8 +120,7 @@ maybe-m 的 m-bind 函数：
            (mapcat f2
                   (f3 x))))
 
-(mapcat f & colls) 即 (concat (map f colls)) 。
-concat，拼接多个列表。
+注：(mapcat f & colls) 即 (concat (map f colls)) 。concat，拼接多个列表。
 
 定义 m-result，将 int 转成 int列表。
 
@@ -104,32 +150,10 @@ concat，拼接多个列表。
 (defn m-comp [f1 f2 f3]
       (fn [x]
           (domonad sequence-m
-                   [a (f3 x)        ;hxzon？：a 是 列表中的每个元素
+                   [a (f3 x)        ;hxzon：a 绑定到 列表中的每个元素，因为m-bind中，f是这么被使用的：(map f mv)
                     b (f2 a)
                     c (f1 b)]
                    c)))      ;hxzon：c 是最终列表中的每个元素
-
-domonad表达式分三部分：
-第一部分指明使用哪个monad 。
-第二部分是一个向量，元素是“变量-表达式”对。
-第三部分是一个表达式，用来生成返回值。
-
-domonad表达式返回一个monadic值，所以可被进一步组合。
-
-hxzon：
-
-(domonad mname [a av b bv c cv] r)
-展开成：
-
-(let [m-bind (:m-bind mname) ...]
-  (do
-    (m-bind av
-            (fn [a]
-              (m-bind bv
-                      (fn [b]
-                        (m-bind cv
-                                (fn [c]
-                                  (m-result r)))))))))
 
 ==
 hxzon：
@@ -177,37 +201,57 @@ hxzon：
 示例：
 
 (domonad sequence-m
-         [letters ['a 'b 'c]
-          numbers [1 2 3]]
-         [letters numbers])        ;hxzon：生成列表中的每个元素
+         [l ['a 'b 'c]
+          n [1 2 3]]
+         [l n])        ;hxzon：生成列表中的每个元素
 
 输出：
 
 ([a 1] [a 2] [a 3] [b 1] [b 2] [b 3] [c 1] [c 2] [c 3])
+
+====
+含有过滤条件时
+
+(for [a (range 5)
+       :when (odd? a)]
+   (* 2 a))
+
+使用domonad来表示：
+
+(domonad sequence
+   [a (range 5)
+    :when (odd? a)]
+   (* 2 a))
+
+:when 语句会被特殊处理，转换成：
+(if predicate remaining-steps m-zero)
+
+即条件失败时，会使用m-zero的值。
+
 
 ==
 hxzon：
 
 (@#'clojure.tools.macro/expand-1 
     '(domonad sequence-m
-         [letters ['a 'b 'c]
-          numbers [1 2 3]]
-         [letters numbers]))
+         [l ['a 'b 'c]
+          n [1 2 3]]
+         [l n]))
 
 (clojure.algo.monads/with-monad 
   sequence-m 
   (m-bind [(quote a) (quote b) (quote c)] 
-          (fn [letters] 
+          (fn [l] 
             (m-bind [1 2 3] 
-                    (fn [numbers] 
-                      (m-result [letters numbers]))))))
+                    (fn [n] 
+                      (m-result [l n]))))))
 
 ==
 (@#'clojure.tools.macro/expand 
     '(domonad sequence-m
-         [letters ['a 'b 'c]
-          numbers [1 2 3]]
-         [letters numbers]))
+         [l ['a 'b 'c]
+          n [1 2 3]]
+         [l n]))
 
 (let* [name__1128__auto__ sequence-m 
        m-bind (:m-bind name__1128__auto__) 
@@ -217,17 +261,17 @@ hxzon：
   
   (clojure.tools.macro/with-symbol-macros 
     (m-bind [(quote a) (quote b) (quote c)] 
-            (fn [letters] 
+            (fn [l] 
               (m-bind [1 2 3] 
-                      (fn [numbers] 
-                        (m-result [letters numbers])))))))
+                      (fn [n] 
+                        (m-result [l n])))))))
 
 ==
 (@#'clojure.tools.macro/expand-all 
     '(domonad sequence-m
-         [letters ['a 'b 'c]
-          numbers [1 2 3]]
-         [letters numbers]))
+         [l ['a 'b 'c]
+          n [1 2 3]]
+         [l n]))
 
 (let* [name__1128__auto__ sequence-m 
        m-bind (:m-bind name__1128__auto__) 
@@ -236,10 +280,10 @@ hxzon：
        m-plus (:m-plus name__1128__auto__)] 
   (do 
     (m-bind [(quote a) (quote b) (quote c)] 
-            (fn* ([letters] 
+            (fn* ([l] 
                    (m-bind [1 2 3] 
-                           (fn* ([numbers] 
-                                  (m-result [letters numbers])))))))))
+                           (fn* ([n] 
+                                  (m-result [l n])))))))))
 
 ====
 ; Sequence monad (called "list monad" in Haskell)
@@ -254,7 +298,7 @@ hxzon：
     m-bind   (fn m-bind-sequence [mv f]
                (flatten* (map f mv)))
 
-    m-zero   (list)
+    m-zero   (list)        ;hxzon：空列表
 
     m-plus   (fn m-plus-sequence [& mvs]
                (flatten* mvs))
@@ -298,7 +342,7 @@ hxzon：
       [:g3 (inc state-int)])
 
 (def gs (domonad state-m
-                 [a g1
+                 [a g1         ;hxzon：a 绑定到 g1 的值的部分，因为 m-bind 中，f 是这么被使用的： (f (first (mv s))) 。
                   b g2
                   c g3]
                  [a b c]))        ;hxzon：最终结果值的部分（状态部分的值会自动加入）
@@ -346,7 +390,7 @@ hxzon：
 (@#'clojure.tools.macro/expand-all 
   '(domonad state-m
             [a g1
-             x (fetch-state)          ;hxzon：在中途获取状态值
+             x (fetch-state)
              b g2]
             [a x b]))
 
@@ -371,12 +415,12 @@ hxzon：
 ;; 除了返回函数原先的值，还额外返回一个状态
 
    [m-result  (fn m-result-state [v]
-                (fn [s] [v s]))        ;; 返回一个函数，s为状态。
+                (fn [s] [v s]))        ;; 返回一个函数，这个函数的输入为状态s。v为最终结果。
 
     m-bind    (fn m-bind-state [mv f]
                 (fn [s]
                   (let [[v ss] (mv s)]       ;; 注意 mv 是一个函数
-                    ((f v) ss))))
+                    ((f v) ss))))        ;; f 以 v 为参数，使得”变量-表达式“对中的变量为表达式的第一部分
    ])
 
 ========

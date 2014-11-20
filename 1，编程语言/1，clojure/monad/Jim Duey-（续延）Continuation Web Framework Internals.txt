@@ -1,4 +1,4 @@
-﻿Jim Duey-Continuation Web Framework Internals
+﻿Jim Duey-（续延）Continuation Web Framework Internals
 Copyright 2009 by Jim Duey
 http://www.intensivesystems.net/tutorials/cont_m_web.html
 

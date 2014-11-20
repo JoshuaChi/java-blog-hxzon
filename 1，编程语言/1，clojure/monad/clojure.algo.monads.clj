@@ -206,7 +206,7 @@
   (let [[name options]  (name-with-attributes name options)
         fn-name (symbol (str *ns*) (format "m+%s+m" (str name)))
         make-fn-body    (fn [args expr]
-                          (list (vec (concat ['m-bind 'm-result
+                          (list (vec (concat ['m-bind 'm-result        ;; 参数向量部分，在前面加入4个特殊参数
                                               'm-zero 'm-plus] args))
                                 (list `with-symbol-macros expr)))]
     (if (list? (first options))
