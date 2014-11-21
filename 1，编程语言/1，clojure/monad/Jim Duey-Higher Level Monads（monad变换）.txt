@@ -1,0 +1,413 @@
+﻿Jim Duey-Higher Level Monads（monad变换）
+Copyright 2009 by Jim Duey
+http://www.intensivesystems.net/tutorials/monads_201.html
+
+注释by hxzon
+========
+Preface
+
+If you've not read my monad tutorial, I'd suggest you start there. 
+If you have, this tutorial will expand on that one 
+and show some things that can be done at a still higher level of abstraction with monads.
+
+====
+Getting re-started
+
+In the first tutorial, we discussed the basic monad functions m-result and m-bind. 
+We also took a look at the extended monad function m-plus and the special monad value m-zero. 
+And we touched on the monad function m-seq. 
+In this tutorial, we're going to look at m-seq and other standard monad functions 
+and then turn our attention to an even higher level abstraction, monad transformers.
+更高层的抽象，“monad变换”。
+
+====
+Monad functions
+
+When m-result and m-bind obey the monadic laws, they can be used to write other useful functions 
+that are able to operate on any monad. 
+That's an important point to get down. 
+It means that as long as you use m-bind and m-result, the functions you write 
+can be used to compose or otherwise operate on any monad. 
+There are some standard functions that have been shown to be useful 
+and are defined using only m-result and m-bind. 
+Other useful standard functions are defined using m-zero and m-plus for those monads that include them. 
+These functions are all included in clojure.contrib.monads.
+其它一些有用的函数，还使用了 m-zero 和 m-plus 。
+
+====
+m-seq
+
+Many times, it is useful to work with lists of monadic values. 
+m-seq is a function that 'executes' each monadic value in the list, 
+collecting the results into a list. 
+Here's how it could be defined:
+它“执行”列表中的每个值，并将执行结果收集到一个列表。
+
+(defn m-seq [m-vals]
+      (reduce (fn [q p]
+                  (m-bind p (fn [x]
+                                (m-bind q (fn [y]
+                                              (m-result (cons x y)))))))
+                  (m-result '())
+                  (reverse m-vals))))
+
+which looks pretty confusing, so let's take it apart one piece at a time.
+
+First, m-seq is a single call to reduce with a reversed m-vals as the collections parameter. 
+So m-vals must be a list. 
+
+Second, the parameter 'p' in the reduction function is the one that iterates through the m-vals 
+and it is being passed as the first parameter to m-bind. 
+So m-vals must be a list of monadic values. 
+
+Third, the initial reduction value is (m-result '()), so the the final value is going to be a list 
+that is wrapped in the monad to produce a monadic value. 
+
+In the reduction function 'q' is the intermediate monadic value 
+which starts off as an empty list wrapped in the monad. 
+'p' is each of the monadic values from m-vals in turn. 
+
+The outermost anonymous function that takes 'x' as its function is a monadic function under the monad, 
+so 'x' is the basic value that is contained inside the monadic value 'p'. 
+
+And that's our first hint at what m-seq does. 
+The inner anonymous function that takes 'y' as its parameter is likewise a monadic function 
+and 'y' is the basic value that is contained inside the monadic value 'q', which is a list of basic values.
+
+Taking these steps together, we see that m-seq builds up a list of basic values 
+by unwrapping each monadic value in m-vals 
+and consing those basic values into a list of basic values which is wrapped in a monadic value. 
+But it also wraps each intermediate return value in the monad at each stage of the reduction 
+before unwrapping in the next stage, 
+so the building up of the list of basic values in the final list is accomplished according to the behavior of m-bind. 
+An example will make this a little more clear.
+
+(with-monad sequence-m
+    (m-seq [['a 'b] [1 2]]))
+
+produces
+
+(('a 1) ('a 2) ('b 1) ('b 2))
+
+which is the same thing that
+
+(with-monad sequence-m
+    (domonad
+       [letter ['a 'b]
+        number [1 2]]
+       [letter number]))
+
+produces. So m-seq is a concise way of getting the same result as using domonad.
+所以，m-seq的结果和 domonad 一样。
+
+Check out the sample code for an example using the state monad. 
+And experiment at the REPL with other monads.
+
+====
+m-map
+
+Suppose you have a monadic function and a list of values to pass it one at a time, 
+if you use the vanilla map, you're going to get a list of monadic values back. 
+If that's what you want, you're golden. 
+But if you want to boil that list of monadic values down to a single monadic value, you need to pass that list to m-seq. 
+Or you can just use m-map.
+
+(defn m-map [f xs]
+            (m-seq (map f xs)))
+
+m-map takes a monadic function and a list of values to pass to it, just like vanilla map. 
+Then, after applying the monadic function to each of the values, 
+builds a list of basic values from the list of monadic values.
+
+(with-monad set-m
+            (defn set-inc [x] #{(inc x)})
+            (m-map set-inc [2 4 5])
+
+produces
+
+#{(3 5 6)}
+
+====
+m-fmap
+
+Suppose you have a generic function and a monadic value that contains a value you'd like to pass to the function. 
+You could lift that function into the monad and then use m-bind. 
+Or you could just use m-fmap.
+
+(defn m-fmap [f m]
+             (m-bind m (fn [x] (m-result (f x)))))
+
+====
+m-lift
+
+If you have some functionality in a non-monadic function that you'd like to access with monadic values, 
+you can use m-lift to create a new function. 
+This new function will take one or more monadic values, 
+unwrap them and pass the internal values to the original function. 
+Then it will take the result and rewrap it as a monadic value.
+
+m-lift takes two parameters, a function to lift and the number of arguments that function accepts. 
+The argument count is the first parameter and the function is second.
+
+====
+m-chain
+
+If you have a list of monadic functions that each take one parameter, 
+you compose them together into a single monadic function using m-chain. 
+This function takes 1 parameter, which is a list of monadic functions, 
+and composes them with the appropriate monadic plumbing. 
+The resulting function can then be used as a parameter to bind.
+
+====
+Final note
+
+These functions aren't really functions. 
+They're macros which are defined with 'defmonadfn'. 
+Check out its definition for details, but the biggest one is that these functions may not be passed as parameters to other functions.
+这些函数都不是真正的函数。它们是用 defmonadfn 定义的（hxzon：名字本身其实是符号宏）。
+
+========
+Monad Transformers
+
+And now for the part you've all been waiting for.
+
+For many programmers, monads are a tough thing to get their heads around. 
+If they do that successfully, the feeling of satisfaction is great enough that, 
+at the mention of 'monad transformers', they figure it's not worth the effort and take a pass. 
+Which is really too bad, because monad transformers aren't that big a step beyond monads 
+and they have some huge benefits.
+
+Put simply, a monad transformer is a function 
+that takes a monad as parameter 
+and returns a monad that combines the monadic attributes of the parameter monad with another monad. 
+For reasons that will become apparent, we'll call the monad passed into the transformer the inner monad. 
+And we'll call the other monad the base monad.
+
+“monad变换”是一个函数，它的输入是一个monad，称为“内部monad”，
+它的输出是另一个monad，它组合了其它monad（称为“基础monad”）的一些属性。
+
+There are a couple of things to notice about that informal definition. 
+
+First, monad transformers are not monads. 
+They are only functions that produce new monads from existing monads. 
+
+Second, they are a way to combine the monadic behavior of monads, 
+so they can be thought of as monadic operators.
+
+The central idea behind functional programming is that of building new functions by composing existing ones. 
+Monads move up a level of abstraction by hiding the plumbing necessary to compose functions 
+whose parameters and return values are different. 
+monad隐藏了组合函数时的“管道”代码。
+Monad transformers move up yet another level of abstraction 
+by allowing monads to be combined 
+so that the plumbing that each monad does is combined and abstracted away, 
+but without having to write new code.
+
+How do they do this? 
+Well, remember that monads are really a set of functions that are interdependent. 
+So to create a new monad, you have to supply a version of each of those functions for the new monad, 
+created by combining the behavior of each of those functions from the existing monads. 
+It sounds complicated, but there are a couple of things that make it possible and even easy to do. 
+
+First, the signatures for m-result and m-bind functions of all monads are similar. 
+That is, m-result always takes a single parameter and returns a monadic value 
+and m-bind always takes a monadic value and a monadic function 
+and applies the function to the value to produce a monadic value. 
+
+Third, a monadic transformer is specific to a particular monad. 
+That is, the sequence-t transformer will combine any other monad with sequence-m monad, 
+but has nothing to with combining monads with a state-m monad.
+
+每个“monad变换”都是针对特定monad的。
+
+====
+sequence-t
+
+Now let's take a look at the sequence-t monad transformer
+
+(defn sequence-t [m]
+         (monad [m-result (with-monad m
+                             (fn m-result-sequence-t [v]
+                                     (m-result (list v))))
+
+                 m-bind   (with-monad m
+                             (fn m-bind-sequence-t [mv f]
+                                    (m-bind mv
+                                            (fn [xs]
+                                                (m-fmap (fn [lists]
+                                                            (apply concat lists))
+                                                        (m-map f xs))))))
+                 ])))
+
+First, notice that it is a function. 
+
+Second, that it uses the 'monad' function to define a new monad. 
+Then, see that it defines an m-result and a m-bind function. 
+
+Now here's the interesting part.
+
+==
+In the definition of the m-result function, we use the 'with-monad' function to make sure that 
+the call to m-result in the new m-result will call the m-result function of the monad we want to combine with the sequence-m monad. 
+Remember that m-result for sequence-m simply took any value and wrapped it in a list. 
+So the new m-result function takes a single value, wraps it value in a list 
+and passes that to the m-result function of the inner monad. 
+This has the effect of embedding the monadic value of sequence-m, 
+a list, inside a monadic value of m, which might be anything. 
+
+The key point to see, is that this new m-result function is independent of what the inner monad is. 
+Since every monad has an m-result function that takes a single argument, any monad can be passed to sequence-t.
+
+==
+Now look at m-bind. 
+Again we see the call to 'with-monad' so that the m-bind used in the function definition will come from the inner monad. 
+From the definition of m-result, we see that a monadic value of the new monad 
+is a list of some kind of values embedded inside a monadic value of m. 
+The new m-bind has to handle these kinds of monadic values 
+and it does so by creating a function that accepts a list 'xs' and m-maps 'f' over it. 
+This yields a list of monadic values of m, each of which contains a list of values. 
+These lists must be extracted and concatenated together to yield the final list of values to be returned from m-bind. 
+This is accomplished by using the m-fmap function of m 
+along with an anonymous function that accepts a list of lists and concats them together.
+
+Why go to the trouble of defining a monad transformer for sequence-m? 
+Consider the case where you'd like to compose functions 
+that each take an integer and returns a list of lists of integers, like this one:
+
+(defn range-of-range [n]
+        (map range (range 1 n)))
+
+You could build a monad that you could use to compose these kinds of functions, 
+along with the need to design, implement and debug the code. 
+Or, you could define a new monad with:
+
+(sequence-t sequence-m)
+
+Furthermore, if sometime down the road, 
+you decide that you'd like to have your functions return a set of unique lists, like this:
+
+(defn range-of-range [n]
+        (into #{}
+              (map range (range 1 n))))
+
+you could define a new monad for this with:
+
+(sequence-t set-m)
+
+====
+set-t
+
+The monad transformer for set-m is very similar to sequence-t.
+
+(defn set-t [m]
+         (monad [m-result (with-monad m
+                             (fn m-result-sequence-t [v]
+                                     (m-result (hash-set v))))
+
+                 m-bind   (with-monad m
+                             (fn m-bind-sequence-t [mv f]
+                                    (m-bind mv
+                                            (fn [xs]
+                                                (m-fmap (fn [sets]
+                                                            (apply clojure.set/union sets))
+                                                        (m-map f xs))))))
+                 ])))
+
+As you can see, it's almost the same as sequence-t 
+with the appropriate hash-set functions in place of the sequence functions.
+
+====
+state-t
+
+And now for something completely different. 
+Monads whose values are functions, like state-m, have transformers as well.
+
+(defn state-t [m]
+         (monad [m-result (with-monad m
+                               (fn [v]
+                                   (fn [s]
+                                       (m-result [v s]))))
+
+                 m-bind   (with-monad m
+                               (fn [stm f]
+                                   (fn [s]
+                                       (m-bind (stm s)
+                                               (fn [[v ss]]
+                                                   ((f v) ss))))))
+                  ]))
+
+The state-m monad allows functions that accept a state 
+and return a list containing a value and a new state to be composed. 
+The proper way to combine a state-m monad with another monad 
+is to create a monad whose monadic values are functions 
+that return the list containing a return value and a new-state embedded inside a monadic value of the inner monad. 
+So, m-result for the new monad accepts a value and returns a function that accepts a state, 
+wraps the value into a list with the state, and embeds that list using the m-result function of the inner monad.
+
+Likewise, the m-bind function of the new monad accepts a monadic value, which is a function, 
+and returns a function that accepts a state. 
+The monadic value, 'stm', is called with the state and returns a monadic value of the inner monad. 
+The m-bind function of the inner monad unwraps that inner value 
+and passes it to the anonymous function, which destructures it into 'v' and 'ss'. 
+Finally, 'v' is passed to the monadic function of the new monad, 'f', which returns a function. 
+The state value 'ss' is passed to this function producing the final value that is returned from the m-bind function of the new monad. 
+An example will make this a little clearer.
+
+Remember in the first tutorial, we looked at parsers, which were functions that accepted a string. 
+The parser signified failure by returning an empty list. 
+Success was signified by returning a list with one element. 
+This element was itself a list and always contained two elements, 
+the valued parsed out of the string and the remaining part of the string. 
+
+Another way to say this is that a parser is a function that accepts a state, the string to parse, 
+and returns a maybe-m monadic value, a list that may contain no items or one item. 
+This item is the kind of value returned by the monadic values of the state-m monad, 
+which are functions that accept a state and return a list containing a return value and a new state.
+
+So, a parser is a function which is a monadic value of a monad built by combining the state-m and maybe-m monads. 
+We saw how to build such a monad the hard way, but using the state-t monad transformer, 
+all that is required to build the parser monad is:
+
+(def parser-m (state-t maybe-m))
+
+========
+Wrapping up
+
+All the monad transformers in this tutorial will produce monads 
+that have m-zero and m-plus defined if the inner monad defines them.
+
+Also, any monad transformer that is passed the identity-m monad 
+will return a monad that is the same as its base monad, so
+
+(sequence-t identity-m)
+
+is the same as monad as sequence-m.
+
+And monad transformers are not associative. That is
+
+(state-t maybe-m)
+
+is not the same monad as
+
+(maybe-t state-m)
+
+In the first case, the monadic values are functions 
+that return either a list containing a list which in turn contains a return value and a new state, or an empty list. 
+
+In the second case, the monadic values are functions 
+that return a list which contains a list as a return value and a new state. 
+The inner list may contain no item or one item.
+
+Reading about monads and monad transformers will only take you so far. 
+You'll go much farther much faster by working with some simple monads at the REPL. 
+
+A good first step in exploring a monad is to see what the m-result function returns. 
+Then construct a function that returns a similar item and try to bind it with m-bind. 
+That will be very helpful in your understanding of monads.
+
+==
+What next
+
+As powerful as monads are, there are times when they almost, but not quite, allow us to compose functions. 
+For those times, you need the next tutorial.
+

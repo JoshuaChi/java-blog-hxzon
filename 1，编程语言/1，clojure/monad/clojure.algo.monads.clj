@@ -84,16 +84,26 @@
 
 (def ^:private prepare-monadic-steps
      #(->> % (partition 2) reverse each3-steps))
+;; 将 steps 向量中的元素，每两个元素一组。
+;; 接着反转这些“变量-表达式对”的顺序。
+
+;; hxzon：(prn (prepare-monadic-steps ['a 'av 'b 'bv 'c 'cv 'd 'dv ]))
+;; (    [(d dv) (c cv) (b bv)] 
+;; [(c cv) (b bv) (a av)] 
+;; [(b bv) (a av) nil] 
+;; [(a av) nil nil]    )
 
 (defn- if-then-else-statement
   "Process an :if :then :else steps when adding a new
   monadic step to the mexrp."
-  [[[_          else-mexpr]
-    [then-bform then-mexpr]
-    [if-bform   if-conditional]] mexpr continuation]
+  [[[_          else-mexpr]        ;; 即 (d dv)
+    [then-bform then-mexpr]        ;; 即 (c cv)
+    [if-bform   if-conditional]]       ;; 即 (b bv)
+   mexpr        ;; 规约的上一轮值
+   continuation]     ;; 即 add-monad-step 函数
     (cond
       (and (identical? then-bform :then)
-           (identical? if-bform   :if))
+           (identical? if-bform   :if))        ;; 当 (b bv c cv d dv) 为 (:if bv :then cv :else dv) 时
         `(if ~if-conditional
           ~(reduce continuation
                    mexpr
@@ -113,7 +123,7 @@
 
 (defn cond-statement
   "Process a :cond steps when adding a new monadic step to the mexrp."
-  [expr mexpr continuation]
+  [expr mexpr continuation]        ;; expr 即 dv ，即 (test1 v1 test2 v2)
   (let [cond-sexps (partition 2 expr)
         result (for [[cond-sexp monadic-sexp] cond-sexps]
                      (list cond-sexp
@@ -126,8 +136,8 @@
   ;; 对 domonad 的”变量-表达式“部分（即steps）进行变换
   "Add a monad comprehension step before the already transformed
    monad comprehension expression mexpr."
-  [mexpr steps]
-  (let [[[bform expr :as step] & _] steps]    ;; 对 steps 进行解构
+  [mexpr steps];; mexpr 规约的上一轮的值（或初始值），steps 三元组，即  [(d dv) (c cv) (b bv)] 
+  (let [[[bform expr :as step] & _] steps]    ;; 对 steps 进行解构，bform 绑定到 d，expr 绑定到 dv 
     (cond
       (identical? bform :when)  `(if ~expr ~mexpr ~'m-zero)        ;; 这里使用了 m-zero （hxzon注意）
       (identical? bform :let)   `(let ~expr ~mexpr)
@@ -143,6 +153,7 @@
 
 (defn- monad-expr
   "Transforms a monad comprehension, consisting of a list of steps
+;; 对 monad推导式 进行变换。
    and an expression defining the final value, into an expression
    chaining together the steps using :bind and returning the final value
    using :result. The steps are given as a vector of
@@ -152,18 +163,18 @@
     (throw (Exception. "Odd number of elements in monad comprehension steps")))
 
   (let [rsteps  (prepare-monadic-steps steps)
-        [[lr ls] & _] (first rsteps)]
+        [[lr ls] & _] (first rsteps)]        ;; 取出第一部分，即 [(d dv) (c cv) (b bv)]
     (if (= lr expr)
       ; Optimization: if the result expression is equal to the result
       ; of the last computation step, we can eliminate an m-bind to
       ; m-result.
-      ;; 优化，如果返回值是最后一个步骤的值，省掉最后一个m-bind
+      ;; 优化，如果返回值是最后一个步骤的值，则可省掉m-result
       (reduce add-monad-step
         ls
         (rest rsteps))
       ; The general case.
       (reduce add-monad-step
-        (list 'm-result expr)
+        (list 'm-result expr)    ;; 规约的初始值
         rsteps))))
 
 ;; =============
@@ -593,15 +604,16 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defmacro monad-transformer
-  "Define a monad transforer in terms of the monad operations and the base
+  "Define a monad transformer in terms of the monad operations and the base
    monad. The argument which-m-plus chooses if m-zero and m-plus are taken
    from the base monad or from the transformer."
   [base which-m-plus operations]
+  ;; which-m-plus 指定 m-plus 的选择策略
   `(let [which-m-plus# (cond (= ~which-m-plus :m-plus-default)
                              (if (= ::this-monad-does-not-define-m-plus
                                     (with-monad ~base ~'m-plus))
                                  :m-plus-from-transformer
-                                 :m-plus-from-base)
+                                 :m-plus-from-base);; 默认策略，优先“基础monad”的m-plus
                              (or (= ~which-m-plus :m-plus-from-base)
                                  (= ~which-m-plus :m-plus-from-transformer))
                                ~which-m-plus
@@ -612,7 +624,7 @@
     (if (= which-m-plus# :m-plus-from-base)
       (assoc combined-monad#
         :m-zero (with-monad ~base ~'m-zero)
-        :m-plus (with-monad ~base ~'m-plus))
+        :m-plus (with-monad ~base ~'m-plus));; 使用“基础monad”的 m-plus 和 m-zero
       combined-monad#)))
 
 (defn maybe-t
@@ -623,8 +635,11 @@
    behaviour (use :m-plus-from-transformer). The default is :m-plus-from-base
    if the base monad m has a definition for m-plus, and
    :m-plus-from-transformer otherwise."
+
   ([m] (maybe-t m nil :m-plus-default))
+
   ([m nothing] (maybe-t m nothing :m-plus-default))
+
   ([m nothing which-m-plus]
    (monad-transformer m which-m-plus
      [m-result (with-monad m m-result)

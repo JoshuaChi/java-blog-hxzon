@@ -2,6 +2,10 @@
 Copyright 2009 by Jim Duey
 http://www.intensivesystems.net/tutorials/monads_101.html
 
+http://code.google.com/p/clojure-contrib
+http://www.intensivesystems.net/tutorials/code/monads_101.clj
+http://www.cs.nott.ac.uk/~gmh/pearl.pdf    "Monadic Parsing in Haskell"
+
 注释by hxzon
 ====
 Preface

@@ -11,6 +11,7 @@ by hxzon
 22.1，捕获并执行延续
 
 在scala中，延续是定界的，这个边界由reset标出。
+（hxzon：scheme的续延，则是一直到顶层。）
 
 ----
 示例：读取一个文件并捕获延续。
@@ -56,7 +57,7 @@ reset{
             println("Inside shift")//跳转到reset的之后
         }
     }
-    println("After shift")//延续
+    println("After shift")//延续，reset执行时会被跳过
 }
 println("After reset")
 cont()
@@ -67,11 +68,21 @@ Inside shift
 After reset
 After shift
 
-====
-22.4，reset表达式的值（暂略）
+hxzon：
+reset一直执行到shift，然后跳出（shift之后到reset结尾之前的部分被跳过）。
+稍后执行续延时，shift替换成续延的参数值，
+然后从shift之后开始执行，直到reset结尾。
 
+====
+22.4，reset表达式的值
+
+如果reset是因为shift而退出，则shift值作为reset的值。
+否则，reset最后一个表达式的值，作为reset的值。
+
+====
 22.5，reset和shift表达式的类型（暂略）
 
+====
 22.6，CPS注解
 
 有些虚拟机中，延续的实现方式是抓取运行期栈的快照。
@@ -196,7 +207,4 @@ object Main extends App{
 22.10，转换嵌套的控制上下文（略）
 
 （完）
-
-
-
 
