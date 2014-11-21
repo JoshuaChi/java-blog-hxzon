@@ -1,0 +1,532 @@
+﻿CHAPTER 5，Picture Gallery
+
+====
+The Development Process 81
+What’s in a Gallery 81
+Creating the Application 83
+Application Data Model 84
+Task A: Account Registration 86
+
+==
+Task B: Login and Logout 95
+Task C: Uploading Pictures 97
+Task D: Displaying Pictures 110
+Task E: Deleting Pictures 115
+Task F: Account Deletion 121
+What You’ve Learned 123
+
+=========
+In this chapter we’ll tie together all the concepts you’ve learned thus far by
+building a picture-gallery application.
+The Development Process
+We’ll build our application by creating a brief outline of the features to work
+from, then filling in the details as we go along.
+We’ll be developing our application interactively using the read-evaluate-print
+loop (REPL). This will allow us to grow the application without the need for
+restarts to see new functionality.
+Don’t be afraid to try things out when using the REPL. For example, if you’re
+writing a particular function to pull some data from the database, try it right
+in the editor and see its output before hooking it up to the page.
+What’s in a Gallery
+We’ll identify the different use cases for our site and then stub out some pages
+around those. Let’s go over a list of actions we’d like our site’s users to be
+able to perform. Each of these use cases will constitute a particular workflow
+that we can complete independent of others.
+
+========
+Task A: Account Registration
+
+For a user to put content on the site, she needs to have an account. To facil
+itate this we need a page to collect some user details such as an ID and a
+password, validate those, and create a database entry for the user.
+Task B: Login and Logout
+Once a user creates an account, he should be able to log in using the creden
+tials provided. We need to display a login form on our pages if there is no user
+
+in the session. If the user logs in successfully, we want to display a logout
+button instead.
+Task C: Uploading Pictures
+With  the  preliminaries  out  of  the  way,  we  can  focus  on  adding  some  core
+functionality. First, we need to provide a way for users to upload content to
+the site. When a picture is uploaded we need to create a thumbnail to display
+when listing the galleries.
+Task D: Displaying Pictures
+Now that we can upload pictures, we need to display them. We’ll display the
+thumbnails and use them as links to the full-sized pictures. Since our site is
+a multiuser one, we also need a way to list user galleries. This way visitors
+will be able to browse the content from all users.
+Task E: Deleting Pictures
+Users  might  wish  to  remove  some  of  their  uploads,  and  we’ll  provide  an
+interface to do so. When a user chooses to delete some pictures, he’ll need a
+way to select them and then delete both the pictures and their thumbnails.
+Task F: Account Deletion
+A user may also wish to remove her account; hopefully this scenario never
+comes up, but we’ll facilitate it just in case. When an account is deleted, we’ll
+have to remove the user from our database and remove all the pictures and
+thumbnails for that user.
+Code Architecture
+Now that we’ve identified what we’d like our site to do, we can begin thinking
+about how to implement it. To keep things manageable we’ll create separate
+namespaces  for  each  of  our  workflows.  Grouping  all  the  related  actions  in
+the same namespace allows us to compartmentalize the logic.
+The first step toward understanding the nature of our application is to con
+sider its data model. Figuring out what data we wish to collect and how it will
+be used will help us understand the workflow and our use cases. Therefore,
+setting  up  our  database  and  creating  the  necessary  tables  will  be  the  first
+step of building our application.
+If you’ve worked with a web framework in an object-oriented language, you’re
+probably used to creating an object model and then mapping that model to
+
+the database, either by writing SQL statements by hand or using an object
+relational mapping framework such as Hibernate to do that for you.
+1
+In our application the database will be our data model. Because the logic is
+kept separate from the data in Clojure, there’s no value in copying the maps
+returned from the database to different data structures. Following this ratio
+nale, we’ll use our table definitions as the data model for the application. In
+a later chapter we’ll cover how we can use a native Clojure domain-specific
+language to access the database instead.
+Creating the Application
+To create the application we’ll open Eclipse and then select a new Leiningen
+project. We’ll set the project name to picture-galleryand change our profile from
+default to compojure-app. If needed, please refer to Chapter 1, Getting Your Feet
+Wet,  on  page  1,  for  more  details  on  how  to  complete  this  step.  We’ll  use
+PostgreSQL as our database, so we’ll need to add the necessary dependencies
+to our project. Once your project has been initialized, open the project.cljand
+add the postgresql, clojure.java.jdbc, and lib-noir dependencies.
+picture-gallery-a/project.clj
+[postgresql/postgresql"9.1-901.jdbc4"]
+[org.clojure/java.jdbc"0.2.3"]
+[lib-noir"0.7.6"]
+Since we’re using lib-noir, we have to add its middleware to our handler for
+it to work correctly. We’ll open the picture-gallery.handlernamespace and add a
+few things to it. First we have to reference the libraries we’ll be using. We’ll
+do this by adding them to the :requiresection of our namespace definition, at
+the top.
+(:require...[noir.util.middleware:asnoir-middleware])
+We’ll use the app-handlermiddleware found in the noir.middlewarenamespace to
+set  up  the  handler  for  our  site.  The app-handler will  set  up  all  the  common
+middleware, such as session management, for us.
+Let’s replace the current appdefinition with the following one.
+(defapp(noir-middleware/app-handler[home-routesapp-routes]))
+We can now remove some of the references from our namespace, since they’re
+provided by the app-handler. Our namespace declaration should now look like
+the following.
+
+(nspicture-gallery.handler
+(:require[compojure.route:asroute]
+[compojure.core:refer[defroutes]]
+[noir.util.middleware:asnoir-middleware]
+[picture-gallery.routes.home:refer[home-routes]]))
+With our handler set up, let’s navigate to the picture-gallery.replnamespace in
+the package explorer and run it. This should start up a REPL where you can
+run the start-serverfunction to start the application. You should see the following
+output in the REPL after running (start-server).
+;;Clojure1.5.1
+=>(start-server)
+picture-galleryisstarting
+Startedserveronport3000
+Youcanviewthesiteathttp://localhost:3000
+Once  the  application  starts,  a  new  browser  window  will  open,  pointing  to
+localhost:3000and showing a stock template home page like the one in the fol
+lowing figure.
+Figure 16—Default page
+Application Data Model
+We’re  now  ready  to  start  working  on  creating  the  application  we  outlined
+earlier.  Since  defining  the  data  model  is  a  prerequisite  for  all  the  following
+tasks, we’ll tackle it first.
+Configuring the Database
+Let’s create a new schema called galleryin the database. In PostgreSQL, create
+an adminuser with the password set to admin, then run the following command
+to add the schema for our application.
+CREATEDATABASEGALLERYOWNERadmin;
+Now that our database is ready to use, let’s look at how to connect to it. We
+can use clojure.java.jdbc to set up the Java Database Connectivity connection.
+
+We’ll create a dbnamespace under modelsand set up our database connection
+there. For simplicity, let’s use the first method of defining the database con
+nection that we discussed in Chapter 4, Database Access, on page 67. With
+this method we specify the connection parameters in a map using the format
+specified by the clojure.java.jdbc library.
+picture-gallery-a/src/picture_gallery/models/db.clj
+(nspicture-gallery.models.db
+(:require[clojure.java.jdbc:assql]))
+(defdb
+{:subprotocol"postgresql"
+:subname"//localhost/gallery"
+:user"admin"
+:password"admin"})
+Defining the Data Model
+With the connection set up, we can now look at defining the necessary tables.
+Let’s create a new namespace called picture-gallery.models.schema. This namespace
+will hold our table definitions and act as documentation for our model.
+picture-gallery-a/src/picture_gallery/models/schema.clj
+(nspicture-gallery.models.schema
+(:require[picture-gallery.models.db:refer:all]
+[clojure.java.jdbc:assql]))
+Our  first  task  will  be  to  implement  user  registration.  As  our  first  step,  we
+should try to identify the model for storing the user information.
+We’ll write a function to create a new table to hold the user accounts. This
+table will define the user record that we’ll use throughout our application.
+Each user will need to have an ID and a password. Both of these variables
+can be strings. Since the password will be hashed, we should make this field
+long enough to contain it.
+Since the user ID represents a unique user, we should make it a primary key.
+This will prevent users with duplicate IDs from being created.
+picture-gallery-a/src/picture_gallery/models/schema.clj
+(defncreate-users-table[]
+(sql/with-connectiondb
+(sql/create-table
+:users
+[:id"varchar(32)PRIMARYKEY"]
+[:pass"varchar(100)"])))
+
+Let’s  run  the create-users-table function  in  the  REPL  to  create  the  table.  You
+should see the following output if the table was created successfully:
+#<Namespacegallery.models.schema>
+(0)
+With  our  users  table  in  place,  we’re  ready  to  move  on  to  our  first  task  of
+showing a registration page and providing a way to create user accounts.
+Task A: Account Registration
+User  registration  and  authentication  is  a  self-contained  workflow  that  is
+unrelated to the rest of the our application’s functionality. This makes it a
+good candidate for creating a namespace to hold all the authentication func
+tions and routes. We’ll create a picture-gallery.routes.authnamespace and, inside
+it, implement the functions to handle this task.
+Before  we  continue  we  need  to  understand  the  workflow  involved  in  user
+registration.  The  user  has  to  enter  some  identifying  information  in  a  form.
+The form submission has to be processed by the handler to decide whether
+a user account should be created.
+Since all the user data can be collected in a single step, we need a single page
+with a form to collect the input. The page will call the handler to validate the
+input and create the user.
+As  our  first  step,  let’s  reference  the  relevant  libraries  in  the  namespace
+declaration.
+(nspicture-gallery.routes.auth
+(:require[hiccup.form:refer:all]
+[compojure.core:refer:all]
+[picture-gallery.routes.home:refer:all]
+[picture-gallery.views.layout:aslayout]
+[noir.session:assession]
+[noir.response:asresp]))
+The next step will be very similar to what we did with our guestbook applica
+tion in Chapter 2, Clojure Web Stack, on page 25. Registering users consists
+of collecting the user information we wish to store and creating a record in
+the database. In our case, we’ll simply collect the user ID, a password, and
+a retyped password to ensure it was entered correctly. Let’s create the form
+and a controller stub for the registration.
+We’ll start by defining the routes for authentication; the GET route will render
+the page, and its POST counterpart will handle the submission from the form.
+
+picture-gallery-a/src/picture_gallery/routes/auth.clj
+(defroutesauth-routes
+(GET"/register"[]
+(registration-page))
+(POST"/register"[idpasspass1]
+(handle-registrationidpasspass1)))
+With the routes in place we can write the actual functions to render the page
+and  handle  the  registration.  As  you  recall,  we’ve  already  defined  our  user
+table and added the idand passfields to it. We should use the same names
+for these fields in our form.
+(defnregistration-page[&[id]]
+(layout/common
+(form-to[:post"/register"]
+(label"user-id""userid")
+(text-field"id"id)
+[:br]
+(label"pass""password")
+(password-field"pass")
+[:br]
+(label"pass1""retypepassword")
+(password-field"pass1")
+[:br]
+(submit-button"createaccount"))))
+(defnhandle-registration[idpasspass1]
+(session/put!:userid)
+(resp/redirect"/"))
+Now that we’ve defined our routes and written the handler functions, we need
+to expose these in our handler. To do that we need to add a reference to picture
+gallery.routes.auth in  the picture-gallery.handler namespace,  and  update  the app
+definition to include our new routes.
+(:require...
+[picture-gallery.routes.auth:refer[auth-routes]])
+(defapp(noir-middleware/app-handler
+[auth-routes
+home-routes
+app-routes]))
+We should now be able to browse to localhost:3000/registerand see our registration
+page (which Figure 17, Registration page, on page 88 shows).
+Note that occasionally the REPL may get into a bad state. This is often trig
+gered when there’s an error in the code and a namespace fails to compile. In
+
+Figure 17—Registration page
+this scenario a stale version of the code may be running. If you believe this
+to be the case, then simply restart the REPL. This will force all the namespaces
+to be recompiled, and if there were any errors you’ll be able to see them in
+the stack trace that will be displayed in the console.
+When the page loads we can check that we’re able to submit the user details
+to the server. We’ll now modify the homefunction in the picture-gallery.routes.home
+namespace to provide our own content instead of the stock template page.
+For starters, if a user is available in the session, let’s print the user ID in the
+greeting. To do that we’ll need to reference the noir.sessionnamespace.
+(nspicture-gallery.routes.home
+(:require...[noir.session:assession]))
+Then we’ll simply grab the value for the :userkey from the session and display
+it on our page.
+(defnhome[]
+(layout/common[:h1 "Hello"(session/get:user)]))
+Now let’s navigate to the localhost:3000/registerURL, fill in the user details, and
+press the Create Account button. We should be taken to the home page and
+the user ID should be displayed in our welcome message, as in Figure 18,
+Home page, on page 89.
+Now  that  we  have  our  basic  registration  workflow  functioning,  we  can  add
+some validation to it. We should check that the user didn’t forget to provide
+an ID and that the entered passwords match.
+We’ll  open  the picture-gallery.routes.auth namespace  and  add  some  validation  to
+the  registration  form.  To  do  that  we’ll  have  to  require noir.validation in  the
+namespace declaration.
+(:require...[noir.validation:asvali])
+
+Figure 18—Home page
+Next, we can add the validation function and the error-itemformatter the same
+way we did in Chapter 2, Clojure Web Stack, on page 25.
+picture-gallery-a/src/picture_gallery/routes/auth.clj
+(defnvalid?[idpasspass1]
+(vali/rule(vali/has-value?id)
+[:id"useridisrequired"])
+(vali/rule(vali/min-length?pass5)
+[:pass"passwordmustbeatleast5characters"])
+(vali/rule(=passpass1)
+[:pass"enteredpasswordsdonotmatch"])
+(not(vali/errors?:id:pass:pass1)))
+(defnerror-item[[error]]
+[:div.errorerror])
+Now we can update our registration page to validate the input and respond
+accordingly.
+(defnregistration-page[&[id]]
+(layout/common
+(form-to[:post"/register"]
+(vali/on-error:iderror-item)
+(label"user-id""userid")
+(text-field"id"id)
+[:br]
+(vali/on-error:passerror-item)
+(label"pass""password")
+(password-field"pass")
+[:br]
+(vali/on-error:pass1error-item)
+(label"pass1""retypepassword")
+(password-field"pass1")
+[:br]
+(submit-button"createaccount"))))
+We’ll now update our controller to validate the input and either add the user
+to the session and redirect to the home page if validation passes, or render
+
+the registration page. The error will be set by our valid?function and the page
+will display it using the on-errorhelper.
+(defnhandle-registration[idpasspass1]
+(if(valid?idpasspass1)
+(do(session/put!:userid)
+(resp/redirect"/"))
+(registration-pageid)))
+Let’s try to submit an incomplete registration form to test that our validation
+rules are now being checked (see the following figure).
+Figure 19—Registration-page error
+We can also add a bit of styling to the page to make it look more presentable.
+To do that we’ll open the screen.cssfile generated by the template. The file is
+located in the resources/public/cssfolder. You’ll notice that it already has some
+stock CSS defined. We’ll now add our own style to the existing content.
+picture-gallery-a/resources/public/css/screen.css
+body{
+background-color:#fff;
+color:#555;
+font-family:'HelveticaNeue',Helvetica,Arial,sans-serif;
+font-size:13px;
+}
+h1{
+text-align:center;
+}
+label{
+width:150px;
+float:left;
+}
+.error{
+color:red;
+}
+
+Now the forms will be aligned nicely and errors will show up in red. We won’t
+focus much on style at this point since our page elements might change as
+we add more functionality. Once we have our pages finalized, we’ll revisit our
+application’s styling.
+Another feature that we’ll add to the form is tab indexes on input fields. This
+way the user can tab through the fields using the keyboard.
+(defnregistration-page[&[id]]
+(layout/common
+(form-to[:post"/register"]
+(vali/on-error:iderror-item)
+(label"user-id""userid")
+(text-field{:tabindex1} "id"id)
+[:br]
+(vali/on-error:passerror-item)
+(label"pass""password")
+(password-field{:tabindex2} "pass")
+[:br]
+(vali/on-error:pass1error-item)
+(label"pass1""retypepassword")
+(password-field{:tabindex3} "pass1")
+[:br]
+(submit-button{:tabindex4} "createaccount"))))
+That  function  has  a  lot  of  repetition.  This  is  a  clear  sign  that  we  should
+refactor it. Let’s write a helper function to add all the common elements:
+picture-gallery-a/src/picture_gallery/routes/auth.clj
+(defncontrol[idlabelfield]
+(list
+(vali/on-erroriderror-item)
+labelfield
+[:br]))
+(defnregistration-page[&[id]]
+(layout/common
+(form-to[:post"/register"]
+(control:id
+(label"user-id""userid")
+(text-field{:tabindex1} "id"id))
+(control:pass
+(label"pass""password")
+(password-field{:tabindex2} "pass"))
+(control:pass1
+(label"pass1""retypepassword")
+(password-field{:tabindex3} "pass1"))
+(submit-button{:tabindex4} "createaccount"))))
+
+The  form  should  now  look  a  little  cleaner  and  provide  all  the  functionality
+one would expect (as we can see in the following figure).
+Figure 20—Styled registration page
+Note that having less code doesn’t always lead to having cleaner code. The
+code we refactored isn’t shorter in the absolute, but each of the functions is
+clean and easy to read.
+It would now be a good idea to provide a link to the registration page so that
+users  can  find  it.  The  most  logical  place  to  do  this  would  be  in  the common
+helper located in the picture-gallery.views.layoutnamespace. This way all the pages
+using  this  layout  will  display  the  registration  link.  Let’s  open  our picture
+gallery.views.layoutnamespace and add a couple of extra library references to its
+definition.
+picture-gallery-a/src/picture_gallery/views/layout.clj
+(nspicture-gallery.views.layout
+(:require[hiccup.page:refer[html5include-css]]
+[hiccup.element:refer[link-to]]
+[noir.session:assession]))
+We’ll need noir.sessionto check if the user exists, and link-tofrom hiccup.element
+to provide a link to the registration page. Since we don’t want the link to be
+displayed on the registration page, we’ll rename the current version of common
+to base.
+picture-gallery-a/src/picture_gallery/views/layout.clj
+(defnbase[&content]
+(html5
+[:head
+[:title"Welcometopicture-gallery"]
+(include-css"/css/screen.css")]
+[:bodycontent]))
+
+Now we can add a new commonfunction that checks if there’s a user in the
+session. If there is, the layout displays the ID; otherwise it shows a link to
+the registration page.
+picture-gallery-a/src/picture_gallery/views/layout.clj
+(defncommon[&content]
+(base
+(if-let[user(session/get:user)]
+[:puser](link-to"/register""register"))
+content))
+Since we don’t wish to display the registration link on the /registerpage, we’ll
+update it to use the baselayout instead of commonfor rendering.
+picture-gallery-a/src/picture_gallery/routes/auth.clj
+(defnregistration-page[&[id]]
+(layout/base
+(form-to[:post"/register"]
+(control:id
+(label"user-id""userid")
+(text-field{:tabindex1} "id"id))
+(control:pass
+(label"pass""password")
+(password-field{:tabindex2} "pass"))
+(control:pass1
+(label"pass1""retypepassword")
+(password-field{:tabindex3} "pass1"))
+(submit-button{:tabindex4} "createaccount"))))
+We  can  test  and  see  that  once  we  register  a  user,  the  ID  shows  up  on  the
+home page when we’re directed to it. If we stop and start the server we’ll see
+the registration link instead.
+Storing Users in the Database
+So far, we’ve been keeping the user in the session. Now it’s time to store the
+user information in the database instead. We created a users table earlier.
+All we need to do is to create a function to store the user details in it. Let’s
+open the dbnamespace again, and add the following code to it:
+picture-gallery-a/src/picture_gallery/models/db.clj
+(defncreate-user[user]
+(sql/with-connection
+db
+(sql/insert-record:usersuser)))
+There, create-useraccepts a map containing two keys. These keys match the
+column names in the table and the parameters in the form we created. The
+
+function  simply  inserts  this  record  in  our  users  table.  In  case  the  record
+cannot be created, an exception will be thrown.
+Let’s open the picture-gallery.routes.authnamespace and update it to store the user
+in  the  database  when  an  account  is  created.  We’ll  have  to  reference picture
+gallery.models.dbto use the create-user, as well as noir.util.cryptto hash the password
+before storing it.
+(:require...
+[noir.util.crypt:ascrypt]
+[picture-gallery.models.db:asdb])
+Then we simply update our controller to call create-userif the login information
+is valid.
+(defnhandle-registration[idpasspass1]
+(if(valid?idpasspass1)
+(do
+(db/create-user{:idid:pass(crypt/encryptpass)})
+(session/put!:userid)
+(resp/redirect"/"))
+(registration-pageid)))
+When we try to register a user again, we should see a new user record appear
+in  our  users  table.  We  can  check  that  by  running  the  following  command
+from the REPL in the dbnamespace after registering a user:
+(sql/with-connectiondb
+(sql/with-query-resultsres["select*fromusers"](printlnres)))
+({:idfoo,
+:pass$2a$10$YZ/9wi7GFmp1wKWShddqFuLUeSyy2rTIEptw2aI9o96TKu5OLqToy})
+You might have noticed that our registration page has a small problem. If a
+user with the same ID already exists in the database, then we get a server
+error on our page. Not only is this ugly, but it also poses a security risk, as
+we’re exposing the internals of our application to a potential attacker.
+Instead, let’s catch this exception and display a meaningful message when
+the  user  ID  is  taken.  Let’s  go  back  to  the picture-gallery.routes.auth namespace
+and make the changes to handle errors and display them.
+The page controller will now wrap the call to create-userin a try/catchand render
+the /registerpage with an error when an exception is caught instead of redirect
+ing to the home page.
+Before that, however, let’s make a helper function to check the type of error
+and make a friendly message instead of the raw exception.
+
+picture-gallery-a/src/picture_gallery/routes/auth.clj
+(defnformat-error[idex]
+(cond
+(and(instance?org.postgresql.util.PSQLExceptionex)
+(=0(.getErrorCodeex)))
+(str"Theuserwithid" id"alreadyexists!")
+:else
+"Anerrorhasoccuredwhileprocessingtherequest"))
+(defnhandle-registration[idpasspass1]
+(if(valid?idpasspass1)
+(try
+(db/create-user{:idid:pass(crypt/encryptpass)})
+(session/put!:userid)
+(resp/redirect"/")
+(catchExceptionex
+(vali/rulefalse[:id(format-erroridex)])
+(registration-page)))
+(registration-pageid)))
+If you now try to register a user with a duplicate ID, then an error indicating
+the fact will be displayed in the browser (as we can see here).
+Figure 21—Duplicate-user error
+We’re now ready to tackle our next task: allowing users to log in and log out
+after creating an account on our site.
+

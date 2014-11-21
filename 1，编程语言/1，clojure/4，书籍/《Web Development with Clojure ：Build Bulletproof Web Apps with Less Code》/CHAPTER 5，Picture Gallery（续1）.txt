@@ -1,0 +1,581 @@
+﻿CHAPTER 5，Picture Gallery（续1）
+
+====
+The Development Process 81
+What’s in a Gallery 81
+Creating the Application 83
+Application Data Model 84
+Task A: Account Registration 86
+
+==
+Task B: Login and Logout 95
+Task C: Uploading Pictures 97
+Task D: Displaying Pictures 110
+Task E: Deleting Pictures 115
+Task F: Account Deletion 121
+What You’ve Learned 123
+
+========
+Task B: Login and Logout
+
+Login and logout actions are very simple to implement. To log in the user will
+submit her ID and password using a login form. These will be checked against
+the stored credentials, and if they match we’ll put the ID in the session.
+Let’s navigate to our picture-gallery.models.dbnamespace. We’ve already added a
+function to store the users in the database, and we now need to add one to
+
+read the users based on the IDs. We’ll use the with-query-resultsmacro to get the
+records and return the first item. If no record matches the supplied ID, we’ll
+simply get a nilvalue back.
+(defnget-user[id]
+(sql/with-connection
+db
+(sql/with-query-results
+res["select*fromuserswhereid=?" id](firstres))))
+Note that we have to keep writing (sql/with-connectiondb...)for each dbstatement.
+Since this gets tedious to do, we’ll write a short macro for this task.
+picture-gallery-b/src/picture_gallery/models/db.clj
+(defmacrowith-db[f&body]
+`(sql/with-connection~db(~f~@body)))
+(defncreate-user[user]
+(with-dbsql/insert-record:usersuser))
+(defnget-user[id]
+(with-dbsql/with-query-results
+res["select*fromuserswhereid=?" id](firstres)))
+As you can see, the macro simply templates the code to wrap the connection
+and call the function to access the database.
+Now that we have a way to query users, let’s add a handler to allow users to
+log in. The handler will accept the user ID and the password, then compare
+them  to  what’s  stored  in  the  database.  We’ll  put  this  handler  in  the picture
+gallery.routes.authnamespace:
+picture-gallery-b/src/picture_gallery/routes/auth.clj
+(defnhandle-login[idpass]
+(let[user(db/get-userid)]
+(if(anduser(crypt/comparepass(:passuser)))
+(session/put!:userid)))
+(resp/redirect"/"))
+When a user logs out we’ll want to clear out that session, so the logout handler
+will simply call session/clear!to remove any user data that’s been accumulated.
+(defnhandle-logout[]
+(session/clear!)
+(resp/redirect"/"))
+Now we’ll add the routes for these controllers in our auth-routesdefinition to
+expose the functionality to the client.
+
+picture-gallery-b/src/picture_gallery/routes/auth.clj
+(defroutesauth-routes
+(GET"/register"[]
+(registration-page))
+(POST"/register"[idpasspass1]
+(handle-registrationidpasspass1))
+(POST"/login"[idpass]
+(handle-loginidpass))
+(GET"/logout"[]
+(handle-logout)))
+We’ll also need to add the forms to make these handlers accessible from the
+user  interface.  Since  these  forms  are  common  to  all  pages,  the  layout  is  a
+good candidate for them.
+We’ll update it to also provide the login and logout links as appropriate. For
+this we’ll have to include hiccup.formin our namespace declaration.
+(:require...[hiccup.form:refer:all])
+With that out of the way, we’ll update our commonlayout to add the login form
+and a link for the logout route.
+picture-gallery-b/src/picture_gallery/views/layout.clj
+(defncommon[&content]
+(base
+(if-let[user(session/get:user)]
+[:div(link-to"/logout"(str"logout"user))]
+[:div(link-to"/register""register")
+(form-to[:post"/login"]
+(text-field{:placeholder "screenname"}"id")
+(password-field{:placeholder "password"}"pass")
+(submit-button"login"))])
+content))
+We should now be able to test the login and logout functionality by logging
+in as a registered user. We’ve finished implementing all of our authentication
+tasks. With these out of the way, we’ll turn our attention to the next task,
+which is to allow users to upload their content.
+
+====
+Task C: Uploading Pictures
+Since we’re creating a new workflow, we should create a new namespace for
+it. Let’s make a picture-gallery.routes.uploadnamespace for handling this task.
+The workflow requires a form to facilitate the upload. Once a file is submitted via
+this form, we’ll need to create a thumbnail to display when listing the user gallery.
+
+The functionality for scaling images can be found in the java.awt.geompackage
+provided by the Java standard library. In this section, we’ll use Java interop
+to wrap it in idiomatic Clojure functions for use in our application.
+Let’s start by adding all the required references to our namespace. It looks
+like a lot, but some of them should be familiar. We’ll cover how the other ones
+are used shortly.
+picture-gallery-c/src/picture_gallery/routes/upload.clj
+(nspicture-gallery.routes.upload
+(:require[compojure.core:refer[defroutesGETPOST]]
+[hiccup.form:refer:all]
+[hiccup.element:refer[image]]
+[hiccup.util:refer[url-encode]]
+[picture-gallery.views.layout:aslayout]
+[noir.io:refer[upload-fileresource-path]]
+[noir.session:assession]
+[noir.response:asresp]
+[noir.util.route:refer[restricted]]
+[clojure.java.io:asio]
+[ring.util.response:refer[file-response]]
+[picture-gallery.models.db:asdb]
+[picture-gallery.util:refer[galleriesgallery-path]])
+(:import[java.ioFileFileInputStreamFileOutputStream]
+[java.awt.imageAffineTransformOpBufferedImage]
+java.awt.RenderingHints
+java.awt.geom.AffineTransform
+javax.imageio.ImageIO))
+Next,  we’ll  create  a  function  to  render  the  upload  page,  and  a  handler  to
+process the form’s POST action. The page will have a form of type multipart/form
+data. The handler will print out the params and render the page. This will let
+us see what the form submits.
+picture-gallery-c/src/picture_gallery/routes/upload.clj
+(defnupload-page[info]
+(layout/common
+[:h2"Uploadanimage"]
+[:pinfo]
+(form-to{:enctype"multipart/form-data"}
+[:post"/upload"]
+(file-upload:file)
+(submit-button"upload"))))
+(defnhandle-upload[params]
+(printlnparams)
+(upload-page"success"))
+
+As usual, we also have to update our route definitions. We’ll have to create
+the  routes  and  add  them  to  the app declaration  in  the picture-gallery.handler
+namespace.
+(defroutesupload-routes
+(GET"/upload"[info](upload-pageinfo))
+(POST"/upload"{params:params}(handle-uploadparams)))
+In picture-gallery.handlerthe appdeclaration should now look as follows:
+(:require...[picture-gallery.routes.upload:refer[upload-routes]])
+...
+(defapp(noir-middleware/app-handler
+[auth-routes
+home-routes
+upload-routes
+app-routes]))
+We  can  test  the  form  in  the  browser  to  see  that  we’re  calling  the  handler
+successfully. When called, the handler should print the params in the console.
+{:file
+{:size15,
+:tempfile#<File/var/folders/mv/sch8x99yc30gp/T/ring-multipart-60387396.tmp>,
+:content-typeapplication/octet-stream,
+:filenamecloud.jpg}}
+We can see that the params have a single key called :file. The :filekey points
+to a map that in turn contains the following keys:
+• :tempfile— The file itself
+• :filename— The name of the file being uploaded
+• :content-type— The content type of the file being uploaded
+• :size— The size of the file in bytes
+This gives us all the necessary information to save the file. Let’s update our
+handler and the route definition to use the :fileparameter and check that a
+file has been selected:
+(defnhandle-upload[{:keys[filename]:asfile}]
+(printlnfile)
+(upload-page
+(if(empty?filename)
+"pleaseselectafiletoupload"
+"success")))
+(defroutesupload-routes
+(GET"/upload"[info](upload-pageinfo))
+(POST"/upload"[file](handle-uploadfile)))
+
+All that’s left is to save the file to disk. The application’s public folder would
+be an obvious place to store the files. Unfortunately, when we later package
+our application as a JAR this location will no longer be writable. Instead, we’ll
+create a galleriesdirectory and store the files there.
+Let’s start by creating a add-gallery-pathhelper:
+(defngallery-path[]
+"galleries")
+We’ll use the noir.io/upload-filehelper function to handle file uploads. It accepts
+a path, a map representing the file, and an optional flag signifying whether
+the path should be created if it doesn’t exist.
+We’ll simply call it from our controller and catch any exceptions that might
+be  thrown  if  we’re  unable  to  save  the  file.  The  message  from  the  exception
+will be set as the info parameter for our page to be displayed to the user. If
+the upload is successful, we’ll display the image we uploaded.
+(defnhandle-upload[{:keys[filename]:asfile}]
+(upload-page
+(if(empty?filename)
+"pleaseselectafiletoupload"
+(try
+(noir.io/upload-file(gallery-path)file:create-path?true)
+(image{:height"150px"}
+(str"/img/"(url-encodefilename)))
+(catchExceptionex
+(str"erroruploadingfile" (.getMessageex)))))))
+We use url-encodeon the file name to ensure that it can be displayed correctly
+even  if  it  contains  special  characters  that  aren’t  valid  in  a  URL  string.  To
+display the image, we have to create a new route and a handler responsible
+for serving the file we uploaded to the client.
+(defnserve-file[file-name]
+(file-response(str(gallery-path)File/separatorfile-name)))
+(defroutesupload-routes
+...
+(GET"/img/:file-name"[file-name](serve-filefile-name)))
+We  can  now  test  that  uploading  works  as  expected  by  going  to  the  upload
+page and uploading an image. We’ll see our image displayed on the page if
+everything went well. Refer to the following two figures.
+
+Figure 22—Selecting a file to upload
+Figure 23—File uploaded successfully
+We can now browse to the galleriesfolder at the root of our project and see that
+the file was indeed created there.
+Generating Thumbnails
+Now that we can upload the files, we’ll look at how to generate the thumbnail
+when a file is uploaded. The image needs to be scaled and then stored in a
+new file. We’ll define the size of our thumbnail as 150 pixels, and prefix the
+thumbnail files with thumb_. Let’s make a couple of constants for these values.
+(defthumb-size150)
+(defthumb-prefix"thumb_")
+
+Next, we’ll write a function to scale the image. Here we’ll leverage the Affine
+Transformclass provided by the Java standard library to create a scale operation,
+and  use AffineTransformOp to  do  the  transformation.  The  filter  method  on  the
+transform-opwill use the original image to produce the scaled image we require.
+picture-gallery-c/src/picture_gallery/routes/upload.clj
+(defnscale[imgratiowidthheight]
+(let[scale (AffineTransform/getScaleInstance
+(doubleratio)(doubleratio))
+transform-op(AffineTransformOp.
+scaleAffineTransformOp/TYPE_BILINEAR)]
+(.filtertransform-opimg(BufferedImage.widthheight(.getTypeimg)))))
+Let’s test that our scale function works correctly; copy an image file with the
+name image.jpginto our project’s root and run the following from the REPL:
+(ImageIO/write
+(scale(ImageIO/read(io/input-stream "image.jpg"))0.5150150)
+"jpeg"
+(File."scaled.jpg"))
+If the function worked correctly, we should end up with a scaled.jpgin the same
+folder, with a size of 150 pixels by 150 pixels.
+Next we’ll read the uploaded file’s image data by using the ImageIOclass. Once
+we have an image, we’ll grab its width and height, and scale it to the height
+defined by the thumb-sizeconstant.
+picture-gallery-c/src/picture_gallery/routes/upload.clj
+(defnscale-image[file]
+(let[img (ImageIO/readfile)
+img-width (.getWidthimg)
+img-height(.getHeightimg)
+ratio (/thumb-sizeimg-height)]
+(scaleimgratio(int(*img-widthratio))thumb-size)))
+We’ll also test scale-imageby calling it from the REPL. It’s a good idea to test it
+with a few images with different dimensions to make sure that they all scale
+correctly.
+(ImageIO/write
+(scale-image(io/input-stream"image.jpg"))
+"jpeg"
+(File."scaled.jpg"))
+All that’s left to do is write a function to save the thumbnail and call it after
+we call upload-filein our controller.
+
+picture-gallery-c/src/picture_gallery/routes/upload.clj
+(defnsave-thumbnail[{:keys[filename]}]
+(let[path(str(gallery-path)File/separator)]
+(ImageIO/write
+(scale-image(io/input-stream(strpathfilename)))
+"jpeg"
+(File.(strpaththumb-prefixfilename)))))
+(defnsave-thumbnail[{:keys[filename]}]
+(let[path(str(gallery-path)File/separator)]
+(ImageIO/write
+(scale-image(io/input-stream(strpathfilename)))
+"jpeg"
+(File.(strpaththumb-prefixfilename)))))
+In our save-thumbnailfunction, we call resource-pathto get the path of our public
+folder. Then we call ImageIO/writewith the output of scale-imageto generate the
+thumbnail  file.  We  can  now  update  the handle-upload function  to  call save
+thumbnaileach time a file is uploaded.
+(defnhandle-upload[{:keys[filename]:asfile}]
+(upload-page
+(if(empty?filename)
+"pleaseselectafiletoupload"
+(try
+;;savethefileandcreatethethumbnail
+(noir.io/upload-file(gallery-path)file:create-path?true)
+(save-thumbnailfile)
+;;displaythethumbnail
+(image{:height"150px"}
+(str"/img/"thumb-prefix(url-encodefilename)))
+(catchExceptionex
+(str"erroruploadingfile" (.getMessageex)))))))
+Now  if  we  upload  a  file  from  our  upload  page  we’ll  see  both  the  file  and  a
+thumbnail in our galleriesfolder.
+Saving Files to the User Folder
+Since  our  site  has  multiple  users,  each  user  will  have  his  own  gallery.  We
+now need some logic for figuring out a unique gallery path for each user. The
+simplest approach is to employ the user ID that we collect when a new account
+is registered, since it’s required to be unique.
+We’ll update the gallery-pathfunction to generate a unique path in the galleries
+folder based on the user ID that’s currently in the session. We should also
+extract the base path into a separate variable, so it can be used when viewing
+galleries from other users:
+
+(defgalleries"galleries")
+(defngallery-path[]
+(strgalleriesFile/separator(session/get:user)))
+Next, let’s update the serve-filefunction and its route to use the user ID when
+looking up the file:
+picture-gallery-c/src/picture_gallery/routes/upload.clj
+(defnserve-file[user-idfile-name]
+(file-response(strgalleriesFile/separatoruser-idFile/separatorfile-name)))
+picture-gallery-c/src/picture_gallery/routes/upload.clj
+(GET"/img/:user-id/:file-name"[user-idfile-name]
+(serve-fileuser-idfile-name))
+Currently, we’re checking whether the path exists each time we try to save a
+file. It would be better to simply ensure that the path is created during the
+registration.  Let’s  create  a  new  function  called create-gallery-path and  call  it
+whenever a user account is created.
+The function will use gallery-pathto get the path string, and java.io.Fileto create
+a new folder for the user. We’ll have to update our namespace declaration to
+reference those:
+(nspicture-gallery.routes.auth
+(:require...
+[picture-gallery.routes.upload:refer[gallery-path]])
+(:importjava.io.File))
+Then, we’ll add the create-gallery-pathfunction and call it in handle-registration to
+ensure that a new gallery path is created each time a user registers.
+picture-gallery-c/src/picture_gallery/routes/auth.clj
+(defncreate-gallery-path[]
+(let[user-path(File.(gallery-path))]
+(if-not(.existsuser-path)(.mkdirsuser-path))
+(str(.getAbsolutePathuser-path)File/separator)))
+picture-gallery-c/src/picture_gallery/routes/auth.clj
+(defnhandle-registration[idpasspass1]
+(if(valid?idpasspass1)
+(try
+(db/create-user{:idid:pass(crypt/encryptpass)})
+(session/put!:userid)
+(create-gallery-path)
+(resp/redirect"/")
+(catchExceptionex
+(vali/rulefalse[:id(format-erroridex)])
+(registration-page)))
+(registration-pageid)))
+
+If  we  upload  a  file  now,  we’ll  see  that  both  the  file  and  the  thumbnail  are
+created under the galleries/<userid>path.
+You might have noticed that we have a small problem. The file-upload page
+doesn’t require the user to log in to access it. We should fix this by checking
+if the user is in the session before displaying the page.
+(defnupload-page[info]
+(if(session/get:user)
+(layout/common
+[:h2"Uploadanimage"]
+[:pinfo]
+(form-to{:enctype"multipart/form-data"}
+[:post"/upload"]
+(file-upload:file)
+(submit-button"upload")))
+(resp/redirect"/")))
+With that change we’ll be redirected back to the home page when we try to
+navigate to the upload page in the browser without having logged in.
+We’ve solved this particular instance of the problem. However, we also need
+to do this for the upload handler and for any other user-specific pages. Writing
+the ifstatement every time is tedious and error-prone.
+The good news is that lib-noir provides a way to specify rules for restricting
+access to pages. Let’s see how to create a rule to check that the user is present
+in the session before displaying a page.
+We’ll navigate to the picture-gallery.handlernamespace and create a new function
+called user-page.  This  function  must  accept  a  single  parameter  that  is  the
+request  map.  The  function  can  then  decide  whether  the  URI  should  be
+accessible. In our case, we simply wish to know that a user is present in the
+session before we allow access to the restricted pages.
+(nspicture-gallery.handler
+...
+(:require...[noir.session:assession]))
+picture-gallery-c/src/picture_gallery/handler.clj
+(defnuser-page[_]
+(session/get:user))
+The underscore (_) in the user-page’s arguments vector simply indicates that
+the argument will be ignored.
+We now need to update our handler to set the access rules using the :access
+ruleskey. The app-handlerwill use the noir.util.middleware/wrap-access-rulesmiddleware
+
+to apply the rules to restricted pages. In our case, we have a single rule: the
+user-pagefunction.
+picture-gallery-c/src/picture_gallery/handler.clj
+(defapp(noir-middleware/app-handler
+[auth-routes
+home-routes
+upload-routes
+app-routes]
+:access-rules[user-page]))
+With the access rules in place, we can use the noir.util.route/restrictedmacro to
+restrict access to pages. Let’s update our upload routes to use this macro.
+(nspicture-gallery.routes.upload
+(:require...[noir.util.route:refer[restricted]])
+...)
+picture-gallery-c/src/picture_gallery/routes/upload.clj
+(defroutesupload-routes
+(GET"/img/:user-id/:file-name"[user-idfile-name]
+(serve-fileuser-idfile-name))
+(GET"/upload"[info](restricted(upload-pageinfo)))
+(POST"/upload"[file](restricted(handle-uploadfile))))
+We can now remove the check from our upload page and test that the func
+tionality is still the same.
+picture-gallery-c/src/picture_gallery/routes/upload.clj
+(defnupload-page[info]
+(layout/common
+[:h2"Uploadanimage"]
+[:pinfo]
+(form-to{:enctype"multipart/form-data"}
+[:post"/upload"]
+(file-upload:file)
+(submit-button"upload"))))
+Using the restricted macro makes the intent more clear than using an if, and
+it’s more flexible in case our restrictions need to be more complex than the
+one we already set up.
+Storing Image Lists in the Database
+Since our next tasks are to display images, we’ll need to create some metadata
+for tasks such as looking up all the images belonging to a specific user.
+The best place to store such metadata is in the database. We should create
+a table and use it to store references for each image that gets uploaded.
+
+We’ll create a new table called imagesthat will contain a reference to the user
+ID and image name. Let’s open the gallery.models.schemanamespace and add a
+new table definition there.
+picture-gallery-c/src/picture_gallery/models/schema.clj
+(defncreate-images-table[]
+(sql/with-connectiondb
+(sql/create-table
+:images
+[:userid"varchar(32)"]
+[:name"varchar(100)"])))
+We can now evaluate it and run (create-images-table)in the REPL. With the images
+table  in  place,  we  simply  need  to  insert  a  record  each  time  we  upload  an
+image. We’ll write a function that does that and put it in our dbnamespace.
+picture-gallery-c/src/picture_gallery/models/db.clj
+(defnadd-image[userid name]
+(with-db
+sql/transaction
+(if(sql/with-query-results
+res
+["selectuseridfromimageswhereuserid=?andname=?" useridname]
+(empty?res))
+(sql/insert-record:images{:useriduserid:name name})
+(throw
+(Exception."youhavealreadyuploadedanimagewiththesamename")))))
+In  the add-image function,  we  check  to  see  if  the  user  already  uploaded  an
+image with the same name to prevent accidentally overwriting existing images.
+All  we  have  to  do  now  is  add  the db namespace  reference  in  the upload
+namespace and call the add-imagefunction after we upload each image in our
+upload page’s controller.
+(nspicture-gallery.routes.upload
+...
+(:require...[picture-gallery.models.db:asdb]))
+picture-gallery-c/src/picture_gallery/routes/upload.clj
+(defnhandle-upload[{:keys[filename]:asfile}]
+(upload-page
+(if(empty?filename)
+"pleaseselectafiletoupload"
+(try
+(upload-file(gallery-path)file)
+(save-thumbnailfile)
+(db/add-image(session/get:user)filename)
+
+(image{:height"150px"}
+(str"/img/"
+(session/get:user)
+"/"
+thumb-prefix
+(url-encodefilename)))
+(catchExceptionex
+(str"erroruploadingfile" (.getMessageex)))))))
+Next time we upload an image, we can check that a new record is created in
+the database. We’ve now completed all the functionality needed for users to
+upload their files.
+We should take a moment to do some cleanup before moving on.
+Refactoring Common Code
+Some of the code we’ve written will be useful for other pages. For example,
+when we display our galleries we’ll need to know the thumbnail prefix’s name
+and the user gallery’s path.
+Let’s create a picture-gallery.utilnamespace and move the code for the thumb-prefix,
+galleriesand gallery-pathfunctions there in anticipation of our upcoming tasks.
+In addition to that we’ll create a couple of functions for generating the URI
+for the image and the thumbnail.
+picture-gallery-c/src/picture_gallery/util.clj
+(nspicture-gallery.util
+(:require[noir.session:assession]
+[hiccup.util:refer[url-encode]])
+(:importjava.io.File))
+(defthumb-prefix"thumb_")
+(defgalleries"galleries")
+(defngallery-path[]
+(strgalleriesFile/separator(session/get:user)))
+(defnimage-uri[useridfile-name]
+(str"/img/" userid"/"(url-encodefile-name)))
+(defnthumb-uri[useridfile-name]
+(image-uriuserid(strthumb-prefixfile-name)))
+We now have to remember to update the authand uploadnamespaces to refer
+ence the utilnamespace.
+
+(nspicture-gallery.routes.auth
+(:require...
+[picture-gallery.util
+:refer[gallery-path]]))
+(nspicture-gallery.routes.upload
+(:require...
+[picture-gallery.util
+:refer[galleriesgallery-paththumb-prefixthumb-uri]]))
+The code for handling the upload can now be cleaned up by using the thumb
+urihelper:
+picture-gallery-d/src/picture_gallery/routes/upload.clj
+(defnhandle-upload[{:keys[filename]:asfile}]
+(upload-page
+(if(empty?filename)
+"pleaseselectafiletoupload"
+(try
+(upload-file(gallery-path)file)
+(save-thumbnailfile)
+(db/add-image(session/get:user)filename)
+(image{:height"150px"}
+(thumb-uri(session/get:user)filename))
+(catchExceptionex
+(str"erroruploadingfile" (.getMessageex)))))))
+Now that we have our upload code refactored, we should provide an upload
+link in our common layout when there is a user in the session.
+(defncommon[&content]
+(base
+(if-let[user(session/get:user)]
+(list
+[:div(link-to"/upload""uploadimages")]
+[:div(link-to"/logout"(str"logout"user))])
+[:div(link-to"/register""register")
+(form-to[:post"/login"]
+(text-field{:placeholder "screenname"}"id")
+(password-field{:placeholder "password"}"pass")
+(submit-button"login"))])
+content))
+We already have a check to see if a user is in the session and to display the
+logout button. As we get more pages done, our user menu will continue to
+grow. This is a sign that we should extract it into a separate function.
+
+picture-gallery-c/src/picture_gallery/views/layout.clj
+(defnguest-menu[]
+[:div(link-to"/register""register")
+(form-to[:post"/login"]
+(text-field{:placeholder "screenname"}"id")
+(password-field{:placeholder "password"}"pass")
+(submit-button"login"))])
+(defnuser-menu[user]
+(list
+[:div(link-to"/upload""uploadimages")]
+[:div(link-to"/logout"(str"logout"user))]))
+(defncommon[&content]
+(base
+(if-let[user(session/get:user)]
+(user-menuuser)
+(guest-menu))
+content))
+Let’s navigate to our home page and test that everything works as expected
+following our refactoring efforts. Specifically, we should still be able to browse
+to the upload page after logging in, and upload files as we did previously.
+
+
+

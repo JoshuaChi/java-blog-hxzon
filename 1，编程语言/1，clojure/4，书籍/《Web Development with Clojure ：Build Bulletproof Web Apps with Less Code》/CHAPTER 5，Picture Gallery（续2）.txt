@@ -1,0 +1,209 @@
+﻿CHAPTER 5，Picture Gallery（续2）
+
+====
+The Development Process 81
+What’s in a Gallery 81
+Creating the Application 83
+Application Data Model 84
+Task A: Account Registration 86
+
+==
+Task B: Login and Logout 95
+Task C: Uploading Pictures 97
+Task D: Displaying Pictures 110
+Task E: Deleting Pictures 115
+Task F: Account Deletion 121
+What You’ve Learned 123
+
+=========
+Task D: Displaying Pictures
+
+We  now  have  all  the  pieces  in  place  to  start  displaying  the  pictures  in  our
+gallery. We simply have to load all the thumbnails associated with the user
+and show them on the page. When clicked, a thumbnail will display the full
+size picture.
+Since we store references to uploaded images in the database, we can easily
+write  a  function  to  query  all  images  with  the  given  user  ID  in  our db
+namespace.
+picture-gallery-d/src/picture_gallery/models/db.clj
+(defnimages-by-user[userid]
+(with-db
+sql/with-query-results
+res["select*fromimageswhereuserid=?" userid](doallres)))
+Let’s  test  that  the  function  does  what  we  intended  by  running  it  against  a
+user we registered earlier and see if we get a list of pictures we uploaded as
+that user.
+(images-by-user"foo")
+({:name"logo.jpg",:userid"foo"})
+
+We  can  start  by  displaying  the  thumbnails  on  the  welcome  page  when  the
+user logs in. As this is a brand-new workflow, let’s create a new namespace
+called picture-gallery.routes.galleryand add the functions to display the gallery for
+the user there.
+Again, we’ll add all the required references to the namespace declaration and
+see how they’re used as we add functionality.
+picture-gallery-d/src/picture_gallery/routes/gallery.clj
+(nspicture-gallery.routes.gallery
+(:require[compojure.core:refer:all]
+[hiccup.element:refer:all]
+[picture-gallery.views.layout:aslayout]
+[picture-gallery.util
+:refer[thumb-prefiximage-urithumb-uri]]
+[picture-gallery.models.db:asdb]
+[noir.session:assession]))
+(defnthumbnail-link[{:keys[userid name]}]
+[:div.thumbnail
+[:a{:href(image-uriuserid name)}
+(image(thumb-uriuserid name))]])
+(defndisplay-gallery[userid]
+(or
+(not-empty(mapthumbnail-link(db/images-by-useruserid)))
+[:p"Theuser"userid"doesnothaveanygalleries"]))
+(defngallery-link[{:keys[userid name]}]
+[:div.thumbnail
+[:a{:href(str"/gallery/"userid)}
+(image(thumb-uriuserid name))
+userid"'sgallery"]])
+(defnshow-galleries[]
+(mapgallery-link(db/get-gallery-previews)))
+(defroutesgallery-routes
+(GET"/gallery/:userid"[userid](layout/common(display-galleryuserid))))
+We’ll  create  two  helper  functions.  The  first  will  generate  a  div  with  our
+thumbnail  link  and  add  a  thumbnail  class  to  it.  The  second  will  read  the
+images for the user in the session and convert them to thumbnails by mapping
+thumbnail-linkacross them. If the user doesn’t have any images to display, we’ll
+provide a helpful message to indicate that.
+
+picture-gallery-d/src/picture_gallery/routes/gallery.clj
+(defnthumbnail-link[{:keys[userid name]}]
+[:div.thumbnail
+[:a{:href(image-uriuserid name)}
+(image(thumb-uriuserid name))]])
+(defndisplay-gallery[userid]
+(or
+(not-empty(mapthumbnail-link(db/images-by-useruserid)))
+[:p"Theuser"userid"doesnothaveanygalleries"]))
+We’ll also define a new route to display the gallery for a given user ID.
+picture-gallery-d/src/picture_gallery/routes/gallery.clj
+(defroutesgallery-routes
+(GET"/gallery/:userid"[userid](layout/common(display-galleryuserid))))
+This means we’ll need to add a reference to picture-gallery.routes.galleryto our picture
+gallery.handlernamespace and add the new route to our routes vector.
+(:require...
+[picture-gallery.routes.gallery:refer[gallery-routes]])
+...
+(defapp(noir-middleware/app-handler
+[auth-routes
+home-routes
+upload-routes
+gallery-routes
+app-routes]
+:access-rules[user-page]))
+picture-gallery-d/src/picture_gallery/handler.clj
+(defapp(noir-middleware/app-handler
+[auth-routes
+home-routes
+upload-routes
+gallery-routes
+app-routes]
+:access-rules[user-page]))
+If we create a user called fooand upload some images, we can then navigate
+to http://localhost:3000/gallery/foo and  see  the  images  we  uploaded.  We  can  also
+test that we get a friendly error if we enter an invalid user ID.
+Let’s  also  update  our screen.css in  the resources/public/css folder  to  add  a  bit  of
+style for the thumbnails.
+picture-gallery-d/resources/public/css/screen.css
+.thumbnail{
+float:left;
+padding:5px;
+margin:8px;
+
+border-style:solid;
+border-width:1px;
+border-color:#ccc;
+box-shadow: 4px4px6px-1px#222;
+-moz-box-shadow: 4px4px6px-1px#222;
+-webkit-box-shadow:4px4px6px-1px#222;
+}
+All that’s left is to display links to galleries on the home page. To do that we’ll
+add  another  function  to  our db namespace.  This  function  will  pull  a  single
+image for each user.
+picture-gallery-d/src/picture_gallery/models/db.clj
+(defnget-gallery-previews[]
+(with-db
+sql/with-query-results
+res
+["select*from
+(select*,row_number()over(partitionbyuserid)asrow_numberfromimages)
+asrowswhererow_number=1"]
+(doallres)))
+We’ll also add a function in our gallerynamespace to generate the gallery links.
+It’s similar to the thumbnail-linkfunction, except that it links to the gallery page
+instead.
+picture-gallery-d/src/picture_gallery/routes/gallery.clj
+(defngallery-link[{:keys[userid name]}]
+[:div.thumbnail
+[:a{:href(str"/gallery/"userid)}
+(image(thumb-uriuserid name))
+userid"'sgallery"]])
+We can now create a helper to display all the available galleries by user.
+picture-gallery-d/src/picture_gallery/routes/gallery.clj
+(defnshow-galleries[]
+(mapgallery-link(db/get-gallery-previews)))
+Finally, we can update our home page to display the available galleries from
+all the users on our site.
+picture-gallery-d/src/picture_gallery/routes/home.clj
+(nspicture-gallery.routes.home
+(:require[compojure.core:refer:all]
+[picture-gallery.views.layout:aslayout]
+[noir.session:assession]
+[picture-gallery.routes.gallery:refer[show-galleries]]))
+(defnhome[]
+(layout/common(show-galleries)))
+
+Now that users are able to navigate to different galleries on the site, we need
+to  add  a  Home  button  in  our  menu.  We’ll  take  this  opportunity  to  further
+improve the menu.
+picture-gallery-d/src/picture_gallery/views/layout.clj
+(defnmake-menu[&items]
+[:div(for[itemitems][:div.menuitemitem])])
+(defnguest-menu[]
+(make-menu
+(link-to"/""home")
+(link-to"/register""register")
+(form-to[:post"/login"]
+(text-field{:placeholder "screenname"}"id")
+(password-field{:placeholder "password"}"pass")
+(submit-button"login"))))
+(defnuser-menu[user]
+(make-menu
+(link-to"/""home")
+(link-to"/upload""uploadimages")
+(link-to"/logout"(str"logout"user))))
+Each menu item is wrapped in a div with the class of menuitem. We’ll add some
+CSS to style these items so that they flow across the top of the page.
+picture-gallery-d/resources/public/css/screen.css
+.menuitem{
+float:left;
+margin-right:10px;
+}
+.content{
+clear:both;
+padding:20px;
+}
+We’ve also added a contentclass to clear the left float after the menu and add
+some padding to our content. We’ll wrap our content in a div with this class.
+picture-gallery-d/src/picture_gallery/views/layout.clj
+(defncommon[&content]
+(base
+(if-let[user(session/get:user)]
+(user-menuuser)
+(guest-menu))
+[:div.contentcontent]))
+By  this  point,  we’ve  built  a  site  where  users  can  register  accounts,  log  in,
+upload pictures, and view the pictures grouped by user. We’ll now add the
+ability for users to delete pictures they have uploaded.
+
+
+
+

@@ -1,0 +1,351 @@
+﻿CHAPTER 5，Picture Gallery（续3）
+
+====
+The Development Process 81
+What’s in a Gallery 81
+Creating the Application 83
+Application Data Model 84
+Task A: Account Registration 86
+
+==
+Task B: Login and Logout 95
+Task C: Uploading Pictures 97
+Task D: Displaying Pictures 110
+
+==
+Task E: Deleting Pictures 115
+Task F: Account Deletion 121
+What You’ve Learned 123
+
+=========
+========
+Task E: Deleting Pictures
+It’s  reasonable  for  users  to  want  to  remove  images  they  no  longer  wish  to
+display.  We  need  to  provide  a  way  for  users  to  select  images  they  wish  to
+remove  and  tell  the  application  about  it.  To  delete  a  picture,  we’ll  do  the
+following:
+• Delete the image
+• Delete the thumbnail
+• Delete the database entry for the image
+Since the images can be removed only by the owner, we’ll check if the page
+matches the user in the session. When this is the case, we’ll allow the user
+to mark pictures he wishes to delete and submit his selection using the Delete
+button.
+So far, we’ve only been creating static pages. Let’s look at how to add some
+client-side interaction using Ajax. In this section, we’ll include JavaScript in
+our page, call our handler using an HTTP POST from the browser, and return
+a JavaScript Object Notation response to the client.
+We’ll  use  an  Ajax  call  to  notify  the  server  of  the  images  to  be  deleted  and
+update the page to reflect the result of the operation.
+First, let’s create a function in the picture-gallery.models.dbnamespace to delete
+the image from the database.
+picture-gallery-e/src/picture_gallery/models/db.clj
+(defndelete-image[userid name]
+(with-db
+sql/delete-rows:images["userid=?andname=?" useridname]))
+Then we’ll add a function in the picture-gallery.routes.uploadnamespace to perform
+the  three  deletion  tasks  we  outlined.  We  need  to  provide  the  function  with
+the user ID and the image name to accomplish its task.
+We’ll wrap the actions in a try/catchblock. If the deletion is successful, we’ll
+return ok. If we encounter any errors, we’ll return the error message instead.
+picture-gallery-e/src/picture_gallery/routes/upload.clj
+(defndelete-image[userid name]
+(try
+(db/delete-imageuserid name)
+(io/delete-file(str(gallery-path)File/separator name))
+(io/delete-file(str(gallery-path)File/separatorthumb-prefix name))
+"ok"
+(catchExceptionex(.getMessageex))))
+
+Next, we’ll add a handler to handle the deletion of multiple images, along with
+its route.
+picture-gallery-e/src/picture_gallery/routes/upload.clj
+(defndelete-images[names]
+(let[userid(session/get:user)]
+(resp/json
+(for[namenames]{:namename:status(delete-imageuserid name)}))))
+(defroutesupload-routes
+(GET"/img/:user-id/:file-name"[user-idfile-name]
+(serve-fileuser-idfile-name))
+(GET"/upload"[info](restricted(upload-pageinfo)))
+(POST"/upload"[file](restricted(handle-uploadfile)))
+(POST"/delete"[names](restricted(delete-imagesnames))))
+There, delete-images accepts  a  list  of  names  for  the  images  to  be  deleted.  We
+then grab the user ID from the session, call delete-imagefor each image name,
+and return the outcome of each operation to the client.
+Since our plan is to be able to select multiple thumbnails and call the /delete
+route using Ajax, we need to add some JavaScript to our page. We’ll create a
+new file under resources/public/jscalled gallery.js. Our gallery page will load this
+file, which will provide the client-side functions for managing the gallery.
+Let’s write a function to select some images and make the Ajax call. We’ll be
+using jQuery to help with our JavaScript, so let’s include it in our baselayout.
+This  necessitates  referencing include-js from hiccup.page in  the  namespace
+declaration.
+(:require...
+[hiccup.page:refer[html5include-cssinclude-js]])
+...
+(html5base[&content]
+[:head
+[:title"Welcometopicture-gallery"]
+(include-css"/css/screen.css")
+(include-js"//code.jquery.com/jquery-2.0.2.min.js")]
+[:bodycontent])
+We’re  finally  ready  to  write  our  function  to  delete  the  images  on  the  client
+side.
+functiondeleteImages(){
+varselectedInputs=$("input:checked");
+varselectedIds=[];
+
+selectedInputs
+.each(function(){
+selectedIds.push($(this).attr('id'));
+});
+if(selectedIds.length<1)alert("noimagesselected");
+else
+$.post("/delete",
+{names:selectedIds},
+function(response){
+varerrors=$('<ul>');
+$.each(response,function(){
+if("ok"===this.status){
+varelement=document.getElementById(this.name);
+$(element).parent().parent().remove();
+}
+else
+errors
+.append($('<li>',
+{html:"failedtoremove" +
+this.name+
+":"+
+this.status}));
+});
+if(errors.length>0)
+$('#error').empty().append(errors);
+},
+"json");
+}
+In that code, we select checked inputs and then grab the ID attribute for each
+of them. Next we make an HTTP POST and pass those IDs to our delete-images
+handler on the server.
+The server returns a list of update statuses. When the update is successful,
+the status is set to okand we delete the corresponding element. Otherwise,
+we create an error message based on the status and display it to the user.
+The JavaScript file needs to be referenced on the page in order to run. We
+can do this using the include-jsthe same way we did with jQuery in our layout.
+Since the JavaScript is specific to the gallery page, we’ll add it directly in the
+route declaration.
+(:require...[hiccup.page:refer:all])
+picture-gallery-e/src/picture_gallery/routes/gallery.clj
+(defroutesgallery-routes
+(GET"/gallery/:userid"[userid]
+(layout/common
+(include-js"/js/gallery.js")
+(display-galleryuserid))))
+
+We’ll also require a couple of changes in the way we render our thumbnails,
+as currently there are no check boxes associated with them for the user to
+check. Let’s add the necessary references to our gallerynamespace and update
+the thumbnail-linkas follows:
+(:require...
+[hiccup.form:refer[check-box]])
+picture-gallery-e/src/picture_gallery/routes/gallery.clj
+(defnthumbnail-link[{:keys[userid name]}]
+[:div.thumbnail
+[:a{:classname:href(image-uriuserid name)}
+(image(thumb-uriuserid name))
+(if(=userid(session/get:user))(check-box name))]])
+Now,  if  the userid matches  the  one  in  the  session,  we’ll  also  render  a  check
+box along with the name of the image in our thumbnail div (see the following
+figure).
+Figure 24—Gallery check box
+The check box is there, but we can’t interact with it yet. To do that we’ll update
+display-galleryto provide a Delete button and a div to display the errors.
+
+picture-gallery-e/src/picture_gallery/routes/gallery.clj
+(defndisplay-gallery[userid]
+(if-let[gallery(not-empty(mapthumbnail-link(db/images-by-useruserid)))]
+[:div
+[:div#error]
+gallery
+(if(=userid(session/get:user))
+[:input#delete{:type "submit":value"deleteimages"}])]
+[:p"Theuser"userid"doesnothaveanygalleries"]))
+Now, if we have a gallery to display we’ll also provide a Delete button when
+the user is the owner of the gallery. We’ll bind the delete function to the button
+in our gallery.jswhen the page loads.
+picture-gallery-e/resources/public/js/gallery.js
+$(document).ready(function(){
+$("#delete").click(deleteImages);
+});
+We should now be able to test and see that each thumbnail has a check box
+when the owner of the gallery views the gallery page. If we select a few images
+and press the Delete button, they disappear from the page. We can also check
+that the images and the thumbnails are correctly deleted on disk and in the
+database.
+Ajax and the Servlet Context
+The  preceding  code  will  work  fine  when  the  application  runs  standalone.
+However, if we ran our application on an application server, the Ajax request
+would fail because the full URL would need to have the application context
+prefixed.
+Unfortunately  for  us,  the  browser  is  not  aware  that  our  application  has  a
+context. One way we can get around this problem is to populate a variable
+on the page before we serve it.
+The request map contains a key with the name :context. The value of this key
+is exactly what we’re looking for. This might appear to be a bit of a conundrum.
+After all, we don’t wish to have to pass the request explicitly to all our handlers
+just so we can grab the context from it.
+Luckily,  Compojure  uses  the compojure.response.Renderable protocol  to  convert
+what the handler returns into a Ring response. This protocol looks like this:
+(defprotocolRenderable
+(render[thisrequest]
+"Rendertheobjectintoaformsuitableforthegivenrequestmap."))
+
+As you can see, the protocol defines a single method called render. This method
+accepts the object instance and the request that we’re after.
+To  use  this  protocol,  we’ll  first  need  to  add  a  reference  to  it  and  the
+ring.util.response/responseto our picture-gallery.views.layoutnamespace declaration:
+picture-gallery-e/src/picture_gallery/views/layout.clj
+(nspicture-gallery.views.layout
+(:require[hiccup.page:refer[html5include-css]]
+[hiccup.element:refer[link-to]]
+[noir.session:assession]
+[hiccup.form:refer:all]
+[hiccup.page:refer[include-cssinclude-js]]
+[ring.util.response:refer[content-typeresponse]]
+[compojure.response:refer[Renderable]]))
+Since  we’re  implementing  the  protocol,  we’ll  need  to  set  the  appropriate
+response headers manually. To do that we’ll create the utf-8-responsefunction
+to set the content type to text/htmland the encoding to UTF-8.
+picture-gallery-e/src/picture_gallery/views/layout.clj
+(defnutf-8-response[html]
+(content-type(responsehtml) "text/html;charset=utf-8"))
+Next, we’ll create a RenderablePagetype that will extend the Renderableprotocol.
+We’ll move the code from our baselayout function to the rendermethod.
+Since we now have access to the request, we can add a JavaScript variable
+to the headsection of our page with the value of the context.
+Lastly, the body of the rendermethod will have to be wrapped in the response
+function we included earlier. The final result is as follows:
+picture-gallery-e/src/picture_gallery/views/layout.clj
+(deftypeRenderablePage[content]
+Renderable
+(render[thisrequest]
+(utf-8-response
+(html5
+[:head
+[:title"Welcometopicture-gallery"]
+(include-css"/css/screen.css")
+[:script{:type"text/javascript"}
+(str"varcontext=\""(:contextrequest)"\";")]
+(include-js"//code.jquery.com/jquery-2.0.2.min.js")]
+[:bodycontent]))))
+The baselayout function will now return an instance of the RenderablePageinstead
+of generating the layout:
+
+picture-gallery-e/src/picture_gallery/views/layout.clj
+(defnbase[&content]
+(RenderablePage.content))
+Finally, we’ll update our JavaScript to prepend the variable to the URL when
+making the POST request.
+picture-gallery-e/resources/public/js/gallery.js
+$.post(context+ "/delete",
+{names:selectedIds},
+function(response){
+varerrors=$('<ul>');
+$.each(response,function(){
+if("ok"===this.status){
+varelement=document.getElementById(this.name);
+$(element).parent().parent().remove();
+}
+else
+errors
+.append($('<li>',
+{html:"failedtoremove" +
+this.name+
+":"+
+this.status}));
+});
+if(errors.length>0)
+$('#error').empty().append(errors);
+},
+"json");
+Now  the  context  will  be  prepended  to  the  URL.  When  the  context  is  not
+available, the variable will contain a blank string and the request will work
+exactly as it did before.
+
+========
+Task F: Account Deletion
+When the user decides to delete her account, we need to delete all the user
+related information from the database, as well as all the user’s files. Luckily,
+we already wrote a function to delete individual images and their references.
+All we have to do is select all images associated with the user and pass them
+to this function. Then we have to remove the account from the users table
+and delete the user folder.
+The picture-gallery.routes.authnamespace contains the logic related to authentica
+tion and user account management. We’ll navigate there and add the logic
+for account deletion by adding the delete-account-pagefunction.
+
+Account deletion will be applicable only to the user in session, obviously, so
+we  need  to  mark  the  route  as  restricted.  To  do  that  we  have  to  reference
+noir.util.routein the namespace declaration.
+(:require...[noir.util.route:refer[restricted]])
+Next, we’ll add a route that will delete the account when called.
+picture-gallery-f/src/picture_gallery/routes/auth.clj
+(GET"/delete-account"[]
+(restricted(delete-account-page)))
+When the user chooses to delete the account, we’d like to make sure it’s not
+an accident. The account-deletion page will redirect to a confirmation page
+to provide an option to back out.
+picture-gallery-f/src/picture_gallery/routes/auth.clj
+(defndelete-account-page[]
+(layout/common
+(form-to[:post"/confirm-delete"]
+(submit-button"deleteaccount"))
+(form-to[:get"/"]
+(submit-button"cancel"))))
+Let’s add a route for the account-removal confirmation page.
+picture-gallery-f/src/picture_gallery/routes/auth.clj
+(POST"/confirm-delete"[]
+(restricted(handle-confirm-delete)))
+If the user makes it to the /confirm-deletepage, then we know she really wishes
+to remove the account, and we’ll carry out the necessary tasks.
+picture-gallery-f/src/picture_gallery/routes/auth.clj
+(defnhandle-confirm-delete[]
+(let[user(session/get:user)]
+(doseq[{:keys[name]}(db/images-by-useruser)]
+(delete-imageuser name))
+(clojure.java.io/delete-file(gallery-path))
+(db/delete-useruser))
+(session/clear!)
+(resp/redirect"/"))
+The tasks include calling delete-imagefrom the uploadnamespace for each image
+the user uploaded, deleting the user from the userstable in the database, and
+deleting the user’s image directory. Once the account data has been deleted,
+we’ll clear the session and redirect the user to the home page.
+For  this  function  to  work,  we’ll  need  to  reference picture-gallery.routes.uploadin
+our namespace declaration to use the delete-imagefunction.
+
+(:require...[picture-gallery.routes.upload:refer[delete-image]])
+Finally, we need to create a delete-userfunction in our dbnamespace to delete
+users from the table.
+picture-gallery-f/src/picture_gallery/models/db.clj
+(defndelete-user[userid]
+(with-dbsql/delete-rows:users["id=?"userid]))
+Let’s test that the preceding works by removing one of the users we added
+during our testing. If everything worked as expected, we should now add a
+link in our user-menuto expose this functionality through our user interface.
+picture-gallery-f/src/picture_gallery/views/layout.clj
+(defnuser-menu[user]
+(make-menu
+(link-to"/""home")
+(link-to"/upload""uploadimages")
+(link-to"/logout"(str"logout"user))
+(link-to"/delete-account""deleteaccount")))
+This concludes the tasks that we outlined at the start of the chapter. We now
+have a fully functional multiuser picture gallery.
+What You’ve Learned
+In  this  chapter  we  put  together  the  skills  acquired  in  previous  chapters  to
+create our application. In the next chapter we’ll add some final touches and
+get our application ready for deployment.
+
+（本章完）
+
