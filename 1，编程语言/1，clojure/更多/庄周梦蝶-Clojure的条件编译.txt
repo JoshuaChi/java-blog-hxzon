@@ -2,6 +2,7 @@
 http://blog.fnil.net/index.php/archives/263
 10 二月, 2014 (21:56) | Clojure | By: dennis_zhuang
 
+========
 在C或者CPP中，条件编译很常见，比如最常见的防止重复包含头文件：
 
 
@@ -68,5 +69,5 @@ compile-if当(eval exp)的结果为true并且没有异常的时候，
  
    (defn- fjjoin [task] (.join ^jsr166y.ForkJoinTask task))))
 
-这个宏必须能到工具库里。
+这个宏必须弄到工具库里。
 

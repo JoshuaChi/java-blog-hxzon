@@ -264,6 +264,7 @@ domonad表达式返回一个monadic值，所以 m-comp 是一个 monadic 函数�
 
 ====
 Comprehension
+列表推导式
 
 （comprehension，n.理解，理解力；包含的能力；[逻辑学]内涵）
 
@@ -301,7 +302,7 @@ Or to put it another way, a domonad statement is a general case of a list compre
 and can also be referred as a monad comprehension. 
 That will have some interesting implications later.
 
-“列表构建”只是sequence-m的一个应用特例。
+“列表推导式”只是sequence-m的一个应用特例。
 
 ====
 But why?
