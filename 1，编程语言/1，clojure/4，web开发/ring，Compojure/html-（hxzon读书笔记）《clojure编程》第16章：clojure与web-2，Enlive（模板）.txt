@@ -1,7 +1,7 @@
-（hxzon读书笔记）《clojure编程》第16章：clojure与web-Enlive（模板）
+html-（hxzon读书笔记）《clojure编程》第16章：clojure与web-Enlive（模板）
 
 by hxzon
----------
+====
 hxzon学习笔记：
 
 1，简单选择器（标签选择器，id选择器，class选择器，合取选择器，析取选择器）。
@@ -28,6 +28,7 @@ http://github.com/cgrand/enlive
 (require '[net.cgrand.enlive-html :as h])
 ;= nil
 
+====
 sniptest是一个工具，使repl里试验和转换html片段。
 
 (h/sniptest "<h1>Lorem Ipsum</h1>")
@@ -41,7 +42,7 @@ sniptest是一个工具，使repl里试验和转换html片段。
 Enlive的选择器是css选择器的超集。
 content是一个高阶函数，返回一个函数，把匹配的元素体设置成content的参数。
 
-----
+====
 html-snippet解析任何html内容，返回映射的序列，
 每个映射代表一个元素及其属性和子内容（分别使用:tag :attrs :content关键字）。
 
@@ -63,14 +64,14 @@ html-snippet解析任何html内容，返回映射的序列，
 ;= "<p>x, <a href=\"http://clojurebook.com\" id=\"home\">y</a>, <a href=\"..\">go up</a>
 </p>"
 
-=======
+========
 3，选择器，选择步骤函数
 
+====
 3.1，
-----
 多数时候，在每一步前加上冒号，把所有东西包装到一个向量里。
 
-嵌套的向量，最外层向量表示链接，所有其他向量表示合取（即同时满足）。
+嵌套的向量，最外层向量表示”层次“，所有其他向量表示合取（即同时满足）。
 [:div [:span :.phone]] 等价于 [:div :span.phone] 。
 
 合取的向量可以即兴嵌套。
@@ -80,16 +81,18 @@ html-snippet解析任何html内容，返回映射的序列，
 :h1 不是有效的选择器， [:h1] 才是。
 
 集合表示析取（或，即并集）。
-div#info span.phone, div#info span.email 表示为  #{[:div#info :span.phone] [:div#info :span.email]}
+div#info span.phone, div#info span.email 表示为  
+#{[:div#info :span.phone] [:div#info :span.email]}
 
 析取不限于顶层，这点和css不同。
-[:div#info #{:span.phone :span.email}] 也可表示成  [:div#info [:span #{:.phone :.email}]] 。
+[:div#info #{:span.phone :span.email}] 也可表示成  
+[:div#info [:span #{:.phone :.email}]] 。
 
 总结：
 sets denote disjunction, inner vectors denote conjunction, outermost vectors denote hierarchical chaining.
 集合表示析取，内部向量表示合取，最外层向量表示层次链接。
 
-----
+====
 3.2，
 所有其他测试都是用谓词执行的，而且可任意扩展。
 这就是attr?的情况，css选择器a[class] 表示为 [[:a (attr? :class)]] 。
@@ -136,6 +139,7 @@ Enlive里迭代和分支的关键，是理解转换可以是下列情况之一�
 -2，参数为一个元素，返回一组元素的函数。
 -3，nil，与(fn [_] nil)等值。
 
+====
 4.1，
 显示一个可选的信息就像使用when一样简单，它的条件在逻辑为假时求值得到nil。
 nil，占位内容会被移除。
@@ -165,7 +169,7 @@ nil，占位内容会被移除。
 (display nil)
 ;= "<div><span class=\"msg hidden\"></span></div>"
 
-----
+====
 4.2，
 clone-for来完成迭代。
 
@@ -182,7 +186,7 @@ clone-for来完成迭代。
 (countdown 3)
 ;= "<ul><li>3</li><li>2</li><li>1</li></ul>"
 
-----
+====
 4.3，
 关于迭代，一个常见需求是移除原先用于选择节点的某些属性，例如一个id。
 用do->函数，它会组合转换，按顺序应用这些转换。
@@ -203,7 +207,7 @@ do->可用于一个转换可以出现的任何地方，因为它求值为其自�
 =======
 5，把所有的东西拼到一起
 
-----
+====
 5.1，
 defsnippet定义了一个函数，从classpath上的文件载入html。
 defsnippet的第三个参数是一个选择器，指定在载入html文件里要应用转换的根元素。
@@ -220,7 +224,7 @@ defsnippet其余部分由一对对选择器和转换器组成。
 (footer "hello")
 ;= ({:tag :div, :attrs {:class "footer"}, :content ("hello")})
 
-----
+====
 5.2，
 deftemplate工作方式几乎一样，但不能为应用的转换定义一个根。
 deftemplate函数返回包含html片段的字符串的惰性序列，
@@ -243,9 +247,9 @@ deftemplate函数返回包含html片段的字符串的惰性序列，
 ;= "\n" "<ul class=\"friends\">" "<li>" "Christophe" "</li>" "<li>"
 ;= "Brian" "</li>" "</ul>" "\n" "</body>" "</html>")
 
-补上了html和body标签。
+自动补上了html和body标签。
 
-----
+====
 5.3，
 轻易组合。
 给产生的每个列表元素加上一个新class值，用do->来组合两个转换器。
@@ -276,6 +280,7 @@ deftemplate函数返回包含html片段的字符串的惰性序列，
 <% end %>
 </ul>
 
+==
 把页脚加入页面。
 
 (h/deftemplate friends-list "friends.html"

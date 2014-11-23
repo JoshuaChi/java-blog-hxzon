@@ -1,0 +1,56 @@
+﻿html-Hiccup
+
+by hxzon
+========
+https://github.com/weavejester/hiccup
+
+Hiccup is a library for representing HTML in Clojure. 
+It uses vectors to represent elements, and maps to represent an element's attributes.
+用向量表示html标签，用映射表示标签的属性。
+
+Add the following dependency to your project.clj file:
+[hiccup "1.0.5"]
+
+====
+Syntax
+
+Here is a basic example of Hiccup syntax:
+
+user=> (use 'hiccup.core)
+nil
+user=> (html [:span {:class "foo"} "bar"])
+"<span class=\"foo\">bar</span>"
+
+The first element of the vector is used as the element name. 
+The second attribute can optionally be a map, in which case it is used to supply the element's attributes. 
+Every other element is considered part of the tag's body.
+首元素是标签名。
+第二部分是可选的映射，表示属性。
+其余部分是标签的身体。
+
+==
+Hiccup is intelligent enough to render different HTML elements in different ways, 
+in order to accommodate browser quirks:
+
+user=> (html [:script])
+"<script></script>"
+user=> (html [:p])
+"<p />"
+
+==
+And provides a CSS-like shortcut for denoting id and class attributes:
+简写方式：
+
+user=> (html [:div#foo.bar.baz "bang"])
+"<div id=\"foo\" class=\"bar baz\">bang</div>"
+
+If the body of the element is a seq, its contents will be expanded out into the element body. 
+This makes working with forms like map and for more convenient:
+用序列来表示标签的身体。
+
+user=> (html [:ul
+               (for [x (range 1 4)]
+                 [:li x])])
+"<ul><li>1</li><li>2</li><li>3</li></ul>"
+
+
