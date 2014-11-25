@@ -1,4 +1,4 @@
-（hxzon学习笔记）clojure-命名空间，关键字，符号及相关函数
+（hxzon学习笔记）clojure-命名空间
 
 by hxzon
 《clojure编程》第8章：clojure项目的组织与构建-项目布局
@@ -9,25 +9,26 @@ by hxzon
 hxzon学习笔记：
 
 1，ns；in-ns，refer，require，use，import。
+
 2，ns-map，ns-imports，ns-refers，ns-publics，ns-aliases，ns-interns。
 ns-unmap。remove-ns。
-3，keyword，symbol，name，intern，namespace，keyword?，symbol? 。
+
 
 ==========
 clojure的命名空间，是从“符号”到“java类名”和“var”的动态映射。
 
 ====
-1，ns。
+1，ns
 
 in-ns，refer，require，use，import等命名空间函数一般是保留在repl下使用。
 在代码文件中应该使用ns，它对上述函数做了封装。
 
 (ns examples.ns
-    (:refer-clojure :exclude [next replace remove])
-    (:require (clojure  [string :as string]
+    (:refer-clojure :exclude [next replace remove])        ;; 加入到当前命名空间
+    (:require (clojure  [string :as string]        ;; 加载，如果需要别名，用向量
                         [set :as set])
               [clojure.java.shell :as sh])
-    (:use (clojure zip xml))
+    (:use (clojure zip xml))        ;; require + refer
     (:import java.util.Date
              java.text.SimpleDateFormat
              (java.util.concurrent Executors
@@ -72,7 +73,7 @@ classpath默认情况下是空的（没有包含当前工作目录）。
 
 
 ========
-2，in-ns。
+2，in-ns
 
 *ns* ，当前命名空间。
 
@@ -81,7 +82,7 @@ classpath默认情况下是空的（没有包含当前工作目录）。
 
 ====
 3，refer。
-假设某个命名空间已经载入，可以用refer把这个命名空间里的映射加入到我们的命名空间。
+假设某个命名空间已经载入，可以用refer把这个命名空间里的映射“加入到我们的命名空间”。
 可以使用可选关键字，:exclude :only :rename 来指定排除、包含或重命名某些var。
 
 refer很少直接使用，而是通过use来间接使用它。
@@ -102,7 +103,7 @@ refer很少直接使用，而是通过use来间接使用它。
 ;= Unable to resolve symbol: range in this context, compiling:(NO_SOURCE_PATH:1)>
 
 ====
-4，require和use。
+4，require和use
 
 require确保命名空间被载入，可为命名空间里的名字建立别名。
 
@@ -115,7 +116,7 @@ use会把所有的参数传给refer。
 避免无节制地使用use，这样可以表明你的代码使用了其他命名空间的什么部分，
 也避免函数库修改，产生名字冲突。
 
-使用use时，可以加上:reload 或 :reload-all 选项实时加载最新的库代码。
+使用use时，可以加上:reload 或 :reload-all 选项“实时加载”最新的库代码。
 
 (require '[clojure.set :as set]) 
 ;= nil
@@ -248,151 +249,87 @@ ns-unalias，删除命名空间别名。
 (filter #(= 'clean-namespace (ns-name %)) (all-ns))
 ;= ()
 
-==============
-==============
-7，关键字
-
-关键字求值成它们自身。
-关键字经常作为访问器来获取它们对应的值。
-
-关键字是一个内部字符串；
-两个同样的关键字指向同一个对象；
-通常被用来作为map的key。 
-
-语法上，关键字始终以冒号开头。
-如果关键字包含斜杠，表示这个关键字是命名空间限定的。
-如果关键字以两个冒号开头，表示是当前命名空间的关键字。
-如果关键字以两个冒号开头，同时又包含斜杠，表示是某个特定命名空间里的关键字。
-这个设计与xml里的命名空间实体的用法和动机是一样的。
-
-命名空间限定的关键字，在多重方法以及isa?体系里面有很多的使用。
-
-关键字中的点号没有特别意义，只是名字的一部分。
-
-====
-7.1，创建关键字，keyword函数。 
-
-user=> (keyword 'foo)  
-:foo  
-
-user=> (keyword "foo")  
-:foo  
-
-user=> (keyword "user" "foo")  
-:user/foo  
-
-user=> (keyword "abc def")  
-:abc def  	（hxzon：含有空格如何理解？）
-
-user=> (keyword "abcdef")  
-:abcdef  
-
-user=> (keyword "/abc/def/ghi")  
-:/abc/def/ghi  
-
 ========
-8，符号
+require
+http://clojure.github.io/clojure/clojure.core-api.html#clojure.core/require
 
-Symbol是用来给东西命名的。
-这些名字是被限制在名字空间里面的，要么是指定的名字空间，要么是当前的名字空间。 
+function
+Usage: (require & args)
 
-====
-8.1，创建符号，symbol函数。 
+Loads libs, skipping any that are already loaded. Each argument is
+either a libspec that identifies a lib, a prefix list that identifies
+multiple libs whose names share a common prefix, or a flag that modifies
+how all the identified libs are loaded. Use :require in the ns macro
+in preference to calling this directly.
 
-user=> (symbol 'foo)  
-foo  
+==
+Libs
 
-user=> (symbol "foo")  
-foo  
+A 'lib' is a named set of resources in classpath whose contents define a
+library of Clojure code. Lib names are symbols and each lib is associated
+with a Clojure namespace and a Java package that share its name. A lib's
+name also locates its root directory within classpath using Java's
+package name to classpath-relative path mapping. All resources in a lib
+should be contained in the directory structure under its root directory.
+All definitions a lib makes should be in its associated namespace.
 
-user=> (symbol "clojure.core" "foo")  
-clojure.core/foo  
+'require loads a lib by loading its root resource. The root resource path
+is derived from the lib name in the following manner:
+库名和文件路径：
 
-user=> (symbol "abc def")  
-abc def  
+Consider a lib named by the symbol 'x.y.z; it has the root directory
+<classpath>/x/y/, and its root resource is <classpath>/x/y/z.clj. The root
+resource should contain code to create the lib's namespace (usually by using
+the ns macro) and load any additional lib resources.
 
-user=> (symbol "abcdef")  
-abcdef  
+==
+Libspecs
 
-=========
-9，关键字和符号相关函数。
+A libspec is a lib name or a vector containing a lib name followed by
+options expressed as sequential keywords and arguments.
+库描述符，是一个库名，或一个向量。
+向量包含库名，和选项。
 
-====
-9.1，name： 
+Recognized options:
 
-name函数接受一个参数，如果该参数为字符串，则直接返回该参数。
-如果不是字符串，则返回名称值。
+:as takes a symbol as its argument and makes that symbol an alias to the
+  lib's namespace in the current namespace.
+关键字:as用来给库的命名空间起别名。
 
-user=> (name :foo)  
-"foo"  
+:refer takes a list of symbols to refer from the namespace or the :all
+  keyword to bring in all public vars.
+关键字:refer用来引入库中的符号。
 
-user=> (name 'x)  
-"x"  
+==
+Prefix Lists
 
-user=> (name "x")  
-"x"  
+It's common for Clojure code to depend on several libs whose names have
+the same prefix. When specifying libs, prefix lists can be used to reduce
+repetition. A prefix list contains the shared prefix followed by libspecs
+with the shared prefix removed from the lib names. After removing the
+prefix, the names that remain must not contain any periods.
 
-====
-9.2，intern: 
+前缀列表。
 
-intern函数有两个实现：(intern ns name)、(intern ns name val)。 
-根据命名空间ns中查找是否存在符号name，不存在，则创建；
-最后一个参数val作为值与符号进行绑定。
+==
+Flags
 
-user=> (intern 'user 'x)  
-#'user/x  
+A flag is a keyword.
+Recognized flags: :reload, :reload-all, :verbose
 
-user=> x  
-#<Unbound Unbound: #'user/x>  
+:reload forces loading of all the identified libs even if they are
+  already loaded
 
-user=> (intern 'user 'x "1")  
-#'user/x  
+:reload-all implies :reload and also forces loading of all libs that the
+  identified libs directly or indirectly load via require or use
 
-user=> x  
-"1"  
+:verbose triggers printing information about each load, alias, and refer
 
-====
-9.3，namespace： 
+==
+Example:
 
-namespace函数根据给定的符号、或者关键字返回所在的命名空间名称，如果当前没有，则返回nil。
+The following would load the libraries clojure.zip and clojure.set
+abbreviated as 's'.
 
-user=> (symbol 'xx)  
-xx  
-
-user=> (namespace 'user/xxx)  
-"user"  
-
-user=> (namespace 'xxx)  
-nil  
-
-user=> (def x :val)  
-#'user/x  
-
-user=> (namespace 'x)  
-nil  
-
-user=> (namespace 'user/x)  
-"user"  
-
-====
-9.4，keyword?、symbol?用于检查指定的参数是否为关键字、或者是符号，是则返回true，否则返回false。 
-
-user=> (symbol? 'x)  
-true  
-
-user=> (symbol? "x")  
-false  
-
-user=> (keyword? 'x)  
-false  
-
-user=> (keyword? :x)  
-true  
-
-user=> (keyword? "x")  
-false  
-
-参考资料：
-clojure-基本语法-符号及关键字
-http://dead-knight.iteye.com/blog/1830465
+(require '(clojure zip [set :as s]))
 
