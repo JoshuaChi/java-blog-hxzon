@@ -1,153 +1,8 @@
-（hxzon读书笔记）《clojure编程》第16章：clojure与web-ring和Compojure（路由）
+（hxzon读书笔记）《clojure编程》第16章：clojure与web-2，Compojure（路由）
 
 by hxzon
-==========
-1，clojure栈
-
-没有权威的clojure栈，因为函数库很模块化，容易组合。
-其它语言，因为少有共同的抽象，因而有效、高效地组合小而精的模块经常几乎是不可能的。
-
-分3部分讨论web应用程序。
--1，请求和应答处理部分。（Ring）
--2，路由，把请求传到你指定的处理代码。（Compojure，Moustache是另一个选择。）
--3，模板化，把处理函数产生的应答序列化成html。（Enlive，Hiccup是另一个选择。）
-
-http://brehaut.net/blog/2011/ring_introduction
-
-https://github.com/cgrand/moustache
-https://github.com/weavejester/hiccup
-https://github.com/fhd/clostache
-http://mustache.github.com
-https://github.com/mmcgrana/ring
-
-“装备齐全”的框架：
-Noir (http://www.webnoir.org) ，已停止开发。
-Ringfinger (https://github.com/myfreeweb/ringfinger)
-
-Immutant ，http://immutant.org ，基于JBoss的clojure应用服务器。
-
-添加依赖项：
-[ring "1.0.0"]
-[compojure "1.0.1"]
-
-=========
-2，Ring
-
-Ring的规范：
-https://github.com/mmcgrana/ring/blob/master/SPEC
-
-Ring规范用clojure数据结构定义了一个标准的数据模式来表示web请求和应答，
-以及基于函数组合的一两个关键架构概念：适配函数、处理函数、中间件。
-
-适配函数：解析http请求，生成http响应。
-处理函数：业务逻辑。
-中间件：通用功能。
-
-2.1，请求和应答，都表示为常规的map。
-
-请求映射：
-:server-port The port on which the request is being handled.
-
-:server-name The resolved server name, or the server IP address as a string.
-
-:remote-addr The IP address of the client or the last proxy that sent the request.
-
-:uri The request URI, as a string. Must start with “/”.
-
-:scheme The transport protocol, must be one of :httpor :https.
-
-:request-method The HTTP request method, must be one of :get, :head, :options, :put, :post,or :delete.
-
-:headers A Clojure map of downcased header name Strings to corresponding header value Strings.
-
-:content-type  The MIME type of the request body as a string, if known.
-
-:content-length   The number of bytes in the request body, if known.
-
-:character-encoding   The name of the character encoding used in the request body as a string, if known.
-
-:query-string   The query string, if present.
-
-:body   A java.io.InputStreamfor the request body, if present.
-
-响应映射：
-:status The HTTP status code, must be greater than or equal to 100.
-
-:headers A Clojure map of HTTP header names to header values. 
-These values may be either Strings, in which case one name/value header will be sent in the HTTP response, 
-or a seq of Strings, in which case a name/value header will be sent for each such String value.
-
-:body   Optionally a String, a Clojure sequence of strings, a java.io.File, or a java.io.InputStream.
-
-示例：
-{:status 200
- :headers {"Content-Type" "text/html"}
- :body "<html>...</html>"}
-
-{:status 200
- :headers {"Content-Type" "image/png"}
- :body (java.io.File. "/path/to/file.png")}
-
-{:status 201 :headers {}}
-
-2.2，适配函数。
-在Ring应用和http协议或服务器的本地具体实现之间起到桥梁作用。
-一个适配函数把http请求解构成一个请求映射，把一个应答映射转成一个http应答。
-
-servlet，Ring自带的一个适配函数，让Ring应用程序可以作为servlet来用。
-
-ring-jetty-adapter，Ring自带，使用一个嵌入的jetty。
-
-ring-httpcore-adapter，使用一个嵌入的apache httpcore服务器。
-
-Aleph。提供与Ring兼容的适配函数，使用netty对客户端提供异步应答服务。
-https://github.com/ztellman/aleph
-
-
-2.3，处理函数。
-
-示例：从repl启动一个ring应用程序。
-
-(use '[ring.adapter.jetty :only (run-jetty)])
-;= nil
-
-(defn app 
-    [{:keys [uri]}]
-    {:body (format "You requested %s" uri)})
-;= #'user/app
-
-(def server (run-jetty #'app {:port 8080 :join? false})) 
-;= #'user/server
-
-因为我们用处理函数var（即#'app）来启动jetty适配函数，而不是传递处理函数自身，
-所以可以重定义处理函数，而不需重启jetty。
-
-(defn app
-    [{:keys [uri query-string]}]
-    {:body (format "You requested %s with query %s" uri query-string)})
-;= #'user/app
-
-
-2.4，中间件。
-对处理函数的效果做增强或修改。
-中间件作为一个高阶函数，接受一个或多个处理函数，返回一个新的带有所需组合功能的处理函数。
-
-由于实现的容易与灵活，许多对ring的扩展都以中间件的方式实现。
-
-(use '[ring.middleware.params :only (wrap-params)])
-;= nil
-
-(defn app* 
-    [{:keys [uri params]}] 
-    {:body (format "You requested %s with query %s" uri params)})
-;= #'user/app*
-
-(def app (wrap-params app*)) 
-;= #'user/app
-
-从概念上，ring的中间件与java的servlet的过滤器相似。
-
-======
+https://github.com/stuarthalloway/programming-clojure
+========
 3，Compojure路由请求（为请求选择一个处理函数）。
 
 示例：一个缩短url的http服务。
@@ -183,7 +38,7 @@ https://github.com/ztellman/aleph
               :body (list "URL " url " assigned the short identifier " id)} 
             {:status 409 :body (format "Short URL %s is already taken" id)}))
 
-重定向。
+;; 重定向
 (require 'ring.util.response)
 
 (defn redirect
@@ -192,6 +47,7 @@ https://github.com/ztellman/aleph
             (ring.util.response/redirect url)
             {:status 404 :body (str "No such short URL: " id)}))
 
+====
 Compojure路由：
 
 (use '[compojure.core :only (GET PUT POST defroutes)])
@@ -258,14 +114,16 @@ http方法。
 
 可以在 :route-params （一个map）里访问路径节段。
 
-
+====
 模拟ring请求：
 https://github.com/weavejester/ring-mock
 
-----
+====
 compojure.hangdler命名空间里提供了两个辅助函数，
-api用ring提供的一两个中间件包装一个ring处理函数，负责处理可能需要的所有参数处理，适合用于http服务。
-site提供同样的功能，但加上其他中间件来支持一个面向用户/浏览器的网站所要有的功能，像cookie处理、会话、多部分表单提交与上传等。
+api用ring提供的一两个中间件包装一个ring处理函数，
+负责处理可能需要的所有参数处理，适合用于http服务。
+site提供同样的功能，但加上其他中间件来支持一个面向用户/浏览器的网站所要有的功能，
+像cookie处理、会话、多部分表单提交与上传等。
 
 (require 'compojure.handler)
 
@@ -343,7 +201,7 @@ Server: Jetty(6.1.25)
 
 这里-L选项告诉curl跟随302 Found状态码指示的http重定向和Location头部。
 
-----
+====
 完整代码。
 
 (ns com.clojurebook.url-shortener
@@ -404,7 +262,7 @@ Server: Jetty(6.1.25)
 ;; (use '[ring.adapter.jetty :only (run-jetty)]) 
 ;; (def server (run-jetty #'app {:port 8080 :join? false}))
 
-----
+====
 组合路由。
 
 因为defroutes自身也创建了一个处理函数，所以可以不费力地组合出分层级的路由。
@@ -415,3 +273,4 @@ Server: Jetty(6.1.25)
     app*)
 
 app*是另一层路由。
+

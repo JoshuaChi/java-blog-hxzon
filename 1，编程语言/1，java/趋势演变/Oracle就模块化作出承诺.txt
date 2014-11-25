@@ -1,0 +1,37 @@
+﻿Oracle就模块化作出承诺
+作者 Ben Evans ，译者 臧秀涛 发布于 2014年11月20日 |
+http://www.infoq.com/cn/news/2014/11/JavaModularityIsGo
+
+========
+Oracle宣布了第二组将作为Java 9的特性交付的增强提案（称为JEP），其中包括有关Java模块化的重大消息。
+
+第一组特性是8月11日发布的，尽管也比较有用，但相对而言不那么激进。
+相反，这次发布了一些对Java开发者而言真正有料的特性。
+Oracle承诺，延迟的模块化项目将作为JDK 9的一部分交付，
+Oracle推出了4个JEP，组成了重新设计的Java模块化的解决方案。
+
+Oracle的Java工程团队已经交付了JEP 162（Prepare for Modularization）和JEP 201（Modular Source Code）。
+JEP 201完全改变了JDK源代码的组织结构，为符合新的模块边界重新进行了安排。
+模块系统本身的描述包含在JEP 200中，不过该JEP尚未交付，
+大概是因为其细节会因具体实现时所遇到的问题而有所变化。
+
+新的这批JEP包括JEP 220（Modular Runtime Images），这是通往模块化的一条不归路。
+在该JEP实现之后，Java运行时系统将不再包含在JAR文件中，而会由模块组成。
+像rt.jar和tools.jar这样的文件将成为历史。
+新系统将仅包含模块，不过Java平台将继续接受和运行打包为JAR文件的应用程序和库。
+最终目标是随着时间的推移，应用程序的开发者也迁移到新的模块化格式。
+
+Java平台的首席架构师Mark Reinhold就JRE和JDK中的Java运行时系统评论说：
+“JAR格式的使命已经完成，是时候向前推进了。”
+他认为，走向模块化系统，对IDE和工具的厂商，对很多框架，都有重大影响，
+因为当前的内省（introspection）机制依赖于一个与遗留的JAR格式捆绑在一起的URI 语法。
+外展服务项目由Oracle的质量团队负责，London Java社区，
+AdoptOpenJDK和AdoptAJSR项目下的全球众多Java用户组提供了社区支持。
+目前已经联系了一些重要的开源项目，包括Apache旗下的Ant、Builds、log4j、Hadoop和CXF等项目，
+以及Eclipse、Hudson、IntelliJ、RedHat Netty、Redhat Tools和TestNG等。
+
+Oracle正在准备一份Java规范请求（Java Specification Request，JSR），
+以便使模块化系统规范成为新的Java标准之一。
+
+查看英文原文：Oracle Commit to Java Modularity
+

@@ -57,7 +57,8 @@ lein ring server
 开发服务器将找到一个空闲的端口并为你启动浏览器。
 如果你修改了源代码，它会自动重新为你加载。
 
-====
+========
+========
 Route细节
 
 Compojure的Route看起来是这个样子的：
@@ -69,7 +70,7 @@ Route返回Ring的handler函数。
 除了它们的语法之外，没有任何魔术在里面。
 它们只是提供了定义处理HTTP请求函数的一种简洁方式。
 
-----
+====
 匹配HTTP方法
 
 让我们过一遍来阐明这个语法。第一个symbol是：
@@ -82,7 +83,7 @@ GET
 其他你可以用到的宏还有POST, PUT, DELETE和HEAD。
 如果你想匹配任何HTTP方法，可以使用ANY宏。
 
-----
+====
 匹配URI
 
 接下来的部分是:
@@ -100,7 +101,7 @@ GET
 
 类似HTTP方法，如果URI不匹配预定义的路径，则route函数将返回nil。
 
-----
+====
 解构请求
 
 当HTTP方法和URI都匹配之后：
@@ -118,7 +119,7 @@ GET
 
 这样提供了更多的控制，但是简洁程度就比不上vector语法。
 
-----
+====
 返回一个Response
 
 当HTTP请求被匹配并解构之后，route剩下的部分就会被包装在一个隐式的do块里（译者注：类似let宏），就跟普通函数一样：
@@ -134,7 +135,7 @@ GET
 compojure.response/render 多重函数可以将不同类型（字符串、map、文件等）处理转换成一个合适的应答。
 你可以重载它(overriden）来提供私有类型的自定义渲染。
 
-----
+====
 嵌套Route
 
 Route可以使用context宏来嵌套起来：
@@ -146,7 +147,7 @@ Route可以使用context宏来嵌套起来：
 (defroutes api-routes
   (GET "/something" [] ...))   ; matches /api/something
 
-====
+========
 解构语法
 
 Compojure提供两种解构：
@@ -156,7 +157,7 @@ Compojure特有的方式，被设计用来解析请求map:
 查询字符串（和表单）参数，以及
 URL路径部分（译者注：称为route参数）
 
-----
+====
 普通的Clojure解构
 
 如果你提供一个map或者符号，Clojure的解构语法将被作用在Ring的请求map上。
@@ -165,7 +166,7 @@ URL路径部分（译者注：称为route参数）
 (GET "/:foo" {{foo :foo} :params}
   (str "Foo = " foo))
 
-----
+====
 Compojure特有的解构
 
 因为普通的解构显得非常繁琐累赘，Compojure为解构提供了一种更特别的方式。
@@ -190,6 +191,7 @@ x -> "foo"
 y -> "bar"
 z -> "baz"
 
+==
 没有分配的参数，可以使用"&"符号紧接着一个变量名来绑定:
 
 [x y & z]
@@ -200,6 +202,7 @@ z -> {:z "baz", :w "qux"}
 这个行为跟正常Clojure绑定中的"&"行为是相似的。
 不同点在于Clojure绑定是获取list没有绑定剩下的部分，而我们则是获取map没有绑定的剩余部分。
 
+==
 最后，我们可以使用:as关键字将整个请求map赋给一个符号：
 
 [x y :as r]
