@@ -81,7 +81,7 @@ classpath默认情况下是空的（没有包含当前工作目录）。
 切换到新空间后，特殊形式还是可用的，但是clojure.core里的函数（例如+）都不再直接可用了（和user空间不同）。
 
 ====
-3，refer。
+3，refer
 假设某个命名空间已经载入，可以用refer把这个命名空间里的映射“加入到我们的命名空间”。
 可以使用可选关键字，:exclude :only :rename 来指定排除、包含或重命名某些var。
 
@@ -248,6 +248,64 @@ ns-unalias，删除命名空间别名。
 
 (filter #(= 'clean-namespace (ns-name %)) (all-ns))
 ;= ()
+
+========
+ns
+macro
+Usage: (ns name docstring? attr-map? references*)
+Sets *ns* to the namespace named by name (unevaluated), creating it
+if needed.  references can be zero or more of: (:refer-clojure ...)
+(:require ...) (:use ...) (:import ...) (:load ...) (:gen-class)
+with the syntax of refer-clojure/require/use/import/load/gen-class
+respectively, except the arguments are unevaluated and need not be
+quoted. (:gen-class ...), when supplied, defaults to :name
+corresponding to the ns name, :main true, :impl-ns same as ns, and
+:init-impl-ns true. All options of gen-class are
+supported. The :gen-class directive is ignored when not
+compiling. If :gen-class is not supplied, when compiled only an
+nsname__init.class will be generated. If :refer-clojure is not used, a
+default (refer 'clojure.core) is used.  Use of ns is preferred to
+individual calls to in-ns/require/use/import:
+
+(ns foo.bar
+  (:refer-clojure :exclude [ancestors printf])
+  (:require (clojure.contrib sql combinatorics))
+  (:use (my.lib this that))
+  (:import (java.util Date Timer Random)
+           (java.sql Connection Statement)))
+
+========
+use
+function
+Usage: (use & args)
+
+Like 'require, but also refers to each lib's namespace using
+clojure.core/refer. Use :use in the ns macro in preference to calling
+this directly.
+
+'use accepts additional options in libspecs: :exclude, :only, :rename.
+The arguments and semantics for :exclude, :only, and :rename are the same
+as those documented for clojure.core/refer.
+
+========
+refer
+function
+Usage: (refer ns-sym & filters)
+
+refers to all public vars of ns, subject to filters.
+filters can include at most one each of:
+
+:exclude list-of-symbols
+:only list-of-symbols
+:rename map-of-fromsymbol-tosymbol
+
+For each public interned var in the namespace named by the symbol,
+adds a mapping from the name of the var to the var to the current
+namespace.  Throws an exception if name is already mapped to
+something else in the current namespace. Filters can be used to
+select a subset, via inclusion or exclusion, or to provide a mapping
+to a symbol different from the var's name, in order to prevent
+clashes. Use :use in the ns macro in preference to calling this directly.
 
 ========
 require

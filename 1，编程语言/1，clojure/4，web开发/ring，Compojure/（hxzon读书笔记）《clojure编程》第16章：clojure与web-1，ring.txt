@@ -15,10 +15,15 @@ https://github.com/stuarthalloway/programming-clojure
 
 http://brehaut.net/blog/2011/ring_introduction
 
-https://github.com/cgrand/moustache
-https://github.com/weavejester/hiccup
-https://github.com/fhd/clostache
+https://github.com/cgrand/moustache 路由
+
+https://github.com/weavejester/hiccup 书写html
+
 http://mustache.github.com
+Logic-less templates.
+https://github.com/fhd/clostache
+{{ mustache }} for Clojure.  （hxzon：模板，没有什么吸引之处）
+
 
 https://github.com/ring-clojure/ring
 https://github.com/mmcgrana/ring  旧地址，已迁移。
@@ -27,7 +32,10 @@ https://github.com/weavejester/compojure
 
 “装备齐全”的框架：
 Noir (http://www.webnoir.org) ，已停止开发。
-Ringfinger (https://github.com/myfreeweb/ringfinger)
+https://github.com/noir-clojure/lib-noir
+
+Ringfinger (https://github.com/myfreeweb/ringfinger) 已死亡。
+
 
 Immutant ，http://immutant.org ，基于JBoss的clojure应用服务器。
 

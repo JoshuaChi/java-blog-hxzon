@@ -1,0 +1,118 @@
+﻿Cascade
+https://github.com/hlship/cascade
+
+注释by hxzon
+
+hxzon：最后一次提交是 Dec 6, 2011
+========
+Cascade
+Welcome to Cascade! 
+Cascade is a web application view library for Clojure that emphasizes idiomatic use of Clojure 
+while drawing inspiration from the Apache Tapesty web framework.
+
+Cascade templates are an embedded DSL directly in the Clojure code; 
+this takes some getting used to but ensures that you can take maximum advantage of Clojure when creating your application. 
+Templates are converted to functions.
+
+cascade的模板是一种内嵌式dsl，模板会转换成函数。
+
+Cascade converts templates to function, but the output of functions is not markup text; 
+instead, Cascade uses an internal DOM structure as an intermediate format prior to streaming markup. 
+This has some significant advantages,
+in that the final output can be manipulated between the rendering stage and the streaming stage.
+
+cascade将模板转换成函数，而函数的输出，不是html文本，而是内部的dom结构。
+
+Cascade is designed to be used as a view technology with Ring and Compojure.
+
+See the Cascade Wiki for more information.
+http://wiki.github.com/hlship/cascade/
+
+==
+Status
+
+So where’s the progress? Sorry folks, I’ve been busy with several large Tapestry projects, 
+plus Tapestry 5.3, plus Project Jacob (my now 19 month old son) to make any progress on Cascade. 
+I still have high hopes for Cascade, but I’m in the chicken-and-the-egg problem of finding a client 
+that can directly or indirectly support its development.
+
+Cascade started as a full web framework, but has evolved into a view technology that plugs into existing frameworks (Ring and Compojure).
+
+==
+Authors
+
+Cascade is a itty-bitty side project of Howard M. Lewis Ship, who should be spending more time on Tapestry.
+
+Care to contribute? Drop me a line!
+
+License
+Cascade is released under the terms of the Apache Software License 2.0.
+
+Cascade bundles the following libraries:
+
+JQuery library (version 1.7), distributed under dual MIT and GPL licenses
+RequireJS (version 1.0.1), distributed under the dual licenses: MIT and “new” BSD license
+Bootstrap (version 1.4.0), distributed under the Apache Software License 2.0
+
+========
+========
+https://github.com/hlship/cascade/wiki
+
+Howard M. Lewis Ship edited this page on 6 Dec 2011
+
+====
+This is a stupid time to be doing this.
+
+Tapestry 5.3 is has just gone final release, Tapestry 5.4 will follow. 
+How many web frameworks can one person write?
+
+That doesn’t change my need to learn new things. 
+Clojure. Monads. Java interop. Super parallelization. The beauty of Lisp.
+
+I can already hear people chanting Tapestry 6 (and “here we go again”). 
+What I have planned is not a replacement for Tapestry, 
+it’s a different kettle of fish for a completely different set of users entirely. 
+Rather than taming Java to provide developer productivity, it’s about unleashing Clojure towards the same goal. 
+What it won’t get into is the trap of doing everything automatically, 
+such as assigning unique ids, mapping query parameters to data, and so forth; 
+instead it will leverage Clojure to make doing those things concise even as they are completely customizable.
+
+What is Cascade?
+
+Cascade is an action-oriented web framework written in idiomatic Clojure. 
+cascade是一个面向action的web框架。（hxzon注意）
+Although it initially grew out of ideas adapted from Apache Tapestry, it has now moved into its own space. 
+Unlike Tapestry, Clojure templates are written inline, as idiomatic Clojure: an embedded DSL.
+
+Clojure templates appear in code, but look like Clojure:
+
+
+(defview index
+  [req]
+  [:html
+    [:head>title "Example Template" ]
+    [:body#root>p 
+      "Cascade is complete unto itself, it "
+      [:em "does not" ]
+      " use external template files."
+    ]
+  ])  
+
+You can see the HTML structure, but there’s room for function calls and even macros.
+
+What if Clojure had a web framework that cherry picked the best ideas from Tapestry? 
+Localization, message catalogs, assets, automatic GZIP compression, automatic javascript aggregation, live namespace reloading. 
+Clojure as the implementation language, Clojure as the property expression language.
+
+The central concept in Tapestry is that the framework and components should solve all your problems for you. 
+People love it when that happens, and hate it when the components fall even one inch short.
+
+The central concept in Cascade is that you have the tools to easily and elegantly solve your own problems.
+
+Foundations of Cascade
+Cascade builds on top of Ring and Compojure.
+
+Compojure bundles jQuery, RequireJS, and Twitter Bootstrap.
+
+cascade基于ring和compojure。
+

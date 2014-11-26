@@ -29,7 +29,8 @@ What's new in Enlive?
 Auto-reloading (1.1.2)
 
 (net.cgrand.reload/auto-reload *ns*)
-Each time a resource or file used by a template/snippet is updated the namespace is reloaded (as per (require ... :reload)).
+Each time a resource or file used by a template/snippet 
+is updated the namespace is reloaded (as per (require ... :reload)).
 
 Misc
 
@@ -363,7 +364,133 @@ No namespaces support (hence unsuitable for most XML)
 不支持命名空间。
 
 ========
+========
 http://enlive.cgrand.net/syntax.html
+https://github.com/cgrand/enlive/blob/master/syntax.html
 
+Enlive selectors syntax
 
+selector
+node-selector
+{node-selector node-selector} ; fragment selector {from to}
+
+node-selector
+[selector-step (:>? selector-step)*]
+#{node-selector*} ; grouping
+a-symbol ; must evaluate to a state-machine
+(some clojure code) ; must evaluate to a state-machine
+
+selector-step
+:a-keyword ; can be :* :.class :tag :#id or any combination eg :div#foo.bar.baz
+#{selector-step*} ; union     集表示并集
+[selector-step*] ; intersection        向量表示交集
+a-symbol ; must evaluate to a state-machine . some are already defined
+(some clojure code) ; must evaluate to a state-machine . better built using some predefined functions, predicate builders or macros
+
+====
+Predefined selector-steps
+
+root, first-child, last-child, first-of-type, last-of-type, 
+only-child, only-of-type, void (CSS's :empty), odd and even.
+
+====
+Predefined functions
+
+attr? CSS
+(attr? attribute-keyword*)
+sample usage:
+(attr? :href) ; *[href]
+(attr? :href :title) ; *[href][title]
+
+attr= CSS
+(attr= (attribute-keyword value)*)
+sample usage:
+(attr= :href "foo") ; *[href=foo]
+(attr= :href "foo" :title "bar") ; *[href=foo][title=bar]
+
+attr-has CSS
+(attr-has (attribute-keyword value)*)
+sample usage:
+(attr-has :foo "bar" "baz") ; *[foo~=bar][foo~=baz]
+
+attr-starts CSS
+(attr-starts (attribute-keyword value)*)
+sample usage:
+(attr-starts :href "foo" :title "bar"); *[href^=foo][title^=bar]
+
+attr-ends CSS
+(attr-ends (attribute-keyword value)*)
+sample usage:
+(attr-ends :href "foo" :title "bar") ; *[href$=foo][title$=bar]
+
+attr-contains CSS
+(attr-contains (attribute-keyword value)*)
+sample usage:
+(attr-contains :href "foo" :title "bar") ; *[href*=foo][title*=bar]
+
+attr|= CSS
+(attr|= (attribute-keyword value)*)
+sample usage:
+(attr|= :lang "fr") ; *[lang|=fr]
+
+nth-child CSS
+(nth-child stride? offset)
+sample usage:
+(nth-child 3) ; *:nth-child(3)
+(nth-child 4 2) ; *:nth-child(4n+2)
+
+nth-last-child CSS
+(nth-last-child stride? offset)
+sample usage:
+(nth-last-child 3) ; *:nth-last-child(3)
+(nth-last-child 4 2) ; *:nth-last-child(4n+2)
+
+nth-of-type CSS
+(nth-of-type stride? offset)
+sample usage:
+(nth-of-type 3) ; *:nth-of-type(3)
+(nth-of-type 4 2) ; *:nth-of-type(4n+2)
+
+nth-last-of-type CSS
+(nth-last-of-type stride? offset)
+sample usage:
+(nth-last-of-type 3) ; *:nth-last-of-type(3)
+(nth-last-of-type 4 2) ; *:nth-last-of-type(4n+2)
+
+but CSS
+(but selector-step)
+sample usage:
+(but :a) ; :not(a)
+
+has
+(has selector)
+sample usage:
+(has [:a])
+
+====
+Predicate builders
+
+These functions take a predicate and return a state-machine.
+
+pred
+(pred predicate-on-elements)
+sample usage:
+(pred #(= (:tag %) tag-name))
+
+text-pred
+(text-pred predicate-on-text-nodes)
+sample usage:
+(text-pred #(re-matches #"\d+" %))
+
+zip-pred
+(zip-pred predicate-on-elements-locs)
+sm/pred (where sm aliases net.cgrand.enlive-html.state-machine)
+(sm/pred predicate-on-locs)
+
+====
+Useful macros
+
+selector takes a selector and evaluates to a state-machine, 
+selector-step takes a selector-step and evaluates to a state-machine.
+They are backed by compile-selector and compile-step.
 

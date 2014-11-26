@@ -1,0 +1,308 @@
+﻿Howard Lewis Ship on Tapestry 5, Java and Clojure
+Recorded at:
+ Interview with Howard Lewis Ship by Charles Humble on Feb 24, 2012
+http://www.infoq.com/interviews/howard-lewis-ship-tapestry5-clojure
+
+====
+1.My name is Charles Humble and I am here with Howard Lewis Ship, creator of the Apache Tapestry Web framework. 
+
+Howard, can you tell us a bit about what you have been working on recently?
+
+Sure. Obviously everything I do, pretty much, is Tapestry, 
+so I have been working with various clients, supporting them with Tapestry, 
+dealing with some performance issues at the high end, that type of thing. 
+I’ve been working with other clients to develop Tapestry applications, 
+and of course I’ve been getting Tapestry 5.3, the latest release, out the door. 
+In fact the vote is going on right now - it's the Apache way, there is a vote. 
+So that’s been a lot of fun; 
+putting in a lot of new features improving Tapestry in a number of ways, 
+improving performance, decreasing memory utilization, making it easier to extend and adapt. 
+I am very excited about that. 
+And I am really excited about what is going to be coming next.
+
+====
+2.So Tapestry is in a pretty crowded field amongst Java Web frameworks. 
+What do you see as its key advantages?
+
+So, Tapestry has always been built with certain concerns built in from the ground up. 
+And I call these simplicity, consistency, efficiency, and feedback. 
+This has really come to the fore with Tapestry 5. 
+
+Simplicity - it’s designed to be that the classes you write, the page classes, the component classes are all very bare bones, 
+very simple, no inheritance, no interfaces to implement, just your bare POJO class. 
+
+Consistency - things that work at the page level, work at the component level and vice versa, 
+which makes it very reasonable to assemble very complicated functionality very easily, 
+and Tapestry picks up all the details about wiring everything together. 
+
+Efficiency - that is something that got renewed focus for 5.3. 
+It’s very efficient; it doesn’t use reflection at runtime, it does a lot of work with bytecode, 
+and a lot of hidden things, to optimize and really deliver terrific performance. 
+
+And lastly feedback, which is one of the areas I think Tapestry does best against anybody 
+- it’s just the emphasis Tapestry has on supporting the developer; telling them what’s going on. 
+This is reflected by the really exceptionally useful exception report page, 
+that really digs out a lot of information and helps you focus directly on what’s wrong, 
+but also a lot of other things throughout the framework. 
+For instance, Tapestry keeps a track of what operation it’s doing, 
+so that if an exception occurs deep down it can tell you why it was doing that, not merely a stack trace. 
+Something like: I am processing this event for this page; 
+I am creating the page; I am creating the component for this page; I am parsing the template; and I hit something that I don’t understand. 
+It gives you that really drill down view of what’s going on; something very missing. 
+
+And other things, in terms of feedback, such as, any time you are choosing an item from a list in your code by its name, if you got the name wrong, it doesn’t just MPE it produces an exception report that includes a list of all the names that would have been valid; that type of thing. So there is an emphasis on that, start to finish, throughout the entire framework.
+
+====
+3.How much impact does Java EE6 have on Tapestry? 
+
+So, Tapestry really is fundamentally built not to care where the data it uses comes from or goes to; 
+just POJOs - objects with properties that can be read and updated. 
+So if they are coming from J2EE or from Guice, or from a database, or via Hibernate, it doesn’t matter. 
+It’s quite happy to pull that data in, allow components to edit them, push that data out. 
+So although there's lots of changes in JEE and it’s getting simpler, 
+with each release, those things are sort of orthogonal to Tapestry; it’s just a source and sink of data.
+
+====
+4.You've added support for the dependency injection standard, for instance, I think I’m right in saying, in 5.3, haven’t you?
+
+Yes. Tapestry has always had a really credible dependency injection container. 
+So this is something that was built with Tapestry 5; 
+it’s very powerful, it’s drawn ideas from Spring, it’s drawn ideas from Guice, 
+and maybe influenced some ideas back at both of them. 
+But it used its own annotations, and its own general approach. 
+So it had an annotation @inject that was specific to Tapestry. 
+What JSR303 provides is standard annotations that can be used by any of the major containers: Guice, Spring, Tapestry. 
+All that was really necessary was to treat those alternate annotations, 
+the javax version of inject, as the same as the Tapestry version of inject, and keep compatibility with both. 
+The theory is that you can start writing code that really doesn’t care which container it’s injected into, and that’s probably a good thing.
+
+====
+5.You mentioned earlier that you were quite excited about what was coming beyond Tapestry 5.3, 
+so can you give some insights into what you are thinking of? 
+
+Oh sure. The main thing that Tapestry is lacking now is really revisit what’s going on on the client side, in terms of JavaScript. 
+Back in ‘05, ‘06, when I was making some of the first work for Tapestry 5 and JavaScript, 
+I sort of had a look at the web frameworks out there and I chose Prototype and script.aculo.us; 
+you know, supported by Rails, well documented. 
+Yes there was this up and coming thing called JQuery, but who knows where that’s going to go. 
+Certainly the world has changed in the meantime, and Tapestry has got too wedded to Prototype and script.aculo.us, 
+and too wedded to a bunch of things on the client side. 
+So I am really looking for a new focus for Tapestry to make it really premier at delivering JavaScript to the client, 
+but then getting out of the way. 
+So that it doesn’t really matter whether you are building your stuff on JQuery or Prototype or any of the others, 
+even things like Ext JS, or Sencha at this point, or MooTools. 
+Whenever I say I want to support a framework, there is always somebody who comes up and says "What about this obscure one?" 
+
+The point is, get away from a lot of what Tapestry does, make it an even more first class citizen, 
+keep what it does today that’s good, but make it really easy to just get into the mix of things. 
+And really revisit how forms and form input fields work. 
+Because that’s really been the chief painpoint in Tapestry, 
+is dealing with the idea that the server has a concept of what the state of the browser is, 
+but with Ajax the state of the browser, what fields are present, what data is going to come up in the form submission, that’s very mutable now. 
+It has been for years but increasingly every client is looking for some really significant behavior on the client side. 
+And Tapestry's abstractions are a little leaky, and a little insufficient, and I am looking to target it in a different way, 
+so that we'll start thinking about those things primarily as a client side issue, 
+driven by perhaps Backbone or some equivalent JavaScript MVC client side framework. 
+So that what really is going to move between the client side and the server side, is going to be JSON data. 
+
+At the same time, I want to start making Tapestry look like a really excellent provisioning system for all those client side resources, 
+whether it’s JavaScript, HTML, CSS; all those things are done really well by Tapestry and can be done even better. 
+So that you basically can build your app in a natural way, 
+and it’s going to scale right through the roof as your application becomes more popular, 
+more data needs to move from your servers to your clients.
+
+====
+6.You said, I think it was about 2008, 2009 that you felt that the Java language was kind of done; 
+that it should be frozen. 
+I was interested in whether that was still your opinion or whether you are pleased 
+to see things like Lambda being added to the language in Java 8? 
+
+Yes, back then I remember, on expert panels, saying really freeze the language. 
+We were still sort of in the after shocks of generics, and all the problems and pain that generics had given us. 
+We were in an uncertain future; that was a little earlier than getting into the whole, "Who will buy Java? Oh it turns out it’s Oracle". 
+The point is, at that time it really looked like Sun was not in a position to drive any kind of innovation, 
+and there was tonnes of innovation going on at that time: Scala, Groovy, Clojure, JRuby. 
+All the stuff people wanted was already available in these other languages. 
+So I was thinking, "Yes, let’s freeze Java" - as if I have a voice - "Let’s freeze Java; 
+let it be the language of contracts and interfaces, and let all the innovation happen everywhere else". 
+
+But a lot of things have happened. 
+Certainly Oracle has a better idea: they can keep their eyes on the prize, they can drive change to the language. 
+And they put people in charge of this, people I really respect. 
+I am thinking specifically Brian Goetz. 
+So here is someone who really understands things front to back, from the metal all the way up. 
+And now I am really seeing that the way they are driving the change for Lambda is going to be a good thing, 
+because pretty much whatever is in Java is now the de facto mainstream. 
+And the drive for Lambda that they are looking for, is really to introduce significant functional features into Java the language. 
+And if that means lots of people are going to take functional seriously, 
+as something they really need to learn and understand and embrace, yes that’s a great thing.
+
+====
+7.Are there other things you’d like to see added to Java?
+
+Let me see. 
+I haven’t really thought about what I want to add to Java; mostly I think about what I want to remove from Java. 
+Certainly Java has this huge legacy of fits and starts, ideas that seemed great at the time, but have turned into quite a bit of weight. 
+Just I’d love to see the removal of so many deprecated classes and methods that get in the way. 
+I’d like to see the Java language streamlined down; 
+I’d like to see it reduced. 
+Get rid of things like CORBA, all those CORBA support that really aren't used by the majority of people; make those things optional. 
+I know project Jigsaw is all about this, but even so.... 
+
+I would like to see Java be a first class citizen on the desktop. 
+I think it’s so tragic that we are so many years into the life of Java, 
+I mean pretty much 1995 up to now, and we are still reliant on shell scripts and Windows bat files to get our applications to launch. 
+I mean, probably that’s the reason why it went onto the server; 
+it was just easier to start up your apps if they were server side; never got the client side really figured out. 
+And I still think there is room for Java to be a good language for developing tools that live on the desktop or at the command line. 
+
+So there aren’t particular things I think are missing from the language per se. 
+There are things I would love to see removed, like Checked Exceptions, and a lot of the type stuff I think gets in the way, 
+but what I really would like to see is faster start up. 
+It’s just so painful for me to launch a simple command and see Java, and maybe Groovy on top of that, 
+launch up, eat fifty megabytes of RAM, start up twenty five threads, 
+and by the time it’s printing out its first bit of text an equivalent tool in all of these supposedly weaker languages, 
+like Ruby or Python, would be done.
+
+========
+8.You are a big fan of Clojure I understand. 
+So could you give us a bit of an introduction to Clojure for people who don’t know what it is?
+
+Clojure is LISP reborn for the Java Virtual Machine. 
+So Rich Hickey, who's the creator of the language, did something really brave. 
+He said, "You know, I'm going to take about three years off; 
+start working on my vision of what it should be to develop software today using the best of the newest thing in the world, 
+which is the JVM HotSpot, the Java Virtual Machine, which is this incredible execution platform, except maybe for its startup time, 
+and LISP which has this tremendous history". 
+People talk about LISP as a language that wasn’t created so much as it was discovered, and it’s been around since the 60’s. 
+I’m always amused when I’m watching episodes of Mad Men, I’m thinking, 
+"Somewhere out there John McCarthy is figuring out how to make parentheses and S-expressions work". 
+The point is, LISP has always been known as a language that had tremendous symbolic power. 
+
+In fact it has always been a language that was as much a language toolkit as a language unto itself. 
+It's a language for building the language that describes the solution to your problem. 
+But it had its own set of problems; it had sort of this kitchen sink approach to dealing with all the different versions. 
+So the common LISP became this incredibly complicated concept. 
+It didn’t have the enterprise reach of the Java Virtual Machine; 
+it didn’t have an environment that could run in so many different places. 
+I mean I have a version of Clojure that runs on my Android phone. 
+It’s something of a toy, but that’s pretty telling. 
+So at the same time, Rich, who has a background in a lot of real time computation, 
+was identifying some of the issues with doing that even in Java. 
+The primary one being, as he says, "State: you’re doing it wrong". 
+Mutable state is just the death of anything real time, because anything real time wants to be spread across many threads cooperating, 
+and as soon as any of the data is mutable you are going to have a program whose behavior is unknown, 
+or a program that runs slow or dead locks trying to deal with all the locking that’s necessary. 
+
+So one of the main focuses of Clojure is this idea of immutable data; 
+that every object or collection that you create in Clojure is created in its final state and can never change, 
+except for a couple of special reference types that are allowed to change under very carefully controlled circumstances. 
+And you’d think this would be like putting on heavyweight chains and locking yourself down, 
+but it’s actually incredible liberating to know that 
+you never have to worry about an object that you might want to share across threads ever being corrupted, 
+ever being walked on, ever being changed in a way that makes it invalid.
+
+The other aspect is he has such good collections; 
+they're very performant collections, the persistent data types, you know, 
+vectors and maps and sets and lists, partly because they are very smart; 
+if you introduce a change into one of them it doesn’t have to make a deep copy of the whole thing, 
+it can copy just certain structural pieces from the old version into the new version. 
+As your data types get larger, they’re not really consuming that much more space; 
+you're not churning up the GC quite that badly. 
+And these things all sort of work together in the language; every aspect supports every other aspect in a really cool way.
+
+One of the Alan Perlis epigrams is it’s better to have 100 operations on a single data type than to have ten operations on ten data types. 
+And that’s really a major part of Clojure; that it has this consistent view of data. 
+And the data is dumb; there is no place to attach a method to a Clojure map or a Clojure list; 
+you always operate on the data using functions. 
+But the end result is that you can compose things really nicely. 
+So by comparison, Java seems like a complicated recipe where every bit of code you write 
+has to do little increments of work and little fits and starts. 
+And Clojure is like this flow of transformations where you say how to start from one piece of data 
+and what you need to do to get to what you want at the end, and it takes care of a lot of the details. 
+On top of that, the other aspect that is really intriguing, is how it really embraces the concept of lazy evaluation; 
+something that’s common in the functional world, 
+because mathematical functions always return the same value for the same inputs, and that frees you from the constraint of time. 
+
+It means that whether you invoke a function now or next week or next year, 
+you’re going to get the same results if you have the same parameters passed in. 
+So the core of Clojure is all the major functions are lazy, which means that you never evaluate more than you need to. 
+So you can create these elegant chains of transformations, 
+but if you only need the first two or three or ten values from one side of the chain to the other, most of the work never actually happens.
+
+====
+9.Have you tried mixing and matching Java and Clojure code? 
+I’m thinking it must be quite difficult to do because the two programming paradigms are really pretty different.
+
+Clojure's paradigms and Java's paradigms; obviously quite different. 
+Java has the concept of classes and inheritance and Clojure, technically, just has functions. 
+In terms of the interop, Clojure is really strongly designed to work well with its host platform, 
+so it has excellent ability to call into Java code, 
+whether you pass objects to it in some way or whether it’s using static methods to locate things. 
+It has a really good syntax for making method invocations on Java objects look like function calls. 
+So when you define a function in Clojure, it’s designed partly to interoperate with the Java world. 
+So although it’s a Clojure function it’s still fundamentally an object, 
+and that object implements not just in a Clojure function interface but Java interfaces such as Runnable, Callable and Comparable; 
+so that, from the Clojure side, you might create a function and pass it directly in as a parameter into some Java side code. 
+
+So that really is excellent; the interop between the two is great. 
+And increasingly you can define very efficient types inside the Clojure world, this is defrecord and deftype, where you say, 
+"Here is a batch of Clojure functions. 
+Make them look just like a Java object with a particular interface," 
+and then that object can again be released into the Java world to act as the bridge between the two. 
+So really on both sides of the equations it’s very easy for Clojure to reach into the Java world 
+and pass to the Java world the objects and values that it expects, 
+but it is also very reasonable to do the flip side; have Java code go into the Clojure runtime, 
+find Clojure namespaces and functions within those namespaces and invoke them.
+
+====
+10.Do you think the fact that Clojure is a LISP is in itself a barrier to wider adoption? 
+
+The syntax is something a lot of people are simply never going to get through, and that’s really a shame, because it’s so pure. 
+If you’ve ever studied compilers, which I did way back in college (I read the Dragon Book and wrote things like that), 
+you know that one of the intermediate stages between program code and your ability to generate something 
+- so source code and something you can turn into executable code - is the abstract syntax tree. 
+One of the neat things about LISPs, and Clojure, is that you pretty much code the AST directly; 
+that’s what all those parentheses are doing, they're providing all the grouping that would be an abstract syntax tree. 
+
+So it’s as if you are doing the first step. 
+But what it means is everything is so uniform; that’s that term you see floating around, homoiconicity, 
+data and code look exactly the same. 
+And that’s part of that concept that in Clojure you can create the language that solves your problem, inside of Clojure. 
+And then ultimately, even when you are coding really Java code, 
+there are so many conveniences and aspects of Clojure in it that you could actually write clearer, more maintainable, 
+code with fewer parentheses from the Clojure side than you can from the Java side.
+
+====
+11.Have you looked at any of the web frameworks for Clojure?
+
+Yes, I’ve looked. 
+In terms of web frameworks for Clojure, probably the main one is now Composure. 
+Originally Composure was sort of a soup to nuts kind of approach, 
+where it would do the interfacing to a servlet container such as Jetty on the one side, 
+and all the way to templating on the other side to generate markup, along with dispatch in the middle. 
+And those things kind of broke up. 
+So now there is a small library called Ring and it’s the part, based on Ruby Sinatra I believe, 
+of dealing with the Jetty or servlet container, and ultimately pulling out information - the path, the request parameters 
+- and then delegating all the real application behavior down the road. 
+And Composure split the other way as well, so its templating language, 
+where you do the templating right in Clojure code, is called Hiccup, so that’s a separate piece; you’ve got to love all the names. 
+
+And then Composure sits in the middle, binding those two pieces together, 
+and also providing an easier way to generate these complicated ... 
+not complicated, but generate these Ring routes, 
+which are the way you map from an incoming request to a particular function. 
+And, because of that design, it’s really easy to plug in alternatives, 
+so there are several different templating options that you can just plug right into Composure. 
+I’ve even been working on one, called Cascade, 
+which tries to bring into the Clojure world some of the better ideas from Tapestry; the ones that fit.
+
+====
+12.Do you have any plans to use Clojure code within Tapestry?
+
+I actually have no plans to use Clojure code within Tapestry; 
+just like I have no plans to use Groovy code in Tapestry or Scala code within Tapestry. 
+Yes, there would be a lot of things that would code up much cleaner, or at least more concisely, if I would do those things. 
+But I really have made a concerted effort to reduce or eliminate external dependencies from Tapestry and so, 
+because of that, as tempting as it might be, it’s going to stay pure Java for the foreseeable future.
+

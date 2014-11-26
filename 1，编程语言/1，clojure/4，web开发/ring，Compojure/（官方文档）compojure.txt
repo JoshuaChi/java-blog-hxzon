@@ -171,7 +171,8 @@ For example, here is how you'd bind a specific parameter to a variable using the
 ====
 Compojure-specific Destructuring
 
-Since regular destructuring can be quite verbose, Compojure offers a more specialised form of destructuring. 
+Since regular destructuring can be quite verbose, 
+Compojure offers a more specialised form of destructuring. 
 If you supply a vector, Compojure will use this custom destructuring syntax. 
 The above example can be written more concisely as:
 
