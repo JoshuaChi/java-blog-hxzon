@@ -2,18 +2,34 @@
 Copyright 2010 by Jim Duey
 http://www.intensivesystems.net/tutorials/logic_prog.html
 
+注释by hxzon
 ========
 Getting up to speed
 
-Writing software is hard. Managing these highly complex, yet very abstract, creations takes a great deal of concentration. It's easy to make mistakes or forget some key detail and introduce bugs, and it has always been this way.
+Writing software is hard. 
+Managing these highly complex, yet very abstract, creations takes a great deal of concentration. 
+It's easy to make mistakes or forget some key detail and introduce bugs, and it has always been this way.
 
-To deal with this, programmers use abstraction and composition to hide the complexity that is not directly related to the task at hand so they can focus on the complexity of the problem that they're trying to solve. This can be seen in the progression from programming in machine language to assembly language and then to higher level languages. It can also be seen in the various programming paradigms that have arisen like object oriented programming and functional programming. Each development was an attempt to hide some kinds of complexity so that the programmer didn't have to think about it. One paradigm that has been around for a long time and is extremely well suited for today's programming tasks is logic programming.
+To deal with this, programmers use abstraction and composition to hide the complexity 
+that is not directly related to the task at hand so they can focus on the complexity of the problem that they're trying to solve. 
+This can be seen in the progression from programming in machine language to assembly language and then to higher level languages. 
+It can also be seen in the various programming paradigms 
+that have arisen like object oriented programming and functional programming. 
+Each development was an attempt to hide some kinds of complexity so that the programmer didn't have to think about it. 
+One paradigm that has been around for a long time and is extremely well suited for today's programming tasks is logic programming.
 
+====
 What is logic programming
 
-When most programmers hear the word's 'logic programming' they think Prolog and AI. But this kind of programming can be applied to a much wider set of problems and is particularly well suited to programming for social web applications. The topic is very large, so I'm only trying to give a brief introduction and whet your appetite to learn more.
+When most programmers hear the word's 'logic programming' they think Prolog and AI. 
+But this kind of programming can be applied to a much wider set of problems 
+and is particularly well suited to programming for social web applications. 
+The topic is very large, so I'm only trying to give a brief introduction and whet your appetite to learn more.
 
-What logic programming boils down to is searching through graphs. By graph, I'm referring to an abstract data structure where data is expressed as nodes and links between nodes. These searches are written mostly in a declarative style rather than an imperative one. That is, the programmer specifies what to search for rather than how to find it.
+What logic programming boils down to is searching through graphs. 
+By graph, I'm referring to an abstract data structure where data is expressed as nodes and links between nodes. 
+These searches are written mostly in a declarative style rather than an imperative one. 
+That is, the programmer specifies what to search for rather than how to find it.
 
 A large number of very interesting problems are graph searches at their core.
 
@@ -25,22 +41,50 @@ Dependency relationships
 Variable type analysis
 Natural language parsing
 Protein folding
-just to name a few. Also, Prolog is not the only logic programming language out there. For example, Kanren is another one. For this tutorial, I'll be using a subset of Kanren called mini-Kanren, which is described in the book The Reasoned Schemer. However, I've changed a couple of the function names to conform to this paper. Specifically, 'fresh' has been renamed to 'exist' and a new function named 'fresh' has been introduced. A port of the mini-Kanren system to Clojure is here. And the code for this tutorial is here.
 
+just to name a few. 
+Also, Prolog is not the only logic programming language out there. 
+For example, Kanren is another one. 
+For this tutorial, I'll be using a subset of Kanren called mini-Kanren, 
+which is described in the book The Reasoned Schemer. 
+However, I've changed a couple of the function names to conform to this paper. 
+Specifically, 'fresh' has been renamed to 'exist' and a new function named 'fresh' has been introduced. 
+A port of the mini-Kanren system to Clojure is here. 
+And the code for this tutorial is here.
+
+====
 Basics
 
-Mini-Kanren (MK) is a domain specific language (DSL) that allows a programmer to write logic programs using S-expressions. For reasons explained later, functions in mini-Kanren don't return values like standard Clojure functions do. They have to be queried in a particular way and the return value extracted. This functionality is provided by the 'run' macro.
+Mini-Kanren (MK) is a domain specific language (DSL) 
+that allows a programmer to write logic programs using S-expressions. 
+For reasons explained later, functions in mini-Kanren don't return values like standard Clojure functions do. 
+They have to be queried in a particular way and the return value extracted. 
+This functionality is provided by the 'run' macro.
 
 (run q
     ; some logic functions
  )
-When expanded, 'run' produces code that will execute the enclosed MK code. This is typically thought of as performing a query, so the variable following 'run' is often 'q', though it could be any valid symbol. This logic variable must be bound to a value in order for 'run' to produce any answers. Since 'run' may produce no answers, one answer or many answers, the value returned is actually a list of values that were bound to 'q' when the enclosed logic statements were performed. Furthermore, this list is lazy. Each answer is only generated when needed.
 
-Logic variables (LV) do not have the same semantics as variables in typical programming languages. They are not assigned a value which may then be read at a future point in the code. Instead, logic variables are 'bound' to either literals or other logic variables. In MK, the binding function is '&' and the code below binds a value of 7 to the logic variable 'q'.
+When expanded, 'run' produces code that will execute the enclosed MK code. 
+This is typically thought of as performing a query, so the variable following 'run' is often 'q', 
+though it could be any valid symbol. 
+This logic variable must be bound to a value in order for 'run' to produce any answers. 
+Since 'run' may produce no answers, one answer or many answers, 
+the value returned is actually a list of values that were bound to 'q' 
+when the enclosed logic statements were performed. 
+Furthermore, this list is lazy. 
+Each answer is only generated when needed.
+
+Logic variables (LV) do not have the same semantics as variables in typical programming languages. 
+They are not assigned a value which may then be read at a future point in the code. 
+Instead, logic variables are 'bound' to either literals or other logic variables. 
+In MK, the binding function is '&' and the code below binds a value of 7 to the logic variable 'q'.
 
 (run q
    (& 7 q))
-When exectued, this code will produce a result of (7). It doesn't matter which order the arguments are passed to bind.
+
+When exectued, this code will produce a result of (7). 
+It doesn't matter which order the arguments are passed to bind.
 
 (run q
    (& q 7))
