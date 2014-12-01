@@ -1,0 +1,347 @@
+﻿Apache2.2+Tomcat7.0整合配置详解
+作者：风尘浪子
+http://www.cnblogs.com/leslies2/archive/2012/07/23/2603617.html
+
+====
+一、简单介绍 Apache、Tomcat
+
+Apache HTTP Server（简称 Apache），是 Apache 软件基金协会的一个开放源码的网页服务器，
+可以在 Windows、Unix、Linux 等操作系统中运行是最流行的Web服务器软件之一。
+Apache 反应速度快，运行效率高，但只支持HTML等静态页面（加载插件后也可支持 PHP 页面）。
+Apache Tomcat 是由 Apache 软件基金协会与 Sun 公司联合开发的一款Web服务器，
+它除了支持HTML等静态页面外，还支持JSP、Servlet 。
+在相同的运行环境下，Tomcat 对静态页面的反应速度没有 Apache 灵敏，
+整合 Apache 与 Tomcat 能使系统运行于一个良好环境下，提高系统效率。
+
+二、软件包下载
+
+运行环境：Windows 7
+
+Apache 2.2 下载：http://httpd.apache.org/download.cgi
+
+mod_jk.mo 连接包下载：http://apache.etoak.com//tomcat/tomcat-connectors/jk/binaries/windows/
+
+三、JDK 安装（略）
+
+====
+四、Apache 2.2 安装
+
+运行 Apache 2.2 安装包, 在安装过程可以设置域名、服务器名称和端口，Apache的默认端口为80。
+
+conf/httpd.conf 是Apache的主要配置文件，下面是 Apache 的常用配置：
+
+  1 ServerRoot "C:/Program Files/Apache Software Foundation/Apache2.2"
+  2 # 定义配置文件、日志文件等的根目录，通常为Apache2.2安装的要目录
+  3 
+  4 <IfModule mpm_winnt.c>
+  5     ThreadsPerChild 250
+  6     MaxRequestsPerChild 0
+  7 </IfModule>
+  8 # <IfModule prefork.c>
+  9 #     .......
+ 10 # </IfModule>
+ 11 # <IfModule worker.c>
+ 12 #    .......
+ 13 # </IfModule>
+ 14 # Apache 支持MPM多路处理模块，MPM是一种多进程与多线程相混合的模式
+ 15 # Apache 为 Unix、OS/2、BeOS 系统定义了 perwork、worker、beos 等多种模式
+ 16 # 但在Windows下只支持winnt模式
+ 17 # ThreadPerChild 定义常用线程数、MaxRequestsPerChild 定义最多线程数
+ 18 
+ 19 Listen 8000
+ 20 # 设置 Apache 的监听路径，一般默认为127.0.0.1：80端口，但由于80经常被IIS等进程所占用，
+ 21 # 建设改用另一个端口，此处使用8000端口
+ 22 
+ 23 LoadModule actions_module modules/mod_actions.so
+ 24 LoadModule alias_module modules/mod_alias.so
+ 25 LoadModule asis_module modules/mod_asis.so
+ 26 LoadModule auth_basic_module modules/mod_auth_basic.so
+ 27 # LoadModule auth_digest_module modules/mod_auth_digest.so
+ 28 ..........
+ 29 ..........
+ 30 # 设置模块处理
+ 31 
+ 32 <IfModule !mpm_netware_module>
+ 33     <IfModule !mpm_winnt_module>
+ 34           User daemon
+ 35           Group daemon
+ 36     </IfModule>
+ 37 </IfModule>
+ 38 # 如果你想使httpd以另外的用户或组来运行，你必须在开始时以root方式启动
+ 39 # 然后再将它切换为你想要使用的用户或组。
+ 40 
+ 41 ServerAdmin leslies2@163.com
+ 42 # 定义管理员邮箱，当Apache出错时将把错误信息发到此地址
+ 43 ServerName 127.0.0.1
+ 44 # 如果你的主机没有注册DNS名，在这里键入它的IP地址
+ 45 
+ 46 DocumentRoot "E:/Apache Webs"
+ 47 # 定义发布文件的根目录 
+ 48 <Directory />
+ 49     Order deny,allow
+ 50     Deny from all
+ 51 </Directory>
+ 52 # 为特定的目录配置一组默认指令，禁止访问根目录的文件
+ 53 
+ 54 <Directory “E:/Apache Webs/WebSite1”/>
+ 55     Order deny,allow
+ 56 </Directory>
+ 57 # 允许客户访问WebSite1下的目录
+ 58 
+ 59 ErrorLog "logs/error.log"
+ 60 # ErrorLog:错误日志文件定位。
+ 61 LogLevel warn
+ 62 # LogLevel:控制记录在错误日志文件中的日志信息数量。
+ 63 # 包括：debug，info，notice，warn，error，crit，alert，emerg。
+ 64 
+ 65 <IfModule log_config_module>
+ 66     LogFormat "%h %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\"" combined
+ 67     LogFormat "%h %l %u %t \"%r\" %>s %b" common
+ 68     <IfModule logio_module>
+ 69       LogFormat "%h %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\" %I %O" combinedio
+ 70     </IfModule>
+ 71     CustomLog "logs/access.log" common
+ 72 </IfModule>
+ 73 # 日志访问格式设置
+ 74 
+ 75 <IfModule alias_module>
+ 76     ScriptAlias /cgi-bin/ "C:/Program Files/Apache Software Foundation/Apache2.2/cgi-bin/"
+ 77 </IfModule>
+ 78 # 设定默认CGI脚本目录及别名
+ 79 
+ 80 <Directory "C:/Program Files/Apache Software Foundation/Apache2.2/cgi-bin">
+ 81     AllowOverride None
+ 82     Options None
+ 83     Order allow,deny
+ 84     Allow from all
+ 85 </Directory>
+ 86 # 设定默认CGI脚本目录的属性
+ 87 
+ 88 DefaultType text/plain
+ 89 # 设定默认MIME内容类型
+ 90 <IfModule mime_module>
+ 91     TypesConfig conf/mime.types
+ 92     AddType application/x-compress .Z
+ 93     AddType application/x-gzip .gz .tgz
+ 94 </IfModule>
+ 95 # 指定MIME类型映射文件
+ 96 
+ 97 <IfModule ssl_module>
+ 98    SSLRandomSeed startup builtin
+ 99    SSLRandomSeed connect builtin
+100 </IfModule>
+101 # SSL默认配置
+
+完成配置后，启动Apache 2.2，在 "E:\\Apache Webs\WebSite1" 添加静态页面 index.html。
+最后打开 http://localhost:8000/index.html，测试 Apache 2.2 能否正常运行。
+
+====
+五、Tomcat 7 安装
+
+在 Tomcat 的目录下，conf 文件夹中包含 Tomcat 的核心配置，
+logs 文件夹包含 Tomcat 的日志记录 ， webapps 文件夹是 Tomcat 的默认网站存放目录。
+
+在conf 文件夹的 server.xml 是 Tomcat 最为重要的配置，下面是 server.xml 的常用设置：
+
+ 1 <?xml version='1.0' encoding='utf-8'?>
+ 2  <!-- Server 属性说明    
+ 3       port:指定一个端口，这个端口负责监听关闭Tomcat的请求    
+ 4       shutdown:向以上端口发送的关闭服务器的命令字符串    
+ 5   -->  
+ 6  <Server port="8006" shutdown="SHUTDOWN">
+ 7    <!--定义多个监听-->
+ 8    <Listener className="org.apache.catalina.core.AprLifecycleListener" SSLEngine="on" />
+ 9    <Listener className="org.apache.catalina.core.JasperListener" />
+10    <Listener className="org.apache.catalina.core.JreMemoryLeakPreventionListener" />
+11    <Listener className="org.apache.catalina.mbeans.GlobalResourcesLifecycleListener" />
+12    <Listener className="org.apache.catalina.core.ThreadLocalLeakPreventionListener" />
+13     <!--定义共用资源-->
+14    <GlobalNamingResources>
+15      <Resource name="UserDatabase" auth="Container"
+16                type="org.apache.catalina.UserDatabase"
+17                description="User database that can be updated and saved"
+18                factory="org.apache.catalina.users.MemoryUserDatabaseFactory"
+19                pathname="conf/tomcat-users.xml" />
+20    </GlobalNamingResources>
+21    <!--<Service>元素由org.apache.catalina.Service接口定义,它包含一个<Engine>元素,
+22     以及一个或多个<Connector>,这些Connector元素共享用同一个Engine元素-->
+23    <Service name="Catalina">
+24      <!--<Connector>元素代表与客户程序交换信息,它可以接收客户的请求,并向客户返回响应结果-->
+25      <!--定义HTTP协议的处理方式，处理接口默认为8080
+26            由于此接口经常被其他应用程序调用，建议修改接口-->
+27      <Connector port="8081" protocol="HTTP/1.1"
+28                 connectionTimeout="20000"
+29                 redirectPort="8443" />
+30      <!--定义AJP/1.3协议的处理方式，此为整合 Tomcat+Apache 的核心协议，请慎重处理 -->
+31      <Connector port="8009" protocol="AJP/1.3" redirectPort="8443" />
+32      <!--每个<Service>元素只能包括一个<Engine>元素. 
+33          <Engine>元素处理在同一个<Service>中所有<Connector>元素接收到的客户请求-->
+34      <Engine name="Catalina" defaultHost="localhost">
+35        <!-- Realm是一个存储用户名,密码以及和用户名相联系的角色的”数据库”
+36             用户名,密码可以用来验证用户对一个或多个web应用程序的有效性。-->
+37        <Realm className="org.apache.catalina.realm.LockOutRealm">
+38          <Realm className="org.apache.catalina.realm.UserDatabaseRealm"
+39                 resourceName="UserDatabase"/>
+40        </Realm>
+41         <!--<Host>元素定义了一个虚拟主机,它可以包含一个或多个Web应用-->
+42        <Host name="localhost"  appBase="webapps"
+43              unpackWARs="true" autoDeploy="true">
+44          <Valve className="org.apache.catalina.valves.AccessLogValve" directory="logs"
+45                 prefix="localhost_access_log." suffix=".txt"
+46                 pattern="%h %l %u %t &quot;%r&quot; %s %b" />
+47        </Host>
+48      </Engine>
+49    </Service>
+50  </Server>
+
+Tomcat 默认使用8080端口处理HTTP请求（因为此端口经常被其他应用程序调用，建议修改）。
+完成设置后，输入地址localhost:8080 就可看到 Tomcat 的管理页面。
+
+可以在 webapps 目录下新建 index.jsp 页面，启动 Tomcat ，测试 Tomcat 能否正常运行。
+
+====
+六、整合 Apache+Tomcat
+
+在 Apache、Tomcat 都能正常运行的情况下，把 mod_jk.mo 拷贝到 "/Apache2.2/modules" 
+在 “/Tomcat 7.0/conf ” 文件夹下增加 workers.properties 文件，输入以下内容。
+
+ 1 workers.tomcat_home=C:\Program Files\Apache Software Foundation\Tomcat 7.0
+ 2 #让 mod_jk 模块感知 Tomcat
+ 3 workers.java_home=C:\Program Files\Java\jdk1.6.0_30\jre
+ 4 #让 mod_jk 模块感知 jre
+ 5 ps=\
+ 6 #指定文件路径分割符
+ 7 worker.list=config1
+ 8 worker.config1.port=8009
+ 9 #工作端口，此端口应该与server.xml中Connector元素的 AJP/1.3 协议所使用的端口相匹配
+10 worker.config1.host=localhost
+11 #Tomcat服务器的地址
+12 worker.config1.type=ajp13
+13 #类型
+14 worker.config1.lbfactor=1
+15 #负载平衡因数
+ 
+注意：
+
+worker.list=config1中，conifg1为自定义名称，
+但此名称必须与下文所述的 “/Apache 2.2/conf/httpd.conf ” 文件中 ，JkMount 指令对应的名称相匹配。
+
+加入workers.properties 文件后，可修改 “/Apache 2.2/conf/httpd.conf ” 文件，加入以下配置。
+注意 JkMount 指令中的变量必须与worker.list 所配置的名称相同。
+
+ 1 # 设置虚拟主机，定义端口为8000
+ 2  <VirtualHost 127.0.0.1:8000>
+ 3      ServerName 127.0.0.1
+ 4      #定义服务名称
+ 5      DocumentRoot "C:/Program Files/Apache Software Foundation/Tomcat 7.0/webapps"
+ 6      #定义站点项目所在路径，把路径指向 tomcat 中的默认网站目录
+ 7      DirectoryIndex index.html index.htm index.jsp
+ 8      ErrorLog logs/shsc-error_log.txt
+ 9      CustomLog logs/shsc-access_log.txt common
+10      #例子1，让 Apache 支持对webapps/sun.shop/blog 中页面传送
+11      JkMount /sun.shop/blog/* config1
+12      #例子2，向Apache请求此文件夹内页面时，系统将转向用Tomcat解析
+13      JkMount /*.jsp config1
+14      #例子3，向 Apache 请求jsp页面时，用 Tomcat 进行解析
+15      JkMount /*.do config1
+16      #例子4，向 Apache 请求.do 动作时， 用 Tomcat 进行解析
+17      JkMount /*.action config1
+18      #例子5，向 Apache 请求 .action 动作时， 用 Tomcat 进行解析
+19  </VirtualHost>
+20  
+21  # 允许客户端访问此路径
+22  <Directory "C:/Program Files/Apache Software Foundation/Tomcat 7.0/webapps">  
+23      Options Indexes FollowSymLinks  
+24      AllowOverride None  
+25      Order allow,deny  
+26      Allow from all  
+27  </Directory>  
+28  
+29  LoadModule jk_module modules/mod_jk.so
+30  # 此处 mod_jk.so 文件为你下载的文件
+31  JkWorkersFile "C:/Program Files/Apache Software Foundation/Tomcat 7.0/conf/workers.properties"
+32  # 指定tomcat监听配置文件地址
+33  JkLogFile "C:/Program Files/Apache Software Foundation/Tomcat 7.0/logs/mod_jk2.log"
+34  # 指定日志存放位置
+35  JkLogLevel info
+
+注意：
+
+JkMount /*.jsp config1 指令代表当客户端向 Apache 发送 *.jsp 页面请求时，把处理指向 Tomcat。
+当使用 Struts时建议使用  *.action、*.do等后缀命名动作，否则若使用无后缀命名时，加入 JkMount /* config1命令，
+Apache 则会把包括 *.html等静态页面所有请求，都转向 Tomcat。
+
+完成以上配置后，重启 Apache、Tomcat。
+此时 Apache、Tomcat 的默认目录为 “C:/Program Files/Apache Software Foundation/Tomcat 7.0/webapps ”，
+对HTTP请求，Apache 使用8000端口，Tomcat 使用 8081 端口。
+在默认目录下加入index.jsp 页面后，直接向 Apache 发送 http://localhost:8000/index.jsp 页面请求，
+可见 Apache 会把请求转向 Tomcat 进行处理。
+对JAVA开发有兴趣的朋友欢迎加入QQ群：174850571 共同探讨 ！
+
+========
+========
+http://www.cnblogs.com/itech/archive/2009/08/18/1548723.html
+
+安装JK
+把 mod_jk-1.2.26-httpd-2.2.4.so 拷贝到 D:\Program Files\Apache2.2\modules 下。
+
+下面进行服务器的配置：
+
+1、配置Tomcat
+
+查找Tomcat目录下的 conf/server.xml文件，在<host></host>中间加入以下语句以修改其默认的目录：
+<Context path="" docBase="E:\wwwroot" reloadable="true" crossContext="true"/>
+在这里，如果 path 不为空，则设置的是虚拟目录，path 的值为虚拟目录名。
+
+查找Tomcat目录下的 conf/workers.properties文件，并对比下方文本内容，如有不同处，以下方文本为准进行修改。
+
+workers.tomcat_home=C:\apache-tomcat-6.0.18 #让mod_jk模块知道Tomcat的位置
+workers.java_home=D:\Program Files\Java\jre1.6.0_07 #让mod_jk模块知道jre的位置
+ps=\
+worker.list=ajp13 #模块版本
+worker.ajp13.port=8009 #工作端口,若没占用则不用修改
+worker.ajp13.host=localhost #本机,若上面的Apache主机不为localhost,作相应修改
+worker.ajp13.type=ajp13 #类型
+worker.ajp13.lbfactor=1 #代理数,不用修改
+
+如果此文件不存在，则依以上内容创建。对Tomcat的设置进行任何修改后都要重启才可以生效。
+
+2、配置Apache
+
+打开D:\Program Files\Apache2.2\conf下的httpd.conf，在最后加入下面这段代码并保存。
+
+LoadModule jk_module modules\mod_jk-1.2.26-httpd-2.2.4.so
+#此处mod_jk的文件为你下载的文件
+JkWorkersFile "D:\Program Files\Tomcat\conf\workers.properties"
+#指定tomcat监听配置文件地址
+JkLogFile "D:\Program Files\Tomcat\logs\mod_jk2.log"
+#指定日志存放位置
+JkLogLevel info
+
+#设置虚拟主机
+<VirtualHost localhost>
+#如果非虚拟主机，将<VirtualHost localhost>和最后的</VirtualHost>注释或者删除掉即可
+ServerAdmin localhost
+DocumentRoot E:/wwwroot
+<Directory "E:/wwwroot">
+#您的站点项目所在路径，应与tomcat中的目录设置相同，据说以上两个必须同时设置才可以生效，没有试过不同的时候会有什么情况
+ServerName localhost
+DirectoryIndex index.html index.htm index.jsp
+ErrorLog logs/shsc-error_log.txt
+CustomLog logs/shsc-access_log.txt common
+JkMount /servlet/* ajp13
+#让Apache转发servlet给Tomcat
+JkMount /*.jsp ajp13
+#让Apache转发jsp给Tomcat
+JkMount /*.do ajp13
+#让Apache转发.do给Tomcat
+</VirtualHost>
+
+#开头的行为注释，可以删除。
+此处的配置我是以设置虚拟目录，重新指定了serverName,DocumentRoot路径的方式配置站点，
+实际上，Apache的配置可以非常灵活，你也可以不采用虚拟目录的方式，而直接去修改站点的默认配置，
+使用任意文本编辑工具，搜索如 ServerName,DocumentRoot,ServerAdmin等相关项，然后将该项的配置根据你的实际情况进行修改即可。
+我建议大家可以多多尝试不同的配置，这是一种很有乐趣的体验。
+所有的修改完成以后，双击系统托盘中的Apache图标，然后点击Start启动Apache服务。
+在地址栏中分别输入http://localhost/，与http://localhost:8080/若结果相同,Apache与Tomcat整合成功
+
