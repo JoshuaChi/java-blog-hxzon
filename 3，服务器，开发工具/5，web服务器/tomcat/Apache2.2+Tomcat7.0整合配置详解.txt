@@ -293,6 +293,30 @@ http://www.cnblogs.com/itech/archive/2009/08/18/1548723.html
 <Context path="" docBase="E:\wwwroot" reloadable="true" crossContext="true"/>
 在这里，如果 path 不为空，则设置的是虚拟目录，path 的值为虚拟目录名。
 
+（hxzon：
+
+      <Host name="localhost"  appBase="d:/xxx/my-webapps"
+            unpackWARs="true" autoDeploy="true">
+
+        <!-- SingleSignOn valve, share authentication between web applications
+             Documentation at: /docs/config/valve.html -->
+        <!--
+        <Valve className="org.apache.catalina.authenticator.SingleSignOn" />
+        -->
+
+        <!-- Access log processes all example.
+             Documentation at: /docs/config/valve.html
+             Note: The pattern used is equivalent to using pattern="common" -->
+        <Valve className="org.apache.catalina.valves.AccessLogValve" directory="logs"
+               prefix="localhost_access_log" suffix=".txt"
+               pattern="%h %l %u %t &quot;%r&quot; %s %b" />
+
+        <Context path="" docBase="D:/wwwroot/" reloadable="true" crossContext="true" debug="0"/>
+
+      </Host>
+
+）
+
 查找Tomcat目录下的 conf/workers.properties文件，并对比下方文本内容，如有不同处，以下方文本为准进行修改。
 
 workers.tomcat_home=C:\apache-tomcat-6.0.18 #让mod_jk模块知道Tomcat的位置
@@ -344,4 +368,6 @@ JkMount /*.do ajp13
 我建议大家可以多多尝试不同的配置，这是一种很有乐趣的体验。
 所有的修改完成以后，双击系统托盘中的Apache图标，然后点击Start启动Apache服务。
 在地址栏中分别输入http://localhost/，与http://localhost:8080/若结果相同,Apache与Tomcat整合成功
+
+（hxzon：注意，对应的文件夹必须存在，否则启动apache时会报错。）
 

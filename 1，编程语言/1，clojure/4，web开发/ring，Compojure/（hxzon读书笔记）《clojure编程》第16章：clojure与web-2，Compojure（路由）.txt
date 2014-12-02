@@ -77,6 +77,7 @@ http方法。
 路径节段由:keyword标识出来，会与除“/ . , ; ?”之外的任何字符匹配。
 一个星号的路径节段会匹配到下一个前斜杠的所有东西。
 
+==
 如果多个路由节段名称相同，每个匹配节段的向量将与具名的局部量绑定。
 
 ((PUT   ["/*/*/:id/:id"]    ;只匹配4个节段？
@@ -86,6 +87,9 @@ http方法。
 ;= {:status 200, :headers {"Content-Type" "text/html"},
 ;= :body "[\"abc\" \"xyz\"][\"foo\" \"bar\"]"}
 
+（hxzon：因为*和id都出现了多次，所以被绑定成向量）
+
+==
 可以提供正则表达式来定义路径节段的性质和范围。
 
 ((PUT ["/:id" :id #"\d+"]   ;限定id只含有数字。
@@ -101,6 +105,7 @@ http方法。
 ;= {:status 200, :headers {"Content-Type" "text/html"},
 ;= :body "You requested that http://clojurebook.com be assigned id 590"}
 
+==
 可以提供一个符号或映射解构形式作为路由里的绑定形式，
 那将把整个请求映射与处理函数体绑定。
 
@@ -135,6 +140,7 @@ site提供同样的功能，但加上其他中间件来支持一个面向用户/
 (def server (run-jetty #'app {:port 8080 :join? false}))
 ;= #'user/server
 
+====
 使用curl来测试我们的服务。
 
 % curl -X PUT 'http://localhost:8080/sicp?url=http://mitpress.mit.edu/sicp/'

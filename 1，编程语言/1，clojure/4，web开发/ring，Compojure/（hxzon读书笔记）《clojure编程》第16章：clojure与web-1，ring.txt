@@ -52,9 +52,10 @@ https://github.com/mmcgrana/ring/blob/master/SPEC
 Ring规范用clojure数据结构定义了一个标准的数据模式来表示web请求和应答，
 以及基于函数组合的一两个关键架构概念：适配函数、处理函数、中间件。
 
-适配函数：解析http请求，生成http响应。
-处理函数：业务逻辑。
-中间件：通用功能。
+请求和响应：都表示成一个map。
+适配函数：将http请求解析成请求map，将响应map转成http响应。
+处理函数：业务逻辑，输入为请求map，输出为响应map。
+中间件：通用功能，类似过滤器，多请求map和响应map做加工。
 
 ====
 2.1，请求和应答，都表示为常规的map。
@@ -84,6 +85,7 @@ Ring规范用clojure数据结构定义了一个标准的数据模式来表示web
 
 :body   A java.io.InputStreamfor the request body, if present.
 
+==
 响应映射：
 :status The HTTP status code, must be greater than or equal to 100.
 
@@ -93,6 +95,7 @@ or a seq of Strings, in which case a name/value header will be sent for each suc
 
 :body   Optionally a String, a Clojure sequence of strings, a java.io.File, or a java.io.InputStream.
 
+==
 示例：
 {:status 200
  :headers {"Content-Type" "text/html"}
