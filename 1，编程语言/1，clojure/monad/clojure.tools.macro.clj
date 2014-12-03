@@ -62,15 +62,15 @@
             (= "." (subs s (dec (count s))))))))
 
 (defn- expand-symbol
-  ;; 展开符号，返回该符号对应的形式
+  ;; 展开符号宏（本地或全局），返回该符号宏所对应的形式
   "Expand symbol macros"
   [symbol]
   (cond (protected? symbol)                   symbol    ;; 如果是受保护符号，原样返回
-        (contains? macro-symbols symbol)     (get macro-symbols symbol)    ;; 取出该符号所对应的形式
+        (contains? macro-symbols symbol)     (get macro-symbols symbol)    ;; 如果是本地符号宏，取出该符号所对应的形式
         :else (let [v (try (resolve symbol)
                            (catch java.lang.ClassNotFoundException e nil))
                     m (meta v)]
-                (if (:symbol-macro m)
+                (if (:symbol-macro m)    ;; 如果是全局符号宏，取出它所对应的形式
                   (var-get v)
                   symbol))))
 
@@ -83,7 +83,7 @@
         (cond (contains? special-forms f)   form        ;; 如果是特殊形式，原样返回
               (and (not (protected? f))
                    (contains? macro-fns f)) 
-              (apply (get macro-fns f) (rest form))    ;; 如果不是受保护的，且是macro-fns，调用该macro-fn  （hxzon注意）
+              (apply (get macro-fns f) (rest form))    ;; 如果不是受保护的，且是macro-fns（即本地宏），调用该macro-fn  （hxzon注意）
               (symbol? f)  (cond
                             (protected? f)  form    ;; 受保护的符号，原样返回
                             ; macroexpand-1 fails if f names a class
@@ -230,26 +230,31 @@
   "Define local macros that are used in the expansion of exprs. The
    syntax is the same as for letfn forms."
   [fn-bindings & exprs]
-  ;; fn-bindings ”本地宏“绑定列表
-  (let [names      (check-not-qualified (map first fn-bindings))
-        name-map   (into {} (map (fn [n] [(list 'quote n) n]) names))
-        macro-map  (eval `(letfn ~fn-bindings ~name-map))]
-    (binding [macro-fns     (merge macro-fns macro-map)
-              macro-symbols (apply dissoc macro-symbols names)]
-      `(do ~@(doall (map expand-all exprs))))))
+  ;; fn-bindings ”本地宏“绑定列表：[ (m1 [p] body)   (m2 [p] body) ]
+  (let [names      (check-not-qualified (map first fn-bindings))    ;; 取出本地宏的名字：[m1 m2]
+        name-map   (into {} (map (fn [n] [(list 'quote n) n]) names))    ;; (into {} ['m1 m1 'm2 m2])
+        macro-map  (eval `(letfn ~fn-bindings ~name-map))]    ;; { 'm1 m1v 'm2 m2v }
+    (binding [macro-fns     (merge macro-fns macro-map)        ;; macro-fns 本地宏
+              macro-symbols (apply dissoc macro-symbols names)]  ;; 移除与“本地宏”同名的“本地符号宏”
+      `(do ~@(doall (map expand-all exprs))))))  ;; 生成 (do expr1Expand expr2Expand ...)
+;; defmacro 是定义全局宏，稍后使用。
+;; macrolet 则定义完宏后，马上使用。
+;; (macrolet [(foo [form] `(list ~form ~form))]  (foo 'x))
+;; 生成 (do (list 'x 'x))
 
 ;; 定义本地符号宏
 (defmacro symbol-macrolet
   "Define local symbol macros that are used in the expansion of exprs.
    The syntax is the same as for let forms."
   [symbol-bindings & exprs]
+  ;; symbol-bindings : [ x xx y yy ]
   (let [symbol-map (into {} (map vec (partition 2 symbol-bindings)))
         names      (check-not-qualified (keys symbol-map))]
-    (binding [macro-fns     (apply dissoc macro-fns names)
+    (binding [macro-fns     (apply dissoc macro-fns names)    ;; 移除与“本地符号宏”同名的“本地宏”
               macro-symbols (merge macro-symbols symbol-map)]
       `(do ~@(doall (map expand-all exprs))))))
 
-;; 定义符号宏
+;; 定义全局符号宏
 (defmacro defsymbolmacro
   "Define a symbol macro. Because symbol macros are not part of
    Clojure's built-in macro expansion system, they can be used only
@@ -257,7 +262,7 @@
   [symbol expansion]
   (let [meta-map (if (meta symbol) (meta symbol) {})
         meta-map (assoc meta-map :symbol-macro true)]        ;; 在元数据里标明是”符号宏“
-  `(def ~(with-meta symbol meta-map) (quote ~expansion))))          ;; 符号宏，对应到第二个形式
+  `(def ~(with-meta symbol meta-map) (quote ~expansion))))          ;; 符号宏的值，即它被展开时的形式
 
 ;; 因为符号宏不是clojure原生支持，所以符号宏必须在with-symbol-macros 中使用
 (defmacro with-symbol-macros

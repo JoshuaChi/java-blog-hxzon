@@ -20,6 +20,15 @@ fn接受let样式的绑定数组，let解构在这里同样适用。
 函数可以有多个参数列表（即函数可以根据参数个数不同进行重载）。
 定义多参数列表的函数时，每套“参数-函数体”都要放在一个单独的括号内。
 
+user=> (fn [] "hello")  
+#<user$eval375$fn__376 user$eval375$fn__376@eabd2f>  
+
+user=> ((fn [] "hello"))  
+"hello"
+
+user=> ((fn [x] x) "hello") ; 带参数  
+"hello"
+
 fn的第一个参数是一个可选的函数名字，使得可以在函数体中引用函数自己。
 
 (def strange-adder (fn  adder-self-reference
@@ -48,15 +57,6 @@ fn的第一个参数是一个可选的函数名字，使得可以在函数体中
                 (odd? (dec n))))] 
        (odd? 11))
 ;= true
-
-user=> (fn [] "hello")  
-#<user$eval375$fn__376 user$eval375$fn__376@eabd2f>  
-
-user=> ((fn [] "hello"))  
-"hello"  
-
-user=> ((fn [x] x) "hello") ; 带参数  
-"hello"  
 
 ----
 http://clojuredocs.org/clojure_core/clojure.core/letfn
