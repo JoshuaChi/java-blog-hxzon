@@ -1,6 +1,8 @@
 ﻿（hxzon学习笔记）clojure-关键字，符号及相关函数
 
 by hxzon
+《clojure编程》第1章：进入clojure仙境-关键字
+
 ====
 hxzon学习笔记：
 
@@ -25,6 +27,10 @@ keyword，symbol，name，intern，namespace，keyword?，symbol?
 命名空间限定的关键字，在多重方法以及isa?体系里面有很多的使用。
 
 关键字中的点号没有特别意义，只是名字的一部分。
+
+hxzon：
+(= :x ::x) false，一个无命名空间，一个当前命名空间
+(= :clojure.core/y ::clojure.core/y) true
 
 ====
 1.1，创建关键字，keyword函数。 

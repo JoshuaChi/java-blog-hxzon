@@ -3,7 +3,6 @@
 by hxzon
 《clojure编程》第8章：clojure项目的组织与构建-项目布局
 《clojure编程》第10章：面向REPL的编程-工具集-内省命名空间
-《clojure编程》第1章：进入clojure仙境-关键字
 
 ====
 hxzon学习笔记：
