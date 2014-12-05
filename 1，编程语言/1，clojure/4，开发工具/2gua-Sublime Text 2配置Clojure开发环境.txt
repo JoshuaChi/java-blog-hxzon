@@ -1,5 +1,5 @@
 ﻿2gua-Sublime Text 2配置Clojure开发环境
- 2gua
+2gua
 
 趁着刚才在摆弄Sublime Text 2，索性把Sublime Text 2的Clojure开发环境也一并处理了！
 

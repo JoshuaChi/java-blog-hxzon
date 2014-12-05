@@ -249,6 +249,15 @@ ns-unalias，删除命名空间别名。
 ;= ()
 
 ========
+namespace-munge
+function
+Usage: (namespace-munge ns)
+
+Convert a Clojure namespace name to a legal Java package name.
+将clojure命名空间转成合法的java包名。
+
+========
+========
 ns
 macro
 Usage: (ns name docstring? attr-map? references*)

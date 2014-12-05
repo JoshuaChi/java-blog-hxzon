@@ -159,3 +159,52 @@ false
 clojure-基本语法-符号及关键字
 http://dead-knight.iteye.com/blog/1830465
 
+========
+hxzon：
+
+find-keyword
+function
+Usage: (find-keyword name)
+       (find-keyword ns name)
+
+Returns a Keyword with the given namespace and name if one already
+exists.  This function will not intern a new keyword. If the keyword
+has not already been interned, it will return nil.  Do not use :
+in the keyword strings, it will be added automatically.
+
+====
+find-ns
+function
+Usage: (find-ns sym)
+
+Returns the namespace named by the symbol or nil if it doesn't exist.
+
+====
+find-var
+function
+Usage: (find-var sym)
+
+Returns the global var named by the namespace-qualified symbol, or
+nil if no var with that name.
+
+====
+ns-resolve
+function
+Usage: (ns-resolve ns sym)
+       (ns-resolve ns env sym)
+
+Returns the var or Class to which a symbol will be resolved in the
+namespace (unless found in the environment), else nil.  Note that
+if the symbol is fully qualified, the var/Class to which it resolves
+need not be present in the namespace.
+在指定的命名空间中，查找该符号所对应的var或类。
+注意，如果该符号是命名空间限定的，则它不必指定的命名空间。
+
+====
+resolve
+function
+Usage: (resolve sym)
+       (resolve env sym)
+
+same as (ns-resolve *ns* symbol) or (ns-resolve *ns* &env symbol)
+

@@ -54,6 +54,20 @@ doD
 宏返回的值是“clojure代码”，这些生成的代码插入到自己所在位置。
 
 ==
+宏本身执行一次，它的返回值作为代码，又执行一次。
+
+(def a 0)
+
+(defmacro ma []
+  (def a (inc a))
+  `(prn a))
+
+(ma);; print 1
+(ma);; print 2
+(ma);; print 3
+(prn a);; print 3
+
+==
 不定参数：
 
 (defmacro defComp [& np]
@@ -161,5 +175,14 @@ let绑定是不允许有名字空间的。
 java方法中使用不定形参时，在clojure中不能传入单个实参，必须转成数组，且类型匹配。
 
 ====
+7，可以定义含有点号的var，但是不能直接读取，会被当成class，必须用@#'访问。
 
+(def a.b 1)
+;; #'org.hxzon.clj.xzwebc/a.b
+a.b
+;; java.lang.ClassNotFoundException: a.b, compiling:(null:0:0)
+#'a.b
+;; #'org.hxzon.clj.xzwebc/a.b
+@#'a.b
+;; 1
 
