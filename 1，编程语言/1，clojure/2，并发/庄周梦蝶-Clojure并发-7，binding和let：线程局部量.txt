@@ -5,7 +5,7 @@ http://wiki.fnil.net/index.php?title=Clojure%E5%B9%B6%E5%8F%91
 
 hxzon修订部分字眼和语句。（2013.12.3）
 
-----
+====
 hxzon学习笔记：
 
 1，由于let的绑定是静态的，它并不是改变变量foo的值，而是用一个词法作用域的foo“遮蔽”了外部的foo的值。
@@ -22,14 +22,13 @@ set!可以修改binding的变量：
    nil
 
 --
-2，Binding可以用于实现类似AOP编程这样的效果（重定义函数）。
+2，binding可以用于实现类似AOP编程这样的效果（重定义函数）。
 
 3，binding和let的实现上的区别：
 
 前面已经提到，let其实是词法作用域的对变量的“遮蔽”，它并非重新绑定变量值，
 而binding则是在变量的root binding之外在线程的ThreadLocal内存储了一个绑定值，
 变量值的查找顺序是先查看ThreadLocal有没有值，有的话优先返回，没有则返回root binding。
-
 
 ========
 1 声明
@@ -47,7 +46,7 @@ set!可以修改binding的变量：
 8 并发函数pmap、pvalues和pcalls
 9 future、promise和线程
 
-=======
+========
 7，binding和let：线程局部量
 
 前面几节已经介绍了Ref、Atom和Agent，
@@ -55,7 +54,7 @@ set!可以修改binding的变量：
 
 这里将介绍下binding，用于线程内的状态的管理。
 
-=====
+====
 7.1，binding和let:
 当你使用def定义一个var，并传递一个初始值给它，这个初始值就称为这个var的root binding。
 这个root binding可以被所有线程共享，例如：
@@ -122,7 +121,7 @@ set!可以修改binding的变量：
    3
    nil
 
-=====
+====
 7.2，Binding的妙用：
 
 Binding可以用于实现类似AOP编程这样的效果，
@@ -162,7 +161,7 @@ user=> (call-fibs 3 3)
 因此对于binding的这种使用方式要相当慎重。
 这其实有点类似Ruby中的open class做monkey patch，你可以随时随地地改变对象的行为，但是你要承担相应的后果。
 
-=====
+====
 7.3，binding和let的实现上的区别：
 
 前面已经提到，let其实是词法作用域的对变量的“遮蔽”，它并非重新绑定变量值，
@@ -187,6 +186,7 @@ public final Namespace ns;  //变量的namespace
 
 通过def定义一个变量，相当于生成一个Var对象，并将root设置为初始值。
 
+==
 先看下let表达式生成的字节码（各个Clojure版本生成的字节吗会稍有不同，大体是一致的）：
 (let [foo 3] foo)
 
@@ -254,6 +254,7 @@ NO_SOURCE_PATH
 let在编译的时候，将绑定作为编译的context静态地编译body的字节码，
 body中用到的foo编译的时候就确定了，没有任何动态性可言。
 
+==
 再看同样的表达式替换成binding宏，因为binding只能重新绑定已有的变量，所以需要先定义foo:
 
    user=> (def foo 100)
@@ -277,7 +278,7 @@ binding是一个宏，展开之后等价于：
      [bindings]
      (clojure.lang.Var/pushThreadBindings bindings))
     
-    其实是调用Var.pushThreadBindings这个静态方法：
+其实是调用Var.pushThreadBindings这个静态方法：
 
 public static void pushThreadBindings(Associative bindings){
     Frame f = dvals.get();

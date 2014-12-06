@@ -144,7 +144,7 @@ compare-and-set! 不适用值语义，它要求你的第2个参数，跟atom的�
 ;= :y
 
 
-=======
+========
 引用类型共同的特性：观察器和校验器。
 
 4，观察器
@@ -236,7 +236,7 @@ remove-watch 移除观察器，第2个参数是观察器的名字。
 
 (add-watch sarah "jdbc:postgresql://hostname/some_database" log->db)
 
-=====
+====
 5，校验器
 
 检验器函数检查新值，通过返回逻辑假，或抛出异常，来使修改失败。
