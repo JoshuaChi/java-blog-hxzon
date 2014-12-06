@@ -2,25 +2,27 @@
 
 by hxzon
 
-----
+====
 hxzon摘要：
 
-1，send，send-off（阻塞型）。
+1，send（固定大小的线程池），send-off（不固定大小的线程池，适宜阻塞型操作）。
 2，await，await-for。
 3，set-error-handler! （设置错误处理器），set-error-mode! （设置错误处理模式，挂掉或忽略）。
-4，爬虫示例：利用agent来并行化工作量，有限状态机。
+4，“后写”日志：利用agent 和 观察器。
+5，爬虫示例：利用agent来并行化工作量，有限状态机。
+6，*agent* ，在action内部可用，绑定到自己的 agent 。
 
-======
+========
 1，agent
 
 不协调、异步的引用类型。
-对agentA和agentB的修改是完全独立的。
+对 agentA 和 agentB 的修改是完全独立的。
 发起对agent进行改变的线程，与真正改变agent值的线程，不是同一个线程。
 
 -1，可以很安全地利用agent进行IO以及其它各种副作用操作。
 -2，agent是STM感知的，因此它们可以很安全地用在事务重试的场景下。 
 
-----
+====
 2，修改agent：send和send-off 。
 参数：更新函数f，以及f需要的参数。f的第1个参数为agent。
 
@@ -32,6 +34,9 @@ send和send-off都会马上返回，它们只是把这个action放到agent的动
 send和send-off的唯一区别就是执行动作的线程不同，
 send的动作在一个固定大小的线程池中执行，所以不适宜进行IO或其它阻塞操作。
 send-off的动作则在一个不限制大小的线程池中执行，所以适宜阻塞的、非CPU密集型的操作。
+
+==
+示例：
 
 (def a (agent 500))
 ;= #'user/a
@@ -48,14 +53,16 @@ send-off的动作则在一个不限制大小的线程池中执行，所以适宜
 (send a inc)
 ;= #<Agent@65f7bb1f: 1>
 
-----
+====
 3，等待动作执行完成：await，await-for 。
 
 await-for可以指定超时时间。
 
 (.getQueueCount agentA)可以得到队列中有多少个动作。但这是一个实现细节。
 
---
+==
+示例：
+
 (def a (agent 5000))
 
 (def b (agent 10000))
@@ -75,7 +82,7 @@ await-for可以指定超时时间。
 @a
 ;= nil
 
-=====
+====
 4，处理动作中的错误。
 
 如果一个动作抛出异常，默认的处理策略是这个agent默默的挂掉。
@@ -85,6 +92,9 @@ await-for可以指定超时时间。
 
 可以通过restart-agent来重启一个挂掉的agent，并重置它的值。
 如果指定:clear-actions选项，还会清除agent已有的动作，防止它又马上挂掉。
+
+==
+示例：
 
 (def a (agent nil))
 ;= #'user/a
@@ -123,7 +133,7 @@ a
 (agent-error a)
 ;= nil
 
-----
+==
 创建agent时，通过:error-mode可以指定错误处理的模式，默认值:fail表示挂掉，:continue表示忽略错误。
 在创建时还可以通过:error-handler指定错误处理函数，它的参数为agent和抛出的异常对象。
 也可以通过set-error-handler! 和 set-error-mode! 来设置错误处理函数和错误处理模式。
@@ -162,7 +172,9 @@ a
 (send a identity)
 ;= #<Exception java.lang.Exception: FATAL>
 
-====
+========
+（hxzon：重要）
+
 5，IO，事务，以及嵌套的send 。
 
 可以非常安全的利用agent来协调IO或者其它类型的阻塞操作。
@@ -180,7 +192,9 @@ agent跟STM的实现紧密融合的。
 
 这两种情况下，被发送的动作，都可能因为一个校验器失败而被全部丢弃。
 
-----
+hxzon：因为串行执行，所以每个action独占agent。action只在事务成功时，才执行（只执行一次）。
+
+====
 5.1，示例：利用agent，将引用状态的变更记录到日志。
 
 利用agent的串行执行（每个动作在执行时独占agent），使得共享IO资源，却不需要使用锁。
@@ -189,7 +203,7 @@ agent跟STM的实现紧密融合的。
 
 (require '[clojure.java.io :as io])
 
-;两个输出源。
+;; 用两个agent，来表示两个输出源。
 (def console (agent *out*))
 
 (def character-log (agent (io/writer "character-states.log" :append true)))
@@ -202,7 +216,7 @@ agent跟STM的实现紧密融合的。
     (.write "\n")
     .flush))
 
-;观察器，把引用类型跟agent连接起来。
+;; 观察器，把引用类型（这里是var）跟agent连接起来。
 (defn log-reference
   [reference & writer-agents]
   (add-watch reference :log
@@ -269,9 +283,9 @@ agent跟STM的实现紧密融合的。
 ; Gandalf heals Bilbo for 33.37374788147494
 ; ...
 
-----
+====
 5.2，示例：利用agent来并行化工作量。
-（有限状态机，受益匪浅。）
+（hxzon：重要的示例：有限状态机。）
 
 (require '[net.cgrand.enlive-html :as enlive])
 

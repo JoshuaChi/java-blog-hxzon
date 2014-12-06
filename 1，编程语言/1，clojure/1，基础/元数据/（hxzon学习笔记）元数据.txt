@@ -1,7 +1,21 @@
 ﻿（hxzon学习笔记）元数据
 by hxzon
 
-==================
+========
+引用类型除了可以解引用，还可以添加元数据。
+但是跟普通值不同，不能使用with-meta或者vary-meta，
+对引用类型必须使用alter-meta! ，它会直接修改引用类型的元数据（而不是返回一个新的引用类型）。（hxzon：注意）
+atom，ref，agent都接受一个额外的:meta关键字参数，用来设置元数据。
+
+(meta obj)
+
+(with-meta obj map)
+
+(vary-meta obj assoc :xx xx)
+
+alter-meta!
+
+========
 对元数据的处理
 
 LispReader生成form时，把元数据字面量附着到随后的形式上，例如sym。
