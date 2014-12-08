@@ -27,6 +27,7 @@ Wilson的算法是一个雕刻算法，它从一个全是墙、没有路径的�
 -5，遍历其实就是坐标的序列。
 -6，离开方向其实就是从离开的坐标到它新进入的坐标，可以用两个坐标的向量表示。[ [x y] [x y1] ]
 
+;; 生成迷宫
 (defn maze
     "Returns a random maze carved out of walls; walls is a set of
     2-item sets #{a b} where a and b are locations.
@@ -198,11 +199,12 @@ seq-zip处理嵌套的序列，vector-zip处理嵌套的向量，xml-zip处理�
 up（向根部移动），down（向叶子移动），left（向相邻节点移动），right，
 prev，next，leftmost（移动到最左边），rightmost。
 
-node（返回当前节点），branch?（当前节点是否分支节点），children（当前节点的子节点），lefts（当前节点的所有左边兄弟节点）
-，rights，root。
+node（返回当前节点），branch?（当前节点是否分支节点），children（当前节点的子节点），
+lefts（当前节点的所有左边兄弟节点），rights，root。
 
 remove（删除当前节点），replace（将当前节点替换成一个新节点），
-insert-child（在当前节点插入一个子节点，插在第一个位置），append-child（在当前节点插入一个子节点，插在最后面），
+insert-child（在当前节点插入一个子节点，插在第一个位置），
+append-child（在当前节点插入一个子节点，插在最后面），
 edit（当前节点会被这个函数返回值所替换）。
 make-node（创建一个新节点，但不加到我们的树结构中）。
 
@@ -224,6 +226,9 @@ path。
 (-> v z/vector-zip z/down z/node)
 ;= [1 2 [3 4]]
 
+(-> v z/vector-zip z/down z/down z/node)
+;= 1
+
 (-> v z/vector-zip z/down z/right z/node)
 ;= [5 6]
 
@@ -232,12 +237,12 @@ https://en.wikipedia.org/wiki/Ariadne
 (-> v z/vector-zip z/down z/right (z/replace 56) z/node)
 ;= 56
 
-z/vector-zip 和 z/root一起配合构建了一个事务的边界。
+;; z/vector-zip 和 z/root一起配合构建了一个事务的边界。
 
 (-> v z/vector-zip z/down z/right (z/replace 56) z/root) 
 ;= [[1 2 [3 4]] 56]
 
-z/remove把zipper移到深度优先遍历的前一个位置。
+;; z/remove把zipper移到深度优先遍历的前一个位置。
 
 (-> v z/vector-zip z/down z/right z/remove z/node) 
 ;= 4
@@ -295,22 +300,22 @@ root is the root node.
 ;= [:body [:h1 "Clojure"] [:p [:b "What a wonderful language!"]]]
 
 ======
-定义一个迷宫。
+;; 定义一个迷宫。
 
-全是墙的迷宫：
+;; 全是墙的迷宫：
 (def labyrinth (maze (grid 10 10)))
 
-除去一些墙的迷宫：
+;; 除去一些墙的迷宫：
 (def labyrinth (let [g (grid 10 10)] (reduce disj g (maze g))))
 
-忒修斯：
+;; 忒修斯：
 (def theseus (rand-nth (distinct (apply concat labyrinth))))
 
-牛头怪：
+;; 牛头怪：
 (def minotaur (rand-nth (distinct (apply concat labyrinth))))
 
---
-以方向作为节点。
+;; --
+;; 以方向作为节点。
 (defn ariadne-zip
     [labyrinth loc]
     (let [  paths (reduce  (fn  [index [a b]]
@@ -325,22 +330,24 @@ root is the root node.
                     nil    ;因为这个zipper是完全只读遍历的。
                     [nil loc])))    ;初始方向，起点。
 
---
-对迷宫进行一个深度优先遍历就能找到牛头怪。
+;; --
+;; 对迷宫进行一个深度优先遍历就能找到牛头怪。
 
 (->> theseus
     (ariadne-zip labyrinth)
-    (iterate z/next)
-    (filter #(= minotaur (second (z/node %))))
-    first z/path
-    (map second))
+    (iterate z/next)    ;; hxzon：从忒修斯位置开始，不断的前进，得到前进过程中的每一步（是一个方向）
+    (filter #(= minotaur (second (z/node %))))    ;;    hxzon：得到“到达怪物”的那一步
+    first 
+    z/path    ;;    hxzon：从忒修斯到怪物的路径
+    (map second))    ;;    hxzon：每一步是一个方向（[from to]），取出其中的 to 
 ;=	([3 9] [4 9] [4 8] [4 7] [4 6] [5 7] [5 6] [5 5] [5 4]
 ;	[5 8] [6 8] [6 7] [6 6] [6 5] [7 6] [8 6] [9 6] [9 5]
 ;	[9 4] [9 3] [9 2] [9 1] [9 0] [8 2] [8 1] [8 0] [7 0]
 ;	[6 0] [7 1] [7 2] [6 2] [6 1] [5 1] [4 1] [4 0] [5 0]
 ;	[3 0] [4 2] [5 2] [3 2] [3 3] [4 3] [4 4] [4 5] [3 5])
 
-图形化。
+;; --
+;; 图形化。
 (defn draw
     [w h maze path]
     (doto   (javax.swing.JFrame. "Maze")
@@ -377,9 +384,9 @@ root is the root node.
         path (->>   theseus
                     (ariadne-zip labyrinth)
                     (iterate z/next)
-                    (filter #(= minotaur (first (z/node %))))
+                    (filter #(= minotaur (first (z/node %))))    ;;  hxzon：“到达怪物”之后的下一步
                     first 
-                    z/path 
+                    z/path    ;; hxzon：[nil loc] [loc x] [x y][y z]...[mon _ ]
                     rest) ]    ;这里用rest代替了(map second)，因为路径的第一个坐标是起点，它前面没有别的坐标。
      (draw w h walls path))
 
