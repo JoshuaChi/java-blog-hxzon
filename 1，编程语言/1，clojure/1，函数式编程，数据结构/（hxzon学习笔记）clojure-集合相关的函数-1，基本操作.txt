@@ -375,6 +375,9 @@ Usage: (take-nth n coll)
 
 Returns a lazy seq of every nth item in coll.
 
+(take-nth 2 [0 1 2 3 4 5 6 7 8 9])
+;= (0 2 4 6 8)
+
 ====
 14.3，take-while
 function
@@ -382,8 +385,10 @@ Usage: (take-while pred coll)
 
 Returns a lazy sequence of successive items from coll while (pred item) returns true. 
 pred must be free of side-effects.
-获取满足谓词的元素。
+获取开头的元素，直到遇到不满足谓词的元素时停止。
 
+(take-while even? [0 2 4 1 2 3 4])
+;= (0 2 4)
 
 ========
 set操作：

@@ -8,9 +8,11 @@ update-in，merge，replace，merge-with，
 map，mapv，mapcat，map-indexed，
 keep，keep-indexed，
 juxt，map-invert，
+interleave，
 
 分组：
 group-by（分组），partition（分区），partition-all ，partition-by 。
+split-at ，split-with 。
 
 规约（聚合）：
 reduce，reductions ，frequencies ， max-key 。
@@ -168,6 +170,32 @@ returns a vector containing the result of applying each fn to the args (left-to-
 反转一个 map ，将它原本的 value 映射为新 map 的 key ，原本的 key 映射为新 map 的 value 。
 注意，当多个 key 有同一个 value 时，新 map 只保留其中的一个作为 key 。
 
+====
+11，interleave
+function
+Usage: (interleave)
+       (interleave c1)
+       (interleave c1 c2)
+       (interleave c1 c2 & colls)
+
+Returns a lazy seq of the first item in each coll, then the second etc.
+返回惰性序列，先取每个集合的第一个元素，接着取每个集合的第二个元素。
+当某个集合缺少元素时，停止。
+
+(interleave [1 2 3]['a 'b 'c][11 12])
+;= (1 a 11 2 b 12)
+
+====
+interpose
+function
+Usage: (interpose sep coll)
+
+Returns a lazy seq of the elements of coll separated by sep
+返回一个新序列，在元素之间插入sep 。
+
+(interpose 'a [1 2 3 4 5])
+;= (1 a 2 a 3 a 4 a 5)
+
 
 ========
 分组：
@@ -262,6 +290,22 @@ Returns a lazy seq of partitions.
 
 (partition-by #(= 0 (mod % 4)) (range 14))
 ;=  ((0) (1 2 3) (4) (5 6 7) (8) (9 10 11) (12) (13))
+
+====
+3.1，split-at
+function
+Usage: (split-at n coll)
+
+Returns a vector of [(take n coll) (drop n coll)]
+在位置n切割。
+
+====
+3.2，split-with
+function
+Usage: (split-with pred coll)
+
+Returns a vector of [(take-while pred coll) (drop-while pred coll)]
+在pred首次满足的位置切割。
 
 ========
 规约（聚合）：
@@ -572,8 +616,47 @@ user=> (zipmap [:a :b :c] [1 2 3 4])
 排序：
 
 ====
-1，sorted-map-by 
-使用提供的比较器，返回一个新建的有序映射。 
+1，sort
+function
+Usage: (sort coll)
+       (sort comp coll)
+
+Returns a sorted sequence of the items in coll. If no comparator is
+supplied, uses compare.  comparator must implement
+java.util.Comparator.  If coll is a Java array, it will be modified.
+To avoid this, sort a copy of the array.
+如果传入的是数组，它会被修改。
+
+====
+2，sort-by
+function
+Usage: (sort-by keyfn coll)
+       (sort-by keyfn comp coll)
+
+Returns a sorted sequence of the items in coll, where the sort
+order is determined by comparing (keyfn item).  If no comparator is
+supplied, uses compare.  comparator must implement
+java.util.Comparator.  If coll is a Java array, it will be modified.
+To avoid this, sort a copy of the array.
+
+====
+3，sorted-map
+function
+Usage: (sorted-map & keyvals)
+keyval => key val
+
+Returns a new sorted map with supplied mappings.  If any keys are
+equal, they are handled as if by repeated uses of assoc.
+
+====
+3.1，sorted-map-by
+function
+Usage: (sorted-map-by comparator & keyvals)
+keyval => key val
+
+Returns a new sorted map with supplied mappings, using the supplied
+comparator.  If any keys are equal, they are handled as if by
+repeated uses of assoc.
 
 user=> (sorted-map-by > 1 "a", 2 "b", 3 "c")  
 {3 "c", 2 "b", 1 "a"}  
@@ -582,8 +665,21 @@ user=> (sorted-map-by < 1 "a", 2 "b", 3 "c")
 {1 "a", 2 "b", 3 "c"}  
 
 ====
-2，sorted-set-by
-sorted-set-by方法根据比较函数，确定set的排序规则。
+4，sorted-set
+function
+Usage: (sorted-set & keys)
+
+Returns a new sorted set with supplied keys.  Any equal keys are
+handled as if by repeated uses of conj.
+
+====
+4.1，sorted-set-by
+function
+Usage: (sorted-set-by comparator & keys)
+
+Returns a new sorted set with supplied keys, using the supplied
+comparator.  Any equal keys are handled as if by repeated uses of
+conj.
 
 user=> (sorted-set-by > 3 5 8 2 1)  
 #{8 5 3 2 1}  
@@ -592,19 +688,19 @@ user=> (sorted-set-by <  3 5 8 2 1)
 #{1 2 3 5 8}
 
 ====
-3，reverse
+5，reverse
 (reverse coll)
 
 逆序给定的 coll 。这个操作不是惰性(lazy)的。
 
 ====
-4，shuffle
+6，shuffle
 (shuffle coll)
 
 返回对 coll 进行乱序排列之后得出的序列。
 
 ====
-5，rseq，在常数时间内，返回 rev 的逆序序列。
+7，rseq，在常数时间内，返回 rev 的逆序序列。
 rev 只能是向量或者 sorted-map 。
 rev 为空时，返回 nil 。
 
@@ -618,7 +714,7 @@ user=> (rseq (sorted-map :a 1 :c 2 :b 4))
 ([:c 2] [:b 4] [:a 1])
 
 ====
-5.1，rsubseq，
+7.1，rsubseq，
 (rsubseq sc test key)
 (rsubseq sc start-test start-key end-test end-key)
 用法和 `subseq`_ 一样，但是返回的序列是逆序排序的。
@@ -639,6 +735,7 @@ user=> (rsubseq (sorted-map :a 1 :c 2 :b 4) >= :b)
 doall 使用 next 函数遍历整个序列，从而迫使惰性序列的副作用产生。
 这个函数返回序列的首个元素作为结果，因此它需要在内存中保存整个序列。
 
+====
 2，dorun
 (dorun coll)
 (dorun n coll)
