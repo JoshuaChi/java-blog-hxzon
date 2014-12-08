@@ -34,12 +34,12 @@ rseq （逆序向量或有序map）， rsubseq 。
 强迫求值：
 doall ， dorun 。
 
-=======
+========
 数据变换：
 
-----
+====
 1，(update-in mapX keyX f )
-根据f更新map中指定key对应的值。 
+根据 f 更新map中指定key对应的值。 
 
 user=> (update-in {:name "qh" :age 30} [:age] #(inc %))  
 {:age 31, :name "qh"}  
@@ -47,7 +47,7 @@ user=> (update-in {:name "qh" :age 30} [:age] #(inc %))
 user=> (update-in {:a 3} [:a] / 4 5)
 {:a 3/20}  
 
----
+====
 2，(merge map1 map2 ...)
 合并多个map为一个新的map，如果key相同，则保留后一个参数map的key对应值。 
 
@@ -58,7 +58,7 @@ user=> (merge {:name "qh" :age 30} {:gender 'm :mail "qh@mail"})
 user=> (conj {:name "qh" :age 30} {:gender 'm :mail "qh@mail"})  
 {:mail "qh@mail", :gender m, :age 30, :name "qh"}  
 
-----
+====
 3，replace
 function
 Usage: (replace smap coll)
@@ -68,7 +68,7 @@ returns a vector/seq with any elements = a key in smap replaced with the corresp
 
 将coll集合中的元素替换成smap中该元素（键）对应的值。
 
-----
+====
 4，(merge-with f map1 map2 ...) 
 合并map，用 f 对 key相同的value做处理。 
 
@@ -77,7 +77,7 @@ user=> (merge-with + {:a 1 :b 2} {:a 2 :b 98 :c 0})
 
 这里把value值相加作为新的value值。
 
-----
+====
 5，map
 (map f [a b c]) 相当于 [(f a) (f b) (f c)] 。
 
@@ -85,19 +85,16 @@ user=> (merge-with + {:a 1 :b 2} {:a 2 :b 98 :c 0})
 
 map的结果跟它最短的参数一样长。
 
-----
+====
 5.1，mapv
 和map一样，但是返回的是向量，而不是惰性序列。后缀v表示向量。
 
 
-----
+====
 6，map-indexed
 (map-indexed f coll)
 
-返回一个惰性序列， 序列里的第一个元素是将 0 和 coll 的第一个元素应用到 f 所得出的值，
- 序列里的第二个元素是将 1 和 coll 的第二个元素应用到 f 所得出的值。。。 
- 以此类推，直到 coll 被处理完为止。
-
+返回一个惰性序列，序列里的元素，是函数 f 的求值结果，
 函数 f 应该接受两个参数：一个索引值，一个是 coll 的元素值。
 
 user=> (map-indexed (fn [idx item] [idx item]) "foobar")
@@ -106,11 +103,11 @@ user=> (map-indexed (fn [idx item] [idx item]) "foobar")
 user=> (map-indexed vector "foobar")    ; 另一种更简单的解法
 ([0 \f] [1 \o] [2 \o] [3 \b] [4 \a] [5 \r])
 
-----
+====
 7，keep
 (keep f coll)
 
-对于 coll 中的每个项 item ， (keep f coll) 返回一个惰性序列， 序列包含 (f item) 除 nil 之外的所有计算结果。
+返回一个惰性序列， 序列包含 (f item) 除 nil 之外的所有计算结果。
 因为带副作用的函数会返回与计算结果无关的虚假值， 因此，
 为了确保虚假值不会混进 keep 所生成的惰性序列中， f 必须是一个无副作用的函数。
 
@@ -126,12 +123,11 @@ nil
 user=> (keep seq (list [1 2 3] [] [4 5 6]))
 ((1 2 3) (4 5 6))
 
-----
+====
 7.1，keep-indexed
 (keep-indexed f coll)
 
-对于 coll 中的每个项 item ， 以及 item 对应的索引下标 index ， 
-(keep-indexed f coll) 返回一个惰性序列， 序列中包含 (f index item) 除 nil 之外的所有计算结果。
+返回一个惰性序列， 序列中包含 (f index item) 除 nil 之外的所有计算结果。
 
 因为带副作用的函数会返回与计算结果无关的虚假值， 
 因此，为了确保虚假值不会混进 keep-indexed 所生成的惰性序列中， f 必须是一个无副作用的函数。
@@ -140,7 +136,7 @@ user=> (keep seq (list [1 2 3] [] [4 5 6]))
 user=> (keep-indexed #(if (even? %1) %2 nil) (range 10))
 (0 2 4 6 8)
 
-----
+====
 8，mapcat
 (mapcat f & colls)
 
@@ -151,8 +147,7 @@ user=> (mapcat reverse [[3 2 1 0]
                         [9 8 7]])
 (0 1 2 3 4 5 6 7 8 9)
 
-==
-----
+====
 9，juxt，并列。
 function
 Usage: (juxt f)
@@ -166,7 +161,7 @@ returns a vector containing the result of applying each fn to the args (left-to-
 
 ((juxt a b c) x) => [(a x) (b x) (c x)]
 
-----
+====
 10，map-invert
 (map-invert m)
 
@@ -174,10 +169,10 @@ returns a vector containing the result of applying each fn to the args (left-to-
 注意，当多个 key 有同一个 value 时，新 map 只保留其中的一个作为 key 。
 
 
-======
+========
 分组：
 
-----
+====
 1，group-by
 function
 Usage: (group-by f coll)
@@ -185,7 +180,7 @@ Usage: (group-by f coll)
 Returns a map of the elements of coll keyed by the result of f on each element. 
 The value at each key will be a vector of the corresponding elements, 
 in the order they appeared in coll.
-对集合的每个元素调用f，按结果分组。
+对集合的每个元素调用 f ，按 f 的返回值分组。
 
 (group-by #(rem % 3) (range 10))
 ;= {0 [0 3 6 9], 1 [1 4 7], 2 [2 5 8]}
@@ -207,7 +202,7 @@ in the order they appeared in coll.
            [ k (summarize v)]))
 
 
-----
+====
 2，partition，分区。
 function
 Usage: (partition n coll)
@@ -241,7 +236,7 @@ In case there are not enough padding elements, return a partition with less than
 (partition 1 4 [\a \b] (range 13))
 ;=  ((0) (4) (8) (12))
 
-----
+====
 2.1，partition-all
 function
 Usage: (partition-all n coll)
@@ -256,7 +251,7 @@ Returns a lazy sequence of lists like partition, but may include partitions with
 (partition-all 4 (range 5))
 ;=  ((0 1 2 3) (4))
 
-----
+====
 2.2，partition-by
 function
 Usage: (partition-by f coll)
@@ -268,7 +263,7 @@ Returns a lazy seq of partitions.
 (partition-by #(= 0 (mod % 4)) (range 14))
 ;=  ((0) (1 2 3) (4) (5 6 7) (8) (9 10 11) (12) (13))
 
-======
+========
 规约（聚合）：
 
 1，reduce，规约。
@@ -286,7 +281,7 @@ Returns a lazy seq of partitions.
     [1 2 3 4])
 ;= {4 16, 3 9, 2 4, 1 1}
 
-----
+====
 1.1，reductions，规约历史。
 (reductions f coll)
 (reductions f init coll)
@@ -306,7 +301,7 @@ user=> (reductions + 0 (range 1 10))    ; 注意 init 不止添加到序列头�
 user=> (reductions + 10 (range 1 10))   ; 它还作为每个中间值的初始化值（这里每个中间值都加上了初始值）
 (10 11 13 16 20 25 31 38 46 55)
 
-----
+====
 2，frequencies，频率。
 根据集合中元素出现的次数，构成一个数组映射。
 
@@ -316,7 +311,7 @@ user=> (frequencies [1 2 1 1 "a" "b" "a"])
 user=> (type (frequencies [1 2 1 1 "a" "b" "a"]))  
 clojure.lang.PersistentArrayMap
 
-----
+====
 3，max-key
 (max-key f item1)
 (max-key f item1 item2)
@@ -333,10 +328,10 @@ user=> (max-key count "abc"
                       "aa")
 "abcdefg"
 
-======
+========
 筛选：
 
-----
+====
 1，filter
 Usage: (filter pred coll)
 Returns a lazy sequence of the items in coll for which
@@ -344,11 +339,11 @@ Returns a lazy sequence of the items in coll for which
 
 返回满足谓词的元素的惰性序列。
 
-----
+====
 1.1，filterv
-和 filter 相同，但是返回向量，而不是惰性序列。
+和 filter 相同，但是返回向量，而不是惰性序列。后缀v表示向量。
 
-----
+====
 2，select-keys
 根据指定的key序列，返回包含指定key的map。
 
@@ -358,7 +353,7 @@ user=> (select-keys {:a 1 :b 2} [:a])
 user=> (select-keys {:a 1 :b 2} [:a :c])
 {:a 1}
 
-----
+====
 3，subseq，
 (subseq sc test key)
 (subseq sc start-test start-key end-test end-key)
@@ -394,13 +389,13 @@ user=> (subseq (sorted-map :a 1 :c 2 :b 4) < :b)
 user=> (subseq (sorted-map :a 1 :c 2 :b 4) >= :b)  
 ([:b 4] [:c 2])
 
-=====
+========
 检查集合的元素：
 
-----
+====
 1，contains? 
 集合是否存在指定的key。
-对于列表类型，总是返回false。 
+不支持列表。
 
 user=> (contains? {:a 1} :a)  
 true  
@@ -418,14 +413,15 @@ user=> (contains? "f" 2)
 false  
 
 user=> (contains? '(1 2 3) 1)  
-false  
+java.lang.IllegalArgumentException: contains? not supported on type: clojure.lang.PersistentList
 
 user=> (contains? #{"a" "b" "v"} "a")  
-true  
+true
+
 user=> (contains? #{"a" "b" "c"} "z")  
 false  
 
-----
+====
 2，distinct? 
 是否有重复元素。 
 
@@ -438,7 +434,7 @@ false
 user=> (distinct? "a" "b" "a")  
 false  
 
-----
+====
 3，empty?
 集合是否为空。 
 
@@ -453,7 +449,7 @@ true
 user=> (empty? #{})  
 true
 
-----
+====
 4，every?
 是否所有的元素都满足谓词。 
 
@@ -469,7 +465,7 @@ true
 user=> (every? false? '())  
 true  
 
-----
+====
 5，not-every?
 是否有元素不满足谓词。
 not-every?与every作用相反。
@@ -480,7 +476,7 @@ true
 user=> (not-every? odd? '(1 3))  
 false  
 
-----
+====
 6，some： 
 Usage: (some pred coll)
 
@@ -504,7 +500,7 @@ nil
 user=> (some true? [false true false])  
 true  
 
-----
+====
 7，not-any?
 是否所有元素都不满足谓词。
 
@@ -518,25 +514,26 @@ false
 ======
 创建
 
-----
+====
 1，range
 (range)
 (range end)
 (range start end)
 (range start end step)
 
-返回一个惰性序列， 序列里包含从大于等于 start 到小于 end 区间内的所有数字(start <= numbers < end)， 数字的步进以 step 指定。
+返回一个惰性序列， 序列里包含从大于等于 start 到小于 end 区间内的所有数字(start <= numbers < end)，
+数字的步进以 step 指定。
 默认情况下， start 为 0 ， step 为 1 ，而 end 则为无限。
 
-----
+====
 2，repeat
-(repeat x)
-(repeat n x)
+(repeat e)
+(repeat n e)
 
-返回一个包含 n 个 x 的惰性序列。
-如果不指定 n ，那么值 x 可以被包含无限次。
+返回一个包含 n 个 e 的惰性序列。
+如果不指定 n ，那么值 e 可以被包含无限次。
 
-----
+====
 3，repeatedly
 (repeatedly f)
 (repeatedly n f)
@@ -544,18 +541,19 @@ false
 给定一个无参数的函数 f (通常带有副作用)，返回一个调用 f 函数 n 次的惰性序列。
 如果不指定参数 n ，那么函数 f 可以执行无限次。
 
-----
+====
 4，iterate
 (iterate f x)
 
 返回一个惰性序列， 序列元素的值为 x 、 (f x) 、 (f (f x)) 、 (f (f (f x)))  。
 函数 f 必须是无副作用的。
 
-----
+====
 5，zipmap 
 function
 Usage: (zipmap keys vals)
 zipmap使用给定的keys映射到匹配的vals，返回一个数组映射。
+（hxzon：即拉链）
 
 user=> (def zm (zipmap [:a :b :c :d :e] [1 2 3 4 5]))  
 #'user/zm  
@@ -570,10 +568,10 @@ user=> (zipmap [:a :b :c] [1 2 3 4])
 {:c 3, :b 2, :a 1}
 
 
-====
+========
 排序：
 
-----
+====
 1，sorted-map-by 
 使用提供的比较器，返回一个新建的有序映射。 
 
@@ -583,7 +581,7 @@ user=> (sorted-map-by > 1 "a", 2 "b", 3 "c")
 user=> (sorted-map-by < 1 "a", 2 "b", 3 "c")  
 {1 "a", 2 "b", 3 "c"}  
 
-----
+====
 2，sorted-set-by
 sorted-set-by方法根据比较函数，确定set的排序规则。
 
@@ -593,19 +591,19 @@ user=> (sorted-set-by > 3 5 8 2 1)
 user=> (sorted-set-by <  3 5 8 2 1)  
 #{1 2 3 5 8}
 
-----
+====
 3，reverse
 (reverse coll)
 
 逆序给定的 coll 。这个操作不是惰性(lazy)的。
 
-----
+====
 4，shuffle
 (shuffle coll)
 
 返回对 coll 进行乱序排列之后得出的序列。
 
-----
+====
 5，rseq，在常数时间内，返回 rev 的逆序序列。
 rev 只能是向量或者 sorted-map 。
 rev 为空时，返回 nil 。
@@ -619,7 +617,7 @@ user=> (rseq [3 5 9 1 3])
 user=> (rseq (sorted-map :a 1 :c 2 :b 4))  
 ([:c 2] [:b 4] [:a 1])
 
-----
+====
 5.1，rsubseq，
 (rsubseq sc test key)
 (rsubseq sc start-test start-key end-test end-key)
@@ -629,14 +627,15 @@ user=> (rsubseq (sorted-map :a 1 :c 2 :b 4) >= :b)
 ([:c 2] [:b 4])
 
 
-======
+========
 强迫求值：
 
 1，doall
 (doall coll)
 (doall n coll)
 
-对于那些带副作用的函数所生成的惰性序列来说，只有当列表的某个元素被求值时，该元素的副作用才会被显现出来。
+对于那些带副作用的函数所生成的惰性序列来说，
+只有当列表的某个元素被求值时，该元素的副作用才会被显现出来。
 doall 使用 next 函数遍历整个序列，从而迫使惰性序列的副作用产生。
 这个函数返回序列的首个元素作为结果，因此它需要在内存中保存整个序列。
 
@@ -644,7 +643,8 @@ doall 使用 next 函数遍历整个序列，从而迫使惰性序列的副作�
 (dorun coll)
 (dorun n coll)
 
-对于那些带副作用的函数所生成的惰性序列来说，只有当列表的某个元素被求值时，该元素的副作用才会被显现出来。
+对于那些带副作用的函数所生成的惰性序列来说，
+只有当列表的某个元素被求值时，该元素的副作用才会被显现出来。
 dorun 使用 next 函数遍历整个序列，从而迫使惰性列表的副作用产生。
 这个函数返回 nil ，而不是序列的首个元素。
 

@@ -3,13 +3,14 @@
 by hxzon
 
 ----
-list，list* 。
+(list & es)，
+(list* & es coll) （最后一个参数必须是集合）。
 
-vector，vec ，vector-of ，subvec 。
+vector，(vec coll)，(vector-of type & es)，subvec 。
 
 hash-map ，array-map，sorted-map，bean 。
 
-set，hash-set，sorted-set 。
+(set coll)，hash-set，sorted-set 。
 
 ========
 clojure具体类型的创建（包括从其它类型转换，截取）
@@ -35,7 +36,7 @@ Clojure的List是单向链表，在头部增加新元素。List形式以“(1,2,
 List是以单向链接列表的形式来实现的，在这一点上有利有弊。
 读取列表的第一个元素或者在列表头添加一个元素的操作都可以在常量时间内完成，然而访问列表的第N个元素却需要N次操作。 
 
-----
+====
 1.1，字面量：
 
 user=> '(1 2 3);'符号阻止对后面的表达式立即求值，与quote意义相同。
@@ -44,8 +45,9 @@ user=> '(1 2 3);'符号阻止对后面的表达式立即求值，与quote意义�
 user=> (quote (1 2 3))
 (1 2 3)
 
-----
+====
 1.2，list（这里list是clojure定义的指向clojure.lang.PersistentList的creator方法的符号）。 
+(list & es)
 
 user=> (list 1 2 3)  
 (1 2 3)  
@@ -56,8 +58,10 @@ user=> (list "a" "b" "c")
 user=> (list "a" 1 2.3 'a :keyname)  
 ("a" 1 2.3 a :keyname)  
 
-----
+====
 1.3，list* ，list*要求最后一个参数必须为集合。 
+(list* & es coll)
+
 
 user=> (list* 1 [2 3])  
 (1 2 3)  
@@ -68,8 +72,10 @@ user=> (list* 1 nil)
 user=> (list* 1 ())  
 (1)  
 
-----
+====
 1.4，通过其它方式创建：
+(range start end)
+(repeat n e)
 
 user=> (range 1 10)  ;不包含end元素。
 (1 2 3 4 5 6 7 8 9)  
@@ -83,11 +89,11 @@ user=> (repeat 5 1)
 Vector支持高效地根据索引来访问元素，与数组类似。
 Vector形式以“[1,2,3]”符号表示。
 
-----
+====
 2.1，字面量：
 
-----
-2.2，vector： 
+====
+2.2，(vector & es)： 
 vector接收任意数量的参数并将它们的值组成一个Vector。 
 
 user=> (vector)  
@@ -99,8 +105,8 @@ user=> (vector 1 2 3)
 user=> (vector (list 1 2 3))  
 [(1 2 3)]  
 
-----
-2.3，vec： 
+====
+2.3，(vec coll)： 
 vec接收一个单独的参数，可能是任何Clojure或Java的数据类型，然后将其元素的值作为参数，组成一个新的向量。 
 
 user=> (vec (list 1 2 3))  
@@ -112,8 +118,8 @@ user=> (vec '())
 user=> (vec nil)  
 []  
 
-----
-2.4，vector-of： 
+====
+2.4，(vector-of type & es)： 
 vector-of函数第一个参数指定Vector元素的类型，后面任意个参数作为元素，
 如果类型转换正确，则返回一个vector。
 vector-of第一个参数包括：:int :long :float :double :byte :short :char or :boolean 。 
@@ -124,8 +130,11 @@ user=> (vector-of :int "1" "2")
 ClassCastException java.lang.String cannot be cast to java.lang.Character  cloju  
 re.lang.RT.intCast (RT.java:1076)
 
-----
-2.5，subvec： 
+====
+2.5，subvec：
+(subvec vec start)
+(subvec vec start end)
+
 subvec接收两个或三个参数。
 第一个是向量，第二个和第三个（如果有的话）是索引。
 它返回一个新向量，这个向量由原来那个向量的
@@ -151,7 +160,7 @@ clojure的Map有三种实现方式：数组映射、哈希映射和有序映射�
 
 Map形式以“{:a 1 :b 2}“符号表示。
 
-----
+====
 3.1，字面量：
 
 user=> (def my-map {:a 1 :b 2 :c 3})  
@@ -160,7 +169,7 @@ user=> (def my-map {:a 1 :b 2 :c 3})
 user=> (type my-map)  ;type查看符号的类型，这里默认采用哈希映射  
 clojure.lang.PersistentHashMap  
 
-----
+====
 3.2，hash-map： 
 创建哈希映射。 
 
@@ -173,7 +182,7 @@ user=> (hash-map :key1 1, :key2 2)
 user=> (def user {:name "steve" :age 24 :salary 8000 :company "ibm"})  
 #'user/user  
 
-----
+====
 3.3，array-map： 
 array-map创建数组映射，也有资料说是有序映射
 （不是根据key排序的意思，而是根据元素的初始顺序，相对于hash-map中key的位置不确定而言）。 
@@ -187,7 +196,7 @@ user=> (def am (array-map  :b 1 :a 2 :c 3))
 user=> (type am)  
 clojure.lang.PersistentArrayMap  
 
-----
+====
 3.4，sorted-map： 
 sorted-map对键进行比较：根据数字或者字母表进行排序。 
 
@@ -200,7 +209,7 @@ user=> (sorted-map :b 2 :a 1)
 user=> (sorted-map 0 0 2 2 1 1)  
 {0 0, 1 1, 2 2}  
 
-----
+====
 3.5，bean： 
 根据java对象，返回该对象的属性构成的map。 
 
@@ -213,7 +222,7 @@ Set是一个包含不重复元素的集合。
 Set形式以“#{1,2,3}”符号表示。
 Set可以使用哈希表或二叉树来实现，使用 hash-set 或者 sorted-set 函数。
 
-----
+====
 4.1，字面量： 
 
 user=> (def languages #{:java :list :c++})  
@@ -222,8 +231,8 @@ user=> (def languages #{:java :list :c++})
 user=> languages  
 #{:c++ :list :java}  
 
-----
-4.2，set： 
+====
+4.2，(set coll)： 
 使用set函数转换其他集合类型为set类型，并且去除重复元素。
 
 user=> (set '(1 1 2 3 4 4 5))  
@@ -241,7 +250,7 @@ user=> (set "abccdd")
 user=> (set {:one 1 :two 2 :three 3})  
 #{[:two 2] [:three 3] [:one 1]}  
 
-----
+====
 4.3，hash-set： 
 使用hash-set创建基于哈希表的集合。 
 
@@ -252,7 +261,7 @@ user=> (hash-set 3 2 1 2);通过hash-set创建set时，需要检查给定的key�
 IllegalArgumentException Duplicate key: 2  clojure.lang.PersistentHashSet.create  
 WithCheck (PersistentHashSet.java:80)  
 
-----
+====
 4.4，sorted-set： 
 使用sorted-set创建基于二叉树的集合。 
 
@@ -291,7 +300,7 @@ hash-set函数调用clojure.lang.PersistentHashSet类的createWithCheck方法
 （一般方法名称为create表示对参数不做检查）。
  
 
-=======
+========
 参考：
 
 clojure-基本语法-集合（一）列表和向量

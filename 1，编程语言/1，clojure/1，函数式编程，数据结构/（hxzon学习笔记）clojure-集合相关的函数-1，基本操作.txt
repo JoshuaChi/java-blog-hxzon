@@ -2,19 +2,28 @@
 
 by hxzon
 ---------
-into，
-cons，concat，conj，
-assoc，assoc-in，get，get-in，
-find，dissoc，disj，
-last，first，rest，next，peek，pop，
+(into coll1 coll2)，
+(cons x seq)，
+(concat coll1 coll2 & colls)，
+(conj coll e)，
+
+assoc，get，
+assoc-in，get-in，（嵌套）
+find（返回键值对，或者nil，方便区分“值为nil”和“找不到”的情况），
+dissoc，disj，
+
+last，first，
+rest（始终返回空集合），next（始终返回nil），
+peek，pop，
 drop，take，take-last，take-nth，take-while 。
 
 clojure.set/union，clojure.set/select，
 clojure.set/difference，clojure.set/intersection。
 
-keys，vals，key，val。
+keys，vals，
+(key entry)，(val entry) 。
 
-count，empty，not-empty，
+count，empty，not-empty 。
 
 ========
 向量看成以索引为键的映射。
@@ -25,8 +34,8 @@ set看成元素到自身的映射。
 
 向量支持高效地根据索引来访问元素，与数组类似。
 
-----
-1，into： 
+====
+1，into，(into coll1 coll2)： 
 into接受两个集合参数，并且将第二个集合参数的元素全部插入到第一个集合参数中，再返回。 
 
 user=> (into {} [[1 2] [3 4]])  
@@ -41,7 +50,7 @@ user=> (into () '(1 2 3))
 user=> (into ["a" "b"] '(1 2 3))  
 ["a" "b" 1 2 3]  
 
-----
+====
 2，cons，(cons x seq)，返回一个新的序列， 序列的第一个元素是 x ， 而 seq 则是序列的其余部分。
 
 user=> (cons 1 (list 2 3 4 5))  
@@ -50,18 +59,18 @@ user=> (cons 1 (list 2 3 4 5))
 user=> (cons (list 1 2) '(3 4 5))  
 ((1 2) 3 4 5)
 
-----
+====
 3，concat
 function
 Usage: (concat)
-       (concat x)
-       (concat x y)
-       (concat x y & zs)
+       (concat coll)
+       (concat coll1 coll2)
+       (concat coll1 coll2 & colls)
 
 Returns a lazy seq representing the concatenation of the elements in the supplied colls.
 返回一个延迟序列，元素为参数（是一个集合）里的元素。
 
-----
+====
 4，conj，如果是列表，在列表头部插入元素。
 如果是向量，在尾部插入元素。
 也支持映射，set。
@@ -69,14 +78,15 @@ Returns a lazy seq representing the concatenation of the elements in the supplie
 (conj coll x & xs)
 
 当 coll 等于 nil ， 也即是，执行 (conj nil item) 时， 结果为 (item) 。
---
+
+==
 ; 处理多个元素的 conj
 ; 注意向量和列表的结果之间的不同
 
 user=> (conj [0 1 2] 3 4 5)
 [0 1 2 3 4 5]
 
-user=> (conj (list 0 1 2) 3 4 5)
+user=> (conj (list 0 1 2) 3 4 5)    ;; hxzon：注意插入顺序
 (5 4 3 0 1 2)
 
 --
@@ -105,7 +115,7 @@ user=> (conj ["a" "b"] ["c"])
 user=> (conj #{1 3} 1 5 7)
 #{1 3 5 7}
 
-----
+========
 5，assoc，
 如果是映射，更新（或添加）指定的键的值。
 如果是向量，更新指定索引的值，注意，索引不能超出范围，否则抛出异常。
@@ -126,7 +136,7 @@ user=> (assoc {} :key1 "value1" :key2 2)
 user=> (assoc {:key1 "old value"} :key1 "new value")  
 {:key1 "new value"}
 
-----
+====
 5.1，assoc-in，
 function
 Usage: (assoc-in m [k & ks] v)
@@ -140,7 +150,10 @@ If any levels do not exist, hash-maps will be created.
 user=> (assoc-in {:name "tom" :age 26} [:age] 36)
 {:age 36, :name "tom"}
 
-----
+user=> (assoc-in {:age 26} [:name :first] "tom")
+{:name {:first "tom"}, :age 26}
+
+====
 6，get，
 (get map key)
 (get map key not-found)
@@ -161,7 +174,7 @@ user=> (get {:a 1 :b 2} :b)
 user=> (get {:a 1 :b 2} :z "missing")  
 "missing"
 
-----
+====
 6.1，get-in，
 function
 Usage: (get-in m ks)
@@ -181,7 +194,7 @@ user=> (((({:n "qh", :addr {:cn {:bj {:hd "tsinghua"}}}} :addr) :cn) :bj) :hd)
 "tsinghua"
 
 
-----
+====
 7，find，(find map key)，
 如果是映射，返回指定的键值对（用向量表示）。
 如果是向量，返回指定的索引和值（用向量表示）。
@@ -201,8 +214,7 @@ user=> (find [1 2 3] 2)
 user=> (find [1 2 3] 4)  
 nil
 
----------
-----
+========
 8，dissoc
 function
 Usage: (dissoc map)
@@ -224,7 +236,7 @@ user=> (dissoc {:a 1 :b 2 :c 3} :d);
 user=> (dissoc {:a 1 :b 2 :c 3} :a :b :c)  
 {}
 
-----
+====
 9，disj
 function
 Usage: (disj set)
@@ -237,12 +249,11 @@ disj[oin]. Returns a new set of the same (hashed/sorted) type, that does not con
 user=> (disj #{1 3 5 7} 3 7)
 #{1 5}
 
-----------
-----
+========
 10，last，Return the last item in coll, in linear time。
 在线性时间内返回集合的最后一个元素。
 
-----
+====
 11，first，返回第一个元素（传入的coll会被seq处理）。
 如果 coll 为 nil ，返回 nil 。
 支持向量，列表，映射，set。
@@ -256,7 +267,7 @@ nil
 user=> (first (list 1 2 3))
 1
 
-----
+====
 11.1，rest，
 Returns a possibly empty seq of the items after the first. Calls seq on its argument.
 rest返回去除first之后的序列，内部对参数调用seq。
@@ -271,7 +282,7 @@ user=> (rest nil)
 user=> (rest ())  
 ()
 
-----
+====
 11.2，next，
 Returns a seq of the items after the first. 
 Calls seq on its argument.  
@@ -280,7 +291,7 @@ If there are no more items, returns nil.
 内部对参数调用seq。
 如果没有更多元素，返回nil。（而rest返回空序列）
 
-----
+====
 12，peek，
 如果是列表或队列，类似于first。
 如果是向量，类似last，但更高效。
@@ -301,7 +312,7 @@ user=> (peek '(1 2 3))
 user=> (peek [])
 nil
 
-----
+====
 12.1，pop，
 返回去除peek之后的新集合。
 如果是列表，返回去除头部元素的新列表。
@@ -326,7 +337,7 @@ user=> (peek '(1 2 3))
 user=> (pop '(1 2 3))  
 (2 3)  
 
-----
+====
 13，drop
 function
 Usage: (drop n) ，hxzon：抛出异常。
@@ -339,7 +350,7 @@ Elides the first n values from the reduction of coll.
 (drop 2 [\a \b \c \d \e \f])
 ;= (\c \d \e \f)
 
-----
+====
 14，take
 function
 Usage: (take n coll)
@@ -347,7 +358,7 @@ Usage: (take n coll)
 Returns a lazy sequence of the first n items in coll, or all items if there are fewer than n.
 获取惰性序列的开头n个元素。
 
-----
+====
 14.1，take-last
 function
 Usage: (take-last n coll)
@@ -357,14 +368,14 @@ Depending on the type of coll may be no better than linear time.
 For vectors, see also subvec.
 获取惰性序列尾部n个元素。
 
-----
+====
 14.2，take-nth
 function
 Usage: (take-nth n coll)
 
 Returns a lazy seq of every nth item in coll.
 
-----
+====
 14.3，take-while
 function
 Usage: (take-while pred coll)
@@ -374,15 +385,15 @@ pred must be free of side-effects.
 获取满足谓词的元素。
 
 
-=======
+========
 set操作：
 
-----
+====
 1，合并子集
 user=> (clojure.set/union #{1 2 3} #{1 2 4})
 #{1 2 3 4}
 
-----
+====
 2，根据条件选择
 select
 (select pred xset)
@@ -393,35 +404,35 @@ select 和 clojure.core/filter 类似，只是 select 的输入和输出都是 s
 user=> (clojure.set/select even? #{1 2 3 4 5})
 #{2 4}
 
-----
+====
 3，取差集
 user=> (clojure.set/difference #{1 2 3} #{1 2 4})
 #{3}
 
-----
+====
 4，取交集
 user=> (clojure.set/intersection #{1 2 3} #{1 2 4})
 #{1 2}
 
 
-=======
+========
 map操作：
 
-----
+====
 1，keys： 
 keys的参数为map，返回map中的key组成列表。 
 
 user=> (keys {:a 1 :b 2})  
 (:a :b)  
 
-----
+====
 2，vals： 
 与keys类似，参数为map，返回map中的value组成的列表。 
 
 user=> (vals {:a 1 :b 2})  
 (1 2)  
 
-----
+====
 3，key： 
 key的参数为map中的元素（entry），所以不能直接把key作用在map上。
 key用于返回元素的key名称。 
@@ -432,7 +443,7 @@ user=> (map key {:a 1 :b 2})
 user=> (key (first {:a 1 :b 2}))
 :a  
 
-----
+====
 4、val： 
 与key类似，参数为map元素（entry），返回元素的value值。 
 
@@ -441,8 +452,6 @@ user=> (val (first {:one :two}))
 
 
 ========
-
-----
 1，count： 
 count函数返回集合中元素的个数，如果count参数为nil，则返回0 。
 
@@ -459,7 +468,7 @@ user=> (count {:one 1 :two 2})
 user=> (count "string")  
 6  
 
-----
+====
 2，empty： 
 返回一个空的集合，集合类型不变，如果empty参数为nil，则返回nil 。
 
@@ -475,7 +484,7 @@ user=> (empty {:key1 1})
 user=> (empty nil)  
 nil  
 
-----
+====
 3，not-empty： 
 如果集合为空，返回nil，否则直接返回参数指向的集合 。
 
