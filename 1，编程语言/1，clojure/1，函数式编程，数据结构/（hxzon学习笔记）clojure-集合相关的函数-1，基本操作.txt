@@ -2,30 +2,74 @@
 
 by hxzon
 ---------
+创建：
+cons，
+range ， repeat ， repeatedly ， iterate ，
+
+(list & es)，
+(list* & es coll) （最后一个参数必须是集合）。
+
+vector，(vector-of type & es)
+
+hash-map ，array-map，sorted-map，
+zipmap，
+
+hash-set，sorted-set
+
+empty，not-empty 
+
+转换：
+(vec coll)
+(set coll)
+bean
+
+合并：
 (into coll1 coll2)，
-(cons x seq)，
 (concat coll1 coll2 & colls)，
+clojure.set/union，
+interleave，
+merge，
+
+添加：
 (conj coll e)，
+assoc，assoc-in，
 
-assoc，get，
-assoc-in，get-in，（嵌套）
+查找：
+
+get，get-in，（嵌套）
 find（返回键值对，或者nil，方便区分“值为nil”和“找不到”的情况），
-dissoc，disj，
-
-last，first，
-rest（始终返回空集合），next（始终返回nil），
-peek，pop，
-drop，take，take-last，take-nth，take-while 。
-
-clojure.set/union，clojure.set/select，
-clojure.set/difference，clojure.set/intersection。
 
 keys，vals，
 (key entry)，(val entry) 。
 
-count，empty，not-empty 。
+last，first，
+rest（始终返回空集合），next（始终返回nil），
+peek，pop，
+
+移除：
+dissoc，disj，
+
+其它：
+count
 
 ========
+========
+Clojure提供以下集合类型: list, vector, set, map。
+并且可以使用Java里面提供的集合类型。
+所有的clojure集合是不可修改的、异源的以及持久的。
+
+不可修改表示集合产生之后，不能从集合里面增加或删除元素。
+异源表示集合里面可以装任意类型的数据。
+持久的表示集合有更新时，更新之前的数据还在。
+
+CLojure以一种高效的，共享内存的方式来实现集合。 
+
+因为clojure里面的集合是不可修改的，所以也就没有对集合进行修改的函数。
+相反clojure里面提供了一些函数从一个已有的集合来高效地创建新的集合。
+同时也有一些函数操作一个已有的集合（比如vector)来产生另外一种类型的集合(比如LazySeq)，
+这些函数有不同的特性。
+
+====
 向量看成以索引为键的映射。
 set看成元素到自身的映射。
 
@@ -33,6 +77,362 @@ set看成元素到自身的映射。
 读取列表的第一个元素或者在列表头添加一个元素的操作都可以在常量时间内完成，然而访问列表的第N个元素却需要N次操作。 
 
 向量支持高效地根据索引来访问元素，与数组类似。
+
+========
+========
+创建：
+
+====
+1，创建序列：
+
+==
+1.1，cons，(cons x seq)，返回一个新的序列， 序列的第一个元素是 x ， 而 seq 则是序列的其余部分。
+
+user=> (cons 1 (list 2 3 4 5))  
+(1 2 3 4 5)
+
+user=> (cons (list 1 2) '(3 4 5))  
+((1 2) 3 4 5)
+
+====
+1.2，range
+(range)
+(range end)
+(range start end)
+(range start end step)
+
+返回一个惰性序列， 序列里包含从大于等于 start 到小于 end 区间内的所有数字(start <= numbers < end)，
+数字的步进以 step 指定。
+默认情况下， start 为 0 ， step 为 1 ，而 end 则为无限。
+
+====
+1.3，repeat
+(repeat e)
+(repeat n e)
+
+返回一个包含 n 个 e 的惰性序列。
+如果不指定 n ，那么值 e 可以被包含无限次。
+
+====
+1.4，repeatedly
+(repeatedly f)
+(repeatedly n f)
+
+给定一个无参数的函数 f (通常带有副作用)，返回一个调用 f 函数 n 次的惰性序列。
+如果不指定参数 n ，那么函数 f 可以执行无限次。
+
+====
+1.5，iterate
+(iterate f x)
+
+返回一个惰性序列， 序列元素的值为 x 、 (f x) 、 (f (f x)) 、 (f (f (f x)))  。
+函数 f 必须是无副作用的。
+
+====
+2，创建列表：
+
+Clojure的List是单向链表，在头部增加新元素。List形式以“(1,2,3)”符号表示 。
+
+List是以单向链接列表的形式来实现的，在这一点上有利有弊。
+读取列表的第一个元素或者在列表头添加一个元素的操作都可以在常量时间内完成，然而访问列表的第N个元素却需要N次操作。 
+
+====
+2.1，字面量：
+
+user=> '(1 2 3);'符号阻止对后面的表达式立即求值，与quote意义相同。
+(1 2 3)
+
+user=> (quote (1 2 3))
+(1 2 3)
+
+==
+2.2，list（这里list是clojure定义的指向clojure.lang.PersistentList的creator方法的符号）。 
+(list & es)
+
+user=> (list 1 2 3)  
+(1 2 3)  
+
+user=> (list "a" "b" "c")  
+("a" "b" "c")  
+
+user=> (list "a" 1 2.3 'a :keyname)  
+("a" 1 2.3 a :keyname)  
+
+====
+2.3，list* ，list*要求最后一个参数必须为集合。 
+(list* & es coll)
+
+user=> (list* 1 [2 3])  
+(1 2 3)  
+user=> (list* nil [1 2])  
+(nil 1 2)  
+user=> (list* 1 nil)  
+(1)  
+user=> (list* 1 ())  
+(1)  
+
+====
+3，创建向量：
+
+Vector支持高效地根据索引来访问元素，与数组类似。
+Vector形式以“[1,2,3]”符号表示。
+
+==
+3.1，字面量：
+
+==
+3.2，(vector & es)： 
+vector接收任意数量的参数并将它们的值组成一个Vector。 
+
+user=> (vector)  
+[]  
+user=> (vector nil)  
+[nil]  
+user=> (vector 1 2 3)  
+[1 2 3]  
+user=> (vector (list 1 2 3))  
+[(1 2 3)]  
+
+==
+3.3，(vector-of type & es)： 
+vector-of函数第一个参数指定Vector元素的类型，后面任意个参数作为元素，
+如果类型转换正确，则返回一个vector。
+vector-of第一个参数包括：:int :long :float :double :byte :short :char or :boolean 。 
+
+user=> (vector-of :int 1 2 3)  
+[1 2 3]  
+user=> (vector-of :int "1" "2")  
+ClassCastException java.lang.String cannot be cast to java.lang.Character  cloju  
+re.lang.RT.intCast (RT.java:1076)
+
+====
+4，创建映射
+
+Map存储一个键-值对的集合。
+键和值都可以是任何数据类型的对象，无论是基本数据类型还是其它映射。
+然而，使用关键字来作为映射的键非常合适，因此它们经常在应用映射的场合被使用。
+
+clojure的Map有三种实现方式：数组映射、哈希映射和有序映射。
+它们分别使用数组、哈希表和二叉树来作为底层实现。
+数组映射适用于较小的映射，而对哈希映射和有序映射的比较则要基于特定应用场合的情况。
+
+Map形式以“{:a 1 :b 2}“符号表示。
+
+==
+4.1，字面量：
+
+user=> (def my-map {:a 1 :b 2 :c 3})  
+#'user/my-map  
+
+user=> (type my-map)  ;type查看符号的类型，这里默认采用哈希映射  
+clojure.lang.PersistentHashMap  
+
+====
+4.2，hash-map： 
+创建哈希映射。 
+
+user=> (hash-map)  
+{}  
+
+user=> (hash-map :key1 1, :key2 2)  
+{:key2 2, :key1 1}  
+
+user=> (def user {:name "steve" :age 24 :salary 8000 :company "ibm"})  
+#'user/user  
+
+====
+4.3，array-map： 
+array-map创建数组映射，也有资料说是有序映射
+（不是根据key排序的意思，而是根据元素的初始顺序，相对于hash-map中key的位置不确定而言）。 
+
+user=> (array-map :b 1 :a 2 :c 3)  
+{:b 1, :a 2, :c 3}  
+
+user=> (def am (array-map  :b 1 :a 2 :c 3))  
+#'user/am  
+
+user=> (type am)  
+clojure.lang.PersistentArrayMap  
+
+====
+4.4，sorted-map
+function
+Usage: (sorted-map & keyvals)
+keyval => key val
+
+Returns a new sorted map with supplied mappings.  If any keys are
+equal, they are handled as if by repeated uses of assoc.
+
+sorted-map对键进行比较：根据数字或者字母表进行排序。 
+
+user=> (type (sorted-map));底层实现方式为PersistentTreeMap  
+clojure.lang.PersistentTreeMap  
+
+user=> (sorted-map :b 2 :a 1)  
+{:a 1, :b 2}  
+
+user=> (sorted-map 0 0 2 2 1 1)  
+{0 0, 1 1, 2 2}  
+
+====
+4.5，zipmap 
+function
+Usage: (zipmap keys vals)
+zipmap使用给定的keys映射到匹配的vals，返回一个数组映射。
+（hxzon：即拉链）
+
+user=> (def zm (zipmap [:a :b :c :d :e] [1 2 3 4 5]))  
+#'user/zm  
+
+user=> (type zm)  
+clojure.lang.PersistentArrayMap  
+
+user=> zm  
+{:e 5, :d 4, :c 3, :b 2, :a 1}  
+
+user=> (zipmap [:a :b :c] [1 2 3 4])  
+{:c 3, :b 2, :a 1}
+
+====
+5，创建集：
+
+Set是一个包含不重复元素的集合。
+当我们要求集合里面的元素不可以重复，并且我们不要求集合里面的元素保持它们添加时候的顺序，那么使用set比较合适。
+Set形式以“#{1,2,3}”符号表示。
+Set可以使用哈希表或二叉树来实现，使用 hash-set 或者 sorted-set 函数。
+
+==
+5.1，字面量： 
+
+user=> (def languages #{:java :list :c++})  
+#'user/languages  
+
+user=> languages  
+#{:c++ :list :java}  
+
+==
+5.2，hash-set： 
+使用hash-set创建基于哈希表的集合。 
+
+user=> (hash-set :a :b :c)  
+#{:a :c :b}  
+
+user=> (hash-set 3 2 1 2);通过hash-set创建set时，需要检查给定的key是否重复  
+IllegalArgumentException Duplicate key: 2  clojure.lang.PersistentHashSet.create  
+WithCheck (PersistentHashSet.java:80)  
+
+====
+5.3，sorted-set：
+function
+Usage: (sorted-set & keys)
+
+Returns a new sorted set with supplied keys.  Any equal keys are
+handled as if by repeated uses of conj.
+
+使用sorted-set创建基于二叉树的集合。 
+
+user=> (sorted-set 3 2 1)  
+#{1 2 3}  
+
+user=> (sorted-set 3 2 1 1);通过sorted-set创建set时，不检查key是否重复  
+#{1 2 3}  
+
+为何这里不检查key重复，而hash-set检查出现重复时抛出异常？ 
+原因如下： 
+
+;使用source查看函数的源码  
+user=> (source hash-set)  
+(defn hash-set  
+  "Returns a new hash set with supplied keys."  
+  {:added "1.0"  
+   :static true}  
+  ([] #{})  
+  ([& keys]  
+   (clojure.lang.PersistentHashSet/[color=red]createWithCheck[/color] keys)))  
+nil  
+
+user=> (source sorted-set)  
+(defn sorted-set  
+  "Returns a new sorted set with supplied keys."  
+  {:added "1.0"  
+   :static true}  
+  ([& keys]  
+   (clojure.lang.PersistentTreeSet/[color=red]create[/color] keys)))  
+nil  
+
+hash-set函数调用clojure.lang.PersistentHashSet类的createWithCheck方法
+（一般clojure里集合创建时，方法名称为createWithCheck的就表示创建时需要检查参数的合法性），
+而sorted-set函数调用clojure.lang.PersistentTreeSet的create方法
+（一般方法名称为create表示对参数不做检查）。
+
+====
+6，empty： 
+返回一个空的集合，集合类型不变，如果empty参数为nil，则返回nil 。
+
+user=> (empty [1 2 3])  
+[]  
+
+user=> (empty (list 1 2 3))  
+()  
+
+user=> (empty {:key1 1})  
+{}  
+
+user=> (empty nil)  
+nil  
+
+====
+6.1，not-empty： 
+如果集合为空，返回nil，否则直接返回参数指向的集合 。
+
+user=> (not-empty [])  
+nil  
+
+user=> (not-empty '(1 2 3))  
+(1 2 3)  
+
+========
+转换：
+
+====
+1，(vec coll)： 
+vec接收一个单独的参数，可能是任何Clojure或Java的数据类型，
+然后将其元素的值作为参数，组成一个新的向量。 
+
+user=> (vec (list 1 2 3))  
+[1 2 3]  
+user=> (vec [1 2 3])  
+[1 2 3]  
+user=> (vec '())  
+[]  
+user=> (vec nil)  
+[]
+
+====
+2，(set coll)： 
+使用set函数转换其他集合类型为set类型，并且去除重复元素。
+
+user=> (set '(1 1 2 3 4 4 5))  
+#{1 2 3 4 5}  
+
+user=> (set [1 1 2 3 4 4 5])  
+#{1 2 3 4 5}  
+
+user=> (set "abcd")  
+#{\a \b \c \d}  
+
+user=> (set "abccdd")  
+#{\a \b \c \d}  
+
+user=> (set {:one 1 :two 2 :three 3})  
+#{[:two 2] [:three 3] [:one 1]}
+
+====
+3，bean： 
+根据java对象，返回该对象的属性构成的map。 
+
+========
+合并：
 
 ====
 1，into，(into coll1 coll2)： 
@@ -51,16 +451,7 @@ user=> (into ["a" "b"] '(1 2 3))
 ["a" "b" 1 2 3]  
 
 ====
-2，cons，(cons x seq)，返回一个新的序列， 序列的第一个元素是 x ， 而 seq 则是序列的其余部分。
-
-user=> (cons 1 (list 2 3 4 5))  
-(1 2 3 4 5)
-
-user=> (cons (list 1 2) '(3 4 5))  
-((1 2) 3 4 5)
-
-====
-3，concat
+2，concat
 function
 Usage: (concat)
        (concat coll)
@@ -71,7 +462,42 @@ Returns a lazy seq representing the concatenation of the elements in the supplie
 返回一个延迟序列，元素为参数（是一个集合）里的元素。
 
 ====
-4，conj，如果是列表，在列表头部插入元素。
+3，合并子集
+user=> (clojure.set/union #{1 2 3} #{1 2 4})
+#{1 2 3 4}
+
+====
+4，interleave
+function
+Usage: (interleave)
+       (interleave c1)
+       (interleave c1 c2)
+       (interleave c1 c2 & colls)
+
+Returns a lazy seq of the first item in each coll, then the second etc.
+返回惰性序列，先取每个集合的第一个元素，接着取每个集合的第二个元素。
+当某个集合缺少元素时，停止。
+
+(interleave [1 2 3]['a 'b 'c][11 12])
+;= (1 a 11 2 b 12)
+
+====
+5，(merge map1 map2 ...)
+合并多个map为一个新的map，如果key相同，
+则保留后一个参数map的key对应值。 
+
+user=> (merge {:name "qh" :age 30} {:gender 'm :mail "qh@mail"})  
+{:mail "qh@mail", :gender m, :age 30, :name "qh"}  
+
+;这里也可以用conj 。
+user=> (conj {:name "qh" :age 30} {:gender 'm :mail "qh@mail"})  
+{:mail "qh@mail", :gender m, :age 30, :name "qh"}
+
+========
+添加：
+
+====
+1，conj，如果是列表，在列表头部插入元素。
 如果是向量，在尾部插入元素。
 也支持映射，set。
 (conj coll x)
@@ -116,7 +542,7 @@ user=> (conj #{1 3} 1 5 7)
 #{1 3 5 7}
 
 ========
-5，assoc，
+2，assoc，
 如果是映射，更新（或添加）指定的键的值。
 如果是向量，更新指定索引的值，注意，索引不能超出范围，否则抛出异常。
 
@@ -137,7 +563,7 @@ user=> (assoc {:key1 "old value"} :key1 "new value")
 {:key1 "new value"}
 
 ====
-5.1，assoc-in，
+2.1，assoc-in，
 function
 Usage: (assoc-in m [k & ks] v)
 
@@ -153,8 +579,11 @@ user=> (assoc-in {:name "tom" :age 26} [:age] 36)
 user=> (assoc-in {:age 26} [:name :first] "tom")
 {:name {:first "tom"}, :age 26}
 
+========
+查找
+
 ====
-6，get，
+1，get，
 (get map key)
 (get map key not-found)
 如果是映射，返回指定键的值。
@@ -175,7 +604,7 @@ user=> (get {:a 1 :b 2} :z "missing")
 "missing"
 
 ====
-6.1，get-in，
+2.1，get-in，
 function
 Usage: (get-in m ks)
        (get-in m ks not-found)
@@ -193,9 +622,8 @@ user=> (get-in {:n "qh", :addr {:cn {:bj {:hd "tsinghua"}}}} [:addr :cn :bj :hd]
 user=> (((({:n "qh", :addr {:cn {:bj {:hd "tsinghua"}}}} :addr) :cn) :bj) :hd)
 "tsinghua"
 
-
 ====
-7，find，(find map key)，
+3，find，(find map key)，
 如果是映射，返回指定的键值对（用向量表示）。
 如果是向量，返回指定的索引和值（用向量表示）。
 如果键不存在，返回nil。
@@ -214,47 +642,44 @@ user=> (find [1 2 3] 2)
 user=> (find [1 2 3] 4)  
 nil
 
-========
-8，dissoc
-function
-Usage: (dissoc map)
-       (dissoc map key)
-       (dissoc map key & ks)
+====
+4，keys： 
+keys的参数为map，返回map中的key组成列表。 
 
-dissoc[iate]. Returns a new map of the same (hashed/sorted) type,that does not contain a mapping for key(s).
-从映射中去除指定的键。
-
-user=> (dissoc {:a 1 :b 2 :c 3} :b);丢弃key为:b的元素  
-{:a 1, :c 3}
-
-user=> (dissoc {:a 1 :b 2 :c 3});没有key的参数时，直接返回  
-{:a 1, :c 3, :b 2}
-
-user=> (dissoc {:a 1 :b 2 :c 3} :d);  
-{:a 1, :c 3, :b 2}
-
-user=> (dissoc {:a 1 :b 2 :c 3} :a :b :c)  
-{}
+user=> (keys {:a 1 :b 2})  
+(:a :b)  
 
 ====
-9，disj
-function
-Usage: (disj set)
-       (disj set key)
-       (disj set key & ks)
+4.1，vals： 
+与keys类似，参数为map，返回map中的value组成的列表。 
 
-disj[oin]. Returns a new set of the same (hashed/sorted) type, that does not contain key(s).
-从set中去除指定的键。
+user=> (vals {:a 1 :b 2})  
+(1 2)  
 
-user=> (disj #{1 3 5 7} 3 7)
-#{1 5}
+====
+4.2，key： 
+key的参数为map中的元素（entry），所以不能直接把key作用在map上。
+key用于返回元素的key名称。 
 
-========
-10，last，Return the last item in coll, in linear time。
+user=> (map key {:a 1 :b 2})
+(:a :b)  
+
+user=> (key (first {:a 1 :b 2}))
+:a  
+
+====
+4.3，val： 
+与key类似，参数为map元素（entry），返回元素的value值。 
+
+user=> (val (first {:one :two}))  
+:two  
+
+====
+5，last，Return the last item in coll, in linear time。
 在线性时间内返回集合的最后一个元素。
 
 ====
-11，first，返回第一个元素（传入的coll会被seq处理）。
+6，first，返回第一个元素（传入的coll会被seq处理）。
 如果 coll 为 nil ，返回 nil 。
 支持向量，列表，映射，set。
 
@@ -268,7 +693,7 @@ user=> (first (list 1 2 3))
 1
 
 ====
-11.1，rest，
+7.1，rest，
 Returns a possibly empty seq of the items after the first. Calls seq on its argument.
 rest返回去除first之后的序列，内部对参数调用seq。
 如果没有更多元素，返回空序列。
@@ -283,7 +708,7 @@ user=> (rest ())
 ()
 
 ====
-11.2，next，
+7.2，next，
 Returns a seq of the items after the first. 
 Calls seq on its argument.  
 If there are no more items, returns nil.
@@ -292,7 +717,7 @@ If there are no more items, returns nil.
 如果没有更多元素，返回nil。（而rest返回空序列）
 
 ====
-12，peek，
+8，peek，
 如果是列表或队列，类似于first。
 如果是向量，类似last，但更高效。
 如果列表或向量是空的，返回nil。
@@ -313,7 +738,7 @@ user=> (peek [])
 nil
 
 ====
-12.1，pop，
+8.1，pop，
 返回去除peek之后的新集合。
 如果是列表，返回去除头部元素的新列表。
 如果是向量，返回去除尾部元素的新向量。
@@ -335,126 +760,45 @@ user=> (peek '(1 2 3))
 1
 
 user=> (pop '(1 2 3))  
-(2 3)  
-
-====
-13，drop
-function
-Usage: (drop n) ，hxzon：抛出异常。
-       (drop n coll)
-
-Elides the first n values from the reduction of coll.
-（Elides，滑动，幻灯片。）
-丢弃开头n个元素。
-
-(drop 2 [\a \b \c \d \e \f])
-;= (\c \d \e \f)
-
-====
-14，take
-function
-Usage: (take n coll)
-
-Returns a lazy sequence of the first n items in coll, or all items if there are fewer than n.
-获取惰性序列的开头n个元素。
-
-====
-14.1，take-last
-function
-Usage: (take-last n coll)
-
-Returns a seq of the last n items in coll.  
-Depending on the type of coll may be no better than linear time.  
-For vectors, see also subvec.
-获取惰性序列尾部n个元素。
-
-====
-14.2，take-nth
-function
-Usage: (take-nth n coll)
-
-Returns a lazy seq of every nth item in coll.
-
-(take-nth 2 [0 1 2 3 4 5 6 7 8 9])
-;= (0 2 4 6 8)
-
-====
-14.3，take-while
-function
-Usage: (take-while pred coll)
-
-Returns a lazy sequence of successive items from coll while (pred item) returns true. 
-pred must be free of side-effects.
-获取开头的元素，直到遇到不满足谓词的元素时停止。
-
-(take-while even? [0 2 4 1 2 3 4])
-;= (0 2 4)
+(2 3)
 
 ========
-set操作：
+移除：
 
 ====
-1，合并子集
-user=> (clojure.set/union #{1 2 3} #{1 2 4})
-#{1 2 3 4}
+1，dissoc
+function
+Usage: (dissoc map)
+       (dissoc map key)
+       (dissoc map key & ks)
+
+dissoc[iate]. Returns a new map of the same (hashed/sorted) type,that does not contain a mapping for key(s).
+从映射中去除指定的键。
+
+user=> (dissoc {:a 1 :b 2 :c 3} :b);丢弃key为:b的元素  
+{:a 1, :c 3}
+
+user=> (dissoc {:a 1 :b 2 :c 3});没有key的参数时，直接返回  
+{:a 1, :c 3, :b 2}
+
+user=> (dissoc {:a 1 :b 2 :c 3} :d);  
+{:a 1, :c 3, :b 2}
+
+user=> (dissoc {:a 1 :b 2 :c 3} :a :b :c)  
+{}
 
 ====
-2，根据条件选择
-select
-(select pred xset)
+2，disj
+function
+Usage: (disj set)
+       (disj set key)
+       (disj set key & ks)
 
-返回 xset 中所有使 pred 为真的元素。
-select 和 clojure.core/filter 类似，只是 select 的输入和输出都是 set 。
+disj[oin]. Returns a new set of the same (hashed/sorted) type, that does not contain key(s).
+从set中去除指定的键。
 
-user=> (clojure.set/select even? #{1 2 3 4 5})
-#{2 4}
-
-====
-3，取差集
-user=> (clojure.set/difference #{1 2 3} #{1 2 4})
-#{3}
-
-====
-4，取交集
-user=> (clojure.set/intersection #{1 2 3} #{1 2 4})
-#{1 2}
-
-
-========
-map操作：
-
-====
-1，keys： 
-keys的参数为map，返回map中的key组成列表。 
-
-user=> (keys {:a 1 :b 2})  
-(:a :b)  
-
-====
-2，vals： 
-与keys类似，参数为map，返回map中的value组成的列表。 
-
-user=> (vals {:a 1 :b 2})  
-(1 2)  
-
-====
-3，key： 
-key的参数为map中的元素（entry），所以不能直接把key作用在map上。
-key用于返回元素的key名称。 
-
-user=> (map key {:a 1 :b 2})
-(:a :b)  
-
-user=> (key (first {:a 1 :b 2}))
-:a  
-
-====
-4、val： 
-与key类似，参数为map元素（entry），返回元素的value值。 
-
-user=> (val (first {:one :two}))  
-:two  
-
+user=> (disj #{1 3 5 7} 3 7)
+#{1 5}
 
 ========
 1，count： 
@@ -472,31 +816,4 @@ user=> (count {:one 1 :two 2})
 2  
 user=> (count "string")  
 6  
-
-====
-2，empty： 
-返回一个空的集合，集合类型不变，如果empty参数为nil，则返回nil 。
-
-user=> (empty [1 2 3])  
-[]  
-
-user=> (empty (list 1 2 3))  
-()  
-
-user=> (empty {:key1 1})  
-{}  
-
-user=> (empty nil)  
-nil  
-
-====
-3，not-empty： 
-如果集合为空，返回nil，否则直接返回参数指向的集合 。
-
-user=> (not-empty [])  
-nil  
-
-user=> (not-empty '(1 2 3))  
-(1 2 3)  
-
 

@@ -1,14 +1,18 @@
-（hxzon学习笔记）clojure-集合相关的函数-3，常用操作
+（hxzon学习笔记）clojure-集合相关的函数-2，常用操作
 
 by hxzon
 
 ----
+截取：
+drop，take，take-last，(take-nth n coll)，take-while 。
+subvec
+
 数据变换：
-update-in，merge，replace，merge-with，
+update-in，replace，merge-with，
 map，mapv，mapcat，map-indexed，
 keep，keep-indexed，
 juxt，map-invert，
-interleave，
+interpose，
 
 分组：
 group-by（分组），partition（分区），partition-all ，partition-by 。
@@ -20,21 +24,93 @@ reduce，reductions ，frequencies ， max-key 。
 筛选：
 filter，filterv，
 select-keys ，subseq 。
+clojure.set/select，
+clojure.set/difference，clojure.set/intersection。
 
 检查集合的元素：
 contains? ，distinct? ，empty? ，
 every? ，not-every? ，some，not-any? 。
 
-构建：
-range ， repeat ， repeatedly ， iterate ，
-zipmap 。
-
 排序：
-sorted-map-by ， sorted-set-by ， reverse （逆序）， shuffle （乱序），
+sort，sort-by，
+sorted-map-by ， sorted-set-by ， 
+reverse （逆序）， shuffle （乱序），
 rseq （逆序向量或有序map）， rsubseq 。 
 
 强迫求值：
 doall ， dorun 。
+
+========
+截取：
+
+1，drop
+function
+Usage: (drop n) ，hxzon：抛出异常。
+       (drop n coll)
+
+Elides the first n values from the reduction of coll.
+（Elides，滑动，幻灯片。）
+丢弃开头n个元素。
+
+(drop 2 [\a \b \c \d \e \f])
+;= (\c \d \e \f)
+
+====
+2，take
+function
+Usage: (take n coll)
+
+Returns a lazy sequence of the first n items in coll, 
+or all items if there are fewer than n.
+获取惰性序列的开头n个元素。
+
+====
+2.1，take-last
+function
+Usage: (take-last n coll)
+
+Returns a seq of the last n items in coll.  
+Depending on the type of coll may be no better than linear time.  
+For vectors, see also subvec.
+获取惰性序列尾部n个元素。
+
+====
+2.2，take-nth
+function
+Usage: (take-nth n coll)
+
+Returns a lazy seq of every nth item in coll.
+
+(take-nth 2 [0 1 2 3 4 5 6 7 8 9])
+;= (0 2 4 6 8)
+
+====
+2.3，take-while
+function
+Usage: (take-while pred coll)
+
+Returns a lazy sequence of successive items from coll while (pred item) returns true. 
+pred must be free of side-effects.
+获取开头的元素，直到遇到不满足谓词的元素时停止。
+
+(take-while even? [0 2 4 1 2 3 4])
+;= (0 2 4)
+
+====
+3，subvec：
+(subvec vec start)
+(subvec vec start end)
+
+subvec接收两个或三个参数。
+第一个是向量，第二个和第三个（如果有的话）是索引。
+它返回一个新向量，这个向量由原来那个向量的
+介于两个索引之间或者第一个索引到向量末尾（如果没有第二个索引）的部分组成。 
+
+user=> (subvec [12 3 4 5 6 7] 2)  
+[4 5 6 7]
+
+user=> (subvec [12 3 4 5 6 7] 2 4)  
+[4 5]
 
 ========
 数据变换：
@@ -48,17 +124,6 @@ user=> (update-in {:name "qh" :age 30} [:age] #(inc %))
 
 user=> (update-in {:a 3} [:a] / 4 5)
 {:a 3/20}  
-
-====
-2，(merge map1 map2 ...)
-合并多个map为一个新的map，如果key相同，则保留后一个参数map的key对应值。 
-
-user=> (merge {:name "qh" :age 30} {:gender 'm :mail "qh@mail"})  
-{:mail "qh@mail", :gender m, :age 30, :name "qh"}  
-
-;这里也可以用conj 。
-user=> (conj {:name "qh" :age 30} {:gender 'm :mail "qh@mail"})  
-{:mail "qh@mail", :gender m, :age 30, :name "qh"}  
 
 ====
 3，replace
@@ -171,22 +236,7 @@ returns a vector containing the result of applying each fn to the args (left-to-
 注意，当多个 key 有同一个 value 时，新 map 只保留其中的一个作为 key 。
 
 ====
-11，interleave
-function
-Usage: (interleave)
-       (interleave c1)
-       (interleave c1 c2)
-       (interleave c1 c2 & colls)
-
-Returns a lazy seq of the first item in each coll, then the second etc.
-返回惰性序列，先取每个集合的第一个元素，接着取每个集合的第二个元素。
-当某个集合缺少元素时，停止。
-
-(interleave [1 2 3]['a 'b 'c][11 12])
-;= (1 a 11 2 b 12)
-
-====
-interpose
+11，interpose
 function
 Usage: (interpose sep coll)
 
@@ -433,6 +483,26 @@ user=> (subseq (sorted-map :a 1 :c 2 :b 4) < :b)
 user=> (subseq (sorted-map :a 1 :c 2 :b 4) >= :b)  
 ([:b 4] [:c 2])
 
+====
+select
+(select pred xset)
+
+返回 xset 中所有使 pred 为真的元素。
+select 和 clojure.core/filter 类似，只是 select 的输入和输出都是 set 。
+
+user=> (clojure.set/select even? #{1 2 3 4 5})
+#{2 4}
+
+====
+取差集
+user=> (clojure.set/difference #{1 2 3} #{1 2 4})
+#{3}
+
+====
+取交集
+user=> (clojure.set/intersection #{1 2 3} #{1 2 4})
+#{1 2}
+
 ========
 检查集合的元素：
 
@@ -554,64 +624,6 @@ true
 user=> (not-any? odd? '(1 2 3))  
 false  
 
-
-======
-创建
-
-====
-1，range
-(range)
-(range end)
-(range start end)
-(range start end step)
-
-返回一个惰性序列， 序列里包含从大于等于 start 到小于 end 区间内的所有数字(start <= numbers < end)，
-数字的步进以 step 指定。
-默认情况下， start 为 0 ， step 为 1 ，而 end 则为无限。
-
-====
-2，repeat
-(repeat e)
-(repeat n e)
-
-返回一个包含 n 个 e 的惰性序列。
-如果不指定 n ，那么值 e 可以被包含无限次。
-
-====
-3，repeatedly
-(repeatedly f)
-(repeatedly n f)
-
-给定一个无参数的函数 f (通常带有副作用)，返回一个调用 f 函数 n 次的惰性序列。
-如果不指定参数 n ，那么函数 f 可以执行无限次。
-
-====
-4，iterate
-(iterate f x)
-
-返回一个惰性序列， 序列元素的值为 x 、 (f x) 、 (f (f x)) 、 (f (f (f x)))  。
-函数 f 必须是无副作用的。
-
-====
-5，zipmap 
-function
-Usage: (zipmap keys vals)
-zipmap使用给定的keys映射到匹配的vals，返回一个数组映射。
-（hxzon：即拉链）
-
-user=> (def zm (zipmap [:a :b :c :d :e] [1 2 3 4 5]))  
-#'user/zm  
-
-user=> (type zm)  
-clojure.lang.PersistentArrayMap  
-
-user=> zm  
-{:e 5, :d 4, :c 3, :b 2, :a 1}  
-
-user=> (zipmap [:a :b :c] [1 2 3 4])  
-{:c 3, :b 2, :a 1}
-
-
 ========
 排序：
 
@@ -640,16 +652,7 @@ java.util.Comparator.  If coll is a Java array, it will be modified.
 To avoid this, sort a copy of the array.
 
 ====
-3，sorted-map
-function
-Usage: (sorted-map & keyvals)
-keyval => key val
-
-Returns a new sorted map with supplied mappings.  If any keys are
-equal, they are handled as if by repeated uses of assoc.
-
-====
-3.1，sorted-map-by
+3，sorted-map-by
 function
 Usage: (sorted-map-by comparator & keyvals)
 keyval => key val
@@ -665,15 +668,7 @@ user=> (sorted-map-by < 1 "a", 2 "b", 3 "c")
 {1 "a", 2 "b", 3 "c"}  
 
 ====
-4，sorted-set
-function
-Usage: (sorted-set & keys)
-
-Returns a new sorted set with supplied keys.  Any equal keys are
-handled as if by repeated uses of conj.
-
-====
-4.1，sorted-set-by
+4，sorted-set-by
 function
 Usage: (sorted-set-by comparator & keys)
 
