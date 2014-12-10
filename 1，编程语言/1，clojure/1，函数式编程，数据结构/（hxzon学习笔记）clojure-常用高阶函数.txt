@@ -6,7 +6,6 @@ http://clojure-api-cn.readthedocs.org/en/latest/index.html
 http://clojure.github.io/clojure/
 
 =======
-----
 1，apply，函数应用。
 
 (apply fnX paramsYY)
@@ -16,7 +15,7 @@ http://clojure.github.io/clojure/
 ======
 构建函数：
 
-----
+====
 1，partial，部分参数应用，先配置好一个函数的开头几个参数。
 
 (def only-strings (partial filter string?))
@@ -25,7 +24,7 @@ http://clojure.github.io/clojure/
 (only-strings ["a" 5 "b" 6])
 ;= ("a" "b")
 
-----
+====
 2，comp，函数组合。
 
 (comp f3 f2 f1)
@@ -38,13 +37,13 @@ http://clojure.github.io/clojure/
 (negated-sum-str 10 12 3.4)
 ;= "-25.4"
 
-----
+====
 3，fnil
 返回一个给参数加上默认值的函数（下面示例中是0），它使得不用显示去检查参数是不是nil。
 
 (fnil inc 0)
 
-----
+====
 4，complement （补充，补语。）
 (complement f)
 
@@ -64,7 +63,7 @@ user=> ((complement f))
 hello
 true
 
-----
+====
 5，constantly
 (constantly x)
 
@@ -73,16 +72,16 @@ true
 ====
 并发相关：
 
-----
+====
 1，pmap
 (pmap f coll)
 (pmap f coll & colls)
 
 pmap 类似于 map ，唯一的不同是， pmap 对函数 f 的应用是并行的。
-pmap 的返回值是半惰性的(semi-lazy)： 并行计算总是发生在消耗(consumption)之前， 不过，计算结果只有在被需要时，才会被 realize 。
+pmap 的返回值是半惰性的(semi-lazy)： 并行计算总是发生在消费(consumption)之前， 不过，计算结果只有在被需要时，才会被 realize 。
 只有当 f 为计算密集型函数， 而且并行获得的性能提升足以抵消并行所需的协调消耗时， 才应该使用 pmap 。
 
-----
+====
 2，pcalls
 (pcalls & fns)
 
@@ -113,19 +112,19 @@ nil 5
 nil 6
 nil nil)
 
-----
+====
 3，pvalues
 (pvalues & exprs)
 
 并行计算 exprs 中的表达式，并以惰性序列的形式返回它们的值。
 
-====
+========
 其它：
 
-----
+====
 1，memoize，内存化，即缓存函数调用结果。
 
-----
+====
 2，time
 (time expr)
 

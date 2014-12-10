@@ -15,7 +15,6 @@ http://blog.csdn.net/zh2qiang/article/details/7234413
 4.5 针对特定结构的函数。
 
 =======
-
 seq是一种逻辑列表。可以通过序列来访问的集合被称为可序列。
 
 =======
@@ -52,7 +51,7 @@ set也可以看作序列：
 (first #{:the :quick :brown :fox})
 返回[:brown]。
 
-Map和set中元素有一个稳定的顺序，该顺序依赖具体的实现（Clojure内部实现），
+map和set中元素有一个稳定的顺序，该顺序依赖具体的实现（Clojure内部实现），
 后放进的元素不一定放在后面，因此我们不能依赖该顺序。
 
 如果想要一个可信赖的顺序，可以使用sorted-set和sorted-map，
@@ -111,7 +110,6 @@ clojure.lang.PersistentList
 
 (2) (repeat n x) 创建一个有n个x组成的序列；
      (repeat x) 创建一个由无穷个x组成的无限序列。
-
 
 (3) (iterate f x) 通过不断迭代调用函数f，创建一个无限大的序列。
 
@@ -320,7 +318,7 @@ nil
 ----
 1. 序列访问Java集合
 
-集合可以像序列一样操作称为可序列。
+集合可以像序列一样操作，称为可序列。
 
 数组可序列：
 user=> (first (.getBytes "hello"))
