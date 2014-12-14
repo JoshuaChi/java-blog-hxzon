@@ -192,37 +192,43 @@ iterate([f x]) ，返回一个延迟序列，元素为x, (f x), (f (f x))。f不
 reverse ，返回一个非延迟序列，元素逆序。
 
 ==
+Head retention
 “头保持”问题（hxzon：注意）
 
-Head retention
-One fact often overlooked by newcomers to Clojure is that lazy sequences are persistent: an item is computed once, but is still retained by the sequence.
-17
+One fact often overlooked by newcomers to Clojure is that lazy sequences are persistent: 
+an item is computed once, but is still retained by the sequence.【17】
 This means that,
 as long as you maintain a reference to a sequence, you’ll prevent its items from being
 garbage-collected. This type of fault is called head retention(or,  holding onto head) and
 can put pressure on the VM that will impact performance, potentially even causing an
 out of memory error if the realized portion of a sequence grows too large.
+
 split-withis a function that, given a predicate and seq-able value, will return a vector
 of two lazy seqs; the prefix that satisfies the predicate and the suffix starting at the first
 item that does not satisfy the predicate:
+
 (split-with neg? (range -5 5))
 ;= [(-5 -4 -3 -2 -1) (0 1 2 3 4)]
+
 Consider a case using split-withwhere you know that the prefix is going to be very
 small, but the suffix will be very large. If you retain a reference to the prefix, all of the
 values in the sequence will be retained even if your processing of the suffix is lazy. If
 the sequence in question is very large, then this head retention will ensure that an out
 of memory error will occur:
+
 (let [[t d] (split-with #(< % 12) (range 1e8))]
 [(count d) (count t)])
 ;= #<OutOfMemoryError java.lang.OutOfMemoryError: Java heap space>
+
 Reversing the order of evaluation solves the problem:
+
 (let [[t d] (split-with #(< % 12) (range 1e8))]
 [(count t) (count d)])
 ;= [12 99999988]
+
 Since the last reference of toccurs before the processing of d, no reference to the head
 of the rangesequence is kept, and no memory issues arise.
-Insertion  into  a  map  or  set,  =,  and  count are  also  common  causes  of  “head  retention”
-【18】
+Insertion  into  a  map  or  set,  =,  and  count are  also  common  causes  of  “head  retention”【18】
 since they force complete realization of lazy sequences.
 
 【18.】 Or rather, premature realization—but the end result of an out-of-memory condition is the same.
@@ -334,6 +340,9 @@ clojure如何把二元谓词变成排序器？
 向量，映射，集，本身就是函数。
 列表不是函数。
 
+((list 'a 'b 'c) 0)
+; java.lang.ClassCastException: clojure.lang.PersistentList cannot be cast to clojure.lang.IFn
+
 ([:a :b :c] 2)
 ;= :c
 
@@ -411,9 +420,9 @@ defrecord。
 ====
 分组
 
-(group-by key-fn coll)：根据key-fn函数把一个集合分成多组。
+;; (group-by key-fn coll)：根据key-fn函数把一个集合分成多组。
 
-(group-by #(rem % 3) (rang 10))
+(group-by #(rem % 3) (range 10))
 ;= {0 [0 3 6 9] , 1 [1 4 7] , 2 [2 5 8]}
 
 (def playlist
@@ -431,7 +440,7 @@ defrecord。
 ;= ...}
 
 ;按两个键分组。
-(group-by (juxt :col1 :col2) data)
+;; (group-by (juxt :col1 :col2) data)
 
 ====
 分组聚合
@@ -536,8 +545,8 @@ defrecord。
 书： Okasaki《Purely  Functional  Data  Structures》
 
 树的森林。
-See http://blog.higher-order.net/2009/09/08/understanding-clojures-persistenthashmap-deftwicefor an
-overview of the hash array mapped trie implementation in Clojure’s PersistentHashMapclass.
+See http://blog.higher-order.net/2009/09/08/understanding-clojures-persistenthashmap-deftwice
+for an overview of the hash array mapped trie implementation in Clojure’s PersistentHashMapclass.
 
 See  http://blog.higher-order.net/2009/02/01/understanding-clojures-persistentvector-implementation
 for an overview of the implementation in Clojure’s PersistentVectorclass.

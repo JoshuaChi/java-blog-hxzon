@@ -39,18 +39,23 @@ varA捕获当时的值。
 (defn a [x] (+ 5 x))
 ;= #'user/a
 
-(def b (partial a 5))
+(def b (partial a 5))    ;; 作为值，是当时的值
 ;= #'user/b
 
 (def c (partial #'a 5))
 ;= #'user/c
 ;hxzon：即 (def c (partial (var a) 5))
 
+(defn d [x]
+  (a x))    ;; 作为函数调用，总是最新定义
 
 (b)
 ;= 10
 
 (c)
+;= 10
+
+(d 5)
 ;= 10
 
 (defn a [x] (+ 10 x))
@@ -60,6 +65,9 @@ varA捕获当时的值。
 ;= 10
 
 (c)
+;= 15
+
+(d 5)
 ;= 15
 
 

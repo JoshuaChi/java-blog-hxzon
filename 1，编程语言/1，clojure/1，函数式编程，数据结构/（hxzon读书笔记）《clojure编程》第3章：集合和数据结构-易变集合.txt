@@ -5,7 +5,11 @@ by hxzon
 ====
 hxzon：
 
-易变集合（只是一种性能优化手段）。
+易变集合，只是一种性能优化手段。见 into 示例。
+
+transient，返回一个可变集合。
+conj!，assoc!，可变版本的添加。
+persistent!，返回不可变集合。
 
 ========
 6，易变集合
@@ -28,10 +32,7 @@ hxzon：
 (count x) 
 ;= 1
 
-transient，
-conj! ，
-
-----
+====
 自己实现一个into函数。
 
 (defn naive-into
@@ -51,8 +52,10 @@ conj! ，
           nil))
 ; "Elapsed time: 3394.684 msecs"
 
-naive-into慢两倍。因为into在任何可以使用易变集合的地方都使用了易变集合。
-也就是说，当目标集合是vector，或者无序map，或者无序set时，使用了易变集合（它们是目前有易变集合的几种集合）。
+naive-into慢两倍。
+因为into在任何可以使用易变集合的地方都使用了易变集合。
+也就是说，当目标集合是vector，或者无序map，或者无序set时，
+使用了易变集合（它们是目前有易变集合的几种集合）。
 
 --
 使用易变集合来实现into函数。
@@ -65,7 +68,7 @@ naive-into慢两倍。因为into在任何可以使用易变集合的地方都使
           nil))
 ; "Elapsed time: 1639.156 msecs"
 
-----
+====
 目前没有一个标准谓词可以检测一个集合是否有易变版本。
 可以检测一个集合是不是clojure.lang.IEditableCollection的实例，它标明一个集合可以产生可变版本。
 
@@ -75,17 +78,9 @@ naive-into慢两倍。因为into在任何可以使用易变集合的地方都使
     [coll]
     (instance? clojure.lang.IEditableCollection coll))
 
-----
-(def v [1 2])
-;= #'user/v
-
-(def tv (transient v))
-;= #'user/tv
-
-(conj v 3)
-;= [1 2 3]
-
+====
 用persistent!来把一个易变集合变成持久性集合，会使得易变集合不再可用。
+
 (persistent! tv)
 ;= [1 2]
 
@@ -93,6 +88,8 @@ naive-into慢两倍。因为into在任何可以使用易变集合的地方都使
 ;= #<IllegalAccessError java.lang.IllegalAccessError:
 ;= Transient used after persistent! call>
 
+====
+易变集合也是函数。
 
 (nth (transient [1 2]) 1)
 ;= 2
@@ -100,7 +97,6 @@ naive-into慢两倍。因为into在任何可以使用易变集合的地方都使
 (get (transient {:a 1 :b 2}) :a)
 ;= 1
 
-易变集合也是函数。
 ((transient {:a 1 :b 2}) :a) 
 ;= 1
 
@@ -112,7 +108,9 @@ naive-into慢两倍。因为into在任何可以使用易变集合的地方都使
 ;= clojure.lang.PersistentArrayMap$TransientArrayMap
 ;= cannot be cast to java.util.Map (NO_SOURCE_FILE:0)>
 
-易变集合不支持seq，因为一个序列可能会比它的数据源活得时间更长，而易变集合是可变的，因此不适合做序列的数据源。
+====
+易变集合不支持seq，因为一个序列可能会比它的数据源活得时间更长，
+而易变集合是可变的，因此不适合做序列的数据源。
 
 (let [tm (transient {})]
      (doseq [x (range 100)]
@@ -120,6 +118,7 @@ naive-into慢两倍。因为into在任何可以使用易变集合的地方都使
      (persistent! tm))
 ;= {0 0, 1 0, 2 0, 3 0, 4 0, 5 0, 6 0, 7 0}
 
+====
 易变集合只是一种优化手段。
 使用时控制它的范围，通常限制在单个函数（或者一个库里面几个相关的私有函数之间）。
 这个最佳实践其实在实现层上被强制了
@@ -130,6 +129,7 @@ naive-into慢两倍。因为into在任何可以使用易变集合的地方都使
 ;= #<IllegalAccessError java.lang.IllegalAccessError:
 ;= Transient used by non-owner thread>
 
+====
 易变集合是不可组合的。
 persistent!不会遍历你创建的嵌套易变集合，
 因此对最上层调用persistent!，对于内嵌的子集合是没有效果的。
@@ -137,6 +137,7 @@ persistent!不会遍历你创建的嵌套易变集合，
 (persistent! (transient [(transient {})]))
 ;= [#<TransientArrayMap clojure.lang.PersistentArrayMap$TransientArrayMap@b57b39f>]
 
+====
 在任何情况下，因为易变集合是可修改的，所以没有值语义。
 (= (transient [1 2]) (transient [1 2]))
 ;= false
