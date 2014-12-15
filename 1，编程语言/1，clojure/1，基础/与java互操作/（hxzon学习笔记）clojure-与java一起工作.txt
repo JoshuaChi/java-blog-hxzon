@@ -105,6 +105,8 @@ user=> (format "%s ran %d miles today" "Stu" 8)
 ========
 8，处理异常
 
+https://github.com/scgilardi/slingshot 异常处理
+
 异常处理的目的:
 (1) 包装检查异常；
 (2) 使用finally块清理非内存资源如文件或网络句柄；

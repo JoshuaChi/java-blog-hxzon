@@ -193,7 +193,7 @@ a sequential collection will never be equal to a set, or a map.
 ;= true
 这里，不同类型的整数是=的。
 
-(= 1.25 (Float. 1.25))
+(= 1.25 (Float. 1.25))    ;; double 和 float 相等。
 ;= true
 
 但不同类的等值数字比较，不会=。
@@ -281,62 +281,5 @@ clojure不会出现重复键。
 ========
 三，优化数字性能
 
--1，使用原始类型，没有封装的代价，而且靠硬件实现。
--2，避免使用集合和序列，它们会装箱。
-
-----
-声明函数接受和返回原始类型。
-基于类的类型提示使得编译器在执行java互操作时能够避免反射，但提示不改变实现这些方法的函数签名。
-
-(defn foo [a] 0)
-;= #'user/foo
-
-(seq (.getDeclaredMethods (class foo)))
-;= (#<Method public java.lang.Object user$foo.invoke(java.lang.Object)>)
-
-(defn foo [^Double a] 0)
-;= #'user/foo
-
-(seq (.getDeclaredMethods (class foo)))
-;= (#<Method public java.lang.Object user$foo.invoke(java.lang.Object)>)
-
-使用原始类型声明，采用了invokePrim方法。
-(defn round ^long [^double a] (Math/round a))
-;= #'user/round
-
-(seq (.getDeclaredMethods (round foo)))
-;= (#<Method public java.lang.Object user$round.invoke(java.lang.Object)>
-;= #<Method public final long user$round.invokePrim(double)>)
-
-它不会接受一个类型不符合的参数。
-(round "string")
-;= #<ClassCastException java.lang.ClassCastException:
-;= java.lang.String cannot be cast to java.lang.Number>
-
-可以传任何封装的数字，但须在预期的数值范围内。
-(defn idem ^long [^long x] x)
-;= #'user/long
-(idem 18/5)
-;= 3
-(idem 3.14M)
-;= 3
-(idem 1e15)
-;= 1000000000000000
-(idem 1e150)
-;= #<IllegalArgumentException java.lang.IllegalArgumentException:
-;= Value out of range for long: 1.0E150>
-
-通常的invoke方法（参数和返回值为Object类型）仍在，这是为了支持用封装的数字参数调用函数的情况。
-(map round [4.5 6.9 8.2])
-;= (5 7 8)
-(apply round [4.2])
-;= 4
-
-声明为接受或返回原始类型的任何clojure函数限制在4个参数内。
-这是由于实现上的一个细节：为了开发上面提到的效率而不加入严格静态的编译过程，
-每个可能接受原始类型的函数签名必须在单独的接口中定义。
-参数和返回值有三种（double、long和Object），即使允许最大4个参数也会产生数百种不同的接口。
-
-“Use Primitive Arrays Judiciously（优化数值效率）”部分见《（hxzon学习笔记）clojure-与java一起工作-类型提示》。
-
+见《（hxzon学习笔记）clojure-与java一起工作-类型提示》。
 

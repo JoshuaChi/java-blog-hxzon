@@ -4,10 +4,19 @@ by hxzon
 《clojure编程》第12章：设计模式
 
 ======
-
 大部分设计模式都是弥补java和ruby本身的语言缺陷，lisp中不需要。
 高阶函数消灭一批“设计模式”，宏消灭最后残存的“模式”。
 
+==
+http://www.norvig.com/design-patterns/
+
+==
+When I see patterns in my programs, I consider it a sign of trouble. The shape of a program
+should reflect only the problem it needs to solve. Any other regularity in the code is a
+sign, to me at least, that I’m using abstractions that aren’t powerful enough…
+—Paul Graham, http://www.paulgraham.com/icad.html
+
+====
 1，clojure用得最多的是责任链（过滤器，管道）。Ring就使用了责任链。
 
 =======

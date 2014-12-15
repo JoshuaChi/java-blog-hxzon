@@ -3,7 +3,8 @@
 by hxzon
 ========
 1，通过 ^ 给参数添加类型元数据。
-Clojure支持给函数参数，let绑定，变量名及表达式添加类型暗示。
+Clojure支持给函数参数，函数返回值，let绑定，var及表达式添加类型暗示。
+
 类型暗示的作用：
 1. 优化关键性能，
 2. 说明需要的类型，
@@ -97,14 +98,79 @@ https://code.google.com/p/clojure-doc-en2ch/wiki/Chapter_14_performance
 
 ========
 ========
-《clojure编程》第11章：数字和数学-Use Primitive Arrays Judiciously（优化数值效率）
+《clojure编程》第11章：数字和数学-优化数字性能
 
-使用原始类型数组。
+-1，使用原始类型，没有封装的代价，而且靠硬件实现。
+-2，避免使用集合和序列，它们会装箱。
 
-1，如果可变对象只在函数内使用，这是可取的，不违背clojure的。
+========
+1，声明函数接受和返回原始类型。
+
+基于类的类型提示使得编译器在执行java互操作时能够避免反射，但提示不改变实现这些方法的函数签名。
+
+(defn foo [a] 0)
+;= #'user/foo
+
+(seq (.getDeclaredMethods (class foo)))
+;= (#<Method public java.lang.Object user$foo.invoke(java.lang.Object)>)
+
+(defn foo [^Double a] 0)
+;= #'user/foo
+
+(seq (.getDeclaredMethods (class foo)))
+;= (#<Method public java.lang.Object user$foo.invoke(java.lang.Object)>)
+
+（hxzon：虽然提示是 Double 类型，但参数类型仍然是 Object 类型）
+
+使用原始类型声明，采用了invokePrim方法。
+(defn round ^long [^double a] (Math/round a))
+;= #'user/round
+
+(seq (.getDeclaredMethods (round foo)))
+;= (#<Method public java.lang.Object user$round.invoke(java.lang.Object)>
+;= #<Method public final long user$round.invokePrim(double)>)
+
+（除了invokePrim方法，还有 invoke(Object) 方法，这是为了装箱）
+
+它不会接受一个类型不符合的参数：
+
+(round "string")
+;= #<ClassCastException java.lang.ClassCastException:
+;= java.lang.String cannot be cast to java.lang.Number>
+
+可以传任何封装的数字，但须在预期的数值范围内：
+
+(defn idem ^long [^long x] x)
+;= #'user/long
+(idem 18/5)
+;= 3
+(idem 3.14M)
+;= 3
+(idem 1e15)
+;= 1000000000000000
+(idem 1e150)
+;= #<IllegalArgumentException java.lang.IllegalArgumentException:
+;= Value out of range for long: 1.0E150>
+
+通常的invoke方法（参数和返回值为Object类型）仍在，这是为了支持用封装的数字参数调用函数的情况。
+
+(map round [4.5 6.9 8.2])
+;= (5 7 8)
+(apply round [4.2])
+;= 4
+
+声明为接受或返回原始类型的任何clojure函数限制在4个参数内。
+这是由于实现上的一个细节：为了开发上面提到的效率而不加入严格静态的编译过程，
+每个可能接受原始类型的函数签名必须在单独的接口中定义。
+参数和返回值有三种（double、long和Object），即使允许最大4个参数也会产生数百种不同的接口。
+
+========
+2，使用原始类型数组。
+
+2.1，如果可变对象只在函数内使用，这是可取的，不违背clojure的。
 
 ====
-2，p446，《Multidimensional  concerns.》
+2.2，p446，《Multidimensional  concerns.》
 访问多维数组的性能问题。
 
 (def arr (make-array Double/TYPE 1000 1000))
@@ -208,15 +274,15 @@ hxzon代码注释：
 
 	([array idx]
 		`(aget ~array ~idx)) 
-对于一维数组，直接使用aget。这里假设array已经合理的提示了类型。
+;; 对于一维数组，直接使用aget。这里假设array已经合理的提示了类型。
 
 	([array idx & idxs]
 		(let [a-sym (gensym "a")]
 			`(let [~a-sym (aget ~(vary-meta array assoc :tag 'objects) ~idx)] 
 				(deep-aget ~(with-meta a-sym {:tag (-> array meta :tag)}) ~@idxs)))))
-对于多维数组，首先生成一个名字a-sym，它表示下一层数组。
-~(vary-meta array assoc :tag 'objects)，给array添加object类型提示。
-~(with-meta a-sym {:tag (-> array meta :tag)})，给下一层数组添加array所带的类型提示。
+;; 对于多维数组，首先生成一个名字a-sym，它表示下一层数组。
+~(vary-meta array assoc :tag 'objects)    ;; 给array添加object类型提示。
+~(with-meta a-sym {:tag (-> array meta :tag)})    ;; 给下一层数组添加array所带的类型提示。
 
 --
 (defmacro deep-aset
@@ -226,7 +292,7 @@ hxzon代码注释：
 	to the target array.
 	e.g. (deep-aset ^doubles arr i j 1.0)"
 	[array & idxsv]
-解构成“数组（带类型提示）”及“下标和值”两部分。
+;; 解构成“数组（带类型提示）”及“下标和值”两部分。
 
 	(let [hints '{booleans boolean, bytes byte 
 		chars char, longs long
@@ -234,23 +300,21 @@ hxzon代码注释：
 		doubles double, floats float}
 
 		hint (-> array meta :tag)
-hint为array带的类型提示。
+;; hint为array带的类型提示。
 
 		[v idx & sxdi] (reverse idxsv)
-反转“下标和值”，取得值v，和最底层下标idx。
+;; 反转“下标和值”，取得值v，和最底层下标idx。
 
 		idxs (reverse sxdi)
-恢复中间层的下标。
+;; 恢复中间层的下标。
 
 		v (if-let [h (hints hint)] (list h v) v)
-if-let宏接受两个参数，第一个参数为绑定变量，第二个参数为表达式。
-并根据第二个表达式参数返回的值确定执行then、else语句。
-(hints hint)，返回hint对应的强制转换函数，如果找到，绑定到h，if-let返回(list h v)，否则返回v。
+;; (hints hint)，返回hint对应的强制转换函数，如果找到，返回(list h v)，否则返回v。
 
 		nested-array (if (seq idxs)
 			`(deep-aget ~(vary-meta array assoc :tag 'objects) ~@idxs)
 			array)
-如果中间层下标不只一个，用deep-aget取得最底一层数组，否则直接返回array（已经是最底一层数组）。
+;; 如果中间层下标不只一个，用deep-aget取得最底一层数组，否则直接返回array（已经是最底一层数组）。
 
 		a-sym (gensym "a")]
 
