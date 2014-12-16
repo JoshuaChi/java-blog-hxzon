@@ -1,4 +1,4 @@
-（hxzon读书笔记）《clojure编程》第4章：多线程和并发
+（hxzon读书笔记）《clojure编程》第4章：多线程和并发-1，delay，future，promise，pmap
 
 by hxzon
 ======

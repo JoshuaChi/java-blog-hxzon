@@ -1,4 +1,4 @@
-（hxzon读书笔记）《clojure编程》第4章：多线程和并发-atom
+（hxzon读书笔记）《clojure编程》第4章：多线程和并发-2，atom，观察器，校验器
 
 by hxzon
 

@@ -186,3 +186,33 @@ a.b
 @#'a.b
 ;; 1
 
+====
+8，
+
+var
+binding，动态绑定
+set! ，设置动态var的线程本地值。
+alter-var-root ，修改根值。
+with-redefs
+
+agent
+send（固定大小的线程池），
+send-off（不固定大小的线程池，适宜阻塞型操作）。
+await，await-for。
+set-error-handler! （设置错误处理器），
+set-error-mode! （设置错误处理模式，挂掉或忽略）。
+
+hxzon：因为串行执行，所以每个action独占agent。action只在事务成功时，才执行（只执行一次）。
+
+atom
+swap! 自动不断重试。
+compare-and-set! 手工比较来更新。
+reset! 强行更新。
+
+ref
+alter，
+commute，
+ref-set，和alter语义相同，通常用来重新初始化 ref 。
+ensure，“空写”，用来避免write skew。
+dosync，开启事务
+

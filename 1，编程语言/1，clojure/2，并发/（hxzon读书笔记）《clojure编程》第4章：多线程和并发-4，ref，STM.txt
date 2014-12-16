@@ -1,7 +1,7 @@
-（hxzon读书笔记）《clojure编程》第4章：多线程和并发-ref，STM
+（hxzon读书笔记）《clojure编程》第4章：多线程和并发-4，ref，STM
 
 by hxzon
-----
+====
 hxzon学习笔记：
 
 1，
@@ -12,8 +12,7 @@ ensure，“空写”，用来避免write skew。
 
 2，读线程也可能重试。（未理解）
 
-=========
-----
+========
 两个用来帮助测试的宏。
 
 (defmacro futures
@@ -21,14 +20,15 @@ ensure，“空写”，用来避免write skew。
   (vec (for [_ (range n)
              expr exprs]
          `(future ~expr))))
+;; 产生n*(size exprs)个 future 。
 
 (defmacro wait-futures
   [& args]
   `(doseq [f# (futures ~@args)]
      @f#))
-始终返回nil，并且阻塞repl直到所有的future都实例化了。
+;; 始终返回nil，并且阻塞repl直到所有的future都实例化了。
 
-=====
+========
 1，ref
 
 ref是协调的、同步的引用类型。
@@ -54,7 +54,7 @@ dosync划定了一个事务的边界。
 有三个修改函数：alter，commute，ref-set，
 它们拥有不同的“是否产生（或者避免）冲突”的语义。
 
-=========
+========
 1.1，alter
 
 参数：要被修改的ref，修改函数f，f需要的其它参数。
@@ -72,6 +72,9 @@ alter的语义是，当事务提交时，ref的全局值必须跟这个事务第
 可串行化的快照隔离：
 https://en.wikipedia.org/wiki/Serializability
 
+hxzon理解：执行事务（记录每个被修改的ref的当前值vOrig），在提交时，比较每个ref的值是否仍是vOrig，
+是，提交，否，重新执行事务。
+
 --
 本章使用多人游戏引擎来示例。
 
@@ -81,7 +84,7 @@ https://en.wikipedia.org/wiki/Serializability
   (ref (merge {:name name :items #{} :health 500}
          opts)))
 
-(def smaug (character "Smaug" :health 500 :strength 400 :items (set (range 50))))
+(def smaug (character "Smaug" :health 500 :strength 400 :items (set (range 50))))    ;; 这里用数字来表示物品
 (def bilbo (character "Bilbo" :health 100 :strength 100))
 (def gandalf (character "Gandalf" :health 75 :mana 750))
 
@@ -116,7 +119,7 @@ https://en.wikipedia.org/wiki/Serializability
 (filter (:items @bilbo) (:items @gandalf))
 ;= ()
 
-=========
+========
 1.2，commute（重点，执行结果为何如此？）
 
 如果对ref的修改可以安全的重新排序，这时可以使用commute。
@@ -146,7 +149,7 @@ hxzon理解：
 使用commute，事务内的时间线执行一次，不会重试，它的值和“提交”没有关系。
 然后“提交”时，commute又执行一次，最终修改了ref的全局值。
 
---
+==
 示例：用1万个事务来修改ref。
 (def x (ref 0))
 ;= #'user/x
@@ -165,7 +168,7 @@ hxzon理解：
           (dosync (commute x - (apply + (range 1000)))))))
 ; "Elapsed time: 818.41 msecs"
 
---
+==
 示例：如果抢武器使用commute，则会出错。
 错在从武器库中删除武器时，一定要用alter，因为如果顺序不对，删除的武器就不对了。
 
@@ -174,7 +177,7 @@ hxzon理解：
   (dosync
     (when-let [item (first (:items @from))]
       (commute to update-in [:items] conj item)
-      (commute from update-in [:items] disj item))))	;hxzon：当提交时，这里不会检查[from:items]已经改变，从而抛出异常，
+      (commute from update-in [:items] disj item))))        ;hxzon：当提交时，这里不会检查 from 的[:items]是否已经改变，
       ;而是直接以新值再计算一次，用新结果更新全局ref。
 
 (def smaug (character "Smaug" :health 500 :strength 400 :items (set (range 50))))
@@ -268,7 +271,7 @@ hxzon理解：
 ;= {:health 853.6622368542827, :name "Bilbo"}
 ;= {:mana -2.575955687302212, :health 75, :name "Gandalf"})
 
-=========
+========
 1.3，ref-set
 
 ref-set和alter的语义是一样的。
@@ -280,7 +283,7 @@ ref-set通常用来重新初始化ref。
 (dosync (alter bilbo (constantly {:name "Bilbo"})))
 ; {:name "Bilbo"}
 
-=========
+========
 1.4，通过校验器来保证本地的一致性。
 
 如果校验器抛出异常，会导致当前这个事务失败。
@@ -339,10 +342,10 @@ ref-set通常用来重新初始化ref。
 要给模型确定一个理想的ref粒度是一个优化的步骤。这篇文章提供了一个潜在的方向：
 http://clj-me.cgrand.net/2011/10/06/a-world-in-a-ref/
 
-==========
+========
 2，STM的一些缺点
 
-----
+====
 2.1，事务内绝对不能执行有副作用的函数。
 
 io操作一般是不能重试的，所以clojure提供了一个io!宏，
@@ -357,7 +360,7 @@ io操作一般是不能重试的，所以clojure提供了一个io!宏，
 (dosync (unsafe))
 ;= #<IllegalStateException java.lang.IllegalStateException: I/O in transaction>
 
---
+==
 被ref持有的值一定要是不可变的。
 
 (def x (ref (java.util.ArrayList.)))
@@ -373,7 +376,7 @@ io操作一般是不能重试的，所以clojure提供了一个io!宏，
 
 这里发生了重试，但是之前的对arrayList的操作并没有撤销。
 
-----
+====
 2.2，最小化每个事务的范围。
 
 一方面不要在事务内进行复杂耗时的计算，
@@ -381,7 +384,7 @@ io操作一般是不能重试的，所以clojure提供了一个io!宏，
 太长的事务会不断重试，直到出现一个足够长的时间窗口。
 如果场景合适，commute可以有效避免长事务带来的问题。
 
-----
+====
 2.3，活锁：一个很长的事务总是没有机会提交。
 
 clojure stm提供了一些解决办法。
@@ -402,7 +405,7 @@ clojure stm提供了一些解决办法。
 @x
 ;= 0
 
-----
+====
 2.4，读线程也可能重试。（未理解）
 
 事务最开始时的那个历史快照已经被丢弃掉了（因为别的事务更新了很多次），
@@ -419,7 +422,7 @@ Clojure	STM对MVCC做了优化，ref的value链只在如下两种情况下增长
 -1，min-history	> 0
 -2，产生过“读失败”(read	faults)	
 
---
+==
 (ref-max-history (ref "abc" :min-history 3 :max-history 30))
 ;= 30
 
@@ -464,7 +467,7 @@ Clojure	STM对MVCC做了优化，ref的value链只在如下两种情况下增长
 ;= 33
 
 
-----
+====
 2.5，write skew（写偏序）
 
 如果一个事务的一致性依赖ref，但只是读取，
@@ -475,7 +478,7 @@ Clojure	STM对MVCC做了优化，ref的value链只在如下两种情况下增长
 (ensure a)语义上相当于(alter a identity)或者(ref-set a @a) ，即“空写”。
 ensure用来告知STM，这个事务依赖ref的值。
 
---
+==
 ;示例：攻击造成的伤害，受日光影响。
 (def daylight (ref 1))
 

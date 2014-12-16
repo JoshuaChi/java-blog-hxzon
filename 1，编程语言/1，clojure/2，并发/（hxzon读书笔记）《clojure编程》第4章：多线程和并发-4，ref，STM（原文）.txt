@@ -1,0 +1,839 @@
+﻿（hxzon读书笔记）《clojure编程》第4章：多线程和并发-4，ref，STM（原文）
+
+Refs
+Refs are Clojure’s coordinated reference type. Using them, you can ensure that multiple
+identities can participate in overlapping, concurrently applied operations with:
+• No possibility of the involved refs ever being in an observable inconsistent state
+• No possibility of race conditions among the involved refs
+• No manual use of locks, monitors, or other low-level synchronization primitives
+• No possibility of deadlocks
+This is made possible by Clojure’s implementation of software transactional memory,
+which is used to manage all change applied to state held by refs.
+Software Transactional Memory
+In general terms, software transactional memory (STM) is any method of coordinating
+multiple concurrent modifications to a shared set of storage locations. Doing this in
+nearly any other language means you have to take on the management of locks yourself,
+accepting all that comes along with them. STM offers an alternative.
+Just as garbage collection has largely displaced the need for manual memory management—eliminating a wide range of subtle and not-so-subtle bugs associated with it in
+the process—so has STM often been characterized as providing the same kind of systematic simplification of another error-prone programming practice, manual lock management. In both instances, using a proven, automated solution to address what is
+otherwise an error-prone manual activity both frees you from having to develop expertise in low-level details unrelated to your domain, and often produces end results
+with more desirable runtime characteristics than those attainable by experts in those
+low-level details.
+14
+Clojure’s STM is implemented using techniques that have been relied upon by database
+management systems for decades.
+15
+As the name implies, each change to a set of refs
+has transactional semantics that you are sure to be familiar with from your usage of
+databases; each STM transaction ensures that changes to refs are made:
+1. Atomically, so that all the changes associated with a transaction are applied, or
+none are.
+2. Consistently, so that a transaction will fail if the changes to affected refs do not
+satisfy their respective constraints.
+14. Modern  garbage  collection  implementations  can  enable  programs  to  outperform  alternatives  written
+using  manual  memory  management  in  many  contexts;  and,  each  time  a  new  garbage  collector
+implementation or optimization is added to the JVM, every program everywhere benefits from it without
+any involvement from individual programmers. The same dynamic has played out with Clojure’s STM.
+15. In particular, multiversion concurrency control(often abbreviated MVCC): https://en.wikipedia.org/wiki/
+Multiversion_concurrency_control.
+
+3. In isolation, so that an in-process transaction does not affect the states of involved
+refs as observed from within other transactions or other threads of execution in
+general.
+Clojure’s STM therefore satisfies the A, C, and I properties of ACID (https://en.wikipe
+dia.org/wiki/ACID), as you may understand it from the database world. The “D” property, durability, is not something that the STM is concerned with since it is purely an
+in-memory implementation.
+16
+
+====
+The Mechanics of Ref Change
+
+With  that  background  out  of  the  way,  let’s  see  what  refs  can  do  for  us.  Earlier  in
+“Classifying Concurrent Operations” on page 172, we talked about banking transactions being an example of an operation that requires coordination among multiple
+identities and threads of execution. While this is true, banking is perhaps an overwrought example when it comes to demonstrating transactional semantics. It might be
+more enlightening (and entertaining!) to explore refs and Clojure’s STM as an ideal
+foundation for implementing a multiplayer game engine.
+While some problems are rightfully described as “embarrassingly parallel” because of
+their potential to be parallelized given suitable facilities, we can say that multiplayer
+games are embarrassingly concurrent: the datasets involved are often massive, and it’s
+possible to have hundreds or thousands of independent players each provoking changes
+that must be applied in a coordinated, consistent fashion so as to ensure the game’s
+rules are reliably enforced.
+Our “game”
+17
+will be in the fantasy/role-playing genre, the sort that contains classes
+like wizards and rangers and bards. Given that, we’ll represent each player’s character
+as a ref holding a map, which will contain all of the data relevant to the player’s character’s class and abilities. Regardless of their class, all characters will have a minimal
+set of attributes:
+• :name, the character’s name within the game.
+• :health, a number indicating the character’s physical well-being. When  :health
+drops to 0, that character will be dead.
+• :items, the set of equipment that a character is carrying.
+Of course, specific character classes will have their own attributes. characteris a function that implements all this, with default values for :itemsand :health:
+16. We present a way to address durability of ref state with the help of agents in “Persisting reference states
+with an agent-based write-behind log” on page 215.
+17. We’re not game designers, and what we build here is obviously a contrivance, but there’s no reason the
+mechanisms we demonstrate here could not be utilized and extended to implement a thoroughly capable
+game engine.
+
+(defn character
+[name & {:as opts}]
+(ref (merge {:name name :items #{} :health 500}
+opts)))
+With this available, we can now define some actual characters that different players
+could control:
+18
+(def smaug (character "Smaug" :health 500 :strength 400 :items (set (range 50)))) 
+(def bilbo (character "Bilbo" :health 100 :strength 100))
+(def gandalf (character "Gandalf" :health 75 :mana 750))
+We’ve created smaugwith a set of items; here, just integers, which might correspond
+to item IDs within a static map or external database.
+In a game like this, if Bilbo and Gandalf were to defeat Smaug in a battle, they would
+be able to “loot” Smaug of the items he’s carrying. Without getting into gameplay
+details, all this means is that we want to take some item from Smaug and transfer it to
+another character. This transfer needs to occur so that the item being transferred is only
+in one place at a time from the perspective of any outside observers.
+Enter Clojure’s STM and transactions. dosyncestablishes the scope of a transaction.
+19
+All modifications of refs must occur within a transaction, the processing of which happens synchronously. That is, the thread that initiates a transaction will “block” on that
+transaction completing before proceeding in its execution.
+Similar to atoms’  swap!, if two transactions attempt to make a conflicting change to
+one or more shared refs, one of them will retry. Whether two concurrently applied
+transactions are in conflict depends entirely upon which functions are used to modify
+refs shared between those transactions. There are three such functions—alter,  com
+mute, and ref-set—each of which has different semantics when it comes to producing
+(or avoiding) conflict.
+With all that said, how do we implement looting of items among characters in our
+game?  The  loot function  transfers  one  value  from  (:items @from) to  (:items @to)
+transactionally, assuming each is a set,
+20
+and returns the new state of from:
+Example 4-2. loot
+(defn loot
+[from to]
+(dosync
+(when-let [item (first (:items @from))] 
+18. In a real game engine, you would almost surely not use vars to hold characters; rather, it would make
+sense to use a single map containing all online players’ characters, itself held within a ref. As players were
+to go on- and offline, their characters would be assoced and dissoced from that map.
+19. Note that nested transaction scopes—either due to lexically nested dosyncforms, or the joining of scopes
+in,  for  example,  different  functions  thanks  to  the  flow  of  execution—are  joined  into  a  single  logical
+transaction that commits or retries as a unit when control flows out of the outermost dosync.
+20. Recall from “Set” on page 105that disjreturns a set that does not contain a given value.
+
+(alter to update-in [:items] conj item)
+(alter from update-in [:items] disj item))))
+If (:items @from)is empty, firstwill return nil, the body of when-letwill remain
+unevaluated, the transaction will be a no-op, and lootitself will return nil.
+Again, assuming Smaug is dead, we can cause Bilbo and Gandalf to loot his items:
+(wait-futures 1
+(while (loot smaug bilbo))
+(while (loot smaug gandalf)))
+;= nil
+@smaug
+;= {:name "Smaug", :items #{}, :health 500}
+@bilbo
+;= {:name "Bilbo", :items #{0 44 36 13 ... 16}, :health 500}
+@gandalf
+;= {:name "Gandalf", :items #{32 4 26 ... 15}, :health 500}
+Right, so Gandalf and Bilbo have now taken all of Smaug’s items. The important point
+to notice is that the  bilboand  gandalfcharacters divvied up Smaug’s loot from different
+futures (therefore, threads), and that all the looting occurred atomically: no items are
+unaccounted for, no item references were duplicated, and at no point was an item
+owned by multiple characters.
+
+Example 4-3. Verifying the consistency of loot
+
+(map (comp count :items deref) [bilbo gandalf]) 
+;= (21 29)
+(filter (:items @bilbo) (:items @gandalf)) 
+;= ()
+
+If these counts were to add up to anything other than  50(the original number of
+items held by Smaug), or…
+…if Gandalf ended up with any items that Bilbo also held, then the effect of our
+loottransactions would have been cumulatively inconsistent.
+This was accomplished without the manual management of locks, and this process will
+scale to accommodate transactions involving far more refs and far more interleaving
+transactions applied by far more separate threads of execution.
+
+========
+Understanding alter
+理解alter
+
+loot uses  alter, which is similar to  swap! in so far as it takes a ref, a function  ƒ, and
+additional arguments to that function. When alter returns, the in-transaction value of
+the ref in question will have been changed to the return of a call to  ƒ, with the ref’s
+value as the first argument, followed by all of the additional arguments to alter.
+
+The notion of an in-transaction value is an important one. All the functions that modify
+the state of a ref actually operate on a speculative timeline for the ref’s state, which
+starts for each ref when it is first modified. All later ref access and modification works
+on this separate timeline, which only exists and can only be accessed from within the
+transaction. 
+在事务内，每个ref的第一个修改操作，开始了各自的新的时间线。
+
+When control flow is to exit a transaction, the STM attempts to commit
+it. In the optimistic case, this will result in the in-transaction, speculative states of each
+affected ref being installed as the refs’ new shared, non-transaction state, fully visible
+to the rest of the world. 
+
+However, depending upon the semantics of the operation(s)
+used to establish those in-transaction values, any change made to the refs’ state outside
+of the transaction  may conflict with the transaction’s modifications, resulting in the
+transaction being restarted from scratch.
+
+Throughout this process, any thread of execution that is solely reading(i.e., dereferencing) refs 
+involved in a transaction can do so without being blocked or waiting in
+any circumstance. Further, until a given transaction commits successfully, its changes
+will not affect the state of refs seen by readers outside of that transaction, including
+readers operating within the scope of entirely different transactions.
+
+The unique semantic of  alter is that, when the transaction is to be committed, the
+value of the ref outside of the transaction must be the same as it was prior to the first
+in-transaction application of  alter. Otherwise, the transaction is restarted from the
+beginning with the new observed values of the refs involved.
+
+This dynamic can be visualized as the interaction between two transactions,  t1
+and t2, which both affect some shared ref ausing alter:
+
+Figure 4-2. Interaction of transactions using alter, with conflict on a shared ref
+
+Even though t1
+starts before t2, its attempt to commit changes to  afails because t2
+has already modified it in the interim: the current state of a(a2) is different than the state
+of a(a1) when it was first modified within  t1. This conflict aborts the commit of any
+
+and  all  in-transaction  modifications  to  refs  affected  by  t1
+ (e.g.,  x,  y,  z,  …).  t1
+ then restarts, using up-to-date values for all of the refs it touches.
+ 
+Depicted and described this way, you can think of Clojure’s STM as a process that
+optimistically attempts to reorder concurrent change operations so they are applied
+serially. Unsurprisingly, the same semantics are found in the database world as well,
+often called  serializable snapshot isolation(https://en.wikipedia.org/wiki/Serializability).
+
+A  transaction’s  effects  will  not  be  committed  to  the  refs  involved  if
+anyconflicts exist at commit time. That is, just a single contested ref
+change is enough to cause a transaction to retry, even if 100 other ref
+changes could be committed cleanly.
+
+========
+Minimizing transaction conflict with commute
+使用 commute 来最小化事务冲突
+
+Because it makes no assumptions about the reorderability of the modifications made
+to affected refs, alteris the safest mechanism for effecting ref change. However, there
+aresituations where the modifications being made to refs can be reordered safely; in
+such contexts, commutecan be used in place of alter, potentially minimizing conflicts
+and transaction retries and therefore maximizing total throughput.
+
+As its name hints, commute has to do with commutative functions 
+(https://en.wikipedia.org/wiki/Commutative_property)
+—those whose arguments may be reordered without
+impacting results, such as +, *, clojure.set/union…—but it doesn’t mandate that the
+functions passed to it be commutative. 
+What really matters is that the function applications performed 
+using commuteare reorderable without violating program semantics.
+It follows that in such cases, it is the final result of all commutable function applications
+that matters, and not any intermediate results.
+
+For example, although division is not commutative, it may be often used with  com
+mutewhen you are not concerned with intermediate results:
+(= (/ (/ 120 3) 4) (/ (/ 120 4) 3))
+;= true
+
+Thus,  commutecan be used when the functional composition is commutative for the
+functions involved:
+
+(= ((comp #(/ % 3) #(/ % 4)) 120) ((comp #(/ % 4) #(/ % 3)) 120))
+;= true
+
+Generally, commuteshould only be used to apply changes to ref states where reordering
+of that application is acceptable.
+
+commute differs from alter in two ways. 
+commute 和 alter 的两点不同：
+
+First, the value returned by alteron a ref will
+be the committed value of this ref; 
+in other words, the in-transaction value is the eventual committed value. 
+On the other hand, the in-transaction value produced by  com
+mute is not guaranteed to be the eventual committed value, 
+because the  commuted function will be applied again at commit time with the latest value for the commuted ref.
+
+Second, a change made to a ref by using  commute will  never cause a conflict, and therefore
+never cause a transaction to retry. 
+This obviously has potentially significant performance and throughput implications: 
+transaction retries are fundamentally rework and
+time that a thread is “blocked” waiting for a transaction to complete successfully instead
+of moving on to its next task.
+
+We can demonstrate this very directly. Given some ref x:
+
+(def x (ref 0))
+;= #'user/x
+
+We’ll beat on it with 10,000 transactions that do some small amount of work (just
+obtaining the sum of some integers), and then alter x’s value:
+
+(time (wait-futures 5
+(dotimes [_ 1000]
+(dosync (alter x + (apply + (range 1000)))))
+(dotimes [_ 1000]
+(dosync (alter x - (apply + (range 1000)))))))
+; "Elapsed time: 1466.621 msecs"
+
+At least some of the time taken to process these transactions was spent in retries, thus
+forcing the resumming of the integer sequence. However, the operations used with
+alterhere (addition and subtraction) can safely be used with commute:
+
+(time (wait-futures 5
+(dotimes [_ 1000]
+(dosync (commute x + (apply + (range 1000)))))
+(dotimes [_ 1000]
+(dosync (commute x - (apply + (range 1000)))))))
+; "Elapsed time: 818.41 msecs"
+
+Even though it applies the change function to the ref’s value twice
+—once to set the intransaction value (so x would have an updated value if we were to refer to it again later
+in the transaction), and once again at commit-time to make the “real” change to the
+(potentially modified) value of  x—our cumulative runtime is cut nearly in half because
+commute will never retry.
+
+commute is not magic though: it needs to be used judiciously, or it can produce invalid
+results.  Let’s  see  what  happens  if  we  carelessly  use  commute instead  of  alter in  the
+lootfunction from Example 4-2:
+
+Example 4-4. A flawed-loot function that uses commute
+
+(defn flawed-loot
+[from to]
+(dosync
+(when-let [item (first (:items @from))]
+(commute to update-in [:items] conj item)
+(commute from update-in [:items] disj item))))
+
+Let’s reset our characters and see what our new looting function does:
+
+(def smaug (character "Smaug" :health 500 :strength 400 :items (set (range 50))))
+(def bilbo (character "Bilbo" :health 100 :strength 100))
+(def gandalf (character "Gandalf" :health 75 :mana 750))
+
+(wait-futures 1
+(while (flawed-loot smaug bilbo))
+(while (flawed-loot smaug gandalf)))
+;= nil
+
+(map (comp count :items deref) [bilbo gandalf])
+;= (5 48)
+
+(filter (:items @bilbo) (:items @gandalf))
+;= (18 32 1)
+
+Using the same checks from Example 4-3, we can see that flawed-loot has produced
+some problems: Bilbo has 5 items while Gandalf has 48 (with 18,  32, and  1being the
+three  duplicated  items),  a  situation  that  should  never  happen  since  Smaug  started
+with 50.
+
+What went wrong? In three instances, the same value was pulled from Smaug’s set
+of :items and conjed into both Bilbo’s and Gandalf’s :items. This is prevented in the
+known-good implementation of loot because using alter properly guarantees that the
+in-transaction and committed values will be identical.
+
+In this peculiar case, we can safely use commute to add the looted item to the recipient’s
+set (since the order in which items are added to the set is of no importance); it is the
+removal of the looted item from its source that requires the use of alter:
+
+Example 4-5. A fixed-loot function that uses both commute and alter
+
+(defn fixed-loot
+[from to]
+(dosync
+(when-let [item (first (:items @from))]
+(commute to update-in [:items] conj item)
+(alter from update-in [:items] disj item))))
+
+(def smaug (character "Smaug" :health 500 :strength 400 :items (set (range 50))))
+(def bilbo (character "Bilbo" :health 100 :strength 100))
+(def gandalf (character "Gandalf" :health 75 :mana 750))
+
+(wait-futures 1
+(while (fixed-loot smaug bilbo))
+(while (fixed-loot smaug gandalf)))
+;= nil
+
+(map (comp count :items deref) [bilbo gandalf])
+;= (24 26)
+(filter (:items @bilbo) (:items @gandalf))
+;= ()
+
+====
+On the other hand, commute is perfect for other functions in our game. For example,
+attack and heal functions are just going to be incrementing and decrementing various
+character attributes, so such changes can be made safely using commute:
+
+(defn attack
+[aggressor target]
+(dosync
+(let [damage (* (rand 0.1) (:strength @aggressor))]
+(commute target update-in [:health] #(max 0 (- % damage))))))
+(defn heal
+[healer target]
+(dosync
+(let [aid (* (rand 0.1) (:mana @healer))]
+(when (pos? aid)
+(commute healer update-in [:mana] - (max 5 (/ aid 5)))
+(commute target update-in [:health] + aid)))))
+
+With a couple of additional functions, we can simulate a player taking some action
+within our game:
+
+Example 4-6. Player-simulation functions
+
+(def alive? (comp pos? :health))
+(defn play
+[character action other]
+(while (and (alive? @character)
+(alive? @other)
+(action character other))
+(Thread/sleep (rand-int 50)))) 
+
+Surely no one can spam a particular action more than 20 times a second!
+Now we can have duels:
+
+(wait-futures 1
+(play bilbo attack smaug)
+(play smaug attack bilbo))
+;= nil
+(map (comp :health deref) [smaug bilbo]) 
+;= (488.80755445030337 -12.0394908759935)
+All by his lonesome, Bilbo understandably cannot hold his own against Smaug.
+…or, “epic” battles:
+
+Example 4-7. A battle between three characters
+(dosync 
+(alter smaug assoc :health 500)
+(alter bilbo assoc :health 100))
+(wait-futures 1
+(play bilbo attack smaug)
+(play smaug attack bilbo)
+
+(play gandalf heal bilbo))
+;= nil
+(map (comp #(select-keys % [:name :health :mana]) deref) [smaug bilbo gandalf]) 
+;= ({:health 0, :name "Smaug"}
+;= {:health 853.6622368542827, :name "Bilbo"}
+;= {:mana -2.575955687302212, :health 75, :name "Gandalf"})
+
+Just resetting our characters back to full health.
+Bilbo can ably take down Smaug as long as Gandalf is healing him throughout the
+course of the fight.
+
+========
+Clobbering ref state with ref-set
+
+ref-set will set the in-transaction state of a ref to the given value:
+
+(dosync (ref-set bilbo {:name "Bilbo"}))
+;= {:name "Bilbo"}
+
+Just  like  alter,  ref-set will provoke a retry of the surrounding transaction if the affected
+ref’s state changes prior to commit-time. 
+Said differently,  ref-setis semantically equivalent to using alterwith a function that returns a constant value:
+
+(dosync (alter bilbo (constantly {:name "Bilbo"})))
+; {:name "Bilbo"}
+
+Since this change is made without reference to the current value of the ref, it is quite
+easy to change a ref’s value in a way that is consistent with regard to the STM’s transactional guarantees, 
+but that violates application-level contracts. Thus, ref-setis generally used only to reinitialize refs’ state to starting values.
+
+========
+Enforcing local consistency by using validators
+使用校验器来强制保证一致
+
+If you’ll notice, Bilbo has a veryhigh :healthvalue at the end of Example 4-7. Indeed,
+there is no limit to how high a character’s :healthcan go, as a results of heals or other
+restorative actions.
+These sorts of games generally do not allow a character’s health to exceed a particular
+level. However, from both a technical and management perspective—especially given
+a large team or codebase—it may be too onerous to guarantee that every function that
+might increase a character’s health would not produce a health “overage.” Such functions may, as part of their own semantics, attempt to avoid such an illegal condition,
+but we must be able to protect the integrity of our model separately. Maintaining local
+consistency like this—the C in “ACID”—in the face of concurrent changes is the job
+of validators.
+We talked about validators already in “Validators” on page 178. Their use and semantics with refs is entirely the same as with other reference types, but their interaction
+with the STM is particularly convenient: if a validator function signals an invalid state,
+the exception that is thrown (just like any other exception thrown within a transaction)
+causes the current transaction itself to fail.
+
+With this in mind, we should refactor our game’s implementation details a bit. First,
+charactershould be changed so that:
+1. A common set of validators is added to every character.
+2. Additional validators can be provided for each character, so as to enforce constraints related to a character’s class, level, or other status in the game:
+
+(defn- enforce-max-health 
+[{:keys [name health]}]
+(fn [character-data]
+(or (<= (:health character-data) health)
+(throw (IllegalStateException. (str name " is already at max health!"))))))
+(defn character
+[name & {:as opts}]
+(let [cdata (merge {:name name :items #{} :health 500}
+opts)
+cdata (assoc cdata :max-health (:health cdata)) 
+validators (list* (enforce-max-health name (:health cdata)) 
+(:validators cdata))]
+(ref (dissoc cdata :validators)
+:validator #(every? (fn [v] (v %)) validators)))) 
+enforce-max-healthreturns a function that accepts a character’s  potentialnew state,
+throwing an exception if the new :healthattribute is above the character’s original
+health level.
+We record the character’s initial :healthas their :max-health, which will come in
+handy later.
+In addition to always ensuring that a character’s maximum health is never exceeded,
+it is easy to allow individual characters to be created with their own additional set
+of validator functions…
+…which can be easily rolled into the validation of their containing refs.
+Now, no character can ever be healed past his original health level:
+(def bilbo (character "Bilbo" :health 100 :strength 100))
+;= #'user/bilbo
+(heal gandalf bilbo)
+;= #<IllegalStateException java.lang.IllegalStateException: Bilbo is already at max 
+health!>
+One limitation of validators is that they are strictly local; that is, their charter does not
+extend past ensuring that the next state held by a reference satisfies the constraints they
+check:
+(dosync (alter bilbo assoc-in [:health] 95))
+;= {:max-health 100, :strength 100, :name "Bilbo", :items #{}, :health 95, :xp 0}
+(heal gandalf bilbo)
+;= #<IllegalStateException java.lang.IllegalStateException: Bilbo is already at max 
+health!>
+
+Here, Bilbo’s :healthis set just short of his  :max-health, so he really should be healable. 
+However, the implementation of  healdoes not yet take :max-healthinto account,
+and there is no way for the relevant validator to “tweak” Bilbo’s new state to suit its
+constraints—in this case, to make his :healththe lesser of his :max-healthor the sum
+of his current :healthand Gandalf’s healamount. If validators wereallowed to make
+changes like this, then it would be difficult to avoid introducing inconsistency into the
+refs modified within a transaction. Validators exist solely to maintain invariants within
+your model.
+
+A tweak to healis warranted to ensure that “partial” heals are possible, up to a character’s maximum health:
+
+(defn heal
+[healer target]
+(dosync
+(let [aid (min (* (rand 0.1) (:mana @healer))
+(- (:max-health @target) (:health @target)))]
+(when (pos? aid)
+(commute healer update-in [:mana] - (max 5 (/ aid 5)))
+(alter target update-in [:health] + aid)))))
+Now healwill improve a character’s health up tohis maximum health, returning nil
+when the character’s health is already at that level:
+(dosync (alter bilbo assoc-in [:health] 95))
+;= {:max-health 100, :strength 100, :name "Bilbo", :items #{}, :health 95}
+(heal gandalf bilbo)
+;= {:max-health 100, :strength 100, :name "Bilbo", :items #{}, :health 100}
+(heal gandalf bilbo)
+;= nil
+
+Note that our modification to targetnow potentially depends upon its prior state, so
+we use  alterinstead of  commute. This isn’t strictly required: perhaps you would be
+happy enough to have the validator catch errant heals, which would happen only if
+some other concurrently applied transaction also increased the health of the target
+character. This points to a potential downside to how we’ve modeled our characters,
+as all-encompassing bags of state (maps in this case) held by a single ref: if concurrent
+transactions modify unrelated parts of that state using  alter, a transaction will retry
+unnecessarily.【21】
+
+【21】. Determining ideal ref granularityfor your particular model is an optimization step that you’ll have to
+figure through benchmarking, experimentation, and some degree of forethought. Always start with the
+simplest approach—all-encompassing values are just fine most of the time—only reaching for a more
+complicated solution when necessary. See  http://clj-me.cgrand.net/2011/10/06/a-world-in-a-ref/for one
+such potential direction.
+
+========
+========
+The Sharp Corners of Software Transactional Memory
+
+As we said at the beginning of this chapter, Clojure does not offer any silver bullet to
+solve  the  problem  of  concurrency.  Its  STM  implementation  may  sometimes  seem
+
+
+magical—and, compared to the typical alternatives involving manual lock management, it sorta is—but even the STM has its own sharp corners and rough edges of which
+you should be aware.
+Side-effecting functions strictly verboten
+The only operations that should ever be performed within the scope of a transaction
+are things that are safe to retry, which rules out many forms of I/O. For example, if you
+attempt to write to a file or database inside a dosyncblock, you will quite possibly end
+up writing the same data to the file or database multiple times.
+Clojure can’t detect that you’re attempting to perform an unsafe operation inside a
+transaction; it will happily and silently retry those operations, perhaps with disastrous
+results. For this reason, Clojure provides an io!macro, which will throw an error if it
+is ever evaluated within a transaction. Thus, if you have a function that may be used
+within a transaction, you can wrap the side-effecting portion of its body in an io!form
+to help guard against accidentally calling unsafe code:
+(defn unsafe
+[]
+(io! (println "writing to database...")))
+;= #'user/unsafe
+(dosync (unsafe))
+;= #<IllegalStateException java.lang.IllegalStateException: I/O in transaction>
+As a corollary, operations on atoms should generally be considered sideeffecting, insofar as swap!, et al., do not participate in the STM’s transactional semantics. Thus, if a transaction is retried three times, and it
+contains a swap!call, swap!will be invoked three times and the affected
+atom will be modified three times…rarely what you want, unless you’re
+using an atom to count transaction retries.
+Note also that the values held by refs mustbe immutable.【22】
+
+【22】. Or, at the very least, effectively mutable due to your usage of them. For example, it is possible to use a
+mutable Java list as the state of a ref with proper transactional semantics if you strictly copy-on-write
+when producing modified lists, but this is both bad form and almost always unnecessary.
+
+Clojure isn’t going to stop
+
+you from putting mutable objects into a ref, but things like retries and the usual foibles
+associated with mutability will likely result in undesirable effects:
+
+(def x (ref (java.util.ArrayList.)))
+;= #'user/x
+(wait-futures 2 (dosync (dotimes [v 5]
+(Thread/sleep (rand-int 50)) 
+(alter x #(doto % (.add v))))))
+;= nil
+@x
+;= #<ArrayList [0, 0, 1, 0, 2, 3, 4, 0, 1, 2, 3, 4]> 
+
+
+The randomized sleepcall ensures that the two transactions will overlap; at least
+one of them will retry, leading to…
+…hopelessly flawed results.
+
+====
+Minimize the scope of each transaction
+
+Remember from the discussion around Figure 4-2that the STM’s job is to ensure that
+all of the work encapsulated as transactions be applied to affected refs in a serial fashion,
+reordering that work and those ref state changes if necessary. This implies that, the
+shorter each transaction is, the easier it will be for the STM to schedule that transaction,
+thus leading to faster application and higher total throughput.
+What happens if you have out-sized transactions, or transactions with a mix of scopes
+and scales? In general, the largest transactions will be delayed (along with whatever else
+the thread waiting on that transaction would otherwise be doing). Consider a bunch
+of transactions, all affecting some ref a:
+Assuming each of them is altering  a, the execution of those transactions will be retried
+until they can be applied serially. The longest-running transaction will end up being
+retried repeatedly, with the likely result that it will be delayed until a long enough slot
+opens up in the contended ref’s timeline for it to fit:
+Remember that commute(discussed in “Minimizing transaction conflict
+with commute” on page 185) does not provoke change conflicts and
+retries. Therefore, if you can use it safely with the change functions applicable to your state’s domain, you will effectively sidestep any potential hazards associated with long-running transactions.
+Doing a lot of time-consuming computation can result in a long-running transaction,
+but so can retries prompted by contention over other refs. For example, the long-running transaction depicted above may be performing some complex computation, which
+may need to be restarted repeatedly due to contention over another ref. Thus, you
+should aim to minimize the scope of transactions in general as much as possible both
+in terms of the computational runtime involved and in the number of affected refs.
+
+Live lock.  You might wonder: what happens if, particularly in times of heavy load,
+a large transaction nevergets a chance to commit due to ref contention? This is called
+live lock, the STM equivalent to a deadlock, where the thread(s) driving the transactions
+involved are blocked indefinitely attempting to commit their respective transactions.
+Without suitable fallbacks, and we’d be no better off than if we were manually managing locks and causing our own deadlocks!
+Thankfully, Clojure’s STM does have a couple of fallbacks. The first is called barging,
+where  an  older  transaction  is  allowed  to  proceed  in  certain  circumstances,  forcing
+newer transactions to retry. When barging fails to push through the older transaction
+in a reasonable amount of time, the STM will simply cause the offending transaction
+to fail:
+(def x (ref 0))
+;= #'user/x
+(dosync
+@(future (dosync (ref-set x 0)))
+(ref-set x 1))
+;= #<RuntimeException java.lang.RuntimeException:
+;= Transaction failed after reaching retry limit>
+@x
+;= 0
+The transaction running in the REPL thread above always starts a new future, itself
+running a transaction that modifies the state of the contended ref. Dereferencing that
+future ensures that the REPL thread’s transaction waits until the future’s transaction
+has completed, thus ensuring a retry—and therefore the spawning of a new future, and
+so on.
+
+Clojure’s STM will permit a transaction to retry only so many times before throwing
+an exception. An error thrown with a stack trace you can examine is infinitely better
+than an actual deadlock (or live lock), where the only solution is to forcibly kill the
+application’s process with little to no information about the problem’s locale.
+
+====
+Readers may retry
+读也可能导致重试（hxzon：未理解）
+
+In the case of reference types,  deref is guaranteed to never block. However,  inside a
+transaction dereferencing a ref may trigger a transaction retry!
+
+This is because, if a new value is committed by another transaction since the beginning
+of the current transaction, the value of the ref as of the start of the transaction cannot
+be provided.【23】
+【23】. See “Write skew” on page 196 for more subtleties on the value returned by deref inside a transaction.
+这是因为，当本事务开始时，有另一个事务修改了值并提交，
+此时，本事务可能“得不到本事务开始时的值”。
+
+Helpfully, the STM notices this problem 
+and maintains a bounded history of the states of refs involved in a transaction, 
+where the size of the history is incremented by each retry. 
+This increases the chance that—at some point—the transaction won’t have to retry anymore because, 
+while the ref is concurrently updated, the
+desired value is still present in the history.
+stm会维护一个值的历史。
+
+History length can be queried (and tuned) with ref-history-count,  ref-max-history,
+and  ref-min-history. Minimum and maximum history sizes can also be specified when
+a ref is created by using the named arguments :min-historyand :max-history:
+历史值的个数，可以通过以下方式设置。
+
+(ref-max-history (ref "abc" :min-history 3 :max-history 30))
+;= 30
+
+This allows you to potentially tune a ref to suit expected workloads.
+Retries on  deref generally occur in the context of read-only transactions, which attempt
+to snapshot a lot of very active refs. We can visualize this behavior with a single ref and
+a slow reading transaction:
+
+(def a (ref 0))
+
+(future (dotimes [_ 500] (dosync (Thread/sleep 200) (alter a inc))))
+;= #<core$future_call$reify__5684@10957096: :pending>
+
+@(future (dosync (Thread/sleep 1000) @a))
+;= 28 
+
+(ref-history-count a)
+;= 5
+
+The read value being 28 means that the reader transaction has been able to complete
+before all the writers have been run.
+
+So, the a ref has grown its history to accommodate the needs of the slow reading transaction. 
+What happens if the writes occur even faster?
+
+(def a (ref 0))
+
+(future (dotimes [_ 500] (dosync (Thread/sleep 20) (alter a inc))))
+;= #<core$future_call$reify__5684@10957096: :pending>
+
+@(future (dosync (Thread/sleep 1000) @a))
+;= 500
+
+(ref-history-count a)
+;= 10
+
+This time the history has been maxed out and the reader transaction has only been
+executed after all the writers. This means that the writers blocked the reader in the
+second transaction. If we relax the max history, the problem should be fixed:
+
+(def a (ref 0 :max-history 100))
+
+(future (dotimes [_ 500] (dosync (Thread/sleep 20) (alter a inc))))
+;= #<core$future_call$reify__5684@10957096: :pending>
+
+@(future (dosync (Thread/sleep 1000) @a))
+;= 500
+
+(ref-history-count a)
+;= 10
+
+It didn’t work because by the time there’s enough history, the writers are done. So, the
+key is to set the minimum history to a good value:
+
+(def a (ref 0 :min-history 50 :max-history 100)) 
+
+(future (dotimes [_ 500] (dosync (Thread/sleep 20) (alter a inc))))
+
+@(future (dosync (Thread/sleep 1000) @a))
+;= 33
+
+We choose 50 because the reader transaction is 50 times slower than the writer one.
+
+This time the reader transaction completes quickly and successfully with no retry!
+
+====
+Write skew
+写偏序
+
+Clojure’s STM provides for the transactional consistency of ref state, but so far we’ve
+only seen that to be the case for refs that are modified by the transactions involved. If
+a ref isn’t modified by a transaction, but the consistency of that transaction’s changes
+depend upon the state of a ref that is read but not modified, there is no way for the
+STM to know about this through calls to alter, commute, and set-ref. If the read ref’s
+state happens to change mid-transaction, that transaction’s effects on other refs may
+end up being inconsistent with the read ref; this state of affairs is called write skew.
+Such a circumstance is rare; generally, refs involved in a transaction are all being modified in some way. 
+However, when that’s not the case,  ensuremay be used to prevent
+write skew: it is a way to dereference a ref such that that read will conflict with any
+modifications prompted by other transactions, causing retries as necessary.
+An example of this within the game’s context might be the current amount of daylight.
+It’s safe to say that attacks made with the benefit of mid-day sun will be more successful
+than those made at night, so a modification to  attackto take into consideration the
+current amount of daylight would make sense:
+(def daylight (ref 1))
+(defn attack
+[aggressor target]
+(dosync
+(let [damage (* (rand 0.1) (:strength @aggressor) @daylight)]
+(commute target update-in [:health] #(max 0 (- % damage))))))
+However, if the state of daylightis changed between the time it is read within a transaction and when that transaction commits its changes, those changes may be inconsistent. For example, a separate game process may shift  daylightto reflect a sunsetappropriate amount of light (e.g., (dosync (ref-set daylight 0.3))). If attackis running while that change is being made, and uses the old value of daylight, more damage
+will be attributed to an attack action than is appropriate.
+
+Figure 4-3. Write skew, where state b
+2depends upon state read from a at some prior time
+Formally, if the state b
+2
+that a transaction t
+1
+writes to ref bdepends upon the state of
+ref aat a
+1
+, and t
+1
+never writes to a, and another transaction t
+2
+modifies ato hold some
+state  a
+2
+prior to  t
+1
+committing, then the world will be inconsistent:  b
+2
+corresponds with
+a past state a
+1
+, not the current state a
+2
+. This is write skew.
+
+Simply changing  attackto  (ensure daylight)instead of dereferencing via  @daylight
+will avoid this by guaranteeing that daylightwill not change before the reading transaction commits successfully.
+Figure 4-4. Avoiding write skew using ensure
+When a transaction t
+1
+reads a ref ausing ensureinstead of deref, any changes to that
+ref’s state by any other transaction  t
+2
+prior to  t
+1
+completing will retry until  t
+1
+has
+successfully committed. This will avoid write skew: the change to  bwill always be
+consistent with the latest state of a, even though t
+1
+never changes the state of a.
+
+In terms of avoiding write skew, (ensure a) is semantically equivalent
+to  (alter a identity) or  (ref-set a @a)—both  effectively  dummy
+writes—which end up requiring that the read value persist until commit
+time. Compared to dummy writes,  ensurewill generally minimize the
+total number of transaction retries involving read-only refs.
+
+
