@@ -186,16 +186,20 @@ a.b
 @#'a.b
 ;; 1
 
-====
+========
 8，
 
+==
 var
+
 binding，动态绑定
 set! ，设置动态var的线程本地值。
 alter-var-root ，修改根值。
 with-redefs
 
+==
 agent
+
 send（固定大小的线程池），
 send-off（不固定大小的线程池，适宜阻塞型操作）。
 await，await-for。
@@ -204,15 +208,34 @@ set-error-mode! （设置错误处理模式，挂掉或忽略）。
 
 hxzon：因为串行执行，所以每个action独占agent。action只在事务成功时，才执行（只执行一次）。
 
+==
 atom
+
 swap! 自动不断重试。
 compare-and-set! 手工比较来更新。
 reset! 强行更新。
 
+==
 ref
-alter，
-commute，
-ref-set，和alter语义相同，通常用来重新初始化 ref 。
-ensure，“空写”，用来避免write skew。
-dosync，开启事务
 
+(alter ref f & fparams)：alter的语义是，当事务提交时，ref的全局值必须跟这个事务内“第1次调用alter时”的值一样，
+否则整个事务使用最新的ref全局值重试。
+
+(commute ref f & fparams)：事务内，commute执行一次。
+然后事务“提交”时，所有commute又执行一次（它不会检查ref是否已被别的事务修改），
+这一次的执行值作为 ref 的全局值。
+
+(ref-set ref val)，和alter语义相同，通常用来重新初始化 ref 。
+
+(ensure ref)，相当于“空写”，用来避免write skew（写偏序），
+即用来避免一个事务读到旧值（该值已被别的事务修改提交）。
+
+读线程也可能重试。
+ref 保存了一个值的历史列表。
+事务内，读取一个ref的值时，会去查找离事务开始前最近的一个时间点的值，
+如果这个时间点的值已被冲走，则“只读事务”会重试。
+
+(dosync & exprs)，开启事务
+
+========
+9，

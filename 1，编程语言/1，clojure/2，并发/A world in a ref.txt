@@ -1,0 +1,128 @@
+﻿A world in a ref
+unsorted — cgrand, 6 October 2011 @ 13 h 00 min
+http://clj-me.cgrand.net/2011/10/06/a-world-in-a-ref/
+
+注释by hxzon
+========
+At times I struggle deciding on the granularity I should give to my refs. 
+If I put a big map in a single ref (what I call a megaref), 
+updates to unrelated parts of the map may conflict and cause transactions to retry, 
+but it’s dead easy to snapshot the whole state. 
+If I use a ref for every entry of the map, concurrency is excellent again but snapshotting the whole state may be tricky 
+(you need to tune the ref to have a history long enough) 
+when there is a large number of rapidly changing refs or when the system is slow/loaded.
+
+What I’d like is an alter-in function, a mix of alter and update-in, 
+with the following guarantee: two alter-ins conflict when their paths are either equal or prefix from one another.
+
+This is not something new: 
+this problem bugs me since 2008 I think. 
+I had several (failed/unfinished and private) attempts to patch the STM to accommodate for a new reference type.
+
+Some weeks ago I realized that I didn’t need to hack the STM to create such a new reference type.
+我意识到不必修改STM，不用创建一种新的引用类型。
+
+The basic idea behind all my attempts was to use lock-striping. 
+What I didn’t realize is that I can leverage the existing STM by using ref-striping!
+
+（striping，n.条纹（图案））
+
+Let’s say the whole map is stored in a single ref, the root ref and you have N guard refs (whose value is nil). 
+When I want to alter the value for a given key, 
+I compute its hash modulo N which gives me an index into the guards vector. 
+I ref-set the corresponding guard ref (to nil, the actual value doesn’t matter) thus claiming exclusive commit rights for this key. 
+Once that done I simply commute on the root ref being sure that the operation will only commute with non-conflicting other ops.
+
+在ref中放置整个map，除了”根ref“，还有几个”守卫ref“，这些守卫ref值都为nil 。
+当我修改某个键，我计算它的哈希值，得到对应的守卫。
+用 ref-set 重置守卫（它的值不重要），从而保证了该键能正确提交。
+然后用 commute 修改根ref 。
+
+NB: An alternative design is to simply have N roots and no guards and to merge the N maps on deref 
+— efficient merging would need a didcated map implementation. 
+However it doesn’t help much with nested maps but it helps a lot with concurrency 
+since in the other design everything is serialized on the single root. 
+I think an hybrid solution (N roots, each roots having M guards) woud bring an interesting trade-off between concurrency, 
+number of retries and ease of snapshotting.
+
+另一种方案是，使用多个根，没有守卫，然后在解引用时合并这些根。
+它不能用于内嵌的map，但是有助于并发。
+
+====
+To support nested maps, instead of a single key, one has to deal with a path, eg [:a :b :c]. 
+Here the idea is to ensure guards for path prefixes ([:a] and [:a :b]) and to ref-set the guard for the full-path as before.
+
+;; except ensure-in and alter-in, the others are here because
+;; they can be optimized in a mega ref wth several roots
+(defprotocol AssociativeRef
+  (-alter-in [aref ks f args])
+  (-commute-in [aref ks f args])
+  (ref-set-in [aref ks v])
+  (ensure-in [aref ks])
+  (deref-in [aref ks]))
+ 
+(defn alter-in [aref ks f & args]
+  (-alter-in aref ks f args))
+
+(defn commute-in [aref ks f & args]
+  (-commute-in aref ks f args))
+
+(defn- ensure-path [guard-for path]
+  (loop [path path]
+    (when-not (= [] path)
+      (ensure (guard-for path))
+      (recur (pop path)))))
+
+(defn- guards-fn [guards]
+  (let [n (count guards)]
+    #(nth guards (mod (hash %) n))))
+
+(deftype MegaRef [r guards]
+  AssociativeRef
+  (-alter-in [this ks f args]
+    (if (seq ks)
+      (let [guard-for (guards-fn guards)]
+        (ensure-path guard-for (pop (vec ks)))
+        (ref-set (guard-for ks) nil)
+        (let [v (apply f (get-in @r ks) args)]
+          ; v is precomputed to not evaluate it twice because of commute
+          (commute r assoc-in ks v)))
+      (throw (IllegalArgumentException. "ks must not be empty."))))
+  (-commute-in [this ks f args]
+    (apply commute r update-in ks f args))
+  (ref-set-in [this ks v]
+    (-alter-in this ks (constantly v) nil))
+  (ensure-in [this ks]
+    (ensure-path  (vec ks) (guards-fn guards))
+    (deref-in this ks))
+  (deref-in [this ks]
+    (get-in @r ks))
+  clojure.lang.IDeref
+  (deref [this]
+    @r))
+
+(defn megaref [entries & options]
+  (let [guards (:guards options 16)
+        root-options (select-keys options [:validator :min-history :max-history])]
+    (MegaRef. (apply ref (into {} entries) root-options)
+              (vec (repeatedly guards #(ref nil))))))
+
+NB: Write skew anomalies can now occur at the “sub ref” level: 
+when you deref-in a path unrelated to the ones you update; 
+ensure-in is the answer.
+
+（anomalies，n.异常，反常，不规则( anomaly的名词复数 )；畸形人[物]；异常现象；<天>近点角）
+
+注意，子ref 可能发生”写偏序“。使用 ensure-in 解决这个问题。
+
+====
+So, some questions:
+
+Is this of interest to anyone except me? 
+If yes, once mature (eg multiroot) should it belong in contrib?
+
+Is my implementation sound? 
+Do I rely on implementation details?
+
+Should the STM expose a “token” facility so that I don’t have to use refs as guards?
+
