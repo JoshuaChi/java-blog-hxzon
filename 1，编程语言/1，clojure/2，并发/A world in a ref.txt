@@ -67,45 +67,60 @@ Here the idea is to ensure guards for path prefixes ([:a] and [:a :b]) and to re
 (defn commute-in [aref ks f & args]
   (-commute-in aref ks f args))
 
-(defn- ensure-path [guard-for path]
+;; 层层安全的访问path所对应的守卫
+;; 访问顺序： [a b c] , [b c] , [c]
+(defn- ensure-path [guard-for path]    ;; path ，访问路径
   (loop [path path]
     (when-not (= [] path)
-      (ensure (guard-for path))
-      (recur (pop path)))))
+      (ensure (guard-for path))    ;; 安全的访问path所对应的守卫
+     (recur (pop path)))))
 
+;; 返回一个函数，输入为键，输出为对应的守卫
 (defn- guards-fn [guards]
   (let [n (count guards)]
     #(nth guards (mod (hash %) n))))
 
 (deftype MegaRef [r guards]
   AssociativeRef
-  (-alter-in [this ks f args]
+  (-alter-in [this ks f args]    ;; ks ，访问路径
     (if (seq ks)
       (let [guard-for (guards-fn guards)]
-        (ensure-path guard-for (pop (vec ks)))
+        (ensure-path guard-for (pop (vec ks)))    ;; 安全的访问第一个键
         (ref-set (guard-for ks) nil)
-        (let [v (apply f (get-in @r ks) args)]
+        (let [v (apply f (get-in @r ks) args)]    ;; 访问map的值（深层次），用 f 操作该值
           ; v is precomputed to not evaluate it twice because of commute
           (commute r assoc-in ks v)))
       (throw (IllegalArgumentException. "ks must not be empty."))))
-  (-commute-in [this ks f args]
+
+  ;; 用 f 更新 ks 里的键
+  (-commute-in [this ks f args]    ;; 这里 ks 不是访问路径
     (apply commute r update-in ks f args))
+
+  ;; 重新初始化 ks 路径的值为 v
   (ref-set-in [this ks v]
     (-alter-in this ks (constantly v) nil))
+
+  ;; 安全的读取 ks 路径的值
   (ensure-in [this ks]
     (ensure-path  (vec ks) (guards-fn guards))
     (deref-in this ks))
+
+  ;; 读取 ks 路径的值（不检查是否被别的事务修改）
   (deref-in [this ks]
     (get-in @r ks))
+
   clojure.lang.IDeref
   (deref [this]
     @r))
 
+;; 创建一个 MegaRef
 (defn megaref [entries & options]
-  (let [guards (:guards options 16)
-        root-options (select-keys options [:validator :min-history :max-history])]
+  (let [guards (:guards options 16)    ;; 指定守卫个数
+       root-options (select-keys options [:validator :min-history :max-history])]
     (MegaRef. (apply ref (into {} entries) root-options)
               (vec (repeatedly guards #(ref nil))))))
+
+
 
 NB: Write skew anomalies can now occur at the “sub ref” level: 
 when you deref-in a path unrelated to the ones you update; 

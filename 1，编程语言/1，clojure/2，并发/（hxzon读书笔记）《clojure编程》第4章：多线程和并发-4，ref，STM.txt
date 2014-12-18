@@ -25,7 +25,7 @@ ref 保存了一个值的历史列表。
 
 
 ========
-两个用来帮助测试的宏。
+;; 两个用来帮助测试的宏。
 
 (defmacro futures
   [n & exprs]
@@ -86,9 +86,9 @@ alter的语义是，当事务提交时，ref的全局值必须跟这个事务内
 https://en.wikipedia.org/wiki/Serializability
 
 --
-本章使用多人游戏引擎来示例。
+;; 本章使用多人游戏引擎来示例。
 
-;定义角色。
+;; 定义角色。
 (defn character
   [name & {:as opts}]
   (ref (merge {:name name :items #{} :health 500}
@@ -98,7 +98,7 @@ https://en.wikipedia.org/wiki/Serializability
 (def bilbo (character "Bilbo" :health 100 :strength 100))
 (def gandalf (character "Gandalf" :health 75 :mana 750))
 
-;loot，将武器从一个角色移到另一个角色。
+;; loot，将武器从一个角色移到另一个角色。
 (defn loot
   [from to]
   (dosync
@@ -249,13 +249,16 @@ hxzon理解：
 ;= ()
 
 ;--
-;如果只是对角色的某个属性进行加减，使用commute是安全的。
+;; 如果只是对角色的某个属性进行加减，使用commute是安全的。
+
+;; 攻击
 (defn attack
   [aggressor target]
   (dosync
     (let [damage (* (rand 0.1) (:strength @aggressor))]
       (commute target update-in [:health] #(max 0 (- % damage))))))
 
+;; 加血
 (defn heal
   [healer target]
   (dosync
@@ -498,7 +501,7 @@ Clojure	STM对MVCC做了优化，ref的value链只在如下两种情况下增长
 
 ==
 ;; 应该修改最小历史个数，而不是最大历史个数
-;; hxzon：因为历史列表的大小，只在重试时增加
+;; hxzon：因为历史列表的大小，只在“读事务失败重试”时增加
 (def a (ref 0 :min-history 50 :max-history 100))
 
 (future (dotimes [_ 500] (dosync (Thread/sleep 20) (alter a inc))))

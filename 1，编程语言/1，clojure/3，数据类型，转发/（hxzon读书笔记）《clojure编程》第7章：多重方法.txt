@@ -1,7 +1,15 @@
 （hxzon读书笔记）《clojure编程》第7章：多重方法
 
 by hxzon
-======
+
+hxzon学习摘要：
+1，多重方法的定义
+2，层级（表达转发值之间的关系），type元数据
+3，优先哪个多重方法实现
+4，依赖外部的转发函数
+5，内省多重方法
+
+========
 1，多重方法可以根据参数的任何属性选择调用的具体实现，支持任意层级，支持解歧多重继承。
 
 跳出基于类型的单转发。
@@ -38,7 +46,8 @@ defmethod并不定义或重定义任何var。
 (defmulti fill
     "Fill a xml/html node (as per clojure.xml)
     with the provided value."
-    #'fill-dispatch         ;使用#'增加了一层重定向，这使得可以修改转发函数而不需使用ns-unmap。如果没有#'就会捕获转发函数的值，随后就不会再更新。
+    #'fill-dispatch         ;; 这里使用var，增加了一层重定向，这使得可以修改转发函数而不需使用ns-unmap。
+                                    ;; 如果没有#'就会捕获转发函数的值，随后就不会再更新。
     :default nil)
 
 (defmethod fill nil
@@ -88,7 +97,7 @@ defmethod并不定义或重定义任何var。
 ;= :attrs {:type "checkbox",
 ;= :value "first choice"}}
 
-====
+========
 3，层级
 
 层级可以表达转发值之间的关系。
@@ -97,15 +106,22 @@ defmethod并不定义或重定义任何var。
 具名对象是实现了clojure.lang.Named接口，可以对它调用name和namespace。
 
 可以有多个层级。
-有一个全局（默认的）层级，还有在需要时通过make-hierarchy创建的层级。
+除了全局（默认的）层级，还可以用 make-hierarchy 创建新的层级。
+类之间的关系，在新创建的层级里也能使用。
 
 层级和多重方法不受限于单个命名空间。
 
-全局层级是共享的，访问它更受保护。
-不带命名空间的关键字（或符号）不能用于全局层级。
+全局层级是共享的，访问它更受保护：
+没有命名空间限定的关键字（或符号）不能用于全局层级。
 这有助于防止两个函数库由于无意中选择同一个关键字来表示不同的语义而相互干扰。
 
-用derive来定义一个层级关系。
+====
+用 derive 来定义一个层级关系，用 isa? 来判断一个层级关系。
+
+;; (derive a b) 在全局层级里，让a是b的子类
+;; (derive h a b) 在层级h里，让a是b的子类
+;; (isa? a b)
+;; (isa? h a b)
 
 (derive ::checkbox ::checkable) 
 ;= nil
@@ -130,6 +146,7 @@ isa?很少在repl之外使用。
 derive是这组函数里最特别的，因为如果没有显示的层级，这是一个产生副作用的函数，它会修改全局层级。
 而如果有显示的层级，它是一个纯函数。
 
+====
 类和接口也可以在层级里使用，不过只能作为派生的子节点，永远不能作为父节点。
 
 整个java类层级总是每个层级的一部分，即使这个层级是刚用make-hierarchy创建的。
@@ -142,7 +159,7 @@ derive是这组函数里最特别的，因为如果没有显示的层级，这�
 
 所以，isa?是instance? 的超集，可用于测试一个类是否从另一个类派生，或者一个类是否实现一个接口。
 
-----
+====
 独立层级
 
 nil和向量不能参与层级，没有命名空间的关键字不能参与全局层级。
@@ -154,6 +171,7 @@ derive隐式的修改了全局层级。
 （注，这是安全的选择，因为层级不会经常变化，且希望层级的变化对所有线程都是可见的。
 如果有其它需求，例如事务式变化或动态作用域，则要选择相关的引用类型。）
 
+==
 示例：用自定义层级实现fill。
 
 (ns-unmap *ns* 'fill)
@@ -175,7 +193,7 @@ derive隐式的修改了全局层级。
     "Fill a xml/html node (as per clojure.xml) with the provided value."
     #'fill-dispatch
     :default nil
-    :hierarchy #'fill-hierarchy) 
+    :hierarchy #'fill-hierarchy)    ;; 指定使用私有的层级。这里使用了var
 
 ;多重方法预期某种类型的引用类型作为:hierarchy选项的值，而不是一个层级值，这让你在必要时可以在运行时更新层级。
 ;在这种情况下，我们提供fill-hierarchy var，而不是它在求值defmulti形式时的值。
@@ -207,12 +225,12 @@ derive隐式的修改了全局层级。
 其实，层级不是静态的。这意味着我们的默认情形可以作为一个安全网，
 动态定义需要的派生以便对于给定的一个新的输入类型，默认情形将只会碰到一次。
 
-示例，动态更新fill用到的层级。
+;; 示例，动态更新fill用到的层级。
 (defmethod fill nil [node value]
     (if (= :input (:tag node))
         (do
             (alter-var-root #'fill-hierarchy
-                derive (fill-dispatch node value) :input) 
+                derive (fill-dispatch node value) :input)    ;; 动态的修改层级 
             (fill node value))
     (assoc node :content [(str value)])))
 
@@ -223,7 +241,7 @@ derive隐式的修改了全局层级。
       "20110820")
 ;= {:attrs {:value "20110820", :type "date"}, :tag :input}
 
-----
+==
 实现这一结果的一个不那么聪明的方法是引入一个fill-input多重方法，从fill的:input这种情形来调用它。
 
 (ns-unmap *ns* 'fill)
@@ -261,7 +279,7 @@ derive隐式的修改了全局层级。
         (assoc-in node [:attrs :checked] "checked")
         (update-in node [:attrs] dissoc :checked)))
 
-====
+========
 4，真正实现多重
 
 当转发值是向量的时候，isa?一个元素一个元素地处理。
@@ -277,7 +295,7 @@ derive隐式的修改了全局层级。
 
 (defn- fill-dispatch [node value]
     (if-let [type (and (= :input (:tag node))
-                       (-> node :attrs :type))]
+                       (-> node :attrs :type))]        ;; 如果节点是input，且属性里含有type
             [(keyword (str "input." type)) (class value)]
             [(:tag node) (class value)]))
 
@@ -337,8 +355,8 @@ derive隐式的修改了全局层级。
 (fill {:tag :h1} "Big Title!")
 ;= {:content ["Big Title!"], :tag :h1}
 
---
-多重继承的问题，更偏爱哪个转发值。
+====
+5，多重继承的问题，更偏爱哪个转发值。
 
 (defmulti run "Executes the computation." class)
 
@@ -366,8 +384,9 @@ derive隐式的修改了全局层级。
 这个偏好机制让我们可以声明式的解决菱形继承问题。
 偏好使得多重继承关系明确，易于推理。
 
+====
+6，type元数据
 
-----
 (type x)通常返回与(class x)同样的值，除非x有 :type 元数据。
 :type 元数据是一种把数据分成不同类型，让这些类型用于多重方法的简洁办法。
 
@@ -403,8 +422,8 @@ derive隐式的修改了全局层级。
 ;= hello!
 ;= nil
 
-----
-转发函数的范围是无限的。
+====
+7，转发函数的范围是无限的。
 多重方法的转发函数可以不仅依赖参数返回值。
 
 考虑一个信号系统，对每个信号的处理根据它的优先级而不同。
@@ -415,7 +434,7 @@ derive隐式的修改了全局层级。
                         :tree-down :low}))
 
 (defmulti route-message
-    (fn [message] (@priorities (:type message))))
+    (fn [message] (@priorities (:type message))))        ;; 这里，转发函数依赖外部值
 
 (defmethod route-message :low
     [{:keys [type]}]
@@ -447,19 +466,24 @@ derive隐式的修改了全局层级。
 不过，一个多重方法的行为不是严格地依赖于参数所提供的值，则它不是幂等的。
 这会让它更难以理解、测试和与其它函数组合。
 
-==========
-5，内省多重方法
+========
+8，内省多重方法
 
-有一些罕用的函数可以在多重方法上元编程：remove-method，remove-all-methods，prefers，methods，get-method。
+有一些罕用的函数可以在多重方法上元编程：
+remove-method，remove-all-methods，prefers，methods，get-method。
 这些函数可以查询、更新多重方法。
 
---
+==
+没有add-method方法，可以自己实现一个，如下：
+
 (macroexpand-1 '(defmethod mmethod-name dispatch-value [args] body))
 ;= (. mmethod-name clojure.core/addMethod dispatch-value (clojure.core/fn [args] 
 body)) 
 
+;; hxzon注：这里加上了 clojure.core 的命名空间限定，是 macroexpand-1 的失误。
+
 (defn add-method [multifn dispatch-val f]
     (.addMethod multifn dispatch-val f))
 
-这依赖于实现细节。
+但这个方法依赖于实现细节。
 

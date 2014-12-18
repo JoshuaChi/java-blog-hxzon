@@ -16,6 +16,9 @@ atom，ref，agent都接受一个额外的:meta关键字参数，用来设置元
 alter-meta!
 
 ========
+type元数据，见《（hxzon读书笔记）《clojure编程》第7章：多重方法》
+
+========
 对元数据的处理
 
 LispReader生成form时，把元数据字面量附着到随后的形式上，例如sym。
