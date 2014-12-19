@@ -1,0 +1,191 @@
+（hxzon读书笔记）《clojure编程》第14章：使用关系数据库-1，clojure.java.jdbc
+
+by hxzon
+========
+1，clojure.java.jdbc
+
+[org.clojure/java.jdbc "0.1.1"]
+
+[org.xerial/sqlite-jdbc "3.7.2"] ; SQLite
+[mysql/mysql-connector-java "2.0.14"] ; MySQL
+[postgresql "9.0-801.jdbc4"] ; PostgreSQL
+
+http://www.xerial.org/trac/Xerial/wiki/SQLiteJDBC
+http://sqlite.org
+
+
+(require '[clojure.java.jdbc :as jdbc])
+;= nil
+
+====
+2，数据库描述
+
+所有的clojure.java.jdbc操作都要求一个“数据库描述”才能操作。
+
+(def db-spec {:classname "org.sqlite.JDBC"
+              :subprotocol "sqlite"
+              :subname "test.db"})
+;= #'user/db
+
+每个jdbc驱动程序都要求略有不同的“描述”。
+
+{:classname "com.mysql.jdbc.Driver"
+ :subprotocol "mysql"
+ :subname "//localhost:3306/databasename"
+ :username "login"
+ :password "password"}
+
+或者使用javax.sql.DataSource：
+
+{:datasource datasource-instance
+ :username "login"
+ :password "password"}
+
+或者使用jndi：
+
+{:name "java:/comp/env/jdbc/postgres"
+ :environment {}} ; optional JNDI parameters for initializing javax.naming.InitialContext
+
+或者对于许多常用数据库，只需要一个uri风格的连接字符串：
+
+"mysql://login:password@localhost:3306/databasename"
+
+====
+3，数据库连接
+
+打开数据库连接（执行完会自动关闭连接）。
+
+(jdbc/with-connection db-spec)
+;= nil
+
+创建表：
+
+(jdbc/with-connection db-spec
+  (jdbc/create-table :authors
+    [:id "integer primary key"]
+    [:first_name "varchar"]
+    [:last_name "varchar"]))
+;= (0)
+
+插入数据：
+
+(jdbc/with-connection db-spec
+  (jdbc/insert-records :authors
+    {:first_name "Chas" :last_name "Emerick"}
+    {:first_name "Christophe" :last_name "Grand"}
+    {:first_name "Brian" :last_name "Carper"}))
+;= ({:last_insert_rowid() 1}
+;= {:last_insert_rowid() 2}
+;= {:last_insert_rowid() 3})
+
+查询（结果集是映射的序列，每个映射是一行数据）：
+这里需要doall来“处理惰性”。
+
+(jdbc/with-connection db-spec
+  (jdbc/with-query-results res ["SELECT * FROM authors"]
+    (doall res)))
+;= ({:id 1, :first_name "Chas", :last_name "Emerick"}
+;= {:id 2, :first_name "Christophe", :last_name "Grand"}
+;= {:id 3, :first_name "Brian", :last_name "Carper"})
+
+(jdbc/with-connection db-spec
+  (jdbc/with-query-results res ["SELECT * FROM authors"]
+    (doall (map #(str (:first_name %) " " (:last_name %)) res))))
+;= ("Chas Emerick" "Christophe Grand" "Brian Carper")
+
+====
+4，查询
+
+(withquery-results res query & body)
+
+结果集自身是clojure映射的一个惰性序列。
+
+支持参数化查询。
+
+(jdbc/with-connection db-spec
+  (jdbc/with-query-results res ["SELECT * FROM authors WHERE id = ?" 2]
+    (doall res)))
+;= ({:id 2, :first_name "Christophe", :last_name "Grand"})
+
+返回结果是惰性序列，必须用doall，否则无法读取，因为数据库连接已经关闭。
+
+(jdbc/with-connection db-spec
+  (jdbc/with-query-results res ["SELECT * FROM authors"]
+    res))
+;= ({:id 1, :first_name "Chas", :last_name "Emerick"})
+
+设置一个工具函数来查询并完整的获取结果。
+
+(defn fetch-results [db-spec query]
+  (jdbc/with-connection db-spec
+    (jdbc/with-query-results res query
+      (doall res))))
+;= #'user/fetch-results
+
+(fetch-results db-spec ["SELECT * FROM authors"])
+;= ({:id 1, :first_name "Chas", :last_name "Emerick"}
+;= {:id 2, :first_name "Christophe", :last_name "Grand"}
+;= {:id 3, :first_name "Brian", :last_name "Carper"})
+
+====
+5，事务
+
+(jdbc/with-connection db-spec
+  (jdbc/transaction
+    (jdbc/delete-rows :authors ["id = ?" 1])
+    (throw (Exception. "Abort transaction!"))))
+;= ; Exception Abort transaction!
+
+(fetch-results ["SELECT * FROM authors where id = ?" 1])
+;= ({:id 1, :first_name "Chas", :last_name "Emerick"}) 
+
+设置事务隔离级别。
+
+(jdbc/with-connection db-spec
+  (.setTransactionIsolation (jdbc/connection)
+    java.sql.Connection/TRANSACTION_SERIALIZABLE)
+  (jdbc/transaction
+    (jdbc/delete-rows :authors ["id = ?" 2])))
+
+====
+6，使用连接池
+
+[c3p0/c3p0 "0.9.1.2"]
+
+(import 'com.mchange.v2.c3p0.ComboPooledDataSource)
+; Feb 05, 2011 2:26:40 AM com.mchange.v2.log.MLog <clinit>
+; INFO: MLog clients using java 1.4+ standard logging.
+;= com.mchange.v2.c3p0.ComboPooledDataSource
+
+(defn pooled-spec
+  [{:keys [classname subprotocol subname username password] :as other-spec}]
+  (let [cpds (doto (ComboPooledDataSource.)
+               (.setDriverClass classname)
+               (.setJdbcUrl (str "jdbc:" subprotocol ":" subname))
+               (.setUser username)
+               (.setPassword password))]
+    {:datasource cpds}))
+
+连接在首次使用时初始化，然后会保留下来供后续调用使用。
+
+(def pooled-db (pooled-spec db-spec))
+; Dec 27, 2011 8:49:28 AM com.mchange.v2.c3p0.C3P0Registry banner
+; INFO: Initializing c3p0-0.9.1.2 [built 21-May-2007 15:04:56; debug? true; trace: 10]
+;= #'user/pooled-db
+
+(fetch-results pooled-db ["SELECT * FROM authors"])
+; Dec 27, 2011 8:56:40 AM com.mchange.v2.c3p0.impl.AbstractPoolBackedDataSource
+
+getPoolManager
+; INFO: Initializing c3p0 pool... com.mchange.v2.c3p0.ComboPooledDataSource
+; [ acquireIncrement -> 3, acquireRetryAttempts -> 30, acquireRetryDelay -> 1000, ...
+;= ({:id 1, :first_name "Chas", :last_name "Emerick"}
+;= {:id 2, :first_name "Christophe", :last_name "Grand"}
+;= {:id 3, :first_name "Brian", :last_name "Carper"})
+
+(fetch-results pooled-db ["SELECT * FROM authors"])
+;= ({:id 1, :first_name "Chas", :last_name "Emerick"}
+;= {:id 2, :first_name "Christophe", :last_name "Grand"}
+;= {:id 3, :first_name "Brian", :last_name "Carper"})
+
+

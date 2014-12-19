@@ -1,13 +1,14 @@
-（hxzon读书笔记）《clojure编程》第14章：使用关系数据库-2，hibernate
+（hxzon读书笔记）《clojure编程》第14章：使用关系数据库-3，hibernate
 
 by hxzon
 ========
-3，Hibernate
+1，Hibernate依赖
 
 添加依赖：
 [org.hibernate/hibernate-core "4.0.0.Final"]
 
-3.1，
+====
+2，用java定义实体类
 
 package com.clojurebook.hibernate;
 import javax.persistence.GeneratedValue;
@@ -56,6 +57,8 @@ public class Author {
     }
 }
 
+hibernate配置文件：
+
 rsrc/hibernate.cfg.xml
 <!DOCTYPE hibernate-configuration SYSTEM
 "http://hibernate.sourceforge.net/hibernate-configuration-3.0.dtd">
@@ -96,6 +99,11 @@ rsrc/hibernate.cfg.xml
 			'org.hibernate.cfg.Configuration
 			'com.clojurebook.hibernate.Author)
 
+====
+3，会话工厂
+
+java版：
+
 public class HibernateUtil {
     private static final SessionFactory sessionFactory = buildSessionFactory();
     
@@ -114,7 +122,7 @@ public class HibernateUtil {
     }
 }
 
-用clojure更简洁：
+clojure版：
 
 (defonce session-factory
   (delay (-> (Configuration.)
@@ -123,8 +131,10 @@ public class HibernateUtil {
 
 delay确保->表达式在实际创造和配置这个会话工厂时没有被求值，直到它被解引用。
 
-----
-3.2，保存数据。
+====
+4，保存数据
+
+java版：
 
 public static void saveAuthors (Author... authors) {
     Session session = sessionFactory.openSession();
@@ -138,6 +148,8 @@ public static void saveAuthors (Author... authors) {
 
 saveAuthors(new Author("Christophe", "Grand"), new Author("Brian", "Carper"), ...);
 
+clojure版：
+
 (defn add-authors
   [& authors]
   (with-open [session (.openSession @session-factory)]
@@ -149,7 +161,10 @@ saveAuthors(new Author("Christophe", "Grand"), new Author("Brian", "Carper"), ..
 (add-authors (Author. "Christophe" "Grand") (Author. "Brian" "Carper")
   (Author. "Chas" "Emerick"))
 
-查询。
+====
+6，查询
+
+java版：
 
 Session session = HibernateUtil.getSessionFactory().openSession();
 try {
@@ -157,6 +172,8 @@ try {
 } finally {
     session.close();
 }
+
+clojure版：
 
 (defn get-authors
   []
@@ -169,10 +186,12 @@ try {
   (str lastName ", " firstName))
 ;= ("Carper, Brian" "Emerick, Chas" "Grand, Christophe")
 
-----
-3.3，去掉样板。
+========
+7，去掉重复代码
 
-使用with-open宏自动打开和关闭数据库连接。
+7.1，前面的例子，已经使用with-open宏自动打开和关闭数据库会话。
+
+7.2，进一步去除重复的代码：with-session
 
 (defmacro with-session
   [session-factory & body]
@@ -214,7 +233,9 @@ try {
 ;= (clojure.core/with-open [user/session (.openSession (clojure.core/deref session-factory))] 
 ;                                      (-> session (.createQuery "from Author") .list))
 
-----
+====
+7.3，事务
+
 (defmacro with-transaction
   [& body]
   `(let [~'tx (.beginTransaction ~'session)]
