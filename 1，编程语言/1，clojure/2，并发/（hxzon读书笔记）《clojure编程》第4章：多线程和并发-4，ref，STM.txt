@@ -23,7 +23,7 @@ ref 保存了一个值的历史列表。
 
 6，(dosync exprs)，开启事务
 
-
+hWp://java.ociweb.com/mark/stm/ar@cle.html
 ========
 ;; 两个用来帮助测试的宏。
 
