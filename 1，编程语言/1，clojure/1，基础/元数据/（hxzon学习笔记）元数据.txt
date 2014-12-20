@@ -21,7 +21,8 @@ type元数据，见《（hxzon读书笔记）《clojure编程》第7章：多重
 ========
 对元数据的处理
 
-LispReader生成form时，把元数据字面量附着到随后的形式上，例如sym。
+重要源码：clojure.lang.LispReader.MetaReader
+把元数据字面量附着到随后的对象上（注意，ListReader读出来的对象可能是符号，向量，引用类型，数字等）。
 
 DefExpr.Parser.parse
 从sym取出元数据mm，取出arglists，放到Var上。

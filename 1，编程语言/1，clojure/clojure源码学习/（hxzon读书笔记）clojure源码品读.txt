@@ -26,6 +26,8 @@ IFn
 2，LispReader
 读取器（读者宏）
 
+注意，LispReader生成的对象，是符号，向量，列表，引用类型，数字等。
+
 LispReader.read(PushbackReader r, boolean eofIsError, Object eofValue, boolean isRecursive)
 LispReader.interpretToken(String s)
 LispReader.matchSymbol(String s)
