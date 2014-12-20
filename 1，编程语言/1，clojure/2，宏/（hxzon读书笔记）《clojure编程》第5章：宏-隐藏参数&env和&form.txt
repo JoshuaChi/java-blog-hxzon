@@ -290,9 +290,8 @@ hxzon：
 
 (defn macroexpand1-env [env form]
     (if-let [[x & xs] (and (seq? form) (seq form))]
-;如果form可序列，将form转成序列，form的第一个元素（宏的名字）绑定到x，其余元素（宏的参数）绑定到xs。
             (if-let [v (and (symbol? x) (resolve x))]
-;如果x是符号，获得宏的实现函数，绑定到v。
+;如果x是符号，获得它对应的 var 。
                     (if (-> v meta :macro)
                         (apply @v form env xs)
                         form)
@@ -329,6 +328,12 @@ hxzon：
 ;=         (quote (+ 1 1)) value__602__auto__)
 ;=     value__602__auto__)
 
+;; 去掉重复的 if-let
+(defmacro if-all-let [bindings then else]
+    (reduce (fn [subform binding]        ;; 从内到外构建
+                `(if-let [~@binding] ~subform ~else))
+            then (reverse (partition 2 bindings))))
+
 (defn macroexpand1-env [env form]
     (if-all-let [   [x & xs] (and (seq? form) (seq form))
                     v (and (symbol? x) (resolve x))
@@ -336,7 +341,3 @@ hxzon：
                 (apply @v form env xs)
                 form))
 
-(defmacro if-all-let [bindings then else]
-    (reduce (fn [subform binding]
-                `(if-let [~@binding] ~subform ~else))
-            then (reverse (partition 2 bindings))))

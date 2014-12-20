@@ -50,6 +50,18 @@ fn的第一个参数是一个可选的函数名字，使得可以在函数体中
 一种更极端的情况是，定义两个互相引用的函数。
 这可以使用letfn来解决。
 
+
+(letfn [(odd? [n]
+          (if (zero? n)
+            false
+            (even? (dec n))))
+        (even? [n]
+          (or (zero? n)
+              (odd? (dec n))))]
+  (odd? 11))
+;= true
+
+注：原书为
 (letfn [ (odd? [n]
                 (even? (dec n)))
          (even? [n]
@@ -57,7 +69,7 @@ fn的第一个参数是一个可选的函数名字，使得可以在函数体中
                 (odd? (dec n))))] 
        (odd? 11))
 ;= true
-
+有误。
 ----
 http://clojuredocs.org/clojure_core/clojure.core/letfn
 

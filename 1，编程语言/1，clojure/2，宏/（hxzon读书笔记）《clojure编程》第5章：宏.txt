@@ -99,7 +99,7 @@ postwalk函数递归地对form的每个元素执行给定的匿名函数。
 
 macroexpand-1 ：只扩展宏一次。
 
-macroexpand ：扩展宏，知道最顶级形式不再是一个宏。
+macroexpand ：扩展宏，直到“最顶级形式”不再是一个宏。
 
 (macroexpand '(cond a b c d))
 ;= (if a b (clojure.core/cond c d))
@@ -352,7 +352,24 @@ compiling:(NO_SOURCE_PATH:1)>
 .. 它的行为跟-> 差不多，但是它只支持对于java方法的调用（它还支持->所不支持的java静态方法）。
 点点是在->之前引入clojure的，现在已经很少使用。
 
-->> 它把前面一个form插入后面一个form的最后一个元素的位置上。这个宏经常用来对一个序列或者其他数据结构进行转换。
+hxzon：->不支持java静态方法？
+
+(.. System (getProperties) (get "os.name"))
+;; Windows 7
+
+(-> System/getProperties (.get "os.name"))
+;; java.lang.RuntimeException: Unable to find static field: getProperties in class java.lang.System
+
+(-> (System/getProperties) (.get "os.name"))
+;; Windows 7
+
+(-> System (. getProperties) (.get "os.name"))
+;; Windows7
+
+
+==
+->> 它把前面一个form插入后面一个form的最后一个元素的位置上。
+这个宏经常用来对一个序列或者其他数据结构进行转换。
 例如：
 (->> (range 10) (map inc) (reduce +))
 ;= 55
