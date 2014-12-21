@@ -11,6 +11,23 @@ Var
 见 clojure.lang.LispReader.EvalReader，clojure.lang.LispReader.VarReader 。
 见 clojure.lang.Compiler.TheVarExpr 。
 
+====
+符号的处理
+Expr clojure.lang.Compiler.analyzeSymbol(Symbol sym)
+Object clojure.lang.Compiler.resolve(Symbol sym)
+Object clojure.lang.Compiler.resolveIn(Namespace n, Symbol sym, boolean allowPrivate)
+
+无空间限定：
+可能是本地绑定
+导入到本空间的类的短名-》恢复成类的全限定名
+导入到本空间的var-》恢复成var的符号
+导入到本空间的“命名空间的别名”-》恢复成原来的命名空间名
+
+有空间限定：
+类的成员（前面的空间限定是类的全限定名，符号本身是成员名）
+该空间下的var（如果空间名是别名，恢复成原来的空间名）
+
+
 
 ==
 Namespace
@@ -26,11 +43,27 @@ IFn
 2，LispReader
 读取器（读者宏）
 
-注意，LispReader生成的对象，是符号，向量，列表，引用类型，数字等。
+注意，LispReader生成各种form：
+ListReader，处理圆括号，生成列表。
+VectorReader，处理方括号，生成向量。
+MapReader，处理花括号，生成映射。
+MetaReader，处理元数据和它的下一个形式。
+WrappingReader，处理语法糖形式，例如@，' 等，生成序列(deref xxx) (quote xxx) 等。
+FnReader，处理函数字面量，生成序列(fn xxx)。
+VarReader，处理语法糖#' ，生成序列(var xxx)
+StringReader，处理双引号，生成字符串。
+还有集，正则表达式等reader。
+
+除了上述各种专门的reader，普通token由以下read方法读出：
 
 LispReader.read(PushbackReader r, boolean eofIsError, Object eofValue, boolean isRecursive)
 LispReader.interpretToken(String s)
 LispReader.matchSymbol(String s)
+
+然后生成数字，特殊字面量（nil，true，false，分别得到null，RT.T，RT.F），关键字，符号。
+
+除了 #= ，LispReader不会得到一个var，它只生成符号。
+符号识别成var，是在 Compiler 处理的。
 
 ====
 3，Compiler

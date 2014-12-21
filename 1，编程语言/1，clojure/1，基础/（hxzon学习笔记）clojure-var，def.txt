@@ -26,37 +26,53 @@ varA捕获当时的值。
 (defn a [x] (+ 5 x))
 ;= #'user/a
 
-(def b (partial a 5))    ;; 作为值，是当时的值
-;= #'user/b
+(def b1 (partial a 5))    ;; 作为值，是当时的值
+;= #'user/b1
 
-(def c (partial #'a 5))
-;= #'user/c
-;hxzon：即 (def c (partial (var a) 5))
+(def b2 (partial #'a 5))
+;= #'user/b2
 
-(defn d [x]
+(defn c1 [x]
   (a x))    ;; 作为函数调用，总是最新定义
 
-(b)
+(defn c2 [x]
+    (#'a x))    ;; 与 c1 相同
+
+(b1)
 ;= 10
 
-(c)
+(b2)
 ;= 10
 
-(d 5)
+(c1 5)
+;= 10
+
+(c2 5)
 ;= 10
 
 (defn a [x] (+ 10 x))
 ;= #'user/a
 
-(b)
+(b1)
 ;= 10
 
-(c)
+(b2)
 ;= 15
 
-(d 5)
+(c1 5)
 ;= 15
 
+(c2 5)
+;= 15
+
+hxzon补充理解：
+
+(def b1 (partial a 5)) 求值时是 (partialFn aFn 5)，
+b1 绑定到一个匿名函数，它捕获了aFn
+
+(def b2 (partial #'a 5)) 求值时是 (partialFn aVar 5)，
+aVar也是函数，(aVar xx)等价于((deref aVar) xx)，
+b2 绑定到一个匿名函数，它捕获了aVar，通过(deref aVar)就总是得到最新的值
 
 ======
 根绑定：变量的初始值称为根绑定。
