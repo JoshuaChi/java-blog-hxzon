@@ -19,14 +19,15 @@ Object clojure.lang.Compiler.resolveIn(Namespace n, Symbol sym, boolean allowPri
 
 无空间限定：
 可能是本地绑定
-导入到本空间的类的短名-》恢复成类的全限定名
-导入到本空间的var-》恢复成var的符号
-导入到本空间的“命名空间的别名”-》恢复成原来的命名空间名
+可能是全限定类名，例如 java.lang.String
+导入到本空间的类的短名-》恢复成类的全限定名，例如 String
+导入到本空间但命名空间未使用别名的var-》恢复成var的符号，例如 replace，恢复成 clojure.core/replace
+本空间定义的var
 
 有空间限定：
-类的成员（前面的空间限定是类的全限定名，符号本身是成员名）
-该空间下的var（如果空间名是别名，恢复成原来的空间名）
-
+类的成员（前面的空间限定是类的全限定名或短名，符号本身是成员名），例如 java.awt.Color/RED，Color/RED
+导入并使用别名的var（恢复成原来的空间名），例如 string/replace，恢复成 clojure.core/replace
+该空间下的var，例如 clojure.string/replace
 
 
 ==
@@ -62,7 +63,7 @@ LispReader.matchSymbol(String s)
 
 然后生成数字，特殊字面量（nil，true，false，分别得到null，RT.T，RT.F），关键字，符号。
 
-除了 #= ，LispReader不会得到一个var，它只生成符号。
+除了 #= （即读取期求值），LispReader不会得到一个var，它只生成符号。
 符号识别成var，是在 Compiler 处理的。
 
 ====
@@ -71,6 +72,8 @@ LispReader.matchSymbol(String s)
 
 Expr Compiler.analyze(C context, Object form, String name)
 Expr Compiler.analyzeSymbol(Symbol sym)  ：解析符号，识别成Var或类名，否则抛出异常。
+Expr clojure.lang.Compiler.analyzeSeq(C context, ISeq form, String name)    ：解析序列（列表也是序列），即解析函数调用
+
 Compiler.VarExpr ：var（符号）求值（解引用），得到它的线程绑定值，或根值。
 
 Compiler.LetExpr

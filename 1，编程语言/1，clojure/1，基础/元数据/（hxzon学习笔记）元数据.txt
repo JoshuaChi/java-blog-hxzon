@@ -44,7 +44,7 @@ hxzon：帮助理解
 （初始值是一个seq，调用analyzeSeq，InvokeExpr.parse。）
 
 (let [^{:x 1} x (with-meta 'xx {:tag String :xx 2})] (prn (meta (var x))))
-;失败，因为var只是本地绑定，不能用var获取。
+;失败，因为x只是本地绑定，不能用var。
 
 ==
 (let [x ^String 'xx] (prn (meta x)))
@@ -59,6 +59,6 @@ hxzon：帮助理解
 ;"xx"
 
 上面两个例子，解析成form时，
-'xx是一个Cons（由quote和xx这两个符号组成），这个Cons整体带有该元数据。
-随后该Cons求值成符号x，它不带有元数据。
+元数据是附着到'xx形式上，它是一个序列（由quote和xx这两个符号组成）。
+随后该序列求值成符号x，它不带有元数据。
 

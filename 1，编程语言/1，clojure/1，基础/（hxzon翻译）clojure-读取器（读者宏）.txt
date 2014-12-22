@@ -39,11 +39,11 @@ and interpretation by the compiler, will follow.
 
 =======
 Reader forms
-读者形式。
+读者形式
 
 ----
 Symbols
-符号。
+符号
 
 Symbols begin with a non-numeric character and can contain alphanumeric characters and *, +, !, -, _, and ? 
 (other characters will be allowed eventually, but not all macro characters have been determined). 
@@ -66,7 +66,7 @@ Symbols beginning or ending with '.' are reserved by Clojure.
 
 点号也有特殊意义，它能在符号中使用多次，作为全限定类名。
 例如：java.util.BitSet，或者命名空间中的名字。
-以点好开头或结尾的符号被clojure保留。
+以点号开头或结尾的符号被clojure保留。
 
 Symbols containing / or . are said to be 'qualified'. 
 Symbols beginning or ending with ':' are reserved by Clojure. 
@@ -78,7 +78,7 @@ A symbol can contain one or more non-repeating ':'s.
 
 ----
 Literals
-字面量。
+字面量
 
 Strings - Enclosed in "double quotes". 
 May span multiple lines. Standard Java escape characters are supported.
@@ -87,7 +87,7 @@ May span multiple lines. Standard Java escape characters are supported.
 
 --
 Numbers - generally represented as per Java
-数字。
+数字
 
 Integers can be indefinitely long and will be read as Longs when in range and clojure.lang.BigInts otherwise. 
 Integers with an N suffix are always read as BigInts. 
@@ -131,7 +131,7 @@ Booleans - true and false
 
 ----
 Keywords
-关键字。
+关键字
 
 Keywords are like symbols, except:
 They can and must begin with a colon, e.g. :fred.
@@ -176,13 +176,14 @@ Keys and values can be any forms.
 逗号属于空白符，可用来分割键值对。
 键和值可以为任意形式。
 
-----
+====
 Sets
 Sets are zero or more forms enclosed in braces preceded by #:
 #{:a :b :c}
 
-集合。集合包含在花括号中，以井号前导。
+集。集包含在花括号中，以井号前导。
 
+====
 deftype, defrecord, and constructor calls (version 1.3 and later):
 
 deftype，defrecord，和构造器调用（clojure1.3及之后）：
@@ -195,7 +196,7 @@ preceded by # and followed by a vector:
 The elements in the vector part are passed unevaluated to the relevant constructor. 
 
 井号后可以跟一个类名，type或record，再跟一个向量，用来调用构造器。
-向量中的元素不会被求值。
+向量中的元素不会被求值。（hxzon注意）
 
 defrecord instances can also be created with a similar form that takes a map instead:
 
@@ -210,79 +211,79 @@ Any extra keyed values in the map literal are added to the resulting defrecord i
 不在映射中的记录的其它字段会被赋值为nil。
 在映射中的记录没有的字段会被加入到该记录的实例。
 
-======
+========
 Macro characters
-宏字符。
+宏字符
 
 The behavior of the reader is driven by a combination of built-in constructs and an extension system called the read table. 
 Entries in the read table provide mappings from certain characters, called macro characters, 
 to specific reading behavior, called reader macros. 
 Unless indicated otherwise, macro characters cannot be used in user symbols.
 
-阅读器的行为受阅读表驱动。
-阅读表中的特定字符，称为宏字符。
-拥有特殊行为的，称为读者宏。
+读取器的行为受读者表驱动。
+读者表中的特定字符，称为宏字符。
+它们拥有特殊行为，称为读者宏。
 一般，用户自定义的符号不能使用宏字符。
 
-----
+====
 Quote (')
 
 'form => (quote form)
 
-引用。
+引述。
 
-----
+====
 Character (\)
 
 As per above, yields a character literal.
 
 右斜杠，字符的前导符。
 
-----
+====
 Comment (;)
 
 Single-line comment, causes the reader to ignore everything from the semicolon to the end-of-line.
 
 分号，单行注释，阅读器会忽略分号之后的本行所有字符。
 
-----
+====
 Deref (@)
 
 @form => (deref form)
 
 解引用。
 
-----
+====
 Metadata (^)
-元数据。
+元数据
 
 见《（hxzon翻译）clojure-元数据》。
 
-----
+====
 Dispatch (#)
 
 The dispatch macro causes the reader to use a reader macro from another table, indexed by the character following #:
 
-井号。井号宏使得阅读器从另一张表读取另一个读取宏，根据井号之后的下一个字符。
+井号。井号宏使得读取器从另一张读者表中读取另一个读者宏，根据井号之后的下一个字符。
 
---
+==
 #{} - see Sets above
 
-集合。见上文。
+集。见上文。
 
---
+==
 Regex patterns (#"pattern")
 A regex pattern is read and compiled at read time. The resulting object is of type java.util.regex.Pattern.
 
 正则表达式。返回java.util.regex.Pattern实例。
 
---
+==
 Var-quote (#')
 #'x => (var x)
 
-变量引用。
+获得var本身。
 
---
+==
 Anonymous function literal (#())
 
 #(...) => (fn [args] (...))
@@ -302,7 +303,7 @@ This is not a replacement for fn - idiomatic used would be for very short one-of
 这不是fn的替代，它非常简洁。但匿名函数不能嵌套。
 
 
---
+==
 Ignore next form (#_)
 
 The form following #_ is completely skipped by the reader. 
@@ -311,9 +312,9 @@ The form following #_ is completely skipped by the reader.
 忽略下一个形式。
 这是完全的移除该形式，对比一下注释宏，后者并不是移除，而是始终返回一个nil。
 
---
+==
 Syntax-quote (`, note, the "backquote" character), Unquote (~) and Unquote-splicing (~@)
-反引用。
+反引述
 
 For all forms other than Symbols, Lists, Vectors, Sets and Maps, `x is the same as 'x.
 
@@ -326,10 +327,10 @@ it is resolved to a generated symbol with the same name to which '_' and a uniqu
 e.g. x# will resolve to x_123. 
 All references to that symbol within a syntax-quoted expression resolve to the same generated symbol.
 
-对于符号，反引用在当前上下文识别它们，返回它们的全名。
+对于符号，反引述在当前上下文识别它们，返回它们的全名（即没有命名空间时，自动加上当前命名空间）。
 如果一个符号没有命名空间限定，且以井号结尾，
 会作为一个生成符号（名字为符号名加上下划线再加上一个唯一标识）。
-在反引用表达式中，所有对该符号的引用会继续维持。
+在反引述表达式中，所有对该符号的引用会继续维持。
 
 For Lists/Vectors/Sets/Maps, syntax-quote establishes a template of the corresponding data structure. 
 Within the template, unqualified forms behave as if recursively syntax-quoted, 
@@ -337,7 +338,7 @@ but forms can be exempted from such recursive quoting by qualifying them with un
 in which case they will be treated as expressions and be replaced in the template by their value, 
 or sequence of values, respectively.
 
-对于列表、向量、集合、映射，反引用使得它们像个数据结构的模板，
+对于列表、向量、集合、映射，反引述使得它们像个数据结构的模板，
 在模板中，所有形式（递归的包括内部）都是不求值的，
 除非使用波浪号或波浪地址号，这会让它们（递归的包括内部）被求值。
 
@@ -354,23 +355,23 @@ The read table is currently not accessible to user programs.
 当前，读者表不能被应用程序访问。
 
 
-=======
+========
 extensible data notation (edn)
-可扩展数据表示。
+可扩展数据表示
 
 Clojure's reader supports a superset of extensible data notation (edn). 
 The edn specification is under active development, 
 and complements this document by defining a subset of Clojure data syntax in a language-neutral way.
 
-clojure的阅读器支持“可扩展数据表示”的超集。
+clojure的读取器支持“可扩展数据表示”的超集。
 “可扩展数据表示”仍然在活跃开发中，
 （neutral，中性，中立。）
 希望成为一个语言无关的独立的数据表示，内容是clojure数据表示的一个子集。
 
 
-=======
+========
 Tagged Literals
-标记字面量。
+标记字面量
 
 （hxzon：clojure允许自定义读者宏。）
 
@@ -390,8 +391,8 @@ The key in each pair is a tag that will be recognized by the Clojure reader.
 The value in the pair is the fully-qualified name of a Var 
 which will be invoked by the reader to parse the form following the tag. 
 
-每个键是一个tag，会被阅读器识别，
-而值则是一个全限定名的变量，会被阅读器用来解析跟在这个tag之后的形式。
+每个键是一个tag，会被读取器识别，
+而值则是一个全限定名的var，会被读取器用来解析跟在这个tag之后的形式。
 
 For example, given the data_readers.clj file above, the Clojure reader would parse this form:
     #foo/bar [1 2 3]
@@ -399,7 +400,7 @@ For example, given the data_readers.clj file above, the Clojure reader would par
 by invoking the Var #'my.project.foo/bar on the vector [1 2 3]. 
 The data reader function is invoked on the form AFTER it has been read as a normal Clojure data structure by the reader.
 
-如上，阅读器会调用my.project.foo/bar（一个函数）对向量[1 2 3]进行处理。
+如上，读取器会调用my.project.foo/bar（一个函数）对向量[1 2 3]进行处理。
 
 
 Reader tags without namespace qualifiers are reserved for Clojure. 
