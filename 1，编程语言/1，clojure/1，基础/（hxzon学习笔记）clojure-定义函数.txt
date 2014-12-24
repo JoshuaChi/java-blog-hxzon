@@ -12,7 +12,8 @@ fn，letfn（局部函数），defn，defn-（私有函数） 。
 一、创建函数：
 
 ====
-1，fn： 
+1，fn
+
 fn是一个特殊形式，用来创建一个函数。
 
 fn接受let样式的绑定数组，let解构在这里同样适用。
@@ -43,7 +44,9 @@ fn的第一个参数是一个可选的函数名字，使得可以在函数体中
 ;= 60
 
 ====
-2，用letfn来解决函数定义互相引用的问题。
+2，letfn
+
+用letfn来解决函数定义互相引用的问题。
 
 具名函数使得可以很简单的创建自递归的函数。
 
@@ -76,8 +79,10 @@ http://clojuredocs.org/clojure_core/clojure.core/letfn
 (letfn fnspecs & body)
 fnspec ==> (fname [params*] exprs) or (fname ([params*] exprs)+)
 
-Takes a vector of function specs and a body, and generates a set of bindings of functions to their names. 
+Takes a vector of function specs and a body, 
+and generates a set of bindings of functions to their names. 
 All of the names are available in all of the definitions of the functions, as well as the body.
+绑定中的名字，在整个形式中都可用。
 
 user=> (letfn [(twice [x]
                  (* x 2))
@@ -99,13 +104,26 @@ user=> (six-times 100)
 ; Evaluation aborted.
 
 ====
-3，defn是一个封装了def和fn的宏。
+3，defn
+
+defn是一个封装了def和fn的宏。
 
 defn 宏用来定义一个函数。
 它的参数包括一个函数名字，一个可选的注释字符串，参数列表，然后一个方法体。
 而函数的返回值则是方法体里面最后一个表达式的值。
 所有的函数都会返回一个值， 只是有的返回的值是nil。
 
+(defn strange-adder
+    ([x] (strange-adder x 1))
+    ([x y] (+ x y))))
+
+等价于：
+
+(def strange-adder (fn strange-adder
+    ([x] (strange-adder x 1))
+    ([x y] (+ x y))))
+
+==
 user=> (defn f4 "f4 function" [] (println "f4 function"))
 #'user/f4  
 
@@ -135,7 +153,7 @@ user=> ((f 7) 4)
 3  
 
 ====
-4，defn-： 
+4，defn-
 
 defn-与defn功能一致，都是用于定义函数的，
 但是defn-定义的函数作用域是私有的，而defn定义的函数是公有的。
@@ -172,7 +190,8 @@ CompilerException java.lang.IllegalStateException: var: #'test1/foo is not publi
 defn使用let来做函数参数的绑定。
 
 ==
--1，可变参函数。
+-1，可变参函数
+
 使用&表示“剩余参数”。
 “剩余参数”列表可以像其它序列一样进行解构。
 
@@ -197,7 +216,8 @@ defn使用let来做函数参数的绑定。
 ;= {:user-id "Bobby"}
 
 ==
--2，关键字参数。
+-2，关键字参数
+
 有些参数不是必选的，有些参数可能有默认值，有时希望使用者可以不必按照某个特定顺序来传参。
 关键字参数跟在固定位置参数后面。
 
@@ -235,13 +255,14 @@ defn使用let来做函数参数的绑定。
 
 
 ====
-6，前置条件和后置条件。
+6，前置条件和后置条件
 
 fn提供对函数参数和函数返回值进行检查的前置和后置条件。
 这在单元测试以及确保参数正确性方面非常有用。
 
 ========
-7，函数字面量。
+7，函数字面量
+
 简短的函数可以使用#()，即函数字面量，省去了fn，以及参数列表。
 %和%1表示第1个参数，%2，%n ..表示第2、n..个参数；最大的n表示参数个数。
 
@@ -333,11 +354,12 @@ user=> (consf [1 2 3])
 "a"  
 
 
-============
+========
 二、函数调用
 
 ====
-1，->: 
+1，->
+
 宏-> 我们也称为 “thread” 宏, 它本质上是调用一系列的函数，
 前一个函数的返回值作为后一个函数的参数，返回最后一次函数调用的值。
 比如下面两行代码的作用是一样的： 
@@ -357,7 +379,8 @@ user=>"X"
 上面两句结果一样。 
 
 ====
-2，->>： 
+2，->>
+
 后面的函数迭代使用之前的函数结果作为最后一个参数，返回最后一次函数调用的值 。
 
 
@@ -366,7 +389,7 @@ user=>"X"
 (->> 10 (/ 3)) ; 3/10  10作为/函数最后一个参数  
 
 ====
-3，eval： 
+3，eval
 
 eval解析表达式数据结构（不是字符串），并返回结果。 
 
@@ -380,7 +403,7 @@ user=>  (eval (read-string "(println 1)"))
 1  
 
 ====
-4，apply函数： 
+4，apply函数
 
 apply 把给定的集合里面的所有元素一次性地给指定的函数作为参数调用，然后返回这个函数的返回值。
 可以把apply看作是SQL里面的聚合函数，如下： 
@@ -389,10 +412,11 @@ user=> (apply + [1 2 3 4])
 10  
 
 
-==========
+========
 三、函数检查 
 
-fn?: 
+fn?
+
 fn?用于检查给定的参数是否为函数，是返回true，否则返回false。
 
 user=> (fn? #("test"))  

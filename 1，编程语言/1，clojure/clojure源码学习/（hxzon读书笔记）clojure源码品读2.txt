@@ -135,5 +135,91 @@ letfn中的函数，可以互相引用。
             `(let [~ge ~e] (case* ~ge ~shift ~mask ~default ~imap ~switch-type :hash-identity ~skip-check))))))))
 
 ========
+LispReader.EvalReader
+
+支持类名，构造函数调用，静态方法调用，var调用，和特殊形式(var xxx) 。
+
+==
+示例：
+
+(def a (fn [x] (+ 2 x)))
+
+;; 序列视为调用
+;; 调用var
+#=(a 3)
+;= 5
+
+;; 调用java静态方法
+#=(java.lang.System/getProperties)
+
+
+;; 符号视为类名，返回类
+#=java.lang.Object
+;= java.lang.Object
+
+;; 特殊形式只支持var
+#=(def b 2)
+;= java.lang.RuntimeException: Can't resolve def
+
+;; 必须带命名空间
+#=(var a)
+;= java.lang.NullPointerException
+
+#=(var org.hxzon.clj.rpggame/a)
+;= #'org.hxzon.clj.rpggame/a
+
+
+========
+(a 5)
+
+经过LispReader.ListReader解析，得到一个列表(a 3)
+
+然后送入
+Object clojure.lang.Compiler.load(Reader rdr, String sourcePath, String sourceName)
+求值。
+
+在
+Object clojure.lang.Compiler.eval(Object form, boolean freshLoader)
+中，被转成一个匿名无参函数，即：
+
+(fn* [] (a 3))
+
+它会生成FnExpr，求值得到一个函数，再调用这个函数，得到值 5 。
+
+对比下 #= 的读取期求值：EvalReader 直接返回 5 。
+
+========
+特殊形式quote
+
+(quote x)
+;= x
+
+(symbol? (quote x))
+;= true
+
+'(+ x x)
+;= (+ x x)
+
+(list? '(+ x x))
+;= true
+
+(list '+ 'x 'x)
+;= (+ x x)
+
+''x
+;= (quote x)
+
+'@x
+;= (clojure.core/deref x)
+
+'#(+ % %)
+;= (fn* [p1__3162792#] (+ p1__3162792# p1__3162792#))
+
+'`(a b ~c)
+;= (seq (concat (list (quote user/a))
+;= (list (quote user/b))
+;= (list c))) 
+
+
 
 

@@ -14,50 +14,6 @@
 (def unquote-splicing)
 
 
-;;;;;;;;;;;;;;;;; metadata ;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;获取元数据：
-
-(def
- ^{:arglists '([obj])
-   :doc "Returns the metadata of obj, returns nil if there is no metadata."
-   :added "1.0"
-   :static true}
- meta (fn ^:static meta [x]
-        (if (instance? clojure.lang.IMeta x)
-          (. ^clojure.lang.IMeta x (meta)))))   ;调用IMeta.meta方法。
-
-;添加元数据：
-
-(def
- ^{:arglists '([^clojure.lang.IObj obj m])
-   :doc "Returns an object of the same type and value as obj, with
-    map m as its metadata."
-   :added "1.0"
-   :static true}
- with-meta (fn ^:static with-meta [^clojure.lang.IObj x m]
-             (. x (withMeta m))))   ;调用IObj.withMeta方法。
-
-;======
-;创建列表：
-
-(def
- ^{:arglists '([& items])
-   :doc "Creates a new list containing the items."
-   :added "1.0"}
-
-  list (. clojure.lang.PersistentList creator))
-
-;构建序列：
-
-(def
- ^{:arglists '([x seq])
-    :doc "Returns a new seq where x is the first element and seq is
-    the rest."
-   :added "1.0"
-   :static true}
-
- cons (fn* ^:static cons [x seq] (. clojure.lang.RT (cons x seq))))
-
 ;======
 ;----
 ;let：
@@ -67,7 +23,7 @@
   ^{:macro true
     :added "1.0"}
   let (fn* let [&form &env & decl] (cons 'let* decl)))
-; 生成 (let* decl)
+; let是一个宏（宏底层也是函数），生成 (let* decl)
 
 
 ;----
@@ -121,7 +77,7 @@
                 [name doc-string? attr-map? ([params*] prepost-map? body)+ attr-map?])
    :added "1.0"}
 
-defn (fn defn [&form &env name & fdecl]
+defn (fn defn [&form &env name & fdecl]    ;; name，函数名，必须是一个符号
         ;; Note: Cannot delegate this check to def because of the call to (with-meta name ..)
        (if (instance? clojure.lang.Symbol name)        ;函数名name必须是一个符号
          nil
@@ -138,7 +94,7 @@ defn (fn defn [&form &env name & fdecl]
               fdecl (if (map? (first fdecl))    ;除掉fdecl开头的map（元数据），如果有。
                      (next fdecl)
                       fdecl)
-              fdecl (if (vector? (first fdecl)) ;如果fdecl第一个元素是向量（参数列表），将fdecl转成列表。
+              fdecl (if (vector? (first fdecl)) ;如果fdecl第一个元素是向量（参数列表），将fdecl转成列表（即统一成有重载的形式）。
                      (list fdecl)
                       fdecl)
               m (if (map? (last fdecl))     ;如果fdecl最后一个元素是map（元数据），加入到m。
@@ -148,28 +104,38 @@ defn (fn defn [&form &env name & fdecl]
                      (butlast fdecl)
                       fdecl)
               m (conj {:arglists (list 'quote (sigs fdecl))} m)     ;添加arglists到m中。
-             m (let [inline (:inline m)    ;更新m的inline信息。
-                     ifn (first inline)    ;即“fn”这个关键字。
-                     iname (second inline)]    ;内联函数名。
-                 ;; same as: (if (and (= 'fn ifn) (not (symbol? iname))) ...)
-                 (if (if (clojure.lang.Util/equiv 'fn ifn)
-                        (if (instance? clojure.lang.Symbol iname) false true))
+
+              m (let [inline (:inline m)    ;更新m的inline信息。inline示例见下。
+                      ifn (first inline)    ;即“fn”这个关键字。
+                      iname (second inline)]    ;第二部分，可能是内联函数名，或者参数列表。
+                  ;; same as: (if (and (= 'fn ifn) (not (symbol? iname))) ...)
+                  (if (if (clojure.lang.Util/equiv 'fn ifn)    ;; 如果没有指定内联函数名，自动根据函数名生成一个。
+                         (if (instance? clojure.lang.Symbol iname) false true))
                     ;; inserts the same fn name to the inline fn if it does not have one
-                   (assoc m :inline (cons ifn (cons (clojure.lang.Symbol/intern (.concat (.getName ^clojure.lang.Symbol name) "__inliner"))
+                    (assoc m :inline (cons ifn (cons (clojure.lang.Symbol/intern (.concat (.getName ^clojure.lang.Symbol name) "__inliner"))
                                                      (next inline))))
                     m))
+
               m (conj (if (meta name) (meta name) {}) m)]   ;将m加入到name（函数名）的元数据中。
 ;hxzon深入理解：这个宏的返回值：
           (list 'def (with-meta name m)     ;定义Var（指向函数），带有元数据。
                 ;;todo - restore propagation of fn name
                 ;;must figure out how to convey primitive hints to self calls first
-                (cons `fn fdecl) ))))
+                (cons `fn fdecl) ))))    ;; 到这里，各类元数据，从 fdecl 转移到 name 上了
 
 (. (var defn) (setMacro))   ;将defn标记为宏。（宏的底层实现其实也是函数。）
 
 ;inline信息示例：
 ;{  :inline (fn [x] `(. clojure.lang.Numbers (incP ~x)))
 ;   :added "1.0"}
+
+(defn nil?
+  "Returns true if x is nil, false otherwise."
+  {:tag Boolean
+   :added "1.0"
+   :static true
+   :inline (fn [x] (list 'clojure.lang.Util/identical x nil))}
+  [x] (clojure.lang.Util/identical x nil))
 
 ;======
 ;定义宏（defmacro）：
@@ -188,24 +154,24 @@ defmacro (fn [&form &env
                             (let [f (first args)]
                               (if (string? f)    ;如果args第一个元素是字符串，视为“文档字符串”
                                 (recur (cons f p) (next args));将文档字符串加入到p，并从args中移除
-                                (if (map? f)    ;如果args第一个元素是map
+                                (if (map? f)    ;如果args第一个元素是map（元数据），加入到p
                                   (recur (cons f p) (next args))
                                   p))))
-                   fdecl (loop [fd args]    ;从args移除开头的“文档字符串”和map
+                   fdecl (loop [fd args]    ;从args移除开头的“文档字符串”和map（元数据）
                            (if (string? (first fd))
                              (recur (next fd))
                              (if (map? (first fd))
                                (recur (next fd))
                                fd)))
-                   fdecl (if (vector? (first fdecl))    ;如果开头是向量（参数向量），将fdecl转成列表
+                   fdecl (if (vector? (first fdecl))    ;如果开头是向量（参数向量），将fdecl转成列表，即统一成有重载的形式
                            (list fdecl)
                            fdecl)    ;如果开头不是向量，即有重载
 
-                   add-implicit-args (fn [fd]    ;添加隐式参数
-                             (let [args (first fd)]    ;参数向量，取出放到 &env 中
+                   add-implicit-args (fn [fd]    ;; 在每个参数向量的开头，加入 &form 和 &evn 这两个隐式参数
+                             (let [args (first fd)]
                                (cons (vec (cons '&form (cons '&env args))) (next fd))))
 
-                   add-args (fn [acc ds]
+                   add-args (fn [acc ds]    ;; ds = ( {可选的元数据} ([] body) ([] body))
                               (if (nil? ds)
                                 acc
                                 (let [d (first ds)]
@@ -213,8 +179,8 @@ defmacro (fn [&form &env
                                     (conj acc d)
                                     (recur (conj acc (add-implicit-args d)) (next ds))))))
 
-                   fdecl (seq (add-args [] fdecl))
-                   decl (loop [p prefix d fdecl]
+                   fdecl (seq (add-args [] fdecl))    ;; 给每个重载形式的参数向量，添加两个隐式参数
+                   decl (loop [p prefix d fdecl]    ;; 把开头的文档字符串，和元数据，重新加回去
                           (if p
                             (recur (next p) (cons (first p) d))
                             d))]
@@ -228,324 +194,6 @@ defmacro (fn [&form &env
 
 (. (var defmacro) (setMacro))
 
-;=====
-;定义符号：
-
-(defn symbol
-  "Returns a Symbol with the given namespace and name."
-  {:tag clojure.lang.Symbol
-   :added "1.0"
-   :static true}
-  ([name] (if (symbol? name) name (clojure.lang.Symbol/intern name)))   ;如果不是符号，池化。
-  ([ns name] (clojure.lang.Symbol/intern ns name)))
-
-;=====
-;定义关键字：
-
-(defn keyword
-  "Returns a Keyword with the given namespace and name.  Do not use :
-  in the keyword strings, it will be added automatically."
-  {:tag clojure.lang.Keyword
-   :added "1.0"
-   :static true}
-  ([name] (cond (keyword? name) name
-                (symbol? name) (clojure.lang.Keyword/intern ^clojure.lang.Symbol name)  ;如果是符号或关键字，池化。
-                (string? name) (clojure.lang.Keyword/intern ^String name)))
-  ([ns name] (clojure.lang.Keyword/intern ns name)))
-
-;=====
-;条件分支：
-
-(defmacro cond
-  "Takes a set of test/expr pairs. It evaluates each test one at a
-  time.  If a test returns logical true, cond evaluates and returns
-  the value of the corresponding expr and doesn't evaluate any of the
-  other tests or exprs. (cond) returns nil."
-  {:added "1.0"}
-  [& clauses]
-    (when clauses
-      (list 'if (first clauses)
-            (if (next clauses)
-                (second clauses)
-                (throw (IllegalArgumentException.
-                         "cond requires an even number of forms")))
-            (cons 'clojure.core/cond (next (next clauses))))))
-
-
-;======
-;(defn spread
-  {:private true
-   :static true}
-  [arglist]
-  (cond
-   (nil? arglist) nil
-   (nil? (next arglist)) (seq (first arglist))
-   :else (cons (first arglist) (spread (next arglist)))))
-
-;创建列表：
-
-(defn list*
-  "Creates a new list containing the items prepended to the rest, the
-  last of which will be treated as a sequence."
-  {:added "1.0"
-   :static true}
-  ([args] (seq args))
-  ([a args] (cons a args))
-  ([a b args] (cons a (cons b args)))
-  ([a b c args] (cons a (cons b (cons c args))))
-  ([a b c d & more]
-     (cons a (cons b (cons c (cons d (spread more)))))))
-
-;=====
-;函数应用：
-
-(defn apply
-  "Applies fn f to the argument list formed by prepending intervening arguments to args."
-  {:added "1.0"
-   :static true}
-  ([^clojure.lang.IFn f args]
-     (. f (applyTo (seq args))))
-  ([^clojure.lang.IFn f x args]
-     (. f (applyTo (list* x args))))
-  ([^clojure.lang.IFn f x y args]
-     (. f (applyTo (list* x y args))))
-  ([^clojure.lang.IFn f x y z args]
-     (. f (applyTo (list* x y z args))))
-  ([^clojure.lang.IFn f a b c d & args]
-     (. f (applyTo (cons a (cons b (cons c (cons d (spread args)))))))))
-
-;====
-;创建延迟序列：
-
-(defmacro lazy-seq
-  "Takes a body of expressions that returns an ISeq or nil, and yields
-  a Seqable object that will invoke the body only the first time seq
-  is called, and will cache the result and return it on all subsequent
-  seq calls. See also - realized?"
-  {:added "1.0"}
-  [& body]
-  (list 'new 'clojure.lang.LazySeq (list* '^{:once true} fn* [] body)))    
-
-;====
-;序列拼接：
-
-(defn concat
-  "Returns a lazy seq representing the concatenation of the elements in the supplied colls."
-  {:added "1.0"
-   :static true}
-  ([] (lazy-seq nil))
-  ([x] (lazy-seq x))
-  ([x y]
-    (lazy-seq
-      (let [s (seq x)]
-        (if s
-          (if (chunked-seq? s)
-            (chunk-cons (chunk-first s) (concat (chunk-rest s) y))
-            (cons (first s) (concat (rest s) y)))   ;创建新惰性序列，以x的头元素为新头部，以x的余部和y为新余部。
-          y))))
-  ([x y & zs]
-     (let [cat (fn cat [xys zs]
-                 (lazy-seq
-                   (let [xys (seq xys)]
-                     (if xys
-                       (if (chunked-seq? xys)
-                         (chunk-cons (chunk-first xys)
-                                     (cat (chunk-rest xys) zs))
-                         (cons (first xys) (cat (rest xys) zs)))
-                       (when zs
-                         (cat (first zs) (next zs)))))))]
-       (cat (concat x y) zs))))
-
-;=====
-;与：
-
-(defmacro and
-  "Evaluates exprs one at a time, from left to right. If a form
-  returns logical false (nil or false), and returns that value and
-  doesn't evaluate any of the other expressions, otherwise it returns
-  the value of the last expr. (and) returns true."
-  {:added "1.0"}
-  ([] true)
-  ([x] x)
-  ([x & next]
-   `(let [and# ~x]
-      (if and# (and ~@next) and#))))
-
-;或：
-
-(defmacro or
-  "Evaluates exprs one at a time, from left to right. If a form
-  returns a logical true value, or returns that value and doesn't
-  evaluate any of the other expressions, otherwise it returns the
-  value of the last expression. (or) returns nil."
-  {:added "1.0"}
-  ([] nil)
-  ([x] x)
-  ([x & next]
-      `(let [or# ~x]
-         (if or# or# (or ~@next)))))
-
-;====
-;数字增一，自动类型提升：
-
-(defn inc'
-  "Returns a number one greater than num. Supports arbitrary precision.
-  See also: inc"
-  {:inline (fn [x] `(. clojure.lang.Numbers (incP ~x)))
-   :added "1.0"}
-  [x] (. clojure.lang.Numbers (incP x)))
-
-;数字增一，可能抛出溢出异常：
-
-(defn inc
-  "Returns a number one greater than num. Does not auto-promote
-  longs, will throw on overflow. See also: inc'"
-  {:inline (fn [x] `(. clojure.lang.Numbers (~(if *unchecked-math* 'unchecked_inc 'inc) ~x)))
-   :added "1.2"}
-  [x] (. clojure.lang.Numbers (inc x)))
-
-;加法，自动类型提升：
-
-(defn +'
-  "Returns the sum of nums. (+) returns 0. Supports arbitrary precision.
-  See also: +"
-  {:inline (nary-inline 'addP)
-   :inline-arities >1?
-   :added "1.0"}
-  ([] 0)
-  ([x] (cast Number x))
-  ([x y] (. clojure.lang.Numbers (addP x y)))
-  ([x y & more]
-   (reduce1 +' (+' x y) more)))
-
-;加法，可能抛出溢出异常：
-
-(defn +
-  "Returns the sum of nums. (+) returns 0. Does not auto-promote
-  longs, will throw on overflow. See also: +'"
-  {:inline (nary-inline 'add 'unchecked_add)
-   :inline-arities >1?
-   :added "1.2"}
-  ([] 0)
-  ([x] (cast Number x))
-  ([x y] (. clojure.lang.Numbers (add x y)))
-  ([x y & more]
-     (reduce1 + (+ x y) more)))
-
-;====
-;查找键值对：
-
-(defn find
-  "Returns the map entry for key, or nil if key not present."
-  {:added "1.0"
-   :static true}
-  [map key] (. clojure.lang.RT (find map key)))     ;clojure.lang.RT.find(map,key)
-
-;====
-;串行宏，前一表达式的值作为点表达式的第2个元素：
-
-(defmacro ..
-  "form => fieldName-symbol or (instanceMethodName-symbol args*)
-
-  Expands into a member access (.) of the first member on the first
-  argument, followed by the next member on the result, etc. For
-  instance:
-
-  (.. System (getProperties) (get \"os.name\"))
-
-  expands to:
-
-  (. (. System (getProperties)) (get \"os.name\"))
-
-  but is easier to write, read, and understand."
-
-  {:added "1.0"}
-  ([x form] `(. ~x ~form))
-  ([x form & more] `(.. (. ~x ~form) ~@more)))
-
-;串行宏，前一表达式的值作为后一个表达式的第2个元素：
-
-(defmacro ->
-  "Threads the expr through the forms. Inserts x as the
-  second item in the first form, making a list of it if it is not a
-  list already. If there are more forms, inserts the first form as the
-  second item in second form, etc."
-  {:added "1.0"}
-  ([x] x)
-  ([x form] (if (seq? form)
-              (with-meta `(~(first form) ~x ~@(next form)) (meta form)) ;将xU 放入 formU 的第2个位置中，求值formU，带上原来的元数据。
-              (list form x)))
-  ([x form & more] `(-> (-> ~x ~form) ~@more)))
-
-;串行宏，前一表达式的值作为后一个表达式的最后一个元素：
-
-(defmacro ->>
-  "Threads the expr through the forms. Inserts x as the
-  last item in the first form, making a list of it if it is not a
-  list already. If there are more forms, inserts the first form as the
-  last item in second form, etc."
-  {:added "1.1"} 
-  ([x form] (if (seq? form)
-              (with-meta `(~(first form) ~@(next form)  ~x) (meta form))    ;为什么需要将form解开？
-              (list form x)))
-  ([x form & more] `(->> (->> ~x ~form) ~@more)))
-
-;====
-;;multimethods
-;多重方法部分：
-
-;全局层级：
-(def global-hierarchy)
-
-;定义多重方法：
-(defmacro defmulti
-  "Creates a new multimethod with the associated dispatch function.
-  The docstring and attribute-map are optional.
-
-  Options are key-value pairs and may be one of:
-    :default    the default dispatch value, defaults to :default
-    :hierarchy  the isa? hierarchy to use for dispatching
-                defaults to the global hierarchy"
-  {:arglists '([name docstring? attr-map? dispatch-fn & options])
-   :added "1.0"}
-  [mm-name & options]
-  (let [docstring   (if (string? (first options))
-                      (first options)
-                      nil)
-        options     (if (string? (first options))
-                      (next options)
-                      options)
-        m           (if (map? (first options))
-                      (first options)
-                      {})
-        options     (if (map? (first options))
-                      (next options)
-                      options)
-        dispatch-fn (first options)
-        options     (next options)
-        m           (if docstring
-                      (assoc m :doc docstring)
-                      m)
-        m           (if (meta mm-name)
-                      (conj (meta mm-name) m)
-                      m)]
-    (when (= (count options) 1)
-      (throw (Exception. "The syntax for defmulti has changed. Example: (defmulti name dispatch-fn :default dispatch-value)")))
-    (let [options   (apply hash-map options)
-          default   (get options :default :default)
-          hierarchy (get options :hierarchy #'global-hierarchy)]
-      (check-valid-options options :default :hierarchy)
-      `(let [v# (def ~mm-name)]
-         (when-not (and (.hasRoot v#) (instance? clojure.lang.MultiFn (deref v#)))
-           (def ~(with-meta mm-name m)
-                (new clojure.lang.MultiFn ~(name mm-name) ~dispatch-fn ~default ~hierarchy)))))))
-
-;注册多重方法的实现：
-(defmacro defmethod
-  "Creates and installs a new method of multimethod associated with dispatch-value. "
-  {:added "1.0"}
-  [multifn dispatch-val & fn-tail]
-  `(. ~(with-meta multifn {:tag 'clojure.lang.MultiFn}) addMethod ~dispatch-val (fn ~@fn-tail)))
 
 ;====
 ;动态绑定：
@@ -578,113 +226,6 @@ defmacro (fn [&form &env
          (finally
            (pop-thread-bindings))))))
 
-;====
-;创建循环无限序列：
-
-(defn cycle
-  "Returns a lazy (infinite!) sequence of repetitions of the items in coll."
-  {:added "1.0"
-   :static true}
-  [coll] (lazy-seq 
-          (when-let [s (seq coll)] 
-              (concat s (cycle s)))))
-
-;====
-;声明：
-
-(defmacro declare
-  "defs the supplied var names with no bindings, useful for making forward declarations."
-  {:added "1.0"}
-  [& names] `(do ~@(map #(list 'def (vary-meta % assoc :declared true)) names)))
-
-;====
-;强制求值：
-
-(defn dorun
-  "When lazy sequences are produced via functions that have side
-  effects, any effects other than those needed to produce the first
-  element in the seq do not occur until the seq is consumed. dorun can
-  be used to force any effects. Walks through the successive nexts of
-  the seq, does not retain the head and returns nil."
-  {:added "1.0"
-   :static true}
-  ([coll]
-   (when (seq coll)
-     (recur (next coll))))
-  ([n coll]
-   (when (and (seq coll) (pos? n))
-     (recur (dec n) (next coll)))))
-
-;强制求值：
-
-(defn doall
-  "When lazy sequences are produced via functions that have side
-  effects, any effects other than those needed to produce the first
-  element in the seq do not occur until the seq is consumed. doall can
-  be used to force any effects. Walks through the successive nexts of
-  the seq, retains the head and returns it, thus causing the entire
-  seq to reside in memory at one time."
-  {:added "1.0"
-   :static true}
-  ([coll]
-   (dorun coll)
-   coll)
-  ([n coll]
-   (dorun n coll)
-   coll))
-
-;====
-;导入java类的简名：
-
-(defmacro import 
-  "import-list => (package-symbol class-name-symbols*)
-
-  For each name in class-name-symbols, adds a mapping from name to the
-  class named by package.name to the current namespace. Use :import in the ns
-  macro in preference to calling this directly."
-  {:added "1.0"}
-  [& import-symbols-or-lists]
-  (let [specs (map #(if (and (seq? %) (= 'quote (first %))) (second %) %) 
-                   import-symbols-or-lists)]
-    `(do ~@(map #(list 'clojure.core/import* %)
-                (reduce1 (fn [v spec] 
-                          (if (symbol? spec)
-                            (conj v (name spec))
-                            (let [p (first spec) cs (rest spec)]
-                              (into1 v (map #(str p "." %) cs)))))
-                        [] specs)))))
-
-;====
-(defn read
-  "Reads the next object from stream, which must be an instance of
-  java.io.PushbackReader or some derivee.  stream defaults to the
-  current value of *in*.
-
-  Note that read can execute code (controlled by *read-eval*),
-  and as such should be used only with trusted sources.
-
-  For data structure interop use clojure.edn/read"
-  {:added "1.0"
-   :static true}
-  ([]
-   (read *in*))
-  ([stream]
-   (read stream true nil))
-  ([stream eof-error? eof-value]
-   (read stream eof-error? eof-value false))
-  ([stream eof-error? eof-value recursive?]
-   (. clojure.lang.LispReader (read stream (boolean eof-error?) eof-value recursive?))))
-
-(defn read-string
-  "Reads one object from the string s.
-
-  Note that read-string can execute code (controlled by *read-eval*),
-  and as such should be used only with trusted sources.
-
-  For data structure interop use clojure.edn/read-string"
-  {:added "1.0"
-   :static true}
-  [s] (clojure.lang.RT/readString s))
 
 ;====
 ;宏展开：
@@ -698,7 +239,7 @@ defmacro (fn [&form &env
   [form]
     (. clojure.lang.Compiler (macroexpand1 form)))
 
-==
+;==
 (defn macroexpand
   "Repeatedly calls macroexpand-1 on form until it no longer
   represents a macro form, then returns it.  Note neither
@@ -914,124 +455,35 @@ defmacro (fn [&form &env
                (let ~(vec (interleave bs gs))
                  ~@body)))))))
 
-;====
-;定义私有函数：
 
-(defmacro defn-
-  "same as defn, yielding non-public def"
-  {:added "1.0"}
-  [name & decls]
-    (list* `defn (with-meta name (assoc (meta name) :private true)) decls))
 
 ;====
-;检查是否是特殊形式：
-
-(defn special-symbol?
-  "Returns true if s names a special form"
-  {:added "1.0"
-   :static true}
-  [s]
-    (contains? (. clojure.lang.Compiler specials) s))
-
-;====
-;定义内联：
+;定义内联：？
 
 (defmacro definline
   "Experimental - like defmacro, except defines a named function whose
+实验特性。类似宏，定义一个函数，它的身体是展开式。
+不能使用不定参数。
   body is the expansion, calls to which may be expanded inline as if
   it were a macro. Cannot be used with variadic (&) args."
   {:added "1.0"}
   [name & decl]
-  (let [[pre-args [args expr]] (split-with (comp not vector?) decl)]
+  (let [[pre-args [args expr]]    ;; 切分成三部分：形参向量，实参向量，身体
+        (split-with (comp not vector?) decl)]
     `(do
        (defn ~name ~@pre-args ~args ~(apply (eval (list `fn args expr)) args))
        (alter-meta! (var ~name) assoc :inline (fn ~name ~args ~expr))
        (var ~name))))
 
-;类型转型：
 
-(definline chars
-  "Casts to chars[]"
-  {:added "1.1"}
-  [xs] `(. clojure.lang.Numbers chars ~xs))     ;clojure.lang.Numbers.chars(xs)
 
-;====
-;一次性定义：
-
-(defmacro defonce
-  "defs name to have the root value of the expr iff the named var has no root value,
-  else expr is unevaluated"
-  {:added "1.0"}
-  [name expr]
-  `(let [v# (def ~name)]    ;(def ~name) 返回什么？
-     (when-not (.hasRoot v#)    ;如果v没有根值，求值expr，并绑定到name。
-       (def ~name ~expr))))
-
-;====
-;;;;;;;;;;;;; nested associative ops ;;;;;;;;;;;
-;内嵌结构操作：
-
-(defn get-in
-  "Returns the value in a nested associative structure,
-  where ks is a sequence of keys. Returns nil if the key
-  is not present, or the not-found value if supplied."
-  {:added "1.2"
-   :static true}
-  ([m ks]
-     (reduce1 get m ks))
-  ([m ks not-found]
-     (loop [sentinel (Object.)
-            m m
-            ks (seq ks)]
-       (if ks
-         (let [m (get m (first ks) sentinel)]
-           (if (identical? sentinel m)
-             not-found
-             (recur sentinel m (next ks))))
-         m))))
-
-(defn assoc-in
-  "Associates a value in a nested associative structure, where ks is a
-  sequence of keys and v is the new value and returns a new nested structure.
-  If any levels do not exist, hash-maps will be created."
-  {:added "1.0"
-   :static true}
-  [m [k & ks] v]
-  (if ks
-    (assoc m k (assoc-in (get m k) ks v))
-    (assoc m k v)))
-
-(defn update-in
-  "'Updates' a value in a nested associative structure, where ks is a
-  sequence of keys and f is a function that will take the old value
-  and any supplied args and return the new value, and returns a new
-  nested structure.  If any levels do not exist, hash-maps will be
-  created."
-  {:added "1.0"
-   :static true}
-  ([m [k & ks] f & args]
-   (if ks
-     (assoc m k (apply update-in (get m k) ks f args))
-     (assoc m k (apply f (get m k) args)))))
-
-;====
-;池化：
-
-(defn intern
-  "Finds or creates a var named by the symbol name in the namespace
-  ns (which can be a symbol or a namespace), setting its root binding
-  to val if supplied. The namespace must exist. The var will adopt any
-  metadata from the name symbol.  Returns the var."
-  {:added "1.0"
-   :static true}
-  ([ns ^clojure.lang.Symbol name]
-     (let [v (clojure.lang.Var/intern (the-ns ns) name)]
-       (when (meta name) (.setMeta v (meta name)))
-       v))
-  ([ns name val]
-     (let [v (clojure.lang.Var/intern (the-ns ns) name val)]
-       (when (meta name) (.setMeta v (meta name)))
-       v)))
+;; (defn bad-sqr [x] (* x x))
+user=> (definline bad-sqr [x] `(* ~x ~x))
+; #'user/bad-sqr
+user=> (bad-sqr (do (println "x") 5))
+; x
+; x
+; 25
 
 ;====
 (defmacro letfn 
@@ -1049,59 +501,6 @@ defmacro (fn [&form &env
                              (map #(cons `fn %) fnspecs)))
            ~@body))
 
-;====
-;插入：
-
-(defn into
-  "Returns a new coll consisting of to-coll with all of the items of
-  from-coll conjoined."
-  {:added "1.0"
-   :static true}
-  [to from]
-  (if (instance? clojure.lang.IEditableCollection to)
-    (with-meta (persistent! (reduce conj! (transient to) from)) (meta to))
-    (reduce conj to from)))
-
-;====
-;并发处理
-
-(defn pmap
-  "Like map, except f is applied in parallel. Semi-lazy in that the
-  parallel computation stays ahead of the consumption, but doesn't
-  realize the entire result unless required. Only useful for
-  computationally intensive functions where the time of f dominates
-  the coordination overhead."
-  {:added "1.0"
-   :static true}
-  ([f coll]
-   (let [n (+ 2 (.. Runtime getRuntime availableProcessors))
-         rets (map #(future (f %)) coll)
-         step (fn step [[x & xs :as vs] fs]
-                (lazy-seq
-                 (if-let [s (seq fs)]
-                   (cons (deref x) (step xs (rest s)))
-                   (map deref vs))))]
-     (step rets (drop n rets))))
-  ([f coll & colls]
-   (let [step (fn step [cs]
-                (lazy-seq
-                 (let [ss (map seq cs)]
-                   (when (every? identity ss)
-                     (cons (map first ss) (step (map rest ss)))))))]
-     (pmap #(apply f %) (step (cons coll colls))))))
-
-(defn pcalls
-  "Executes the no-arg fns in parallel, returning a lazy sequence of
-  their values"
-  {:added "1.0"
-   :static true}
-  [& fns] (pmap #(%) fns))
-
-(defmacro pvalues
-  "Returns a lazy sequence of the values of the exprs, which are
-  evaluated in parallel"
-  {:added "1.0"
-   :static true}
-  [& exprs]
-  `(pcalls ~@(map #(list `fn [] %) exprs)))
+;; (letfn [(f1 [p1 p2] f1body) (f2 [p1 p2] f2body)] body)
+;; => (letfn* [f1 (fn f1 [p1 p2] f1body) , f2 (fn f2 [p1 p2] f2body)] body)
 
