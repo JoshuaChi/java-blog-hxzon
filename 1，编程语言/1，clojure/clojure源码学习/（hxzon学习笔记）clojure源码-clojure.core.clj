@@ -218,7 +218,7 @@ defmacro (fn [&form &env
                     (if vvs
                       (recur  (conj (conj ret `(var ~(first vvs))) (second vvs))
                              (next (next vvs)))
-                      (seq ret))))]
+                      (seq ret))))];; [sym1 v1 sym2 v2] -> [(var sym1) v1 (var sym2) v2]
     `(let []
        (push-thread-bindings (hash-map ~@(var-ize bindings)))
        (try
@@ -340,6 +340,7 @@ defmacro (fn [&form &env
 
 ; 生成代码 (let* destruBindings body1 body2)
 
+;; ====
 (defn ^{:private true}
   maybe-destructured
   [params body]
@@ -427,7 +428,7 @@ defmacro (fn [&form &env
           (cons 'fn* new-sigs))
         (meta &form))))
 
-
+;; ====
 ;重新定义loop：
 
 (defmacro loop

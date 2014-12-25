@@ -52,6 +52,12 @@ number of retries and ease of snapshotting.
 To support nested maps, instead of a single key, one has to deal with a path, eg [:a :b :c]. 
 Here the idea is to ensure guards for path prefixes ([:a] and [:a :b]) and to ref-set the guard for the full-path as before.
 
+hxzon注：
+pop，返回去除peek之后的新集合。
+如果是列表，返回去除头部元素的新列表。
+如果是向量，返回去除尾部元素的新向量。
+如果列表或向量是空的，抛出异常。
+
 ;; except ensure-in and alter-in, the others are here because
 ;; they can be optimized in a mega ref wth several roots
 (defprotocol AssociativeRef
@@ -68,32 +74,33 @@ Here the idea is to ensure guards for path prefixes ([:a] and [:a :b]) and to re
   (-commute-in aref ks f args))
 
 ;; 层层安全的访问path所对应的守卫
-;; 访问顺序： [a b c] , [b c] , [c]
+;; 访问顺序： [a b c] , [a b] , [a]
 (defn- ensure-path [guard-for path]    ;; path ，访问路径
   (loop [path path]
     (when-not (= [] path)
       (ensure (guard-for path))    ;; 安全的访问path所对应的守卫
      (recur (pop path)))))
 
-;; 返回一个函数，输入为键，输出为对应的守卫
+;; 返回一个函数，这个函数的输入为访问路径，输出为对应的守卫
 (defn- guards-fn [guards]
   (let [n (count guards)]
-    #(nth guards (mod (hash %) n))))
+    #(nth guards (mod (hash %) n))))    ;; 返回一个匿名函数
 
+;; 定义一个类型，实现上面的协议
 (deftype MegaRef [r guards]
   AssociativeRef
   (-alter-in [this ks f args]    ;; ks ，访问路径
     (if (seq ks)
       (let [guard-for (guards-fn guards)]
-        (ensure-path guard-for (pop (vec ks)))    ;; 安全的访问第一个键
-        (ref-set (guard-for ks) nil)
-        (let [v (apply f (get-in @r ks) args)]    ;; 访问map的值（深层次），用 f 操作该值
+        (ensure-path guard-for (pop (vec ks)))    ;; 安全的访问“访问路径的全部前缀（即除掉最后的路径）”
+        (ref-set (guard-for ks) nil)    ;; 重置对应的守卫，这样就确保了整个访问路径都未被别人修改过
+        (let [v (apply f (get-in @r ks) args)]    ;; 访问map的值（深层次），用 f 操作该值，得到新的值 v
           ; v is precomputed to not evaluate it twice because of commute
           (commute r assoc-in ks v)))
       (throw (IllegalArgumentException. "ks must not be empty."))))
 
-  ;; 用 f 更新 ks 里的键
-  (-commute-in [this ks f args]    ;; 这里 ks 不是访问路径
+  ;; 用 f 更新 ks 路径的值
+  (-commute-in [this ks f args]
     (apply commute r update-in ks f args))
 
   ;; 重新初始化 ks 路径的值为 v
@@ -102,7 +109,7 @@ Here the idea is to ensure guards for path prefixes ([:a] and [:a :b]) and to re
 
   ;; 安全的读取 ks 路径的值
   (ensure-in [this ks]
-    (ensure-path  (vec ks) (guards-fn guards))
+    (ensure-path (guards-fn guards) (vec ks))    ;; 原文 (ensure-path  (vec ks) (guards-fn guards)) ，有误
     (deref-in this ks))
 
   ;; 读取 ks 路径的值（不检查是否被别的事务修改）
@@ -119,6 +126,28 @@ Here the idea is to ensure guards for path prefixes ([:a] and [:a :b]) and to re
        root-options (select-keys options [:validator :min-history :max-history])]
     (MegaRef. (apply ref (into {} entries) root-options)
               (vec (repeatedly guards #(ref nil))))))
+
+;; hxzon 测试
+(def a (megaref {:a 'a 
+                 :b {:b1 'b1 :b2 'b2} 
+                 :c {:c1 
+                     {:c11 {:c11-a 'c11-a :c11-b 'c11-b}
+                      :c12 {:c12-a 'c12-a :c12-b 'c12-b :c12-c 'c12-c }}
+                     }}))
+
+(wait-futures 50
+              (dosync (let [c (count (get-in @a [:c :c1 :c11])) s (str "c" c)] (alter-in a [:c :c1 :c11] assoc (keyword s) (symbol s))))
+              (dosync (let [c (count (get-in @a [:c :c1 :c12])) s (str "c" c)] (alter-in a [:c :c1 :c12] assoc (keyword s) (symbol s))))
+              )
+
+(= (count (get-in @a [:c :c1 :c11])) 52)
+(= (count (get-in @a [:c :c1 :c12])) 53)
+
+(wait-futures 50
+              (dosync (let [c (count (get-in @a [:c :c1 :c11])) s (str "c" c)] (commute-in a [:c :c1 :c11] assoc (keyword s) (symbol s))))
+              (dosync (let [c (count (get-in @a [:c :c1 :c12])) s (str "c" c)] (commute-in a [:c :c1 :c12] assoc (keyword s) (symbol s))))
+              )
+
 
 
 

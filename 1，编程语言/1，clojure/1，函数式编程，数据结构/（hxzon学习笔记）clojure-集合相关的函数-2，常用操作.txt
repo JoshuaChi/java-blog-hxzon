@@ -8,7 +8,7 @@ drop，take，take-last，(take-nth n coll)，take-while 。
 subvec
 
 数据变换：
-update-in，replace，merge-with，
+update-in（嵌套），replace，merge-with，
 map，mapv，mapcat，map-indexed，
 keep，keep-indexed，
 juxt，map-invert，
@@ -125,14 +125,14 @@ user=> (subvec [12 3 4 5 6 7] 2 4)
 数据变换：
 
 ====
-1，(update-in mapX keyX f )
-根据 f 更新map中指定key对应的值。 
+1，(update-in map ks f )
+根据 f 更新map中指定路径对应的值。 
 
 user=> (update-in {:name "qh" :age 30} [:age] #(inc %))  
-{:age 31, :name "qh"}  
+{:age 31, :name "qh"}
 
-user=> (update-in {:a 3} [:a] / 4 5)
-{:a 3/20}  
+user=> (update-in {:a {:b 3 :b2 4} :a2 3} [:a :b] / 4 5)
+{:a2 3, :a {:b2 4, :b 3/20}}
 
 ====
 2，
