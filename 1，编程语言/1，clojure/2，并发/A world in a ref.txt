@@ -38,6 +38,11 @@ Once that done I simply commute on the root ref being sure that the operation wi
 用 ref-set 重置守卫（它的值不重要），从而保证了该键能正确提交。
 然后用 commute 修改根ref 。
 
+hxzon理解：
+因为要修改[:a :b :c]，所以要用 ref-set，让其他事务知道自己在修改 [:a :b :c]。
+要确保没人在修改[:a] 和 [:a :b] ，所以用 ensure 确认。
+前面两步确认了没人在改[:a] [:a :b] [:a :b :c] ，所以可以用 (commute root) 。
+
 NB: An alternative design is to simply have N roots and no guards and to merge the N maps on deref 
 — efficient merging would need a didcated map implementation. 
 However it doesn’t help much with nested maps but it helps a lot with concurrency 
@@ -51,6 +56,9 @@ number of retries and ease of snapshotting.
 ====
 To support nested maps, instead of a single key, one has to deal with a path, eg [:a :b :c]. 
 Here the idea is to ensure guards for path prefixes ([:a] and [:a :b]) and to ref-set the guard for the full-path as before.
+
+为了支持嵌套的映射，使用一个键向量表示访问路径。
+ensure路径的所有前缀，用ref-set 全路径所对应的守卫 来保证不冲突。
 
 hxzon注：
 pop，返回去除peek之后的新集合。
@@ -74,7 +82,7 @@ pop，返回去除peek之后的新集合。
   (-commute-in aref ks f args))
 
 ;; 层层安全的访问path所对应的守卫
-;; 访问顺序： [a b c] , [a b] , [a]
+;; 访问路径：[:a :b :c] ，ensure顺序：  [a b] , [a]
 (defn- ensure-path [guard-for path]    ;; path ，访问路径
   (loop [path path]
     (when-not (= [] path)
