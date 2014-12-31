@@ -255,8 +255,8 @@ select queries
       ;; You can use an abritrary sql function by calling        使用 sql 函数
       ;; (sqlfn fn-name & params)
 
-  (join email (= :email.users_id :id)
-      ;; You can do joins manually)        手工关联
+  (join email (= :email.users_id :id))
+      ;; You can do joins manually        手工关联
   (where {:email.id [in (subselect email
                           (fields :id)
                           (where {:sent true}))]})
@@ -361,6 +361,8 @@ where子句
 ;; => "SELECT "USERS".* FROM "USERS" WHERE
 ;;     ("USERS"."AGE" > ? OR "USERS"."LAST" LIKE ?)"
 
+hxzon：SELECT "users"."first", "users"."last" FROM "users" WHERE (("users"."age" > ?) OR ("users"."last" LIKE ?))
+
 ;; Available predicates:
 ;; 可以使用以下谓词：
 
@@ -393,6 +395,13 @@ The examples here use the (where) clause, but it's the same for the (having) cla
   (with address
     (with state (fields :state)) ;; you can nest withs        ;; hxzon重要：嵌套关联。
     (fields :city :zip :address1 :address2)))
+
+hxzon：
+SELECT "users"."first", "users"."last", "users"."first", 
+"address"."city", "address"."zip", "address"."address1", "address"."address2" 
+FROM ("users" LEFT JOIN "address" ON "address"."users_id" = "users"."id") 
+LEFT JOIN "state_st" ON "state_st"."id" = "address"."id_state" 
+WHERE ("users"."last" LIKE ?)
 
 
 With clauses act almost like selects, 

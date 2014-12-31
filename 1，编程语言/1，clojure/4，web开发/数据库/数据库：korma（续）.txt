@@ -150,11 +150,11 @@ You can do transactions in Korma simply by using the (transaction) macro,
 which ensures that all queries executed within it are part of a single transaction. 
 You can then use the (rollback) function to force the transaction to rollback if necessary.
 
+====
 (select users
   (fields :id :first (raw "users.last"))
   (where {:first [like "%_test5"]}))
 
-====
 ;;Or when all else fails, you can simply use exec raw
 (exec-raw ["SELECT * FROM users WHERE age > ?" [5]] :results) 
 
