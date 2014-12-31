@@ -176,8 +176,8 @@ b.a();
 
 // 改变上下文。
 
-function.apply(this, [1, 2, 3])
-function.call(this, 1, 2, 3);
+//function.apply(this, [1, 2, 3])
+//function.call(this, 1, 2, 3);
 
 var Class = function(parent){ 
 	var klass = function(){

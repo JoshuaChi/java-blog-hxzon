@@ -1,0 +1,274 @@
+﻿数据库：korma（续）
+
+注释by hxzon
+http://sqlkorma.com/docs
+https://github.com/korma/Korma
+====
+目录：
+
+start
+db
+entities
+select
+set
+
+==
+update
+insert
+delete
+misc
+
+========
+update queries
+更新语句
+
+(update users
+  (set-fields {:status "active"
+               :beta false})
+  (where {:visits [> 10]}))
+
+==
+;; You can also compose updates over time:
+(def base (-> (update* users)
+              (set-fields {:status "active"})))
+
+(-> base
+    (set-fields {:beta false})
+    (where {:visits [> 10]})
+    (update))
+;; Does the same thing 
+
+Update queries use the (set-fields) function to specifiy the fields to be updated. 
+Multiple calls to set-fields will be merged together, allowing you to build the update over time. 
+Updates also allow where clauses as you would expect.
+
+可以有多个 (set-fields) 子句，它们会被合并。
+
+========
+insert queries
+插入语句
+
+;; You can insert a single value:
+(insert users
+  (values {:first "john" :last "doe"}))
+
+;; or a collection of several:
+(insert users
+  (values [{:first "john" :last "doe"}
+           {:first "jane" :last "doe"}]))
+
+==
+;; You can also compose inserts:
+;; 可以组合插入语句
+(def base (-> (insert* users)
+            (values {:first "john" :last "doe"})))
+
+(-> base
+  (values {:first "jane" :last "doe"})
+  (insert))
+;; Same thing as the collection insert
+
+
+Insert queries use the function (values) to add records. 
+It takes either a single map or a collection of maps and returns the id of the first inserted record.
+
+用单个映射，或映射的集合来表示要插入的记录。
+然后返回插入的第一条记录的 id 。
+
+========
+delete queries
+删除语句
+
+(delete users
+  (where {:visits [< 3]})) 
+
+==
+;;You can also compose deletes:
+(def base (-> (delete* users)
+            (where {:visits [< 3]})))
+
+(-> base
+  (where {:status [not= "active"]})
+  (delete))
+
+Delete queries only allow where clauses 
+and not including one will cause all records for the given entity to be deleted. 
+The result of a delete is the id of the first record deleted.
+
+返回第一条被删除的记录的 id 。
+
+========
+misc
+杂项
+
+;; you can get a string of the SQL instead of executing
+;; by using the sql-only mode
+;; 获得生成的 sql 语句（字符串）
+
+(sql-only
+  (select users))
+
+;; => "SELECT * FROM users"
+
+;; You can print a string of the sql, with the params and
+;; return fake results by using the dry-run mode
+;; 可以打印一条带参数的 sql 语句，并返回伪造的查询结果
+
+(dry-run
+  (select users
+    (where {:age [> 5]})))
+
+;; dry run :: SELECT * FROM users WHERE (user.age > ?) :: [5]
+;; => [{:id 1}]
+
+
+By default, when exec is called, it simply generates the SQL string and params necessary for your query 
+and sends those to your database. 
+Sometimes, however, what you really want is to just generate the string, 
+or even do a dry run where you see the SQL printed to the console. 
+As such, korma includes a couple of other execution modes that allow you to do exactly that. 
+These also apply to queries that are composed over time and then executed using the (exec) function.
+
+====
+;;transaction, rollback, and is-rollback? are in korma.db
+;; 开启事务，事务回滚，检查事务是否回滚
+
+(transaction
+  (insert users
+    (values {:first "cool"}))
+  (insert address
+    (values {:address1 "cool"})))
+
+(transaction    ;; 开启事务
+  (if-not (valid?)
+    (rollback)    ;; 回滚
+    (do-complicated-query))
+  (when-not (is-rollback?)    ;; 检查是否回滚
+    (println "success!")))
+
+You can do transactions in Korma simply by using the (transaction) macro, 
+which ensures that all queries executed within it are part of a single transaction. 
+You can then use the (rollback) function to force the transaction to rollback if necessary.
+
+(select users
+  (fields :id :first (raw "users.last"))
+  (where {:first [like "%_test5"]}))
+
+====
+;;Or when all else fails, you can simply use exec raw
+(exec-raw ["SELECT * FROM users WHERE age > ?" [5]] :results) 
+
+You may find yourself in need of functionality that Korma doesn't have. 
+Luckily, there are a couple of facilities that help you here: 
+(raw) which injects a string into a query 
+and (exec-raw) which allows you to write a parameterized query directly.
+
+(raw) 允许你插入一个字符串到查询中，
+(exec-raw) 允许你直接执行一个参数化的语句（字符串）。
+
+========
+========
+http://korma.github.io/Korma/
+Korma 0.4.0 API documentation
+Tasty SQL for Clojure
+
+==
+korma.config
+
+Public variables and functions:
+set-delimiters
+set-naming
+
+==
+korma.core
+Core querying and entity functions
+
+Public variables and functions:
+aggregate
+as-sql
+belongs-to
+create-entity
+database
+defentity
+delete
+delete*
+dry-run
+entity-fields
+exec
+exec-raw
+fields
+from
+group
+has-many
+has-one
+having
+having*
+insert
+insert*
+intersect
+intersect*
+join
+limit
+many-to-many
+modifier
+offset
+order
+pk
+post-query
+prepare
+queries
+query-only
+raw
+select
+select*
+set-fields
+sql-only
+sqlfn
+sqlfn*
+subselect
+table
+transform
+union
+union*
+union-all
+union-all*
+update
+update*
+values
+where
+where*
+with
+with-batch
+
+==
+korma.db
+Functions for creating and managing database specifications.
+
+Public variables and functions:
+connection-pool
+create-db
+default-connection
+defdb
+delay-pool
+firebird
+get-connection
+h2
+is-rollback?
+msaccess
+mssql
+mysql
+odbc
+oracle
+postgres
+rollback
+sqlite3
+transaction
+vertica
+with-db
+
+==
+korma.mysql
+
+Public variables and functions:
+count
+

@@ -11,6 +11,8 @@ db
 entities
 select
 set
+
+==
 update
 insert
 delete
@@ -72,6 +74,9 @@ db
 (def sqll (sqlite3 ..))
 (def h2-db (h2 ..))
 
+==
+数据库连接
+
 ;; Pass the connection map to the defdb macro:
 (defdb korma-db db)
 
@@ -111,17 +116,19 @@ entities
            ;; it's used for relationships joins.
   (table :users) ;; by default the name of the symbol.  数据库表名
                  ;; The line above is also unecessary.
-  (database db) ;; if none is specified the last defdb  数据库名
+  (database db) ;; if none is specified the last defdb  数据库
                 ;; will be used. Also unnecessary.
   (entity-fields :first :last) ;; default fields for selects  默认读取的字段
 
   ;; Mutations
+
   (prepare (fn [{last :last :as v}]
              (if last
                (assoc v :last (str/upper-case last)) v)))
   ;; apply a function before storing in the db  保存到数据库之前，对数据做修正
   ;; in this case the function changes the "last" field
   ;; to upper case.
+
   (transform (fn [{first :first :as v}]
                (if first
                  (assoc v :first (str/capitalize first)) v)))
@@ -132,14 +139,17 @@ entities
   ;; Relationships
   (has-one address)
       ;; assumes users.id = address.users_id     一对一
+
   (has-many email)
-      ;; assumes users.id = email.users_id    一对多
+      ;; assumes users.id = email.users_id    一对多，使用“1+n”次查询
       ;; but gets the results in a second query
       ;; for each element
+
   (belongs-to account)
       ;; assumes users.account_id = account.id    多对一
+
   (many-to-many posts :users_posts))
-      ;; assumes a table users_posts with columns users_id    多对多，通过中间表
+      ;; assumes a table users_posts with columns users_id    多对多，通过中间表，使用“1+n”次查询
       ;; and posts_id
       ;; like has-many, also gets the results in a second
       ;; query for each element
@@ -160,7 +170,7 @@ entities
 (defentity address
   (pk :my_pk) ;; sets the primary key to "my_pk"
   (belongs-to users)
-  (belongs-to state {:fk :id_state}))
+  (belongs-to state {:fk :id_state}))        ;; 外键
       ;; you can optionally specify the foreign key
       ;; assumes state.id = address.id_state
 
@@ -174,6 +184,7 @@ entities
 (defentity posts
   (many-to-many users :users_posts))
 
+==
 Let's suppose that we have some tables in a database. 
 We have a users table with some user data. 
 The user has many emails. 
@@ -187,22 +198,31 @@ Entities map one to one with tables and are the initial building block for all y
 You can specify a number of properties associated with them, 
 such as the table name, an alias for the table, the primary key and so on. 
 
+每个实体对应到一张表。
+
 You can also set functions to be run before a record goes to the database as the result of an insert/update, 
 or functions to be mapped over the results of a select. 
 This allows you to apply common mutations to your data without having to think about it at every step.
+
+实体在插入数据库前，或从数据库读出前，可以做修正。
 
 Lastly, entities let you specify the relationships to be used when you do select queries. 
 With these relationships defined, 
 you can then simply use the (with) function in your select query to join the entities and return the results.
 Entities offer a great deal of flexibility. 
 
+使用with函数，来加载关联对象。
+
 The second example shown here demonstrates how you can even use subselects as entities, 
 enabling you to join on these seamlessly within your normal queries.
 第二个示例，展示了将子查询作为实体。
+
 You need to create entities for each table that participate in a relationship. 
 Remember that when the primary key is not "id", 
 the table name is not the name of the entity defined or the foreign key is not in the format "tablename_id" 
 you have to define them in the entity.
+
+主键，表名，外键的默认命名。
 
 ========
 select queries
@@ -220,17 +240,21 @@ select queries
                ;; you can use (with) for any relationship
                ;; defined in the entity
   (fields [:first :firstname] :last :address.zip)
-      ;; you can alias a field using a vector of [field alias]    获取哪些字段，设置别名
+      ;; you can alias a field using a vector of [field alias]    获取哪些字段，设置别名。关联对象的字段，使用前缀。
+
   (modifier "DISTINCT") ;; you can add a modifier    修饰器，例如“去重”
+
   (aggregate (count :*) :cnt :status)
-      ;; You specify alias and optionally a field to group by        聚合运算
-      ;; available aggregates:
+      ;; You specify alias and optionally a field to group by        聚合运算，可以指定聚合结果的别名，和可选的用于分组的字段名
+      ;; available aggregates:        可以使用的聚合运算：
       ;; sum, first, last, min, max, avg, stdev, count
+
   (where {:first "john"
           :last [like "doe"]
           :date_joined [<= (sqlfn now)]})
       ;; You can use an abritrary sql function by calling        使用 sql 函数
       ;; (sqlfn fn-name & params)
+
   (join email (= :email.users_id :id)
       ;; You can do joins manually)        手工关联
   (where {:email.id [in (subselect email
@@ -243,9 +267,11 @@ select queries
   (having {:cnt [> 3]})
       ;; You can use having clauses with the same syntax used
       ;; by where clauses.
+
   (limit 3)
   (offset 3))
 
+====
 ;;You can also compose select queries over time:
 ;; 组合查询语句
 
@@ -281,20 +307,27 @@ Subselects work just like a select clause does, but they can be embedded anywher
 
 Joins allow you to manually control how related tables a brought together by taking a standard where predicate. 
 
+join允许你用where来控制实体间的关联关系。
+
 Group and order clauses will be evaluated in the order they're added to the query. 
 
 The default ordering direction is ASC.
 
 ====
+where子句
+
 ;; Let's look at where clauses with a little more depth:
 ;; And everything that you can do with (where), you can
 ;; also do with (having)
 ;; To use (having) you need a (group) clause of course.
+
+任何where子句能做的，having子句也能做。
+
 (-> (select* users)
     (where {:first "john"
             :last "doe"})
-    (as-sql)) ;; we use (as-sql) to see the string of SQL       返回产生的sql语句
-              ;; that will be run. To run this you can
+    (as-sql)) ;; we use (as-sql) to see the string of SQL       用as-sql来得到产生的sql语句
+              ;; that will be run. To run this you can        用 exec 或 select 来执行查询
               ;; replace (as-sql) by (exec) or (select)
 
 ;; Is the same as:
@@ -350,7 +383,7 @@ The examples here use the (where) clause, but it's the same for the (having) cla
 
 (select users
  (fields :first)
- (with email
+ (with email        ;; hxzon重要：指定关联对象的where条件，和字段
    (fields :email) ;; the context is now email.*
    (where {:email [like "%_test%"]})))
 
@@ -358,7 +391,7 @@ The examples here use the (where) clause, but it's the same for the (having) cla
   (fields :first)
   (where {:last [like "doe"]})
   (with address
-    (with state (fields :state)) ;; you can nest withs
+    (with state (fields :state)) ;; you can nest withs        ;; hxzon重要：嵌套关联。
     (fields :city :zip :address1 :address2)))
 
 
@@ -366,11 +399,15 @@ With clauses act almost like selects,
 in that they can actually be further refined using all the standard functions you would use in a select. 
 This allows for a great deal of flexibility when describing your relations.
 
+with子句和select子句很相似。
+
 ========
 set operations
 集操作
 
 ;; Using set operations
+
+;; 并集，去除重复
 (union 
   (queries (subselect users
              (where {:id 7}))
@@ -393,6 +430,7 @@ set operations
     (exec))
 ;; Same result as above
 
+;; 并集，不去除重复
 (union-all
   (queries (subselect users
              (where {:id 7}))
@@ -404,6 +442,7 @@ set operations
 ;; union-all do not remove duplicates.
 ;; You can compose union-all with (union-all*)
 
+;; 交集
 (intersect
   (queries (subselect users
              (where {:id [in [1 7]]}))
@@ -418,254 +457,7 @@ set operations
 Set operations include union, union-all and intersect operations. 
 You can use the (queries) function to add groups of queries to the operation.
 You can't use (select) inside (queries), you have to use the (subselect) macro.
-不能在(queries)中使用(select)，必须使用 (subselect) 。
 
-========
-update queries
-更新语句
-
-(update users
-  (set-fields {:status "active"
-               :beta false})
-  (where {:visits [> 10]}))
-
-;; You can also compose updates over time:
-(def base (-> (update* users)
-              (set-fields {:status "active"})))
-
-(-> base
-    (set-fields {:beta false})
-    (where {:visits [> 10]})
-    (update))
-;; Does the same thing 
-
-Update queries use the (set-fields) function to specifiy the fields to be updated. 
-Multiple calls to set-fields will be merged together, allowing you to build the update over time. 
-Updates also allow where clauses as you would expect.
-
-可以有多个 (set-fields) 子句，它们会被合并。
-
-========
-insert queries
-插入语句
-
-;; You can insert a single value:
-(insert users
-  (values {:first "john" :last "doe"}))
-
-;; or a collection of several:
-(insert users
-  (values [{:first "john" :last "doe"}
-           {:first "jane" :last "doe"}]))
-
-;; You can also compose inserts:
-;; 可以组合插入语句
-(def base (-> (insert* users)
-            (values {:first "john" :last "doe"})))
-
-(-> base
-  (values {:first "jane" :last "doe"})
-  (insert))
-;; Same thing as the collection insert
-
-
-Insert queries use the function (values) to add records. 
-It takes either a single map or a collection of maps and returns the id of the first inserted record.
-用单个映射，或映射的集合来表示要插入的记录。
-然后返回插入的第一条记录的 id 。
-
-========
-delete queries
-删除语句
-
-(delete users
-  (where {:visits [< 3]})) 
-
-;;You can also compose deletes:
-(def base (-> (delete* users)
-            (where {:visits [< 3]})))
-
-(-> base
-  (where {:status [not= "active"]})
-  (delete))
-
-Delete queries only allow where clauses 
-and not including one will cause all records for the given entity to be deleted. 
-The result of a delete is the id of the first record deleted.
-
-返回第一条被删除的记录的 id 。
-
-========
-misc
-杂项
-
-;; you can get a string of the SQL instead of executing
-;; by using the sql-only mode
-;; 获得生成的 sql 语句
-
-(sql-only
-  (select users))
-
-;; => "SELECT * FROM users"
-
-;; You can print a string of the sql, with the params and
-;; return fake results by using the dry-run mode
-;; 可以打印一条带参数的 sql 语句，并返回伪造的查询结果
-
-(dry-run
-  (select users
-    (where {:age [> 5]})))
-
-;; dry run :: SELECT * FROM users WHERE (user.age > ?) :: [5]
-;; => [{:id 1}]
-
-
-By default, when exec is called, it simply generates the SQL string and params necessary for your query 
-and sends those to your database. 
-Sometimes, however, what you really want is to just generate the string, 
-or even do a dry run where you see the SQL printed to the console. 
-As such, korma includes a couple of other execution modes that allow you to do exactly that. 
-These also apply to queries that are composed over time and then executed using the (exec) function.
-
-====
-;;transaction, rollback, and is-rollback? are in korma.db
-;; 事务，事务回滚，检查事务是否回滚
-
-(transaction
-  (insert users
-    (values {:first "cool"}))
-  (insert address
-    (values {:address1 "cool"})))
-
-(transaction
-  (if-not (valid?)
-    (rollback)    ;; 回滚
-    (do-complicated-query))
-  (when-not (is-rollback?)    ;; 检查是否回滚
-    (println "success!")))
-
-You can do transactions in Korma simply by using the (transaction) macro, 
-which ensures that all queries executed within it are part of a single transaction. 
-You can then use the (rollback) function to force the transaction to rollback if necessary.
-
-(select users
-  (fields :id :first (raw "users.last"))
-  (where {:first [like "%_test5"]}))
-
-====
-;;Or when all else fails, you can simply use exec raw
-(exec-raw ["SELECT * FROM users WHERE age > ?" [5]] :results) 
-
-You may find yourself in need of functionality that Korma doesn't have. 
-Luckily, there are a couple of facilities that help you here: 
-(raw) which injects a string into a query 
-and (exec-raw) which allows you to write a parameterized query directly.
-
-(raw) 允许你插入一个字符串到查询中，
-(exec-raw) 允许你直接执行一个参数化的语句（字符串）。
-
-========
-http://korma.github.io/Korma/
-Korma 0.4.0 API documentation
-Tasty SQL for Clojure
-
-==
-korma.config
-
-Public variables and functions:
-set-delimiters
-set-naming
-
-==
-korma.core
-Core querying and entity functions
-
-Public variables and functions:
-aggregate
-as-sql
-belongs-to
-create-entity
-database
-defentity
-delete
-delete*
-dry-run
-entity-fields
-exec
-exec-raw
-fields
-from
-group
-has-many
-has-one
-having
-having*
-insert
-insert*
-intersect
-intersect*
-join
-limit
-many-to-many
-modifier
-offset
-order
-pk
-post-query
-prepare
-queries
-query-only
-raw
-select
-select*
-set-fields
-sql-only
-sqlfn
-sqlfn*
-subselect
-table
-transform
-union
-union*
-union-all
-union-all*
-update
-update*
-values
-where
-where*
-with
-with-batch
-
-==
-korma.db
-Functions for creating and managing database specifications.
-
-Public variables and functions:
-connection-pool
-create-db
-default-connection
-defdb
-delay-pool
-firebird
-get-connection
-h2
-is-rollback?
-msaccess
-mssql
-mysql
-odbc
-oracle
-postgres
-rollback
-sqlite3
-transaction
-vertica
-with-db
-
-==
-korma.mysql
-
-Public variables and functions:
-count
+可以使用 (queries) 来增加子查询。
+不能在 (queries) 中使用 (select) ，必须使用 (subselect) 。
 
