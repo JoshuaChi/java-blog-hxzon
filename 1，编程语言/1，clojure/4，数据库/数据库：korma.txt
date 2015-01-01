@@ -228,6 +228,21 @@ you have to define them in the entity.
 select queries
 查询
 
+====
+hxzon帮助理解：
+
+(defn- make-query-then-exec [query-fn-var body & args]
+  `(let [query# (-> (~query-fn-var ~@args)
+                    ~@body)]
+     (exec query#)))
+
+所以
+(select user
+        (fields :name :email)
+        (where {:id 2}))
+实际上等价于：(where (fields (select user) :name :email) {:id 2})
+
+====
 (select users
  (with address))
 ;; SELECT address.street, address.city, address.zip FROM users LEFT JOIN address ON users.id = address.users_id
@@ -271,6 +286,21 @@ select queries
   (limit 3)
   (offset 3))
 
+hxzon：
+;; 注意，posts 是多对多关联，是用另外的语句完成。
+
+;; SELECT DISTINCT "users"."first", "users"."last", "address".*, 
+;; "users"."first" AS "firstname", "users"."last", "address"."zip", 
+;; COUNT("users".*) AS "cnt" 
+;; FROM ("users" LEFT JOIN "address" ON "address"."users_id" = "users"."id") 
+;; LEFT JOIN "email" ON "email"."users_id" = "users"."id" 
+;; WHERE ("users"."date_joined" <= NOW() AND "users"."first" = ? AND "users"."last" LIKE ?) 
+;; AND ("email"."id" IN (SELECT "email"."id" FROM "email" WHERE ("email"."sent" = ?))) 
+;; GROUP BY "users"."status", "users"."status" 
+;; HAVING ("cnt" > ?) 
+;; ORDER BY "users"."id" ASC LIMIT 3 OFFSET 3
+
+
 ====
 ;;You can also compose select queries over time:
 ;; 组合查询语句
@@ -280,7 +310,7 @@ select queries
               (order :created)))
 
 (-> base
-    (with :email)
+    (with email)    ;; hxzon修正，原文为 (with :email)
     (where (> :visits 20))
     (select))
 

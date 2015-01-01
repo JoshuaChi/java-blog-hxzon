@@ -152,7 +152,7 @@ You can then use the (rollback) function to force the transaction to rollback if
 
 ====
 (select users
-  (fields :id :first (raw "users.last"))
+  (fields :id :first (raw "users.last"))    ;; 使用 raw 直接插入字符串
   (where {:first [like "%_test5"]}))
 
 ;;Or when all else fails, you can simply use exec raw

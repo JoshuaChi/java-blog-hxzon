@@ -11,6 +11,7 @@
             [korma.sql.utils :as utils])
   (:use [korma.sql.engine :only [bind-query]]))
 
+;; 动态变量：“执行模式”
 (def ^{:dynamic true} *exec-mode* false)
 (declare get-rel)
 
@@ -31,6 +32,8 @@
      :options opts
      :alias alias}))
 
+;; select* 等函数，返回一个映射：ent
+;; 等函数，则返回一个映射：m（转为与ent同类型）
 (defmacro ^{:private true} make-query [ent m]
   `(let [ent# ~ent]
      (if (:type ent#)
@@ -42,6 +45,7 @@
   "Create a select query with fields provided in Ent.  If fields are not provided,
   create an empty select query. Ent can either be an entity defined by defentity,
   or a string of the table name"
+;; ent可以是实体，也可以是表名（字符串）
   [ent]
   (let [default-fields (not-empty (:fields ent))]
     (make-query ent {:type :select
@@ -108,11 +112,13 @@
 ;; Query macros
 ;;*****************************************************
 
+;; hxzon注意
 (defn- make-query-then-exec [query-fn-var body & args]
   `(let [query# (-> (~query-fn-var ~@args)
                     ~@body)]
      (exec query#)))
 
+;; 实际结构：(where (fields (select user) :name :email) {:id 2})
 (defmacro select
   "Creates a select query, applies any modifying functions in the body and then
   executes it. `ent` is either a string or an entity created by defentity.
@@ -461,7 +467,7 @@
 
 (defn- apply-prepares
   [query]
-  (if-let [preps (-> query :ent :prepares seq)]
+  (if-let [preps (-> query :ent :prepares seq)];; 函数，保存数据之前的修正
     (let [prep-fn (apply comp preps)]
       (case (:type query)
         :insert (update-in query [:values] #(map prep-fn %))
@@ -469,12 +475,14 @@
         query))
     query))
 
+;; hxzon 核心
 (defn exec
   "Execute a query map and return the results."
   [query]
-  (let [query (apply-prepares query)
-        query (bind-query query (eng/->sql query))
-        sql (:sql-str query)
+  (let [query (apply-prepares query);; 应用prepares函数，用于在保存数据之前对数据做修正（insert和update语句）
+        query (bind-query query (eng/->sql query))    ;; 查询对象
+        ;; bind-query 从query 中获取信息，设置动态环境
+        sql (:sql-str query)    ;; 生成的sql语句
         params (:params query)]
     (cond
      (:sql query) sql
@@ -517,7 +525,7 @@
 (defn create-entity
   "Create an entity representing a table in a database."
   [table]
-  ^{:type ::Entity}
+  ^{:type ::Entity}    ;; 用“type元数据”标记实体
   {:table table
    :name table
    :pk :id
