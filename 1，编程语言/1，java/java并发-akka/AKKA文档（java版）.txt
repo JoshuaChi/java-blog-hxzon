@@ -1,0 +1,52 @@
+﻿AKKA文档（java版）
+http://ifeve.com/akka-doc-java/
+
+目前我正在翻译AKKA官网文档。翻译：吴京润
+
+译者注：本人正在翻译AKKA官网文档，本篇是文档第一章，欢迎有兴趣的同学加入一起翻译。更多内容请读这里：https://tower.im/projects/ac49db18a6a24ae4b340a5fa22d930dc/lists/ded96c34f7ce4a6bb8b5473f596e1008/show/   https://tower.im/projects/ac49db18a6a24ae4b340a5fa22d930dc/todos/640e53d6e8c149ab95c47cd333b91073/
+
+这是文档目录
+
+
+1.    介绍
+
+1.1    什么是AKKA？
+
+1.2    为什么选择AKKA？
+
+1.3    AKKA入门
+
+1.4    hello world
+
+1.5    用例与部署场景
+
+       1.6    akka的用例示例
+
+2.   综述
+
+       2.1   术语，概念
+
+       2.2   角色系统
+
+       2.3   什么是角色
+
+       2.4   监管和监测
+
+       2.5   角色的引用、路径和地址
+
+       2.6 位置透明性
+
+       2.7 Akka与Java内存模型的关系
+
+       2.8 消息传递的可靠性
+
+       2.9 配置
+
+3.  角色
+
+       3.1 角色
+
+       3.2 类型化的角色
+
+原创文章，转载请注明： 转载自并发编程网 – ifeve.com
+

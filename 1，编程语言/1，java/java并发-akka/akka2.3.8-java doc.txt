@@ -1,0 +1,101 @@
+﻿akka2.3.8-java doc
+http://doc.akka.io/docs/akka/2.3.8/java.html?_ga=1.256293195.171293568.1420116366
+
+========
+Java Documentation
+
+1，Introduction
+1.1，What is Akka?
+1.2，Why Akka?
+1.3，Getting Started
+1.4，The Obligatory Hello World
+1.5，Use-case and Deployment Scenarios
+1.6，Examples of use-cases for Akka
+
+2，General
+2.1，Terminology, Concepts
+2.2，Actor Systems
+2.3，What is an Actor?
+2.4，Supervision and Monitoring
+2.5，Actor References, Paths and Addresses
+2.6，Location Transparency
+2.7，Akka and the Java Memory Model
+2.8，Message Delivery Reliability
+2.9，Configuration
+
+
+3，Actors
+3.1，Actors
+3.2，Typed Actors
+3.3，Fault Tolerance
+3.4，Dispatchers
+3.5，Mailboxes
+3.6，Routing
+3.7，Building Finite State Machine Actors
+3.8，Persistence
+3.9，Testing Actor Systems
+
+4，Actors (Java with Lambda Support)
+Actors (Java with Lambda Support)
+Fault Tolerance (Java with Lambda Support)
+FSM (Java with Lambda Support)
+
+5，Persistence (Java with Lambda Support)
+Futures and Agents
+Futures
+Agents
+
+6，Networking
+Cluster Specification
+Cluster Usage
+Remoting
+Serialization
+I/O
+Using TCP
+Using UDP
+ZeroMQ
+Camel
+
+7，Utilities
+Event Bus
+Logging
+Scheduler
+Duration
+Circuit Breaker
+Akka Extensions
+Microkernel
+
+8，HowTo: Common Patterns
+Scheduling Periodic Messages
+Single-Use Actor Trees with High-Level Error Reporting
+Template Pattern
+
+9，Experimental Modules
+Persistence
+Multi Node Testing
+Actors (Java with Lambda Support)
+FSM (Java with Lambda Support)
+External Contributions
+
+10，Information for Akka Developers
+Building Akka
+Multi JVM Testing
+I/O Layer Design
+Developer Guidelines
+Documentation Guidelines
+Team
+
+11，Project Information
+Migration Guides
+Issue Tracking
+Licenses
+Sponsors
+Project
+
+12，Additional Information
+Frequently Asked Questions
+Books
+Other Language Bindings
+Akka in OSGi
+Incomplete List of HTTP Frameworks
+
