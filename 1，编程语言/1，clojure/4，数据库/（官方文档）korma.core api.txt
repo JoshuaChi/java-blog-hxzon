@@ -1,0 +1,614 @@
+﻿（官方文档）korma.core api
+
+http://korma.github.io/Korma/korma.core.html
+注释by hxzon
+========
+korma.core documentation
+Core querying and entity functions
+
+====
+aggregate
+
+macro
+(aggregate query agg alias & [group-by])
+
+Use a SQL aggregator function, aliasing the results, and optionally grouping by
+a field:
+
+聚合函数，为结果集指定别名，以及指定分组字段（可选）。
+
+(select users
+  (aggregate (count :*) :cnt :status))
+
+Aggregates available: count, sum, avg, min, max, first, last
+
+====
+as-sql
+
+(as-sql query)
+Force a query to return a string of SQL when (exec) is called.
+
+返回生成的sql字符串。
+
+====
+belongs-to
+
+macro
+(belongs-to ent sub-ent & [opts])
+
+Add a belongs-to relationship for the given entity. It is assumed that the foreign key
+is on the current entity with the format sub-ent-table_id: email.user_id = user.id.
+Can optionally pass a map with a :fk key to explicitly set the foreign key.
+
+(belongs-to users email {:fk :emailID})
+
+本实体需持有一个外键字段。可以用 :fk 指定外键字段名。
+
+====
+create-entity
+
+(create-entity table)
+
+Create an entity representing a table in a database.
+
+====
+database
+
+(database ent db)
+
+Set the database connection to be used for this entity.
+设置实体的数据库。
+
+====
+defentity
+
+macro
+(defentity ent & body)
+
+Define an entity representing a table in the database, applying any modifications in
+the body.
+
+====
+delete
+
+macro
+(delete ent & body)
+
+Creates a delete query, applies any modifying functions in the body and then
+executes it. `ent` is either a string or an entity created by defentity.
+
+ex: (delete user
+      (where {:id 7}))
+
+====
+delete*
+
+(delete* ent)
+
+Create an empty delete query. Ent can either be an entity defined by defentity,
+or a string of the table name
+
+====
+dry-run
+
+macro
+(dry-run & body)
+
+Wrap around a set of queries to print to the console all SQL that would
+be run and return dummy values instead of executing them.
+
+打印生成的sql语句，并返回一个伪造的结果集。
+
+====
+entity-fields
+
+(entity-fields ent & fields)
+
+Set the fields to be retrieved by default in select queries for the
+entity.
+设置实体默认返回的字段。
+
+====
+exec
+
+(exec query)
+
+Execute a query map and return the results.
+
+====
+exec-raw
+
+(exec-raw conn? & [sql with-results?])
+
+Execute a raw SQL string, supplying whether results should be returned. `sql`
+can either be a string or a vector of the sql string and its params. You can
+also optionally provide the connection to execute against as the first
+parameter.
+
+(exec-raw ["SELECT * FROM users WHERE age > ?" [5]] :results)
+
+字符串，参数向量。
+
+====
+fields
+
+(fields query & vs)
+
+Set the fields to be selected in a query. Fields can either be a keyword
+or a vector of two keywords [field alias]:
+
+(fields query :name [:firstname :first])
+
+设置select子句的查询字段，以及字段别名。
+
+====
+from
+
+(from query table)
+
+Add tables to the from clause.
+
+====
+group
+
+(group query & fields)
+
+Add a group-by clause to a select query
+
+====
+has-many
+
+macro
+(has-many ent sub-ent & [opts])
+
+Add a has-many relation for the given entity. It is assumed that the foreign key
+is on the sub-entity with the format table_id: user.id = email.user_id
+Can optionally pass a map with a :fk key to explicitly set the foreign key.
+
+(has-many users email {:fk :emailID})
+
+====
+has-one
+
+macro
+(has-one ent sub-ent & [opts])
+
+Add a has-one relationship for the given entity. It is assumed that the foreign key
+is on the sub-entity with the format table_id: user.id = address.user_id
+Can optionally pass a map with a :fk key to explicitly set the foreign key.
+
+(has-one users address {:fk :addressID})
+
+====
+having
+
+macro
+(having query form)
+
+Add a having clause to the query, expressing the clause in clojure expressions
+with keywords used to reference fields.
+e.g. (having query (or (= :hits 1) (> :hits 5)))
+
+Available predicates: and, or, =, not=, <, >, <=, >=, in, like, not, between
+
+Having can also take a map at any point and will create a clause that compares
+keys to values. The value can be a vector with one of the above predicate
+functions describing how the key is related to the value:
+  (having query {:name [like "chris"})
+
+Having only works if you have an aggregation, using it without one will cause
+an error.
+
+having必须和聚集函数一起使用。
+
+====
+having*
+
+(having* query clause)
+
+Add a having clause to the query. Clause can be either a map or a string, and
+will be AND'ed to the other clauses.
+
+====
+insert
+
+macro
+(insert ent & body)
+
+Creates an insert query, applies any modifying functions in the body and then
+executes it. `ent` is either a string or an entity created by defentity. Inserts
+return the last inserted id.
+
+返回最后插入的 id 。
+
+ex: (insert user
+      (values [{:name "chris"} {:name "john"}]))
+
+====
+insert*
+
+(insert* ent)
+
+Create an empty insert query. Ent can either be an entity defined by defentity,
+or a string of the table name
+
+====
+intersect
+
+macro
+(intersect & body)
+
+Creates an intersect query, applies any modifying functions in the body and then
+executes it.
+
+ex: (intersect
+      (queries (subselect user
+                 (where {:id 7}))
+               (subselect user-backup
+                 (where {:id 8})))
+      (order :name))
+
+====
+intersect*
+
+(intersect*)
+
+Create an empty intersect query.
+
+====
+join
+
+macro
+(join query ent)
+(join query type ent)
+(join query table clause)
+(join query type table clause)
+
+Add a join clause to a select query, specifying an entity defined by defentity, or the table name to
+join and the predicate to join on. If the entity relationship uses a join
+table then two clauses will be added. Otherwise, only one clause
+will be added.
+
+(join query addresses)
+(join query :right addresses)
+(join query addresses (= :addres.users_id :users.id))
+(join query :right addresses (= :address.users_id :users.id))
+
+====
+limit
+
+(limit query v)
+Add a limit clause to a select query.
+
+====
+many-to-many
+
+macro
+(many-to-many ent sub-ent join-table & [opts])
+
+Add a many-to-many relation for the given entity.  It is assumed that a join
+table is used to implement the relationship and that the foreign keys are in
+the join table.
+
+hxzon补充：使用 :lfk 和 :rfk 来指定中间表的外键字段名。
+
+====
+modifier
+
+(modifier query & modifiers)
+
+Add a modifer to the beginning of a query:
+
+(select orders
+  (modifier "DISTINCT"))
+
+====
+offset
+
+(offset query v)
+
+Add an offset clause to a select query.
+
+====
+order
+
+(order query field & [dir])
+
+Add an ORDER BY clause to a select, union, union-all, or intersect query.
+field should be a keyword of the field name, dir is ASC by default.
+
+(order query :created :asc)
+
+====
+pk
+
+(pk ent pk)
+
+Set the primary key used for an entity. :id by default.
+
+设置主键字段名。
+
+====
+post-query
+
+(post-query query post)
+
+Add a function representing a query that should be executed for each result
+in a select. This is done lazily over the result set.
+
+对查询结果集中的每个记录，执行 post 函数。延迟执行。
+
+====
+prepare
+
+(prepare ent func)
+
+Add a function to be applied to records/values going into the database
+
+====
+queries
+
+(queries query & queries)
+
+Adds a group of queries to a union, union-all or intersect
+
+====
+query-only
+
+macro
+(query-only & body)
+
+Wrap around a set of queries to force them to return their query objects.
+
+====
+raw
+
+(raw s)
+
+Embed a raw string of SQL in a query. This is used when Korma doesn't
+provide some specific functionality you're looking for:
+
+(select users
+  (fields (raw "PERIOD(NOW(), NOW())")))
+
+直接插入字符串到 sql 语句中。
+
+====
+select
+
+macro
+(select ent & body)
+
+Creates a select query, applies any modifying functions in the body and then
+executes it. `ent` is either a string or an entity created by defentity.
+
+ex: (select user
+      (fields :name :email)
+      (where {:id 2}))
+
+====
+select*
+
+(select* ent)
+Create a select query with fields provided in Ent.  If fields are not provided,
+create an empty select query. Ent can either be an entity defined by defentity,
+or a string of the table name
+
+====
+set-fields
+
+(set-fields query fields-map)
+
+Set the fields and values for an update query.
+
+更新语句中的字段名和值。
+
+====
+sql-only
+
+macro
+(sql-only & body)
+
+Wrap around a set of queries so that instead of executing, each will return a
+string of the SQL that would be used.
+
+====
+sqlfn
+
+macro
+(sqlfn func & params)
+
+Call an arbitrary SQL function by providing func as a symbol or keyword
+and its params
+
+====
+sqlfn*
+
+(sqlfn* fn-name & params)
+
+Call an arbitrary SQL function by providing the name of the function
+and its params
+
+====
+subselect
+
+macro
+(subselect & parts)
+
+Create a subselect clause to be used in queries. This works exactly like
+(select ...) execept it will wrap the query in ( .. ) and make sure it can be
+used in any current query:
+
+(select users
+  (where {:id [in (subselect users2 (fields :id))]}))
+
+子查询语句。
+
+====
+table
+
+(table ent t & [alias])
+
+Set the name of the table and an optional alias to be used for the entity.
+By default the table is the name of entity's symbol.
+
+设置实体的表名，即表别名。
+
+====
+transform
+
+(transform ent func)
+
+Add a function to be applied to results coming from the database
+
+====
+union
+
+macro
+(union & body)
+
+Creates a union query, applies any modifying functions in the body and then
+executes it.
+
+ex: (union
+      (queries (subselect user
+                 (where {:id 7}))
+               (subselect user-backup
+                 (where {:id 7})))
+      (order :name))
+
+====
+union*
+
+(union*)
+
+Create an empty union query.
+
+====
+union-all
+
+macro
+(union-all & body)
+
+Creates a union-all query, applies any modifying functions in the body and then
+executes it.
+
+ex: (union-all
+      (queries (subselect user
+                 (where {:id 7}))
+               (subselect user-backup
+                 (where {:id 7})))
+      (order :name))
+
+====
+union-all*
+
+(union-all*)
+
+Create an empty union-all query.
+
+====
+update
+
+macro
+(update ent & body)
+
+Creates an update query, applies any modifying functions in the body and then
+executes it. `ent` is either a string or an entity created by defentity.
+Returns number of updated rows as provided by the JDBC driver.
+
+ex: (update user
+      (set-fields {:name "chris"})
+      (where {:id 4}))
+
+====
+update*
+
+(update* ent)
+
+Create an empty update query. Ent can either be an entity defined by defentity,
+or a string of the table name.
+
+====
+values
+
+(values query values)
+
+Add records to an insert clause. values can either be a vector of maps or a
+single map.
+
+(values query [{:name "john"} {:name "ed"}])
+
+插入语句中的字段名和值。
+
+====
+where
+
+macro
+(where query form)
+
+Add a where clause to the query, expressing the clause in clojure expressions
+with keywords used to reference fields.
+e.g. (where query (or (= :hits 1) (> :hits 5)))
+
+Available predicates: and, or, =, not=, <, >, <=, >=, in, like, not, between
+
+Where can also take a map at any point and will create a clause that compares keys
+to values. The value can be a vector with one of the above predicate functions
+describing how the key is related to the value:
+  (where query {:name [like "chris"]})
+
+====
+where*
+
+(where* query clause)
+
+Add a where clause to the query. Clause can be either a map or a string, and
+will be AND'ed to the other clauses.
+
+====
+with
+
+macro
+(with query ent & body)
+
+Add a related entity to the given select query. 
+
+If the entity has a relationship
+type of :belongs-to or :has-one, the requested fields will be returned directly in
+the result map. 
+
+If the entity is a :has-many, a second query will be executed lazily
+and a key of the entity name will be assoc'd with a vector of the results.
+
+(defentity email (entity-fields :email))
+(defentity user (has-many email))
+
+(select user
+  (with email) => [{:name "chris" :email [{email: "c@c.com"}]} ...
+
+With can also take a body that will further refine the relation:
+
+(select user
+   (with address
+      (with state)
+      (fields :address.city :state.state)
+      (where {:address.zip x})))
+
+====
+with-batch
+
+macro
+(with-batch query ent & body)
+
+Add a related entity. This behaves like `with`, except that, 
+
+for has-many
+relationships, it runs a single query to get relations of all fetched rows.
+This is faster than regular `with` but it doesn't support many of the
+additional options (order, limit, offset, group, having)
+
+和 with 类似，但它用单条语句获取所有关联数据。
+它更快，但不支持排序，分页，分组聚集。
+
+

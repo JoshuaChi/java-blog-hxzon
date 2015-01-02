@@ -9,6 +9,8 @@
 
 期望掌握的语言：clojure，go，js（nodejs）
 
+业务逻辑：clojure，java
+并发数据结构：clojure
 web业务系统：java zk
 网站：java tapestry，clojure ring
 移动应用：java Android

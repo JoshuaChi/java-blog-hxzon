@@ -1,0 +1,242 @@
+﻿（官方文档）korma.db korma.config korma.mysql api
+
+http://korma.github.io/Korma/korma.db.html
+注释by hxzon
+========
+korma.db documentation
+
+Functions for creating and managing database specifications.
+
+====
+connection-pool
+
+(connection-pool {:keys [subprotocol subname classname user password excess-timeout idle-timeout 
+minimum-pool-size maximum-pool-size test-connection-query 
+idle-connection-test-period test-connection-on-checkin test-connection-on-checkout], 
+:or {excess-timeout (* 30 60), idle-timeout (* 3 60 60), minimum-pool-size 3, maximum-pool-size 15, 
+test-connection-query nil, idle-connection-test-period 0, test-connection-on-checkin false, 
+test-connection-on-checkout false}, 
+:as spec})
+
+Create a connection pool for the given database spec.
+
+====
+create-db
+(create-db spec)
+
+Create a db connection object manually instead of using defdb. This is often
+useful for creating connections dynamically, and probably should be followed
+up with:
+
+(default-connection my-new-conn)
+
+If the spec includes `:make-pool? true` makes a connection pool from the spec.
+
+如果指定了参数，将创建一个连接池。
+
+====
+default-connection
+(default-connection conn)
+
+Set the database connection that Korma should use by default when no
+alternative is specified.
+
+将conn指定了默认数据库连接。
+
+====
+defdb
+
+macro
+(defdb db-name spec)
+
+Define a database specification. The last evaluated defdb will be used by
+default for all queries where no database is specified by the entity.
+
+当查询未指定db时，最后一次defdb的数据库，将作为默认数据库。
+
+====
+delay-pool
+(delay-pool spec)
+
+Return a delay for creating a connection pool for the given spec.
+
+====
+firebird
+
+(firebird {
+:keys [host port db make-pool? encoding], 
+:or {host "localhost", port 3050, db "", make-pool? true, encoding "UTF8"}, 
+:as opts})
+
+Create a database specification for a FirebirdSQL database. Opts should include
+keys for :db, :user, :password. 
+You can also optionally set host, port, make-pool? and encoding
+
+====
+get-connection
+(get-connection db)
+
+Get a connection from the potentially delayed connection object.
+
+====
+h2
+
+(h2 {:keys [db make-pool?], :or {db "h2.db", make-pool? true}, :as opts})
+
+Create a database specification for a h2 database. Opts should include a key
+for :db which is the path to the database file.
+
+====
+is-rollback?
+
+(is-rollback?)
+
+Returns true if the current transaction will be rolled back
+
+====
+msaccess
+
+(msaccess {:keys [db make-pool?], :or {db "", make-pool? false}, :as opts})
+
+Create a database specification for a Microsoft Access database. Opts
+should include keys for :db and optionally :make-pool?.
+
+====
+mssql
+
+(mssql {
+:keys [user password db host port make-pool?], 
+:or {user "dbuser", password "dbpassword", db "", host "localhost", port 1433, make-pool? true}, 
+:as opts})
+
+Create a database specification for a mssql database. Opts should include keys
+for :db, :user, and :password. You can also optionally set host and port.
+
+====
+mysql
+
+(mysql {:keys [host port db make-pool?], :or {host "localhost", port 3306, db "", make-pool? true}, :as opts})
+
+Create a database specification for a mysql database. Opts should include keys
+for :db, :user, and :password. You can also optionally set host and port.
+Delimiters are automatically set to "`".
+
+字段名自动使用反引号。（hxzon注意）
+
+====
+odbc
+
+(odbc {:keys [dsn make-pool?], :or {dsn "", make-pool? true}, :as opts})
+
+Create a database specification for an ODBC DSN. Opts
+should include keys for :dsn and optionally :make-pool?.
+
+====
+oracle
+
+(oracle {:keys [host port make-pool?], :or {host "localhost", port 1521, make-pool? true}, :as opts})
+
+Create a database specification for an Oracle database. Opts should include keys
+for :user and :password. You can also optionally set host and port.
+
+====
+postgres
+
+(postgres {
+:keys [host port db make-pool?], 
+:or {host "localhost", port 5432, db "", make-pool? true}, 
+:as opts})
+
+Create a database specification for a postgres database. Opts should include
+keys for :db, :user, and :password. You can also optionally set host and
+port.
+
+====
+rollback
+回滚事务
+
+(rollback)
+
+Tell this current transaction to rollback.
+
+====
+sqlite3
+
+(sqlite3 {:keys [db make-pool?], :or {db "sqlite.db", make-pool? true}, :as opts})
+
+Create a database specification for a SQLite3 database. Opts should include a
+key for :db which is the path to the database file.
+
+====
+transaction
+
+macro
+(transaction body)
+(transaction options & body)
+
+Execute all queries within the body in a single transaction.
+Optionally takes as a first argument a map to specify 
+the :isolation and :read-only? properties of the transaction.
+
+选项用于设置“事务的隔离级别”，“是否只读”参数。
+
+====
+vertica
+
+(vertica {:keys [host port db make-pool?], :or {host "localhost", port 5433, db "", make-pool? true}, :as opts})
+
+Create a database specification for a vertica database. Opts should include keys
+for :db, :user, and :password. You can also optionally set host and port.
+Delimiters are automatically set to "`".
+
+====
+with-db
+
+macro
+(with-db db & body)
+
+Execute all queries within the body using the given db spec
+
+
+========
+========
+korma.config documentation
+
+====
+set-delimiters
+
+(set-delimiters & cs)
+
+Set the global default for field delimiters in connections. Delimiters can
+either be a string or a vector of the start and end:
+
+字段名的前后符号，例如mysql中可用反引号。
+
+(set-delimiters "`")
+(set-delimiters ["[" "]"])
+
+====
+set-naming
+
+(set-naming strategy)
+
+Set the naming strategy to use. The strategy should be a map with transforms
+to be applied to field names (:fields) and the keys for generated maps (:keys)
+e.g:
+
+(set-naming {:keys string/lower-case :fields string/upper-case})
+
+调整“返回结果中的键名”，以及“查询语句中的字段名”。
+
+========
+========
+korma.mysql documentation
+
+====
+count
+
+(count _query_ v)
+
+On MySQL, when an argument for COUNT() is a '*',
+it must be a simple '*', instead of 'fieldname.*'.
+
