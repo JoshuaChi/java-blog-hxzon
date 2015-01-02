@@ -148,7 +148,7 @@ entities
   (belongs-to account)
       ;; assumes users.account_id = account.id    多对一
 
-  (many-to-many posts :users_posts))
+  (many-to-many posts :users_posts))        ;; hxzon补充：使用 lfk ，rfk 指定外键
       ;; assumes a table users_posts with columns users_id    多对多，通过中间表，使用“1+n”次查询
       ;; and posts_id
       ;; like has-many, also gets the results in a second
@@ -170,7 +170,7 @@ entities
 (defentity address
   (pk :my_pk) ;; sets the primary key to "my_pk"
   (belongs-to users)
-  (belongs-to state {:fk :id_state}))        ;; 外键
+  (belongs-to state {:fk :id_state}))        ;; 指定外键
       ;; you can optionally specify the foreign key
       ;; assumes state.id = address.id_state
 
@@ -300,6 +300,9 @@ hxzon：
 ;; HAVING ("cnt" > ?) 
 ;; ORDER BY "users"."id" ASC LIMIT 3 OFFSET 3
 
+hxzon补充：
+对于“一对一”和“多对一”，会平铺，
+对于“一对多”和“多对多”，含有一个列表字段，例如 :posts ({},{}) 。
 
 ====
 ;;You can also compose select queries over time:

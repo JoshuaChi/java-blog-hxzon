@@ -50,16 +50,19 @@ Property expressions are compiled to Java classes at runtime;
 there is no runtime reflection (unlike the OGNL expression language used in prior releases of Tapestry).
 属性表达式在运行时是编译成java类，所以没有运行时反射。
 
-----
+====
 Grammar，语法。
 
 Expressed in simplified Backus–Naur Form, the grammar of property expressions is as follows:
 
 expression : keyword | rangeOp | constant | propertyChain | list | notOp | map;
+表达式
 
 keyword : 'null' | 'this';
+关键字
 
 constant : 'true' | 'false' | <integer> | <decimal> | <string>;
+常量
 
 rangeOp :  rangeOpArg '..' rangeOpArg;
 
@@ -68,17 +71,21 @@ rangeOpArg : <integer> | propertyChain;
 propertyChain : term '.' propertyChain
               | term '?.' propertyChain
               | term;
+属性链
 
 term :   <identifier>
      |   <identifier> '(' expressionList? ')';
 
 list : '[' expressionList? ']';
+列表
 
 expressionList : expression (',' expression)*;
+多个表达式
 
 notOpt : '!' expression;
+取反
 
---
+==
 映射：
 
 map : '{' '}'
@@ -201,6 +208,7 @@ List
 
 --
 Not Operator
+取反
 
 ! user.deleted
 

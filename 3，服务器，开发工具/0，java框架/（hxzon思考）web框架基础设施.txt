@@ -2,6 +2,7 @@
 
 by hxzon
 
+========
 1，css，js框架
 
 2，css，js处理：压缩，合并，按需引入
@@ -32,9 +33,9 @@ by hxzon
 
 8，模板
 
-8.1，方便的动态生成html（缺点是不如模板直观）
+8.1，方便的动态生成html（缺点是不如模板直观）（如 clojure hiccup）
 8.2，模板语言（如tml，Freemarker）
-8.3，模板+动态修改
+8.3，模板+动态修改（如 clojure enlive）
 
 ========
 9，集群

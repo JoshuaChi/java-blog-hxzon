@@ -77,6 +77,7 @@ defdb定义一个Korma能用的连接。
   (with country)
   (where {:first_name "Chas"}))
 ;= [{:id 1, :country_id 1, :first_name "Chas",:last_name "Emerick", :id_2 1, :country "USA"}]
+;; hxzon：平铺，最后两个键值对是 country 的字段。
 
 这里with表示包含一个关系，所以结果包含country键值对。
 
@@ -124,7 +125,8 @@ Korma把查询表示为简单的clojure映射，你可以对映射做操作，�
 查看query映射：
 
 {:group [],
- :from
+
+ :from        ;; hxzon：即 :from author
  [{:table "author",
    :name "author",
    :pk :id,
@@ -132,18 +134,20 @@ Korma把查询表示为简单的clojure映射，你可以对映射做操作，�
    :transforms (),
    :prepares (),
    :fields [],
-   :rel
+   :rel        ;; hxzon：与本实体有关联的其它实体
    {"country"
     #<Delay@54f690e4:
     {:table "country",
      :alias nil,
-     :rel-type :belongs-to,
+     :rel-type :belongs-to,        ;; hxzon：author 与 country 的关联关系，多对一
      :pk {:korma.sql.utils/generated "\"country\".\"id\""},
      :fk
      {:korma.sql.utils/generated "\"author\".\"country_id\""}}>}}],
+
  :joins [],
  :where [],
- :ent
+
+ :ent        ;; hxzon：即 :ent author
  {:table "author",
   :name "author",
   :pk :id,
@@ -159,11 +163,12 @@ Korma把查询表示为简单的clojure映射，你可以对映射做操作，�
     :rel-type :belongs-to,
     :pk {:korma.sql.utils/generated "\"country\".\"id\""},
     :fk {:korma.sql.utils/generated "\"author\".\"country_id\""}}>}},
+
  :limit 5,
- :type :select,
+ :type :select,        ;; hxzon：语句类型
  :alias nil,
  :options nil,
- :fields (:last_name :first_name),
+ :fields (:last_name :first_name),        ;; hxzon：要查询的字段
  :results :results,
  :table "author",
  :order [],
@@ -186,6 +191,7 @@ end
 
 ==
 (def employees (where (select* employees) {:type "employee"}))
+;; hxzon：即 (-> (select* employees) (where {:type "employee"}))
 
 ;; ... later ...
 (let [managers (-> employees
@@ -204,11 +210,11 @@ end
 (def humans (-> (select* humans)
               (order :date_of_birth)))
 
-(let [kings-of-germany (-> humans
+(let [kings-of-germany (-> humans        ;; hxzon：在这里进行第一次增量构建
                          (where {:country "Germany" :profession "King"}))]
   (doseq [start (range 0 100 10)
           k (select kings-of-germany
-              (offset start)
+              (offset start)        ;; hxzon：在这里进行第二次增量构建
               (limit 10))]
     ;...
     ))

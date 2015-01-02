@@ -9,6 +9,13 @@
 
 期望掌握的语言：clojure，go，js（nodejs）
 
+web业务系统：java zk
+网站：java tapestry，clojure ring
+移动应用：java Android
+桌面应用：？
+关系数据库：PostgreSQL，clojure korma，java hibernate
+搜索引擎：Elasticsearch
+
 ---------------
 编程语言：关注web后端开发方面。
 
