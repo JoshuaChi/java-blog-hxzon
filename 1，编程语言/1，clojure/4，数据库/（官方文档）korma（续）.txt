@@ -1,4 +1,4 @@
-﻿数据库：korma（续）
+﻿（官方文档）korma（续）
 
 注释by hxzon
 http://sqlkorma.com/docs

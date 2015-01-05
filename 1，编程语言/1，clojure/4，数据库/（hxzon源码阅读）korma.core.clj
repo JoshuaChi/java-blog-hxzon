@@ -208,17 +208,19 @@
       (assoc query :fields fs)
       (update-in query [:fields] utils/vconcat fs))))
 
+;; select字段
 (defn fields
   "Set the fields to be selected in a query. Fields can either be a keyword
   or a vector of two keywords [field alias]:
 
   (fields query :name [:firstname :first])"
   [query & vs]
-  (let [aliases (set (map second (filter vector? vs)))]
+  (let [aliases (set (map second (filter vector? vs)))];; 如果是向量，取出其中的第二个元素，即别名
     (-> query
         (update-in [:aliases] set/union aliases)
         (update-fields (vec vs)))))
 
+;; update语句的字段
 (defn set-fields
   "Set the fields and values for an update query."
   [query fields-map]
@@ -296,17 +298,20 @@
                                              [values]
                                              values)))
 
+;; ====
+;; join
+
 (defn join* [query type table clause]
   (update-in query [:joins] conj [type table clause]))
 
 (defn add-joins 
-  ([query ent rel]
+  ([query ent rel];; 默认左联接
      (add-joins query ent rel :left))
   ([query ent rel type]
      (if-let [join-table (:join-table rel)]
        (-> query
            (join* type join-table (sfns/pred-= (:lpk rel) @(:lfk rel)))
-           (join* type ent (sfns/pred-= @(:rfk rel) (:rpk rel))))
+           (join* type ent (sfns/pred-= @(:rfk rel) (:rpk rel))))    ;; 有中间表
        (join* query type ent (sfns/pred-= (:pk rel) (:fk rel))))))
 
 (defmacro join
@@ -557,11 +562,12 @@
      :fk (raw (eng/prefix child fk-key))
      :fk-key fk-key}))
 
+;; 外键，及外键所在实体
 (defn- db-keys-and-foreign-ent [type ent sub-ent opts]
   (case type
     :many-to-many        [(many-to-many-keys ent sub-ent opts) sub-ent]
     (:has-one :has-many) [(get-db-keys ent sub-ent) sub-ent]
-    :belongs-to          [(get-db-keys sub-ent ent) ent]))
+    :belongs-to          [(get-db-keys sub-ent ent) ent]))    ;; ”从属于“，外键在自己身上
 
 (defn create-relation [ent sub-ent type opts]
   (let [[db-keys foreign-ent] (db-keys-and-foreign-ent type ent sub-ent opts)
@@ -574,6 +580,7 @@
            db-keys
            fk-override)))
 
+;; 添加关联实体
 (defn rel [ent sub-ent type opts]
   (let [var-name (-> sub-ent meta :name)
         cur-ns *ns*]
@@ -594,15 +601,17 @@
 (defmacro has-one
   "Add a has-one relationship for the given entity. It is assumed that the foreign key
   is on the sub-entity with the format table_id: user.id = address.user_id
+外键在对方身上。
   Can optionally pass a map with a :fk key to explicitly set the foreign key.
 
-  (has-one users address {:fk :addressID})"
+  (has-one users address {:fk :addressID})"    ;; 外键有误，应为 userId
   [ent sub-ent & [opts]]
   `(rel ~ent (var ~sub-ent) :has-one ~opts))
 
 (defmacro belongs-to
   "Add a belongs-to relationship for the given entity. It is assumed that the foreign key
   is on the current entity with the format sub-ent-table_id: email.user_id = user.id.
+外键在本实体上。
   Can optionally pass a map with a :fk key to explicitly set the foreign key.
 
   (belongs-to users email {:fk :emailID})"

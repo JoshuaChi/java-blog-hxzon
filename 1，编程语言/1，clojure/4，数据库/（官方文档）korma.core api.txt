@@ -2,6 +2,12 @@
 
 http://korma.github.io/Korma/korma.core.html
 注释by hxzon
+
+其它相关：
+https://github.com/iPlantArchive/kameleon
+多对多的功能，”一对一“”多对一“内嵌实体（此两项功能已移植到korma，和 korma.incubator）
+组合主键
+
 ========
 korma.core documentation
 Core querying and entity functions
@@ -40,7 +46,7 @@ Add a belongs-to relationship for the given entity. It is assumed that the forei
 is on the current entity with the format sub-ent-table_id: email.user_id = user.id.
 Can optionally pass a map with a :fk key to explicitly set the foreign key.
 
-(belongs-to users email {:fk :emailID})
+(belongs-to users email {:fk :emailID})    ;; ”从属于“，外键在自己身上
 
 本实体需持有一个外键字段。可以用 :fk 指定外键字段名。
 
@@ -165,7 +171,9 @@ Add a has-many relation for the given entity. It is assumed that the foreign key
 is on the sub-entity with the format table_id: user.id = email.user_id
 Can optionally pass a map with a :fk key to explicitly set the foreign key.
 
-(has-many users email {:fk :emailID})
+(has-many users email {:fk :emailID})    ;; hxzon ：外键有误，应为 userId
+
+一对多，外键在对方表上。
 
 ====
 has-one
@@ -177,7 +185,9 @@ Add a has-one relationship for the given entity. It is assumed that the foreign 
 is on the sub-entity with the format table_id: user.id = address.user_id
 Can optionally pass a map with a :fk key to explicitly set the foreign key.
 
-(has-one users address {:fk :addressID})
+(has-one users address {:fk :addressID})    ;; hxzon ：外键有误，应为 userId
+
+一对一，外键在对方表上。
 
 ====
 having
@@ -259,18 +269,31 @@ Create an empty intersect query.
 join
 
 macro
+
 (join query ent)
 (join query type ent)
+
 (join query table clause)
 (join query type table clause)
 
+==
+hxzon补充：
+type：关联类型，例如 :left :right
+注意，on子句中，得使用表名或别名，而不是实体名。
+建议别名与实体名相同。
+
+==
 Add a join clause to a select query, specifying an entity defined by defentity, or the table name to
-join and the predicate to join on. If the entity relationship uses a join
+join and the predicate to join on. 
+
+If the entity relationship uses a join
 table then two clauses will be added. Otherwise, only one clause
 will be added.
+如果使用了中间表，会有两个联结子句，否则，只有一个联结子句。
 
 (join query addresses)
 (join query :right addresses)
+
 (join query addresses (= :addres.users_id :users.id))
 (join query :right addresses (= :address.users_id :users.id))
 
@@ -290,6 +313,7 @@ Add a many-to-many relation for the given entity.  It is assumed that a join
 table is used to implement the relationship and that the foreign keys are in
 the join table.
 
+多对多，两个外键在中间表上。
 hxzon补充：使用 :lfk 和 :rfk 来指定中间表的外键字段名。
 
 ====
@@ -578,8 +602,12 @@ If the entity has a relationship
 type of :belongs-to or :has-one, the requested fields will be returned directly in
 the result map. 
 
+如果是“一对一”“多对一”，关联对象的字段直接嵌入结果集。
+
 If the entity is a :has-many, a second query will be executed lazily
 and a key of the entity name will be assoc'd with a vector of the results.
+
+如果是“一对多”“多对多”，关联对象是一个向量，使用实体名字。
 
 (defentity email (entity-fields :email))
 (defentity user (has-many email))
