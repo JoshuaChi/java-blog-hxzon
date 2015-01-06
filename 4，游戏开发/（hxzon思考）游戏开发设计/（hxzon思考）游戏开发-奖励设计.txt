@@ -1,0 +1,76 @@
+﻿（hxzon思考）游戏开发-奖励设计
+
+by hxzon
+========
+1，奖励由“规则”列表描述，每个规则产生一个奖励。
+
+规则本身有“应用概率”，不满足该概率时，规则被跳过，从而不产生奖励。
+
+====
+2，规则分为若干类型，例如以下三种。
+
+2.1，规则一：固定物品
+
+指定物品id
+根据“数量概率”，产生物品数量
+根据“属性x概率”，产生属性x的值
+
+2.2，规则二：从某个列表中随机一项物品
+
+指定候选列表id
+从该候选列表中，随机一项物品
+根据“数量概率”，产生物品数量（默认，可以被“物品项”中的配置覆盖）
+根据“属性x概率”，产生属性x的值（默认，可以被“物品项”中的配置覆盖）
+
+
+2.3，规则三：指定某些条件，再从某个列表中随机一项“符合条件”的物品
+
+根据“条件y概率”，产生条件y的值
+指定候选列表id
+从该候选列表中，筛选出符合条件y的物品，随机一项物品
+根据“数量概率”，产生物品数量（默认，可以被“物品项”中的配置覆盖）
+根据“属性x概率”，产生属性x的值（默认，可以被“物品项”中的配置覆盖）
+
+
+====
+3，若干候选列表
+
+每个候选列表有一个id，可以被“规则二”或“规则三”引用。
+
+候选列表由“物品项”列表描述。
+
+“物品项”指定物品id
+“物品项”本身有“抽中概率”，根据该概率，抽中该物品项
+根据“数量概率”，产生物品数量
+根据“属性x概率”，产生属性x的值
+
+====
+<scene-prize type="list">
+	<rule type="struct">
+		<rule-type>
+		<rule-prob>
+		<rule-1-itemid>
+		<rule-1-numAndProbs>
+		<rule-1-xAndProbs>
+
+		<rule-2-candlistid>
+		<rule-2-numAndProbs>
+		<rule-2-xAndProbs>
+
+		<rule-3-candlistid>
+		<rule-3-numAndProbs>
+		<rule-3-xAndProbs>
+		<rule-3-cond-yAndProbs>
+
+<cand-list-list type="list">
+	<cand-list type="struct">
+		<cand-list-id>
+		<item-list type="list">
+			<item type="struct">
+				<itemid>
+				<item-prob>
+				<item-numAndProbs>
+				<item-xAndProbs>
+
+====
+
