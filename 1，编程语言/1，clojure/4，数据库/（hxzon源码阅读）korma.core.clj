@@ -558,11 +558,12 @@
 
 (defn- get-db-keys [parent child]
   (let [fk-key (default-fk-name parent)]
-    {:pk (raw (eng/prefix parent (:pk parent)))
+    {:pk (raw (eng/prefix parent (:pk parent)))    ;; 主键总是从 parent 实体上取
      :fk (raw (eng/prefix child fk-key))
      :fk-key fk-key}))
 
 ;; 外键，及外键所在实体
+;; opts 只用于多对多
 (defn- db-keys-and-foreign-ent [type ent sub-ent opts]
   (case type
     :many-to-many        [(many-to-many-keys ent sub-ent opts) sub-ent]
@@ -571,7 +572,7 @@
 
 (defn create-relation [ent sub-ent type opts]
   (let [[db-keys foreign-ent] (db-keys-and-foreign-ent type ent sub-ent opts)
-        fk-override (when-let [fk-key (:fk opts)]
+        fk-override (when-let [fk-key (:fk opts)]    ;; 在这里覆盖外键
                       {:fk (raw (eng/prefix foreign-ent fk-key))
                        :fk-key fk-key})]
     (merge {:table (:table sub-ent)

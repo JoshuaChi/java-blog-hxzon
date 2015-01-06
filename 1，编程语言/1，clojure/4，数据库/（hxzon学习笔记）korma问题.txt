@@ -1,0 +1,72 @@
+﻿（hxzon学习笔记）korma问题
+
+by hxzon
+========
+1，(select a (with b)) ，如果字段中未含有a的主键字段，则查不到对应的b数据。
+
+====
+2，两个实体间，多次关联，
+可以使用以下方式：
+
+(defmacro defentity-user [ent-name alias]
+         `(defentity ~ent-name
+            (pk :id)
+            (table :uzer ~alias)
+            (entity-fields :id :createtime :updatetime :inuse :password :realname
+                           :username :department :email)
+
+            (many-to-many role :uzer_role {:lfk :user_id})
+            )
+         )
+
+(defentity-user user :user)
+
+(defentity-user contract-auditor :auditor)
+(defentity-user contract-financial :financial)
+(defentity-user contract-production :production)
+
+(defentity contract
+  (pk :id)
+  (table :contract)
+  (entity-fields :id :createtime :updatetime :accountpaid :askdelete :askreset
+                 :auditorrealname :code :createrrealname :createrusername
+                 :filename :finacialrealname :invoicepaid
+                 :numunpassandunexamine :numunreceiving
+                 :numunreplyinvoice :numunreplypayment
+                 :productionrealname :receivingprice
+                 :remark :status :supplier :totalprice 
+                 :auditor_id :financial_id :production_id)
+  (belongs-to contract-auditor {:fk :auditor_id})
+  (belongs-to contract-financial {:fk :financial_id})
+  (belongs-to contract-production {:fk :production_id})
+  )
+
+注意要有不同的表别名，生成的sql查询语句中要用到。
+
+====
+3，临时使用不同的主键
+https://github.com/korma/Korma/issues/270 by hxzon
+
+(def material-2 (pk material :code))
+
+(defentity bom-material
+  (pk :id)
+  (table :bommaterial :bom-material)
+  (entity-fields :id :createtime :updatetime :code :comment
+                 :designator :footprint :quantity :stuffopt :value :voltage :bom_id)
+  (belongs-to bom {:fk :bom_id})
+  (belongs-to material-2 {:fk :code });; can't set :pk here
+  )
+
+这种方式行不通，因为名字不匹配，
+关联关系中用名字material-2，而material-2 的实体名其实仍为 material 。
+
+只能用上述2中的方式。
+
+====
+4，entity-fields 中的字段，会出现在查询语句中。（即，其实是 “default-fields”）
+
+====
+5，
+
+

@@ -1,0 +1,207 @@
+﻿（hxzon思考）游戏开发-动作、任务设计
+
+by hxzon
+========
+1，概念：
+
+动作：自动执行的操作
+注：当动作作为“任务内容”时，是非自动的。
+
+任务：玩家要执行的操作
+
+========
+2，动作
+
+动作id
+动作名称，动作描述
+
+实现类（用于特殊动作）
+
+====
+执行条件（当作为子动作时，还包括前一个动作的执行结果作为参数）
+
+执行时的提示语
+执行时提示语的npc头像
+
+不执行时的提示语
+不执行时提示语的npc头像
+
+操作目标
+
+====
+动作
+
+设置属性值：属性值列表
+更改属性值：属性值列表
+
+获得物品：物品列表（物品id，物品数量）
+移除物品：物品列表（物品id，物品数量）
+
+发送邮件：邮件
+
+获得技能：技能列表
+升级技能
+降级技能
+移除技能
+
+获得buff：buff列表
+移除buff
+
+添加或移除“可接受任务”：任务列表
+
+添加任务（忽视任务接受条件）
+提交任务（忽视任务提交条件）
+
+触发剧情：剧情id
+触发指引：指引id
+
+npc对话：对话列表
+
+更新场景中的出口：出口列表
+更新场景中的npc：npc列表
+
+
+====
+动作或目标
+
+寻人：npc（npcid）
+
+寻物（相当于收集并立即扣除）：物品列表（物品id，物品数量）
+
+收集物品：物品列表（物品id，物品数量）
+
+杀怪：怪物列表（怪物id，怪物数量）
+
+进入副本：副本（副本id）
+
+通关副本：副本列表（副本id，副本通关次数）
+
+子动作组合：子动作列表（动作id，是否必须完成）
+需完成的“非必须子目标”个数
+注：后两项仅适用于当动作作为“任务目标”时。
+
+--子动作之间的执行关系：失败时停止后续动作，成功时停止后续动作，独立
+--不需要，在“执行条件”中，加入“前一动作的执行结果”作为参数即可
+
+========
+3，任务
+
+3.1，基本设定
+
+任务id
+任务名称，任务描述
+
+--是否自动接受
+--不需要，场景“进入时动作”，可以给玩家添加任务
+--npc“访问时动作”，可以给玩家添加任务
+
+可提交时是否提醒玩家
+
+--可提交时是否自动提交
+--不需要，玩家在打副本，干扰玩家？如果不怕打扰，为何不总是自动提交？
+
+--是否自动执行（例如自动寻人，自动进入副本）
+--不需要，接受时动作列表总是自动执行，“自动寻人”，“自动进入副本”
+
+--接受任务时的对话：对话列表（对话内容，显示条件，说话人）
+--不需要，接受时动作列表，“npc说话”
+
+--提交任务时的对话
+--不需要，提交任务时动作列表，“npc说话”
+
+====
+3.2，任务接受条件
+
+
+====
+3.3，任务目标（任务内容），即“任务完成条件”
+
+目标列表（要完成的操作）（目标名称，目标描述，动作id）
+
+--子任务列表：
+--注：可以有单独的任务名称，可单独提交
+--不需要，可实现成：完成本任务时，自动接受下一任务
+
+====
+3.4，
+
+任务接受时的动作（动作id）
+任务提交时的动作（动作id）
+任务放弃时的动作（动作id）
+
+====
+3.6，备注
+
+在npc身上添加任务，玩家可到npc处接受任务
+注：npc“访问时动作”，“添加任务”，可实现玩家靠近npc时“自动接受任务”。
+
+--在场景中添加任务，玩家进入场景时“自动接受任务”
+--不需要，场景“进入时动作”，“添加任务”即可实现该功能。
+
+========
+<task>
+	<t_group> 分组显示
+	<name>
+	<desc>
+	<remark>
+	
+	<remind_submit>
+	<accept_cond>
+	<act_accept>
+	<act_submit>
+	<act_giveup>
+	
+	<targets type=list>
+		<name>
+		<desc>
+		<act_id>
+
+========
+<action>
+	<act_group> 分组显示
+	<name>
+	<desc>
+	<remark>
+	<clazz>
+	
+	<cond>
+	<tips_if_true>
+	<tips_img_if_true>
+	<tips_if_false>
+	<tips_img_if_false>
+	
+	<find_npc type=npc_id>
+	<enter_scene type=scene_id>
+	<find_items type=list>
+		<item_id>
+		<item_num>
+	<coll_items type=list>
+	<kill_mons type=list>
+		<mon_id>
+		<mon_num>
+	<pass_scenes type=list>
+		<scene_id>
+		<scene_pass_num>
+	
+	<opt_sub_act_num>
+	<sub_acts type=list>
+		<act_id>
+		<is_opt>
+	
+	<set_attrs type=list>
+	<mod_attrs type=list>
+	<remove_items type=list>
+	<add_items type=list>
+	<start_story>
+	<start_guide>
+	<send_mails type=list>
+		<mail_id>
+	
+	<remove_skills type=list>
+	<degrade_skills type=list>
+	<add_skills type=list>
+	<upgrade_skills type=list>
+	
+	<remove_buffs type=list>
+	<add_buffs type=list>
+
