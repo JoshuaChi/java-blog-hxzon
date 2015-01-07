@@ -1,0 +1,186 @@
+﻿（hxzon源码阅读）korma
+
+by hxzon
+========
+query对象的结构
+
+:sql-str 生成的sql语句
+
+:values 要插入的值，格式为 [{:fieldname v}]
+
+:set-fields 更新语句要更新的值，格式为 [{:fieldname v}]
+
+:joins 关联信息，格式为 [{:jointype table on-clause}]
+
+:from 普通的表（直接在 from 后的，而非 join 的）
+
+:where where部分的信息
+
+:having having部分的信息
+
+:order 排序信息，格式：[{:fieldname ASC} {:fieldname DESC}]
+
+:group group by部分的信息，格式：[{:fieldname}]
+
+:limit 分页的大小，为一个数值
+
+:offset 分页的起始部分，为一个数值
+
+:queries 并集，交集（UNION，UNION ALL，INTERSECT）中的各个部分
+
+:params sql语句的参数值（向量）
+
+========
+========
+engine/->sql 函数是核心，生成完整的 sql语句。
+
+其中 update，delete 只支持 where 语句。
+insert 也很简单。
+
+select语句支持关联，where，group，having，排序，分页。
+
+关键：
+sql-joins，参见 join-clause，utils/left-assoc
+sql-where-or-having，参见 map-val
+sql-select，参见 field-str
+
+(defn sql-joins [query]
+  (let [clauses (for [[type table clause] (:joins query)]
+                  (join-clause type table clause))
+        tables (utils/comma-separated (map from-table (:from query)));; 普通的表（直接在 from 后的，而非 join 的）
+        clauses-str (utils/left-assoc (cons (str tables (first clauses))
+                                            (rest clauses)))]
+    (update-in query [:sql-str] str " FROM " clauses-str)))
+
+(defn join-clause [join-type table on-clause]
+  (let [join-type (string/upper-case (name join-type))
+        table (from-table table)
+        join (str " " join-type " JOIN " table " ON ")]
+    (str join (str-value on-clause))))
+
+;; a b c -> ((a)b)c
+(defn left-assoc [vs]
+  (loop [ret "" [v & vs] vs]
+    (cond
+     (nil? v) ret
+     (nil? vs) (str ret v)
+     :else (recur (wrap (str ret v)) vs))))
+
+
+====
+;; where-or-having-kw = :where or :having
+;; where-or-having-str = "WHERE" or "HAVING"
+(defn- sql-where-or-having [where-or-having-kw where-or-having-str query]
+  (if (empty? (get query where-or-having-kw))
+    query
+    (let [clauses (map #(if (map? %) (map-val %) %)
+                       (get query where-or-having-kw));; 获取 query 中 :where 或 :having 部分的信息
+          clauses-str (string/join " AND " clauses)
+          neue-sql (str where-or-having-str clauses-str)]
+      (if (= "()" clauses-str)
+        query
+        (update-in query [:sql-str] str neue-sql)))))
+
+(def sql-where  (partial sql-where-or-having :where  " WHERE "))
+(def sql-having (partial sql-where-or-having :having " HAVING "))
+
+;; 处理映射结构
+(defn map-val [v]
+  (let [func (utils/func? v)
+        generated (utils/generated? v)
+        args (utils/args? v)
+        sub (utils/sub-query? v)
+        pred (utils/pred? v)];; 特殊的映射（含有特殊的关键字）
+    (cond
+     generated generated
+     pred (apply pred args)    ;; 如果是谓词，应用谓词
+     func (let [vs (comma-values args)]    ;; 如果 sql函数，生成字符串 sqlfn(v1,v2)
+            (format func vs))
+     sub (do    ;; 并集交集中的子句？
+           (swap! *bound-params* utils/vconcat (:params sub))
+           (utils/wrap (:sql-str sub)))
+     :else (pred-map v))))    ;;由谓词结构组成的映射
+
+
+;; 映射，元素是谓词结构
+(defn pred-map [m]
+  (if (and (map? m)
+           (not (utils/special-map? m)))
+    (apply pred-and (doall (map pred-vec (sort-by (comp str key) m))))
+    m))
+
+;; 谓词向量
+(defn pred-vec [[k v]]
+  (let [[func value] (if (vector? v)
+                       v
+                       [pred-= v])
+        pred? (predicates func)
+        func (if pred?
+               (resolve pred?)
+               func)]    ;; 不是谓词，则视为普通函数
+    (func k value)))
+
+
+
+====
+(defn sql-select [query]
+  (let [clauses (map field-str (:fields query));; 转成sql中的字段名，及别名
+        modifiers-clause (when (seq (:modifiers query));; 将修饰符依次拼接
+                           (str (reduce str (:modifiers query)) " "))
+        clauses-str (utils/comma-separated clauses);; 将字段名用逗号拼接
+        neue-sql (str "SELECT " modifiers-clause clauses-str)]
+    (assoc query :sql-str neue-sql)));; 将select子句放入 :sql-str 中
+
+;; 生成字段名及别名，如果有绑定表，则再加上表前缀
+(defn field-str [v]
+  (let [[fname alias] (if (vector? v)
+                        v
+                        [v nil])
+        fname (cond
+               (map? fname) (map-val fname);;    hxzon：？
+               *bound-table* (prefix *bound-table* fname)
+               :else (field-identifier fname))
+        alias-str (alias-clause alias)]
+    (str fname alias-str)))
+
+
+(defn alias-clause [alias]
+  (when alias
+    (str (:alias-delimiter (or *bound-options* @conf/options))    ;; 从配置中获取别名的前后分隔符，即 AS 
+         (delimit-str (name alias)))))
+
+;; 取实体的表名或别名，优先别名，然后表名
+(defn table-alias [{:keys [table alias]}]
+  (or alias table))
+
+;; 以点好分隔的每个部分，都加上 fields namiing 处理和前后分隔符
+(defn table-identifier [table-name]
+  (let [parts (string/split table-name #"\.")]
+    (if (next parts)
+      (string/join "." (map delimit-str parts))
+      (delimit-str table-name))))
+
+(defn field-identifier [field]
+  (cond
+   (map? field) (map-val field)
+   (string? field) field
+   (= "*" (name field)) "*"
+   :else (let [field-name (name field)
+               parts (string/split field-name #"\.")]
+           (if-not (next parts)
+             (delimit-str field-name)
+             (string/join "." (map delimit-str parts))))))    ;; 已经含有表前缀
+
+;; 给字段名加上表前缀（表别名或表名）
+(defn prefix [ent field]
+  (let [field-name (field-identifier field)
+        not-already-prefixed? (and (keyword? field)
+                                   (not (*bound-aliases* field));; 该字段还没有绑定别名
+                                   (= -1 (.indexOf field-name ".")))]
+    (if not-already-prefixed?
+      (let [table (if (string? ent)
+                    ent
+                    (table-alias ent))]
+        (str (table-identifier table) "." field-name))
+      field-name)))
+
