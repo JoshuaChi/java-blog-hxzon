@@ -1,4 +1,4 @@
-﻿（hxzon源码阅读）korma
+﻿（hxzon源码阅读）korma：query对象，和sql的生成
 
 by hxzon
 ========
@@ -12,7 +12,7 @@ query对象的结构
 
 :joins 关联信息，格式为 [{:jointype table on-clause}]
 
-:from 普通的表（直接在 from 后的，而非 join 的）
+:from 普通的表（直接在 from 后的，而非 join 的），格式：[ table1 table2 ]
 
 :where where部分的信息
 
@@ -40,14 +40,39 @@ insert 也很简单。
 select语句支持关联，where，group，having，排序，分页。
 
 关键：
+from-table，最关键，表的别名处理
 sql-joins，参见 join-clause，utils/left-assoc
 sql-where-or-having，参见 map-val
 sql-select，参见 field-str
 
+====
+;; 最关键：表的别名处理
+(defn from-table [v & [already-aliased?]]
+  (cond
+   (string? v) (table-str v)
+   (vector? v) (let [[table alias] v]    ;; 如果 v 是向量，视为 表名 和 表别名
+                 (str (from-table table :aliased) (alias-clause alias)))
+   (map? v) (if (:table v)    ;; 如果 v 是实体对象（或者查询对象），取 :table 和 :alias 信息
+              (let [{:keys [table alias]} v]
+                (str (table-str table) (when-not already-aliased? (alias-clause alias))))
+              (map-val v))    ;; 如果 v 是映射，但不是实体对象，例如 raw 生成的特殊映射
+   :else (table-str v)))
+
+(defn table-str [v]
+  (if (utils/special-map? v)
+    (map-val v)    ;; 例如 raw 生成的特殊映射
+    (let [tstr (cond
+                (string? v) v
+                (map? v) (:table v)    ;; 例如查询对象
+                :else (name v))]    ;; 例如关键字，符号
+      (table-identifier tstr))))
+
+
+
 (defn sql-joins [query]
   (let [clauses (for [[type table clause] (:joins query)]
-                  (join-clause type table clause))
-        tables (utils/comma-separated (map from-table (:from query)));; 普通的表（直接在 from 后的，而非 join 的）
+                  (join-clause type table clause))    ;; 生成字符串：left/right join table on clause
+        tables (utils/comma-separated (map from-table (:from query)))    ;; 普通的表（直接在 from 后的，而非 join 的）
         clauses-str (utils/left-assoc (cons (str tables (first clauses))
                                             (rest clauses)))]
     (update-in query [:sql-str] str " FROM " clauses-str)))
@@ -58,7 +83,8 @@ sql-select，参见 field-str
         join (str " " join-type " JOIN " table " ON ")]
     (str join (str-value on-clause))))
 
-;; a b c -> ((a)b)c
+;; vs = [  "a,b left/right join c on xxx" "left/right d on xxx"  "left/right e on xxx"  ]
+;; 生成 (((a,b left join c on xxx) left join d on xxx) left join e on xxx)
 (defn left-assoc [vs]
   (loop [ret "" [v & vs] vs]
     (cond

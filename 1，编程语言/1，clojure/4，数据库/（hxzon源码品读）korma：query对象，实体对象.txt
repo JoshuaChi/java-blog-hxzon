@@ -1,0 +1,5 @@
+﻿（hxzon源码品读）korma：query对象，实体对象
+
+by hxzon
+========
+
