@@ -6,13 +6,22 @@ query对象的结构
 
 :sql-str 生成的sql语句
 
-:values 要插入的值，格式为 [{:fieldname v}]
-
-:set-fields 更新语句要更新的值，格式为 [{:fieldname v}]
+:ent 主实体
 
 :joins 关联信息，格式为 [{:jointype table on-clause}]
 
 :from 普通的表（直接在 from 后的，而非 join 的），格式：[ table1 table2 ]
+
+:queries 并集，交集（UNION，UNION ALL，INTERSECT）中的各个部分
+
+:params sql语句的参数值（向量）
+
+:post-query 后续查询语句，用于“一对多”“多对多”的情况
+
+==
+:values 要插入的值，格式为 [{:fieldname v}]
+
+:set-fields 更新语句要更新的值，格式为 [{:fieldname v}]
 
 :where where部分的信息
 
@@ -26,9 +35,6 @@ query对象的结构
 
 :offset 分页的起始部分，为一个数值
 
-:queries 并集，交集（UNION，UNION ALL，INTERSECT）中的各个部分
-
-:params sql语句的参数值（向量）
 
 ========
 ========
@@ -41,7 +47,7 @@ select语句支持关联，where，group，having，排序，分页。
 
 关键：
 from-table，最关键，表的别名处理
-sql-joins，参见 join-clause，utils/left-assoc
+sql-joins，参见 from-table，join-clause，utils/left-assoc
 sql-where-or-having，参见 map-val
 sql-select，参见 field-str
 
@@ -157,6 +163,7 @@ sql-select，参见 field-str
         neue-sql (str "SELECT " modifiers-clause clauses-str)]
     (assoc query :sql-str neue-sql)));; 将select子句放入 :sql-str 中
 
+==
 ;; 生成字段名及别名，如果有绑定表，则再加上表前缀
 (defn field-str [v]
   (let [[fname alias] (if (vector? v)
@@ -169,22 +176,11 @@ sql-select，参见 field-str
         alias-str (alias-clause alias)]
     (str fname alias-str)))
 
-
+;; 表或字段的别名
 (defn alias-clause [alias]
   (when alias
     (str (:alias-delimiter (or *bound-options* @conf/options))    ;; 从配置中获取别名的前后分隔符，即 AS 
          (delimit-str (name alias)))))
-
-;; 取实体的表名或别名，优先别名，然后表名
-(defn table-alias [{:keys [table alias]}]
-  (or alias table))
-
-;; 以点好分隔的每个部分，都加上 fields namiing 处理和前后分隔符
-(defn table-identifier [table-name]
-  (let [parts (string/split table-name #"\.")]
-    (if (next parts)
-      (string/join "." (map delimit-str parts))
-      (delimit-str table-name))))
 
 (defn field-identifier [field]
   (cond
@@ -198,6 +194,8 @@ sql-select，参见 field-str
              (string/join "." (map delimit-str parts))))))    ;; 已经含有表前缀
 
 ;; 给字段名加上表前缀（表别名或表名）
+;; ent 如果是字符串，视为表名，直接使用
+;; ent 如果是实体对象，取别名或表名
 (defn prefix [ent field]
   (let [field-name (field-identifier field)
         not-already-prefixed? (and (keyword? field)
@@ -209,4 +207,16 @@ sql-select，参见 field-str
                     (table-alias ent))]
         (str (table-identifier table) "." field-name))
       field-name)))
+
+==
+;; 取实体的表名或别名，优先别名，然后表名
+(defn table-alias [{:keys [table alias]}]
+  (or alias table))
+
+;; 以点好分隔的每个部分，都加上 fields namiing 处理和前后分隔符
+(defn table-identifier [table-name]
+  (let [parts (string/split table-name #"\.")]
+    (if (next parts)
+      (string/join "." (map delimit-str parts))
+      (delimit-str table-name))))
 

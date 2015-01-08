@@ -2,4 +2,40 @@
 
 by hxzon
 ========
+实体中的信息
+
+:rel 实体中的关联信息
+
+:rel :sub-ent-name 关联的某个实体的信息，内容如下
+
+:table 表名
+:alias 表别名
+:rel-type 关联关系类型
+
+:fk     join中的外键（会加上表前缀）
+
+:fk-key     一对一，一对多，外键（仅字段名，无表前缀）
+:pk     一对一，一对多，外键（hxzon增加）
+
+:lpk     多对多，主表主键，默认从 ent 中取（hxzon增加）
+:rpk     多对多，子表主键，需显示设置？
+:lfk     多对多，中间表的主表外键
+:rfk    多对多，中间表的子表外键
+:join-table     多对多，中间表名
+
+db-keys-and-foreign-ent 在这个函数中生成各个外键和主键（带上表前缀）
+
+==
+
+========
+========
+hxzon思考：
+
+(has-one ent-var opt) 改成 (has-one :ent-alias ent-var opt) ，
+这样子，就可以多次与同一个实体产生关联。
+
+(with ent-var) 则相应改成 (with :ent-alias)
+这个 :ent-alias 即这个实体的别名。
+
+问题：在使用 with 时，需要 ent 的信息。
 
