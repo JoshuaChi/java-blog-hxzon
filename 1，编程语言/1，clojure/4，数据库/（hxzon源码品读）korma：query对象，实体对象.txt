@@ -39,3 +39,24 @@ hxzon思考：
 
 问题：在使用 with 时，需要 ent 的信息。
 
+========
+hxzon重新设计：
+
+实体中的信息：
+
+1，pk 主键，fields 字段，table 表名，alias 表别名
+
+2，rel
+
+用关键字作为关系名。这个关系名也作为该sub实体的别名。
+sub实体
+
+:lk 实体的关联键，:rk sub实体的关联键（不再用 :pk :fk ， belongs-to 和 has-one 的不同在于默认外键名）
+:jointable 中间表表名
+:jlk :jrk 中间表的关联键
+
+上述各键都含有表别名前缀。
+
+lk-key rk-key 不含表别名前缀，在 post-query 中用于从结果集获取值作为参数。
+
+rel 本身是延迟的，所有键暂时也都延迟。

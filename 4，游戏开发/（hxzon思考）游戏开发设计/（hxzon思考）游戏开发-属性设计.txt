@@ -1,7 +1,176 @@
 ﻿（hxzon思考）游戏开发-属性设计
 
 by hxzon
+========
+1，值的类型
+
+非公式值：非公式计算得到，需要保存（除非来自定义文件，且不再变化）。
+
+公式值：根据公式计算得到，不需要保存。
+
+2，值的分段
+
+基础值：非公式值（需保存），公式值（不需保存）
+附加值：玩家穿上装备（不需保存），物品锻造（需保存）
+
+最终值：基础值+附加值
+
 ====
+3，值的更新
+
+定义属性间的级联关系，计算拓扑顺序。
+
+====
+4，api设计
+
+justSetValue(group,a,value)
+更新group的a
+
+justResetValue(a)
+更新a的总值
+更新a的级联属性的值（非总值）
+
+setValue(group,a,value)
+更新group的a，更新a的总值
+更新a的级联属性值（各段的值，及总值）
+
+resetValue(a)
+更新a的最终值
+更新a的级联属性值（各段的值，及总值）
+
+resetValueAndNotify(a)
+=resetValue
+并通知最终值的变化
+
+setValueNoReset(group,a,value)
+=justSetValue(group,a,value)
+
+==
+resetValue(a)
+与setValueNoReset(group,a)
+总是同时使用，用于提高效率
+
+resetValueAndNofity(a)
+与setValueNoReset(group,a)
+总是同时使用，用于计算最终值的变化
+
+========
+	//设置值（不重算）
+	protected final Number justSetValue_impl(String group, Attr attr, Number value)
+	{
+		AttrValueMap g = getValues(group);
+		Number valueOrig = g.put(attr, value);
+		return valueOrig;
+	}
+
+	//核心方法（钩子）
+	protected void whenValueUpdate_impl(Attr attr)
+	{//示例
+		if (attr == .USER_LVL)
+		{
+			Number base = getBaseValue(attr);
+			setFinalValueNoReset(attr, base);
+			//
+			AttrValueMap newBaseValues = calcAttrBaseValues(base);
+			getBaseValues().putAll(newBaseValues);
+		}
+		else if (attr == CUR_EXP)
+		{
+			Number base = getBaseValue(attr);
+			setFinalValueNoReset(attr, base);
+		}
+		else if (attr == ATK)
+		{
+			Number base = getBaseValue(attr);
+			Number equip = getEquipExtraValue(attr);
+			Number skill = getSkillExtraValue(attr);
+			setFinalValueNoReset(attr, base + equip + skill);
+		}
+
+	}
+
+	//重算本属性及受影响的属性
+	public final void resetValue(Attr attr)
+	{
+		List<Attr> attrsNeedUpdate = attrsNeedUpdateCascade(attr);
+		for (Attr a : attrsNeedUpdate)
+		{
+			whenValueUpdate_impl(a);
+		}
+	}
+
+	//外部api：更新多个属性后，用此方法批量重算
+	public final void resetValues(Collection<Attr> attrs)
+	{
+		List<Attr> attrsNeedUpdate = attrsNeedUpdateCascade(attrs);
+		for (Attr a : attrsNeedUpdate)
+		{
+			whenValueUpdate_impl(a);
+		}
+	}
+
+	//内部实现，同时也可作为钩子（见最后）
+	protected Number setValue_impl(String group, Attr attr, Number value, boolean reset)
+	{
+		Number result = justSetValue_impl(group, attr, value);
+		if (reset)
+		{
+			resetValue(attr);
+		}
+		return result;
+	}
+
+	//外部api：更新单个属性，并自动重算
+	public final Number setValue(String group, Attr attr, Number value)
+	{
+		return setValue_impl(group, attr, value, true);
+	}
+
+	//外部api：更新多个属性，稍后再批量重算（提升性能，或比对最终值变化）
+	public final Number setValueNoReset(String group, Attr attr, Number value)
+	{
+		return setValue_impl(group, attr, value, false);
+	}
+
+	//示例
+	protected Number setValue_impl(String group, Attr attr, Number value, boolean reset)
+	{
+		if (attr == SW)
+		{
+			Number result = super.setValue_impl(group, attr, value, reset);
+			notifyShengwangAdd(user);//额外加入通知
+			return result;
+		}
+		else if (attr == EXP)
+		{
+			return setExp(value.longValue());//特殊处理
+		}
+		else
+		{
+			return super.setValue_impl(group, attr, value, reset);
+		}
+	}
+
+	private long setExp(long exp)
+	{
+		long expUpgradeNeed = getBaseValue(EXP_UPGRADE_NEED);
+		int userMaxLvl = getBaseValue(USER_MAX_LVL);;
+		int userLvl = getBaseValue(USER_LVL);;
+		while (exp >= expUpgradeNeed && userLvl < userMaxLvl)
+		{
+			userLvl++;
+			exp -= expUpgradeNeed;
+			expUpgradeNeed = calcExpUpgradeNeed(userProfession, userLvl);
+		}
+		//
+		justSetValue_impl(Group_Base, EXP, exp);
+		justSetValue_impl(Group_Base, USER_LVL, userLvl);
+		notifyUserLvlUpgraded();//比对最终值变化
+		return exp;
+	}
+
+========
+========
 1，属性分组（根据来源等）：
 
 -1，初始值
