@@ -808,6 +808,13 @@ user=> (dissoc {:a 1 :b 2 :c 3} :d);
 user=> (dissoc {:a 1 :b 2 :c 3} :a :b :c)  
 {}
 
+;; 不支持向量
+(dissoc [:a :b] :a :b)
+;= clojure.lang.PersistentVector cannot be cast to clojure.lang.IPersistentMap
+
+(dissoc [:a :b] 1 )
+;= clojure.lang.PersistentVector cannot be cast to clojure.lang.IPersistentMap
+
 ====
 2，disj
 function

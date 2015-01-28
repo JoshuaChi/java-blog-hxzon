@@ -12,7 +12,9 @@ pr prn
 
 count（字符串长度），subs（子字符串），format 。
 
-blank? capitalize escape join lower-case 
+blank? 
+capitalize（首字母大写） 
+escape join lower-case 
 re-quote-replacement replace replace-first 
 reverse split split-lines 
 trim trim-newline triml trimr upper-case 

@@ -22,7 +22,7 @@ split-at ，split-with 。
 reduce，reductions ，frequencies ， max-key 。
 
 筛选：
-filter，filterv，
+filter，filterv，remove，
 select-keys ，subseq 。
 clojure.set/select，
 clojure.set/difference，clojure.set/intersection。
@@ -133,6 +133,41 @@ user=> (update-in {:name "qh" :age 30} [:age] #(inc %))
 
 user=> (update-in {:a {:b 3 :b2 4} :a2 3} [:a :b] / 4 5)
 {:a2 3, :a {:b2 4, :b 3/20}}
+
+==
+(defn update-in
+  "'Updates' a value in a nested associative structure, where ks is a
+  sequence of keys and f is a function that will take the old value
+  and any supplied args and return the new value, and returns a new
+  nested structure.  If any levels do not exist, hash-maps will be
+  created."
+  {:added "1.0"
+   :static true}
+  ([m [k & ks] f & args]
+   (if ks
+     (assoc m k (apply update-in (get m k) ks f args))
+     (assoc m k (apply f (get m k) args)))))
+
+====
+1.2，update
+
+(defn update
+  "'Updates' a value in an associative structure, where k is a
+  key and f is a function that will take the old value
+  and any supplied args and return the new value, and returns a new
+  structure.  If the key does not exist, nil is passed as the old value."
+  {:added "1.7"
+   :static true}
+  ([m k f]
+   (assoc m k (f (get m k))))
+  ([m k f x]
+   (assoc m k (f (get m k) x)))
+  ([m k f x y]
+   (assoc m k (f (get m k) x y)))
+  ([m k f x y z]
+   (assoc m k (f (get m k) x y z)))
+  ([m k f x y z & more]
+   (assoc m k (apply f (get m k) x y z more))))
 
 ====
 2，
@@ -375,7 +410,7 @@ Returns a vector of [(take-while pred coll) (drop-while pred coll)]
 1，reduce，规约。
 
 (reduce
-    (fn [m v] 
+    (fn [m v]    ;; m 是累积值，v 是当前迭代参数
         (assoc m v (* v v)))
     {}  ;初始是个空集合
     [1 2 3 4])
@@ -447,6 +482,16 @@ Returns a lazy sequence of the items in coll for which
 ====
 1.1，filterv
 和 filter 相同，但是返回向量，而不是惰性序列。后缀v表示向量。
+
+====
+1.2，remove
+
+function
+Usage: (remove pred coll)
+
+Returns a lazy sequence of the items in coll for which
+(pred item) returns false. pred must be free of side-effects.
+移除满足条件的元素。
 
 ====
 2，select-keys

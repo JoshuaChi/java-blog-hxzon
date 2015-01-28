@@ -8,6 +8,7 @@ by hxzon
 
 公式值：根据公式计算得到，不需要保存。
 
+====
 2，值的分段
 
 基础值：非公式值（需保存），公式值（不需保存）
@@ -15,13 +16,13 @@ by hxzon
 
 最终值：基础值+附加值
 
-====
+========
 3，值的更新
 
 定义属性间的级联关系，计算拓扑顺序。
 
 ====
-4，api设计
+3.1，api设计
 
 justSetValue(group,a,value)
 更新group的a
@@ -55,6 +56,8 @@ resetValueAndNofity(a)
 总是同时使用，用于计算最终值的变化
 
 ========
+3.2，api实现
+
 	//设置值（不重算）
 	protected final Number justSetValue_impl(String group, Attr attr, Number value)
 	{
@@ -168,6 +171,13 @@ resetValueAndNofity(a)
 		notifyUserLvlUpgraded();//比对最终值变化
 		return exp;
 	}
+
+========
+4，多个系统间的属性级联更新
+
+装备/技能=》玩家=》技能
+
+为了避免无限循环，必须是有关的属性，才触发另一个系统更新。
 
 ========
 ========
