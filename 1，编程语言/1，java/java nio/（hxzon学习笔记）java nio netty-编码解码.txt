@@ -4,8 +4,11 @@ by hxzon
 =========
 netty5
 
+========
 1，
 消息到消息的解码
+
+// 解码成字符串
 StringDecoder extends MessageToMessageDecoder<ByteBuf>
 
     @Override
@@ -15,6 +18,7 @@ StringDecoder extends MessageToMessageDecoder<ByteBuf>
 
 放入out，传到下一个处理器。
 
+// 编码字符串
 StringEncoder extends MessageToMessageEncoder<CharSequence>
 
     @Override
@@ -26,7 +30,9 @@ StringEncoder extends MessageToMessageEncoder<CharSequence>
         out.add(ByteBufUtil.encodeString(ctx.alloc(), CharBuffer.wrap(msg), charset));
     }
 
+========
 2，固定长度的解码
+
 FixedLengthFrameDecoder extends ByteToMessageDecoder
 
     protected Object decode(
@@ -40,21 +46,33 @@ FixedLengthFrameDecoder extends ByteToMessageDecoder
 
 如果可读字节不足，返回null，否则读取指定长度的字节。
 
+========
 3，基于“长度”字段的解码
+
 LengthFieldBasedFrameDecoder extends ByteToMessageDecoder
 
+hxzon：”长度“字段的含义由用户自己定义。
+”长度“字段之后的字节数，为”真正长度“，
+通过设置 lengthAdjustment ，使得 ”长度“+”矫正“ = ”真正长度“ 。
+
+====
 2 bytes length field at offset 0, do not strip header
+示例：开头的两字节作为长度，不丢弃任何字节。
+（strip，剥除）
+
 The value of the length field in this example is 12 (0x0C) which represents the length of "HELLO, WORLD". 
-By default, the decoder assumes that the length field represents the number of the bytes that follows the length field. 
+By default, the decoder assumes that the length field represents 
+the number of the bytes that follows the length field. 
 Therefore, it can be decoded with the simplistic parameter combination. 
+
  lengthFieldOffset   = 0
  lengthFieldLength   = 2
  lengthAdjustment    = 0
  initialBytesToStrip = 0 (= do not strip header)
 
 长度字段的偏移，长度字段的长度，
-长度矫正（如果长度指整个报文长度，需要矫正。这里长度指后续内容长度，不需要矫正），
-弃掉头部字节数（这里不忽略）。
+长度矫正（这里定义”长度“为后续内容长度，不需要矫正），
+弃掉开头的若干字节（例如去掉长度字段本身等。这里不丢弃）。
 
 BEFORE DECODE (14 bytes)         AFTER DECODE (14 bytes)
  +--------+----------------+      +--------+----------------+
@@ -62,10 +80,14 @@ BEFORE DECODE (14 bytes)         AFTER DECODE (14 bytes)
  | 0x000C | "HELLO, WORLD" |      | 0x000C | "HELLO, WORLD" |
  +--------+----------------+      +--------+----------------+
  
+====
 2 bytes length field at offset 0, strip header
+示例：开头两个字节作为长度，丢弃开头两个字节（长度本身）
+
 Because we can get the length of the content by calling ByteBuf.readableBytes(), 
 you might want to strip the length field by specifying initialBytesToStrip. 
-In this example, we specified 2, that is same with the length of the length field, to strip the first two bytes. 
+In this example, we specified 2, 
+that is same with the length of the length field, to strip the first two bytes. 
 
  lengthFieldOffset   = 0
  lengthFieldLength   = 2
@@ -80,18 +102,29 @@ In this example, we specified 2, that is same with the length of the length fiel
  | 0x000C | "HELLO, WORLD" |      | "HELLO, WORLD" |
  +--------+----------------+      +----------------+
 
-2 bytes length field at offset 0, do not strip header, the length field represents the length of the whole message
-In most cases, the length field represents the length of the message body only, as shown in the previous examples. 
-However, in some protocols, the length field represents the length of the whole message, including the message header. 
+====
+2 bytes length field at offset 0, do not strip header, 
+the length field represents the length of the whole message
+
+示例：开头两个字节作为长度，不丢弃任何字节。
+但长度，指的是整个报文的长度，而不是后续的内容的长度。
+
+In most cases, the length field represents the length of the message body only, 
+as shown in the previous examples. 
+However, in some protocols, the length field represents the length of the whole message, 
+including the message header. 
+
 In such a case, we specify a non-zero lengthAdjustment. 
 Because the length value in this example message is always greater than the body length by 2, 
 we specify -2 as lengthAdjustment for compensation. 
-前面的例子，“长度”字段表示的是后续内容的长度，但有时，“长度”字段指的是整个报文的长度。
+
+这里，”长度“定义为整个报文长度，需要减2，才是后续内容的长度。
 
  lengthFieldOffset   =  0
  lengthFieldLength   =  2
  lengthAdjustment    = -2 (= the length of the Length field)
  initialBytesToStrip =  0
+
 
  BEFORE DECODE (14 bytes)         AFTER DECODE (14 bytes)
  +--------+----------------+      +--------+----------------+
@@ -99,11 +132,17 @@ we specify -2 as lengthAdjustment for compensation.
  | 0x000E | "HELLO, WORLD" |      | 0x000E | "HELLO, WORLD" |
  +--------+----------------+      +--------+----------------+
  
+====
 3 bytes length field at the end of 5 bytes header, do not strip header
+示例：第3到5字节作为长度字段，不丢弃任何字节。
+
 The following message is a simple variation of the first example. 
 An extra header value is prepended to the message. 
+
 lengthAdjustment is zero again because the decoder always takes the length of the prepended data 
 into account during frame length calculation. 
+
+这里”长度“定义为后续内容长度，不需要矫正。
 
  lengthFieldOffset   = 2 (= the length of Header 1)
  lengthFieldLength   = 3
@@ -116,14 +155,22 @@ into account during frame length calculation.
  |  0xCAFE  | 0x00000C | "HELLO, WORLD" |      |  0xCAFE  | 0x00000C | "HELLO, WORLD" |
  +----------+----------+----------------+      +----------+----------+----------------+
  
+====
 3 bytes length field at the beginning of 5 bytes header, do not strip header
-This is an advanced example that shows the case where there is an extra header between the length field and the message body. 
-You have to specify a positive lengthAdjustment so that the decoder counts the extra header into the frame length calculation. 
+示例：开头三个字节作为长度，不丢弃字节
+
+This is an advanced example that shows the case 
+where there is an extra header between the length field and the message body. 
+头部在长度字段之后，在内容之前。
+You have to specify a positive lengthAdjustment 
+so that the decoder counts the extra header into the frame length calculation. 
 
  lengthFieldOffset   = 0
  lengthFieldLength   = 3
  lengthAdjustment    = 2 (= the length of Header 1)
  initialBytesToStrip = 0
+
+这里”长度“定义为内容长度，加2，才是后续内容的长度。
 
  BEFORE DECODE (17 bytes)                      AFTER DECODE (17 bytes)
  +----------+----------+----------------+      +----------+----------+----------------+
@@ -131,7 +178,10 @@ You have to specify a positive lengthAdjustment so that the decoder counts the e
  | 0x00000C |  0xCAFE  | "HELLO, WORLD" |      | 0x00000C |  0xCAFE  | "HELLO, WORLD" |
  +----------+----------+----------------+      +----------+----------+----------------+
  
-2 bytes length field at offset 1 in the middle of 4 bytes header, strip the first header field and the length field
+====
+2 bytes length field at offset 1 in the middle of 4 bytes header, 
+strip the first header field and the length field
+
 This is a combination of all the examples above. 
 There are the prepended header before the length field and the extra header after the length field. 
 The prepended header affects the lengthFieldOffset and the extra header affects the lengthAdjustment. 
@@ -142,6 +192,8 @@ If you don't want to strip the prepended header, you could specify 0 for initial
  lengthFieldLength   = 2
  lengthAdjustment    = 1 (= the length of HDR2)
  initialBytesToStrip = 3 (= the length of HDR1 + LEN)
+ 
+ 丢弃开头的三个字节（”长度字段“及”长度字段“之前的头部）
 
  BEFORE DECODE (16 bytes)                       AFTER DECODE (13 bytes)
  +------+--------+------+----------------+      +------+----------------+
@@ -149,14 +201,17 @@ If you don't want to strip the prepended header, you could specify 0 for initial
  | 0xCA | 0x000C | 0xFE | "HELLO, WORLD" |      | 0xFE | "HELLO, WORLD" |
  +------+--------+------+----------------+      +------+----------------+
  
-2 bytes length field at offset 1 in the middle of 4 bytes header, strip the first header field and the length field, 
+====
+2 bytes length field at offset 1 in the middle of 4 bytes header, 
+strip the first header field and the length field, 
 the length field represents the length of the whole message
 
 Let's give another twist to the previous example. 
 The only difference from the previous example is that the length field represents the length of the whole message 
 instead of the message body, just like the third example. 
 We have to count the length of HDR1 and Length into lengthAdjustment. 
-Please note that we don't need to take the length of HDR2 into account because the length field already includes the whole header length. 
+Please note that we don't need to take the length of HDR2 into account 
+because the length field already includes the whole header length. 
 
  lengthFieldOffset   =  1
  lengthFieldLength   =  2
@@ -169,13 +224,15 @@ Please note that we don't need to take the length of HDR2 into account because t
  | 0xCA | 0x0010 | 0xFE | "HELLO, WORLD" |      | 0xFE | "HELLO, WORLD" |
  +------+--------+------+----------------+      +------+----------------+
  
-
+========
 4，基于“长度”字段的编码
 LengthFieldPrepender extends MessageToMessageEncoder<ByteBuf>
 
-An encoder that prepends the length of the message. The length value is prepended as a binary form. 
+An encoder that prepends the length of the message. 
+The length value is prepended as a binary form. 
 
 For example, LengthFieldPrepender(2) will encode the following 12-bytes string: 
+在开头，加入两个字节的长度字段，表示内容的长度（不含”长度字段“本身）。
 
  +----------------+
  | "HELLO, WORLD" |
@@ -187,12 +244,22 @@ into the following:
  +--------+----------------+
  
 If you turned on the lengthIncludesLengthFieldLength flag in the constructor, 
-the encoded data would look like the following (12 (original data) + 2 (prepended data) = 14 (0xE)): 
+the encoded data would look like the following 
+(12 (original data) + 2 (prepended data) = 14 (0xE)): 
+
+也可以加上”长度字段“本身的长度。
+
  +--------+----------------+
  + 0x000E | "HELLO, WORLD" |
  +--------+----------------+
- 
 
+hxzon：长度的计算如下（源码）
+        int length = msg.readableBytes() + lengthAdjustment;
+        if (lengthIncludesLengthFieldLength) {
+            length += lengthFieldLength;
+        }
+
+========
 5，
 
 

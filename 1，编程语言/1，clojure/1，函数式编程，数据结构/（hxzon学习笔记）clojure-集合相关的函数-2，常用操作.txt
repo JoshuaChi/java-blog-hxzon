@@ -25,7 +25,8 @@ reduce，reductions ，frequencies ， max-key 。
 filter，filterv，remove，
 select-keys ，subseq 。
 clojure.set/select，
-clojure.set/difference，clojure.set/intersection。
+clojure.set/difference，clojure.set/intersection 
+distinct （去除重复元素） 。
 
 检查集合的元素：
 contains? ，distinct? ，empty? ，
@@ -286,9 +287,12 @@ returns a vector containing the result of applying each fn to the args (left-to-
 11，interpose
 function
 Usage: (interpose sep coll)
+(interpose)
 
-Returns a lazy seq of the elements of coll separated by sep
+Returns a lazy seq of the elements of coll separated by sep.
 返回一个新序列，在元素之间插入sep 。
+
+Returns a stateful transducer when no collection is provided.
 
 (interpose 'a [1 2 3 4 5])
 ;= (1 a 2 a 3 a 4 a 5)
@@ -562,6 +566,17 @@ user=> (clojure.set/difference #{1 2 3} #{1 2 4})
 
 user=> (clojure.set/intersection #{1 2 3} #{1 2 4})
 #{1 2}
+
+====
+5，distinct
+
+(distinct coll)
+Returns a lazy sequence of the elements of coll with duplicates removed.
+去除重复的元素。
+
+(distinct)
+Returns a stateful transducer when no collection is provided.
+
 
 
 ========

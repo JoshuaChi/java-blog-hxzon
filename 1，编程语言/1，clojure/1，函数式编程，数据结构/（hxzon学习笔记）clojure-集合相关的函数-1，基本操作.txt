@@ -442,6 +442,19 @@ user=> (set "abccdd")
 user=> (set {:one 1 :two 2 :three 3})  
 #{[:two 2] [:three 3] [:one 1]}
 
+==
+(defn set
+  "Returns a set of the distinct elements of coll."
+  {:added "1.0"
+   :static true}
+  [coll]
+  (if (set? coll)
+    (with-meta coll nil)    ;; hxzon：会丢失元数据
+    (if (instance? clojure.lang.IReduceInit coll)
+      (persistent! (.reduce ^clojure.lang.IReduceInit coll conj! (transient #{})))
+      (persistent! (reduce1 conj! (transient #{}) coll)))))
+
+
 ====
 3，bean： 
 根据java对象，返回该对象的属性构成的map。 
