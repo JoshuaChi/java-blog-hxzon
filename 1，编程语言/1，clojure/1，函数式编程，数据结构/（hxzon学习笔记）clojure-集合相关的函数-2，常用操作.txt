@@ -4,42 +4,80 @@ by hxzon
 
 ----
 截取：
-drop，take，take-last，(take-nth n coll)，take-while 。
+(drop n coll)，丢弃开头n个元素
+(drop-last n coll) ，丢弃最后n个元素
+(drop-while pred coll)
+
+take，
+take-last，
+(take-nth n coll)，取出n，2n，3n... 位置的元素
+take-while 。
 subvec
 
 数据变换：
-update-in（嵌套），replace，merge-with，
-map，mapv，mapcat，map-indexed，
-keep，keep-indexed，
-juxt，map-invert，
-interpose，
+update，
+update-in（嵌套），
+
+(replace s-map coll) ，根据s-map，替换集合中的元素，
+
+merge-with，
+map，
+mapv ，同map，但返回的是向量，
+
+mapcat，
+map-indexed，
+keep，
+keep-indexed，
+juxt，
+map-invert，
+(interpose sep coll)，在元素之间插入sep
+
+(flatten x) ，平铺
 
 分组：
-group-by（分组），partition（分区），partition-all ，partition-by 。
-split-at ，split-with 。
+group-by（分组），
+partition（分区），
+partition-all ，
+partition-by 。
+split-at ，
+split-with 。
 
 规约（聚合）：
-reduce，reductions ，frequencies ， max-key 。
+reduce，
+reductions  规约历史，
+frequencies ， 
+max-key 。
 
 筛选：
-filter，filterv，remove，
-select-keys ，subseq 。
+filter，filterv，
+remove，
+select-keys ，
+subseq 。
+
+(rand-nth coll) ，随机一个元素
+
 clojure.set/select，
-clojure.set/difference，clojure.set/intersection 
+clojure.set/difference，
+clojure.set/intersection 
 distinct （去除重复元素） 。
 
 检查集合的元素：
-contains? ，distinct? ，empty? ，
-every? ，not-every? ，some，not-any? 。
+contains? ，
+distinct? ，
+empty? ，
+every? ，not-every? ，
+some，not-any? 。
 
 排序：
 sort，sort-by，
 sorted-map-by ， sorted-set-by ， 
 reverse （逆序）， shuffle （乱序），
-rseq （逆序向量或有序map）， rsubseq 。 
+rseq （逆序向量或有序map）， 
+rsubseq 。 
 
 强迫求值：
-doall ， dorun 。
+doall ， 
+dorun 。
 
 ========
 截取：
@@ -159,6 +197,7 @@ user=> (update-in {:a {:b 3 :b2 4} :a2 3} [:a :b] / 4 5)
   structure.  If the key does not exist, nil is passed as the old value."
   {:added "1.7"
    :static true}
+
   ([m k f]
    (assoc m k (f (get m k))))
   ([m k f x]
@@ -176,7 +215,7 @@ user=> (update-in {:a {:b 3 :b2 4} :a2 3} [:a :b] / 4 5)
 ====
 3，replace
 function
-Usage: (replace smap coll)
+Usage: (replace s-map coll)
 
 Given a map of replacement pairs and a vector/collection, 
 returns a vector/seq with any elements = a key in smap replaced with the corresponding val in smap.
@@ -274,6 +313,8 @@ Takes a set of functions and returns a fn that is the juxtaposition（并列） 
 The returned fn takes a variable number of args, and
 returns a vector containing the result of applying each fn to the args (left-to-right).
 
+返回一个函数。
+
 ((juxt a b c) x) => [(a x) (b x) (c x)]
 
 ====
@@ -296,6 +337,17 @@ Returns a stateful transducer when no collection is provided.
 
 (interpose 'a [1 2 3 4 5])
 ;= (1 a 2 a 3 a 4 a 5)
+
+====
+flatten
+
+function
+Usage: (flatten x)
+
+Takes any nested combination of sequential things (lists, vectors,
+etc.) and returns their contents as a single, flat sequence.
+(flatten nil) returns an empty sequence.
+
 
 
 ========

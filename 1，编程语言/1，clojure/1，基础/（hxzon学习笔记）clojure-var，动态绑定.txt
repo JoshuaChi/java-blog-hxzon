@@ -157,4 +157,56 @@ clojure的动态var绑定可以在线程之间进行传播，这种机制叫做�
 	[299])
 ;= (true)
 
+========
+with-bindings
+macro
+Usage: (with-bindings binding-map & body)
+
+Takes a map of Var/value pairs. Installs for the given Vars the associated
+values as thread-local bindings. The executes body. Pops the installed
+bindings after body was evaluated. Returns the value of body.
+
+将绑定添加到本地线程。
+执行完，弹出这些绑定。
+hxzon：与binding的区别在于，binding中的绑定列表是符号，
+而with-bindings中的绑定已经是var。
+
+(def ^:dynamic *a* nil)
+(defn af [] *a*)
+
+(with-bindings {(var *a*) 1} (af))
+;; 1
+
+====
+with-bindings*
+
+function
+Usage: (with-bindings* binding-map f & args)
+
+Takes a map of Var/value pairs. Installs for the given Vars the associated
+values as thread-local bindings. Then calls f with the supplied arguments.
+Pops the installed bindings after f returned. 
+Returns whatever f returns.
+
+将绑定添加到本地线程。
+执行完 f ，弹出这些绑定。
+
+====
+bound-fn*
+(bound-fn* f)
+
+返回一个新函数，它捕获了当前线程的绑定。
+
+
+====
+bound-fn
+
+====
+binding-conveyor-fn
+
+====
+(get-thread-bindings)
+
+Get a map with the Var/value pairs which is currently in effect for the
+current thread.
 

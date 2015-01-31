@@ -207,8 +207,53 @@ with-redefs
 
 我们也可以使用with-redefs来暂时修改一些var的根绑定，
 它会在程序控制流离开它的作用域时，把var的根绑定恢复到之前的状态。
-这个对于测试非常有用，可以让我们对一些函数或者函数所依赖的一些跟环境有关的变量进行mock。
+这个对于测试非常有用，
+可以让我们对一些函数或者函数所依赖的一些跟环境有关的变量进行mock。
 
+(with-redefs bindings & body)
+binding => var-symbol temp-value-expr
+
+Temporarily redefines Vars while executing the body.  The
+temp-value-exprs will be evaluated and each resulting value will
+replace in parallel the root value of its Var.  After the body is
+executed, the root values of all the Vars will be set back to their
+old values.  These temporary changes will be visible in all threads.
+Useful for mocking out functions during testing.
+
+这种临时替换，其他线程也可见。
+
+====
+with-redefs-fn
+
+function
+Usage: (with-redefs-fn binding-map func)
+
+Temporarily redefines Vars during a call to func.  Each val of
+binding-map will replace the root value of its key which must be
+a Var.  After func is called with no args, the root values of all
+the Vars will be set back to their old values.  These temporary
+changes will be visible in all threads.  Useful for mocking out
+functions during testing.
+
+
+====
+with-local-vars
+macro
+Usage: (with-local-vars name-vals-vec & body)
+varbinding=> symbol init-expr
+
+Executes the exprs in a context in which the symbols are bound to
+vars with per-thread bindings to the init-exprs.  The symbols refer
+to the var objects themselves, and must be accessed with var-get and
+var-set
+
+hxzon：用于实现本地变量（可修改）。
+符号绑定到var对象本身。
+
+(with-local-vars [a 1]
+    (when true (var-set a 2))
+    (var-get a))
+;; 2
 
 ========
 9，提前声明：declare

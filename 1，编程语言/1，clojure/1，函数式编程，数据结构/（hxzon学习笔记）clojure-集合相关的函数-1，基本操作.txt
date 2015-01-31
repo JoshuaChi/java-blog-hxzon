@@ -12,7 +12,8 @@ range ， repeat ， repeatedly ， iterate ，
 (list* & es coll) （最后一个参数必须是集合）。
 
 创建向量：
-vector，(vector-of type & es)
+vector，
+(vector-of type & es)
 
 创建映射：
 hash-map ，array-map，sorted-map，
@@ -21,38 +22,66 @@ hash-map ，array-map，sorted-map，
 创建集：
 hash-set，sorted-set
 
+创建同类型的集合：
 empty，not-empty 
 
 转换：
 (vec coll)
 (set coll)
 bean
+(enumeration-seq e) ，将枚举类型转为序列
+(iterator-seq iter) ，将迭代器转为序列
+lazy-cat
+lazy-seq
 
 合并：
 (into coll1 coll2)，
 (concat coll1 coll2 & colls)，
 clojure.set/union，
-interleave，
+(interleave c1 c2 & colls) 轮流从每个集合中取出一个元素，
 merge，
 
 添加：
 (conj coll e)，
-assoc，(assoc-in m [k & ks] v)（嵌套），
+conj! ，可变版本
+assoc，
+assoc! ，可变版本，
+(assoc-in m [k & ks] v)（嵌套），
 
 查找：
 
-get，get-in（嵌套），
+get，注意不能用于列表
+get-in（嵌套），
 find（返回键值对，或者nil，方便区分“值为nil”和“找不到”的情况），
 
 keys，vals，
 (key entry)，(val entry) 。
 
-last，first，
-rest（始终返回空集合），next（始终返回nil），
-peek，pop，
+last，
+first，
+rest（始终返回空集合），
+next（始终返回nil），
+peek，
+pop，
+
+butlast，去除最后一个元素，
+
+ffirst ，即 (first (first s))
+fnext ，即 (first (next x))
+nfirst ，即 (next (first x))
+nnext ，即 (next (next x))
+second ，即 (first (next x))
+
+
+(nth coll index not-found)
+(nthnext coll n)
+(nthrest coll n)
 
 移除：
-dissoc，disj，
+dissoc，
+dissoc! ，可变版本
+disj，
+disj! ，可变版本
 
 其它：
 count
@@ -138,6 +167,28 @@ user=> (cons (list 1 2) '(3 4 5))
 
 user=> (take 10 (cycle (range 3)))
 (0 1 2 0 1 2 0 1 2 0)
+
+====
+lazy-cat
+
+macro
+Usage: (lazy-cat & colls)
+Expands to code which yields a lazy sequence of the concatenation
+of the supplied colls.  Each coll expr is not evaluated until it is
+needed. 
+
+(lazy-cat xs ys zs) === (concat (lazy-seq xs) (lazy-seq ys) (lazy-seq zs))
+
+====
+lazy-seq
+
+macro
+Usage: (lazy-seq & body)
+
+Takes a body of expressions that returns an ISeq or nil, and yields
+a Seqable object that will invoke the body only the first time seq
+is called, and will cache the result and return it on all subsequent
+seq calls. See also - realized?
 
 
 ========
@@ -795,6 +846,11 @@ user=> (peek '(1 2 3))
 
 user=> (pop '(1 2 3))  
 (2 3)
+
+====
+butlast
+去除最后一个元素
+
 
 ========
 移除：

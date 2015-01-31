@@ -14,12 +14,17 @@ Characters
 Keywords
 Symbols
 
+==
 Collections
+
 Lists (IPersistentList)
+
 Vectors (IPersistentVector)
+
 Maps (IPersistentMap)
 StructMaps，已过时。
 ArrayMaps
+
 Sets
 
 =========
@@ -99,7 +104,11 @@ Division of integers that can't be reduced to an integer yields a ratio, i.e. 22
 rather than a floating point or truncated value.
 两个整数相除返回一个比例数，而不是一个浮点数。
 
+====
 Contagion
+传递性
+
+（contagious，有传染性的）
 
 BigInts and floating point types are "contagious" across operations. 
 That is, any integer operation involving a BigInt will result in a BigInt, 
@@ -132,24 +141,57 @@ clojure.lang.BigDecimal
 --
 Related functions
 
-Computation: + - * / inc dec quot rem min max
-Auto-promoting computation: +' -' *' inc' dec'
+Computation: 
++ - * / 
+inc dec 
+quot rem min max
+
+Auto-promoting computation: 
 智能提升函数。
++' 
+-' 
+*' 
+inc' 
+dec'
 
-Comparison: == < <= > >= zero? pos? neg?
+Comparison: 
+== 
+< 
+<= 
+> 
+>= 
+zero? 
+pos? 
+neg?
 
-Bitwise operations: bit-and bit-or bit-xor bit-not bit-shift-right bit-shift-left
+Bitwise operations: 
 位操作函数。
+bit-and 
+bit-or 
+bit-xor 
+bit-not 
+bit-shift-right 
+bit-shift-left
 
-Ratios: numerator denominator
+Ratios: 
+numerator 
+denominator
 
-Coercions: int bigdec bigint double float long num short
+Coercions: 
 类型转换函数。
+int 
+bigdec 大实数
+bigint 大整数
+double float 
+long 
+num 
+short
 
 =======
 Strings
 
-Clojure strings are Java Strings. See also Printing.（http://clojure.org/other_functions#printing）
+Clojure strings are Java Strings. 
+See also Printing.（http://clojure.org/other_functions#printing）
 
 user=> (map (fn [x] (.toUpperCase x)) (.split "Dasher Dancer Prancer" " "))
 ("DASHER" "DANCER" "PRANCER")
@@ -157,7 +199,10 @@ user=> (map (fn [x] (.toUpperCase x)) (.split "Dasher Dancer Prancer" " "))
 --
 Related functions
 
-str string? pr-str prn-str print-str println-str with-out-str
+str string? 
+pr-str prn-str 
+print-str println-str 
+with-out-str
 
 ========
 Characters
@@ -167,7 +212,9 @@ Clojure characters are Java Characters.
 --
 Related functions
 
-char char-name-string char-escape-string
+char 
+char-name-string 
+char-escape-string
 
 ========
 Keywords，关键字。
@@ -204,7 +251,8 @@ For example ('mysym my-hash-map :none) means the same as (get my-hash-map 'mysym
 --
 Related functions
 
-symbol symbol? gensym (see also the #-suffix reader macro)
+symbol symbol? 
+gensym (see also the #-suffix reader macro)
 
 =========
 Collections
@@ -245,9 +293,16 @@ conj puts the item at the front of the list.
 --
 Related functions
 
-Create a list: list list*
-Treat a list like a stack: peek pop
-Examine a list: list?
+Create a list: 
+创建列表
+list list*
+
+Treat a list like a stack: 
+栈操作
+peek pop
+
+Examine a list: 
+list?
 
 ========
 Vectors (IPersistentVector)
@@ -267,9 +322,17 @@ which they presume is an index and look up in themselves as if by nth, i.e. vect
 --
 Related functions
 
-Create a vector: vector vec vector-of
-Examine a vector: get nth peek rseq vector?
-'change' a vector: assoc pop subvec replace
+Create a vector: 
+vector vec vector-of
+
+Examine a vector: 
+get nth 
+peek rseq vector?
+
+'change' a vector: 
+assoc pop subvec 
+replace 替换元素，(replace s-map coll)
+
 See also zippers （http://clojure.org/other_libraries）
 
 ========
@@ -309,10 +372,24 @@ nil keys and values are ok.
 --
 Related functions
 
-Create a new map: hash-map sorted-map sorted-map-by
-'change' a map: assoc dissoc select-keys merge merge-with zipmap
-Examine a map: get contains? find keys vals map?
-Examine a map entry: key val
+Create a new map: 
+hash-map 
+sorted-map 
+sorted-map-by
+
+'change' a map: 
+assoc dissoc 
+select-keys 
+merge merge-with 
+zipmap
+
+Examine a map: 
+get contains? find 
+keys vals 
+map?
+
+Examine a map entry: 
+key val
 
 =========
 StructMaps
@@ -357,8 +434,14 @@ then creating instances with struct-map or struct.
 --
 Related functions
 
-StructMap setup: create-struct defstruct accessor
-Create individual struct: struct-map struct
+StructMap setup: 
+create-struct 
+defstruct 
+accessor
+
+Create individual struct: 
+struct-map 
+struct
 
 ========
 ArrayMaps
