@@ -15,7 +15,7 @@ take-while 。
 subvec
 
 数据变换：
-update，
+(update-in map ks f & fps)，
 update-in（嵌套），
 
 (replace s-map coll) ，根据s-map，替换集合中的元素，
@@ -164,8 +164,9 @@ user=> (subvec [12 3 4 5 6 7] 2 4)
 数据变换：
 
 ====
-1，(update-in map ks f )
-根据 f 更新map中指定路径对应的值。 
+1，(update-in map ks f & fps)
+根据 f 更新map中指定路径对应的值。
+f 的第一个参数是原来的值。
 
 user=> (update-in {:name "qh" :age 30} [:age] #(inc %))  
 {:age 31, :name "qh"}
@@ -348,7 +349,7 @@ Takes any nested combination of sequential things (lists, vectors,
 etc.) and returns their contents as a single, flat sequence.
 (flatten nil) returns an empty sequence.
 
-
+平铺。
 
 ========
 分组：
@@ -530,6 +531,7 @@ user=> (max-key count "abc"
 ====
 1，filter
 Usage: (filter pred coll)
+
 Returns a lazy sequence of the items in coll for which
 (pred item) returns true. pred must be free of side-effects.
 

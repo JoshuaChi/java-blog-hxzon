@@ -1,4 +1,4 @@
-﻿（hxzon思考）游戏开发-属性设计
+﻿（hxzon思考）游戏开发-属性设计-v1
 
 by hxzon
 ========
@@ -56,7 +56,140 @@ resetValueAndNofity(a)
 总是同时使用，用于计算最终值的变化
 
 ========
-3.2，api实现
+3.2，api实现-clojure版
+
+(defComp Comp-Attrbar)
+
+(defCompFns Comp-Attrbar 
+
+  ;; g 属性组，关键字
+  ;; a 属性，ref
+  
+  (:get-value 
+    ([go, g a ] (dosync (get-in @go [g a])))
+    ([go g a vd] (dosync (get-in @go [ g a] vd)))
+    )
+
+  (:-just-set-value [go, g a v] 
+                    (dosync (assoc-in @go [g a] v)))
+
+  (:-just-reset-value [go, a] 
+                      (prn "由子类实现"))
+
+  (:reset-value 
+    [go, a] 
+    (let [acs (:cascade-attrs @a)
+          acs (into acs a)
+          acs (util/order-depen acs :base-attrs :name)]
+      (doseq [ac acs] 
+        (kfcthis :-just-reset-value go ac)))
+    )
+
+  (:reset-values 
+    [go,& as] 
+    (let [acs (loop [r #{} as as]
+                (if (empty? as)
+                  r
+                  (recur (into r (:cascade-attrs @(first as)))
+                         (rest as))
+                  ))
+          acs (into acs as)
+          acs (util/order-depen acs :base-attrs :name)]
+      (doseq [ac acs]
+        (kfcthis :-just-reset-value go ac)))
+    )
+
+  (:-set-value [go,reset  g a v] 
+               (do 
+                 (kfcthis :-just-set-value go  g a v)
+                 (when reset (kfcthis :reset-value go a))))
+
+  (:set-value [go,  g a v] (kfcthis :-set-value go true g a v))
+
+  (:set-value-no-reset [go  g a v ] (kfcthis :-set-value go false  g a v))
+  
+  (:add-value 
+    ([go g a v] (kfcthis :set-value go g a (+ v (kfcthis :get-value go g a 0))))
+    ([go g a v vd] (kfcthis :set-value go g a (+ v (kfcthis :get-value go g a vd))))
+    )
+  
+  (:add-value-no-reset
+    ([go g a v] (kfcthis :set-value-no-reset go g a (+ v (kfcthis :get-value go g a 0))))
+    ([go g a v vd] (kfcthis :set-value-no-reset go g a (+ v (kfcthis :get-value go g a vd)) ))
+    )
+)
+
+(kd Comp-Attrbar
+    :-init {:attr-bar [#{} 
+                       (fn [go]
+                         (dosync (alter go assoc-in [:data :attrs] {})))
+                       ]})
+
+;; Comp-Attrbar 作为抽象实现类，用于被继承
+;; ====
+(defComp Comp-AgentAttrbar Comp-Attrbar)
+
+(add-comp Go-Agent Comp-AgentAttrbar)
+
+(kd Comp-AgentAttrbar
+    :-init 
+    (into (:-init @Comp-Attrbar) {}))
+
+;; grs = [group ratio group ratio]
+(defn attr-set-final-value-grs [this go a grs]
+  (kfcthis :-just-set-value go :final a
+       (loop [r 0 grs grs]
+         (if (empty? grs)
+           r
+           (recur (+ r (* 
+                         (kfcthis :get-value go (first grs) a 0)
+                         (first (rest grs))
+                         ))
+                  (rest (rest grs))    )
+           ))
+       ))
+
+;; ars = [a ratio a ratio]
+(defn attr-set-final-value-ars [this go a ars]
+  (kfcthis :-just-set-value go :final a
+       (loop [r 0 ars ars]
+         (if (empty? ars)
+           r
+           (recur (+ r (* 
+                         (kfcthis :get-value go :base (first ars) 0)
+                         (first (rest ars))
+                         ))
+                  (rest (rest ars))
+                  )
+           ))
+       ))
+
+(defn set-base-values [this go])
+
+(defCompFns Comp-AgentAttrbar
+  
+  (:-just-reset-value 
+    [go a]
+    (cond
+      (= a Attr-atk)
+      (attr-set-final-value-grs this go a [:base 1 :equip 1])
+      (= a Attr-def)
+      (attr-set-final-value-grs this go a [:base 1 :equip 1])
+      (= a Attr-hp)
+      (attr-set-final-value-grs this go a [:base 1 :equip 1])
+      (= a Attr-zdl)
+      (attr-set-final-value-ars this go a [Attr-atk 3 Attr-def  2 Attr-hp 1])
+      (= a Attr-user-lvl)
+      (do
+        (attr-set-final-value-grs this go a [:base 1])
+        (set-base-values this go)
+        )
+      ))
+  
+  )
+
+========
+3.3，api实现-java版
 
 	//设置值（不重算）
 	protected final Number justSetValue_impl(String group, Attr attr, Number value)
@@ -181,6 +314,10 @@ resetValueAndNofity(a)
 
 ========
 ========
+（hxzon思考）游戏开发-属性设计-v0
+
+by hxzon
+====
 1，属性分组（根据来源等）：
 
 -1，初始值
