@@ -5,7 +5,7 @@ by hxzon
 1，游戏对象的数据
 
 -1，值类型
--2，其他游戏对象的引用
+-2，其他游戏对象的引用（如何保存？分离保存？）
 
 ========
 2，数据来源
@@ -14,6 +14,7 @@ by hxzon
 固定的公式值：不必保存
 
 不固定的公式值（含随机因子）：需要保存
+某种机制而获得：需要保存
 
 ====
 2.1，公式
@@ -76,14 +77,27 @@ calc-set-value-gars go :final a &
 ========
 6，api设计
 
-考虑的问题：批量重算，避免浪费，
-例如 atk ，def 都影响 zdl ，
+考虑的问题：避免不必要的计算。
+
+-1，例如 atk ，def 都影响 zdl ，
 同时更新前两个属性时，重复计算 zdl 。
+
+-2，更新 atk :base 段时，
+只需要重算 atk :final 段，
+不需要重算 atk :equip 段。
 
 ==
 attrbar-get-value [go g a vd]
 获取属性值
 外部api
+
+==
+attrbar-set-values [go & gavs]
+更新属性值（多个段，多个属性）
+外部api，
+仅最高层调用，不可内部使用
+初始化三个动态变量，
+然后调用 attrbar-set-values-impl
 
 ==
 动态变量，用于跟踪所有的值变化
@@ -92,47 +106,43 @@ attrbar-get-value [go g a vd]
 *attrs-orig*
 *attrs-now*
 
-动态变量，用于记录那些值需重置
+动态变量，用于记录哪些值的哪些段需重置
 *attrs-need-reset*
 
-==
-attrbar-set-values [go & gavs]
-更新属性值（多个段，多个属性）
-外部api
-最高层调用，初始化三个动态变量，
-然后调用 attrbar-set-values-impl
+动态变量，控制 attrbar-set-values-impl 的行为
+*attrs-is-just-reset*
 
 ==
 attrbar-set-values-impl [go & gavs]
 内部api
 非最高层调用，不初始化动态变量
-调用 attrbar-just-set-values-impl
-再根据 *attrs-need-reset* 
+
+先调用 attrbar-just-set-value-impl
+
+当处于非 *attrs-is-just-reset* 环境时，
+根据 *attrs-need-reset* 信息计算”属性段“的拓扑顺序， 
 调用 attrbar-reset-value-impl （业务实现）
 
 ==
-attrbar-just-set-values-impl [go & gavs]
-内部api
-转发给 attrbar-just-set-value-impl
-
-==
 attrbar-just-set-value-impl [go g a v]
-设置值，并记录更改前后的值（不仅仅是“最终段”）
-收集受影响的属性，稍后重置
 内部api
+根据 gavs ，设置对应段的值
+并收集值的变化，及受影响的级联属性
+
 
 ==
-attrbar-reset-value-impl [go a ]
+attrbar-reset-value-impl [go g a ]
 业务逻辑的实现
-根据 “游戏对象类型”，
-更新属性各个段的值（重算所有基于公式的段）
-（通过 attrbar-just-set-value-impl ）
+根据 “游戏对象类型”和“段”，
+更新该属性的值（处于 *attrs-is-just-set* 环境下）
 
 示例，见下。
 
 ========
-7，api设计2
+7，api设计-其他版本
 
+====
+7.1，
 此版本，会导致不必要的重复运算，
 例如 zdl 依赖 atk 和 def ，
 当同时更新 atk 和 def 时，
@@ -202,7 +212,19 @@ attrbar-set-value-impl [go g a v]
     )
   )
 
-第6节示例：
+====
+7.2，
+
+attrbar-reset-value-impl [go a ]
+业务逻辑的实现
+根据 “游戏对象类型”，
+更新属性各个段的值（重算所有基于公式的段）
+（通过 attrbar-just-set-value-impl ）
+
+此版本，如果只是更新 atk :base 或 atk :equip 时，
+都会导致对方进行不必要的重新计算。
+
+示例：
 
 (defn attrbar-reset-value-impl
   [go a ]
@@ -244,5 +266,55 @@ attrbar-set-value-impl [go g a v]
         )
       )
     )
+  )
+
+====
+第6节，最终api示例：
+
+(defn attrbar-reset-value-impl
+  [go g a ]
+  (binding [*attrs-is-just-set* true]
+    (cond
+      (g-attr-go? :final Attr-user-lvl Go-User)
+      (do
+        (attrbar-calc-set-user-lvl-final go)
+        )
+      
+      (g-attr? :base Attr-atk)
+      (do
+        (attrbar-calc-set-atk-base go)
+        )
+      (g-attr? :final Attr-atk)
+      (do
+        (attrbar-calc-set-value-grs
+          go :final a 
+          :base 3
+          :equip 2
+          :skill 2)
+        )
+    
+      (g-attr? :base Attr-def )
+      (do
+        (attrbar-calc-set-def-base go)
+        )
+      (g-attr? :final Attr-def)
+      (do
+        (attrbar-calc-set-value-grs
+          go :final a 
+          :base 3
+          :equip 2
+          :skill 2)
+        )
+    
+      (g-attr-go? :final Attr-zdl Go-User)
+      (do
+        (attrbar-calc-set-value-ars
+          go :final a
+          :base
+          Attr-atk 1
+          Attr-def 2
+          )
+        )
+      ))
   )
 

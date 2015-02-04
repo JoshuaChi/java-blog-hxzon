@@ -36,7 +36,26 @@ f 的第一个参数是原来的值。
 4.1，filterv
 返回 (pred item) 为真的向量。
 
+====
+(remove pred coll)
+
+移除 (pred item) 为真的元素。
 
 ====
-5，
+6，(contains? #{"a" "b" "v"} "a")
+
+元素是否存在。
+注意，不支持惰性序列。
+
+
+====
+5，(partition n coll)
+(partition n step coll)
+(partition n step pad coll)
+
+将coll中的元素，每n个为一组。
+
+
+====
+
 
