@@ -1,9 +1,11 @@
 ﻿（hxzon学习笔记）mysql常用语句
 
+========
 1，设置数据库参数
 
 set default_storage_engine = MyISAM ;
 
+========
 2，创建数据库
 
 数据库的创建和修改，都只是字符集选项。
@@ -21,6 +23,7 @@ create_specification:
 
 CREATE SCHEMA 是 CREATE DATABASE 的同义词。
 
+====
 2.1，修改数据库
 
 ALTER {DATABASE | SCHEMA} [db_name]
@@ -35,7 +38,7 @@ alter_specification:
   | [DEFAULT] COLLATE [=] collation_name
 
 
-====
+========
 3，创建表
 
 http://dev.mysql.com/doc/refman/5.6/en/create-table.html

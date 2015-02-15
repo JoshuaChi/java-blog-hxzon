@@ -2,14 +2,39 @@
 
 clojure-基本语法-正则表达式
 http://dead-knight.iteye.com/blog/1827994
-======
+修订by hxzon
+
+====
+创建正则表达式
+
+(re-pattern s) 创建样式
+(re-matcher re s) 创建有状态的匹配器
+
+查找匹配
+
+(re-find m) 下一个匹配结果
+
+(re-find re s) 第一个匹配结果（整个匹配字符串，和各层分组）
+
+(re-matches re s) 匹配结果
+
+(re-seq re s) 所有匹配结果，延迟序列
+
+(re-groups m)
+
+========
 一、创建正则表达式 
 
-----
-1，re-pattern函数： 
+====
+1，re-pattern
 
-函数 (re-pattern) 接受一个字符串参数，返回一个正则表达式样式(java.util.regex.Pattern类的实例）。
-这个样式能用于正则表达式匹配 。
+function
+Usage: (re-pattern s)
+
+Returns an instance of java.util.regex.Pattern, for use, e.g. in
+re-matcher.
+
+接受一个字符串，返回一个 java.util.regex.Pattern实例 。
 
 user=> (re-pattern "\\d+")  
 #"\d+"  
@@ -20,12 +45,17 @@ user=> (re-pattern "\\d+")
 user=> #"\\d+"  
 #"\d+"  
 
-----
-2，re-matcher函数： 
+====
+2，re-matcher
 
-re-matcher函数接受两个参数：一个正则表达式样式和一个字符串。
-返回一个有状态的"matcher"对象，提供给其它正则函数而不是直接提供样式。
-Matchers是java.util.regex.Matcher.类的实例。 
+function
+Usage: (re-matcher re s)
+
+Returns an instance of java.util.regex.Matcher, for use, e.g. in
+re-find.
+
+接受一个正则表达式样式和一个字符串。
+返回一个有状态的"matcher"对象，即 java.util.regex.Matcher 实例。
 
 user=> (re-matcher #"\d+" "abc12345def")  
 #<Matcher java.util.regex.Matcher[pattern=\d+ region=0,11 lastmatch=]>  
@@ -36,25 +66,42 @@ user=> (def matcher-num (re-matcher #"\d+" "abc12345def"))
 user=> (re-find matcher-num)  
 "12345"  
 
-这里的def函数用于定义变量，后面会描述 。
-
-
-=====
+========
 二、使用正则表达式： 
 
-----
-3，re-find函数： 
+====
+3，re-find
 
-re-find接受一个样式与一个字符串或者一个matcher。
-每次调用，返回matcher中下一个符合正则匹配的结果。 
+function
+Usage: (re-find m)
+       (re-find re s)
 
-user=> (re-find #"\d+" "abc123")  
+Returns the next regex match, if any, of string to pattern, using
+java.util.regex.Matcher.find().  Uses re-groups to return the
+groups.
+
+如果输入为匹配器，每次调用，返回matcher中下一个符合正则匹配的结果。
+如果输入为正则表达式样式，返回第一个匹配的结果。
+
+user=> (re-find #"\d+" "abc123")
 "123"  
 
-----
-4，re-matches函数： 
+(re-find #"\d" "abc123")
+;; "1"
 
-re-matches接受两个参数：一个正则表达式样式和一个字符串。
+(re-find #"\d(\d)" "abc123")
+;; ["12" "2"]
+
+====
+4，re-matches
+
+function
+Usage: (re-matches re s)
+
+Returns the match, if any, of string to pattern, using
+java.util.regex.Matcher.matches().  Uses re-groups to return the
+groups.
+
 返回任何和正则表达式样式匹配的字符串，如果没有匹配则返回nil。
 
 
@@ -65,35 +112,52 @@ user=> (re-matches #"hello.*" "hello,world")
 "hello,world"  
 
 user=> (re-matches #"hello,(.*)" "hello,world")  
-["hello,world" "world"]  
+["hello,world" "world"]
+;; hxzon：匹配的字符串，而各个分组
 
-----
-5，re-seq函数： 
+(re-matches #"\d(\d)*" "123")
+;; ["123" "3"]
 
-re-seq接受一个样式与一个字符串。
-它返回一个使用永久匹配（matcher）的lazy sequence(懒序列)（这个sequence在一个连续的样式匹配的字符串中） 。
+====
+5，re-seq
 
-user=> (re-seq #"\d" "clojure 1.1.0")  
+function
+Usage: (re-seq re s)
+
+Returns a lazy sequence of successive matches of pattern in string,
+using java.util.regex.Matcher.find(), each such match processed with
+re-groups.
+
+user=> (re-seq #"\d" "clojure 1.1.0")
 ("1" "1" "0")  
 
 user=> (re-seq #"\w+" "mary had a little lamb")  
 ("mary" "had" "a" "little" "lamb")  
 
----
-6，re-groups函数： 
+====
+6，re-groups
 
-接受一个matcher，返回从接近的发现与匹配的集合。
-如果没有嵌套集合，则返回一个完全匹配的字符串。
-如果有嵌套集合，则返回vector集合，第一个元素是完全匹配的（非嵌套） 。
+function
+Usage: (re-groups m)
 
-user=> (def phone-number "672-345-456-3212")  
+Returns the groups from the most recent match/find. If there are no
+nested groups, returns a string of the entire match. If there are
+nested groups, returns a vector of the groups, the first element
+being the entire match.
+
+接受一个matcher。
+如果没有内嵌分组，返回整个匹配的字符串。
+如果有内嵌分组，则返回一个向量，第一个元素是整个匹配的字符串。
+
+user=> (def phone-number "672-345-456-3212")
 #'user/phone-number  
 
 user=> (def matcher (re-matcher #"((\d+)-(\d+))" phone-number))  
 #'user/matcher  
 
-user=> (re-find matcher)  
-["672-345" "672-345" "672" "345"]  
+user=> (re-find matcher)
+["672-345" "672-345" "672" "345"]
+;; 整个匹配的字符串，第1层分组，第1个内嵌分组，第2个内嵌分组
 
 user=> (re-groups matcher)  
-["672-345" "672-345" "672" "345"]  
+["672-345" "672-345" "672" "345"]

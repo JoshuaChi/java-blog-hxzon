@@ -1,0 +1,31 @@
+﻿（hxzon学习笔记）mysql问题
+
+by hxzon
+========
+1，Get the metadata for prepared statement in java with MySql DB
+
+java.sql.SQLException: Parameter metadata not available for the given statement
+
+hxzon解决方法：
+连接字符串中加入 generateSimpleParameterMetadata=true 参数。
+jdbc:mysql://localhost:3306/mydb?generateSimpleParameterMetadata=true
+
+参考：
+http://stackoverflow.com/questions/14558353/get-the-metadata-for-prepared-statement-in-java-with-mysql-db
+
+========
+2，根据一张表更新另一张表
+
+update rd_xx rd set acc_id=(select lid from ri_xx where id=rd.id);
+
+mysql不支持上述语句。
+
+通过创建新表的方式：
+
+create table rd_2 
+select rd.id as id,rd.data as data,
+ri.lid as acc_id
+from rd rd,ri ri
+where rd.id=ri.id;
+
+

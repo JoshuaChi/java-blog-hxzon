@@ -18,6 +18,14 @@ fn的第一个参数是一个可选的函数名字，使得可以在函数体中
 ;= #'user/strange-adder
 
 ==
+hxzon注意：
+fn 的名字，在 fn 体内会遮盖外部的同名 var 。
+
+(def a 1)
+((fn a [] (prn a)))
+;; #<xxx$eval1512$a__1513 org.hxzon.clj.xxx$eval1512$a__1513@e4d95b>
+
+==
 定义本地变量，(let [x1 v1 x2 v2] ...)
 可在绑定列表中反复计算。
 
@@ -241,7 +249,13 @@ ref 保存了一个值的历史列表。
 (dosync & exprs)，开启事务
 
 ========
-9，
+9，assoc 仅适用于 clojure.lang.Associative ，不是所有的 map 实例都能使用。
+同样，不是所有的 map 实例都能作为函数使用。
 
+(def a (java.util.HashMap.))
+(assoc a :h 1)
+;; java.lang.ClassCastException: java.util.HashMap cannot be cast to clojure.lang.Associative
 
+可通过以下方式，即先转换：
 
+(assoc (merge {} a) :h 1)
