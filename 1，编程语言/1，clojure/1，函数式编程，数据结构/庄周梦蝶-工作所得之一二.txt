@@ -13,7 +13,8 @@ Clojure transient集合“陷阱”
             (count x))
 
 30个？很遗憾，你跟我犯了同样的错误。
-Transient集合虽然是mutable的，但是要注意调用assoc!或者dissoc!等修改操作的时候仍然需要“收集并使用”返回值。
+Transient集合虽然是mutable的，但是要注意调用assoc!或者dissoc!等修改操作的时候
+仍然需要“收集并使用”返回值。
 也就是上面代码需要修改为：
 
 

@@ -97,3 +97,23 @@ user=> (map-indexed vector "foobar")    ; 另一种更简单的解法
 
 不支持序列。
 
+====
+9，hash-set hash-map 可接受重复值，但字面量不行。
+
+(hash-map :a 1 :b 2 :a 3)
+{:a 3, :b 2}
+
+user=> #{1 1 2}
+IllegalArgumentException Duplicate key: 1
+
+{:a 1 :b 2 :a 3}
+;; java.lang.IllegalArgumentException: Duplicate key: :a
+
+user=> (def x 2)
+#'user/x
+user=> (def y 4)
+#'user/y
+user=> #{(inc x) (dec y)}
+IllegalArgumentException Duplicate key: 3
+
+

@@ -1,7 +1,14 @@
-﻿当LazySeq遇上closure
+﻿庄周梦蝶-当LazySeq遇上closure
 http://blog.fnil.net/index.php/archives/252
 20 一月, 2014 (00:06) | Clojure | By: dennis_zhuang
 
+========
+hxzon学习摘要：
+
+1，闭包导致的“头持有”。
+2，^:once fn* 的用法。
+
+========
 LazySeq在Clojure里很关键，它解决了持久数据结构在多次操作中的性能问题，
 避免了多趟(pass)扫描数据结构，将性能的开销“分担”到一个一个的“实现”的步骤里去
 （当然，这一步可能比较大，一个chunk是32个元素）。
@@ -25,7 +32,7 @@ LazySeq在Clojure里很关键，它解决了持久数据结构在多次操作中
 
 user=> (defn f [g] (g))
 #'user/f 
-user=> (defn t1  (f (fn [] (dorun (map identity c)))))
+user=> (defn t1  (f (fn [] (dorun (map identity c)))))    ;; hxzon：应该是 (defn t1 [c]
 #'user/t1
 user=> (t1 (range 1e8))
 OutOfMemoryError Java heap space  clojure.lang.ChunkBuffer.<init> (ChunkBuffer.java:20)
@@ -51,7 +58,7 @@ nil
 我们接地气一些，就叫“保存”了这个变量c，并且这个匿名函数可以在多次调用中使用这个c。
 
 因此原因很简单，LazySeq被dorun“实现”了之后，虽然dorun不持有head，
-但是匿名函数持有这个LazySeq“实现”后的集合，
+但是匿名函数持有这个LazySeq“实现”后的集合，（hxzon：重要）
 并且匿名函数无法在f调用完成之前被释放，导致内存被占满并溢出。
 
 ———————– 我是分割线 ——————————-
@@ -71,7 +78,8 @@ user=> (defn t2  (f (^:once fn* [] (dorun (map identity c)))))
 
 user=> (t2 (range 1e8))
 nil   
-Cool! It works.问题顺利解决。虽然这里once的用法很怪异。不过这个用法在clojure.core里很普遍，比如future宏：
+Cool! It works.问题顺利解决。虽然这里once的用法很怪异。
+不过这个用法在clojure.core里很普遍，比如future宏：
 
 
 (defmacro future

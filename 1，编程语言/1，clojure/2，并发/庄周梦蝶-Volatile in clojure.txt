@@ -7,7 +7,8 @@ Java 1.5重新理顺了内存模型，使得volatile关键字的行为更清晰�
 怎么在Java里使用volatile，可以看看这篇旧文《Java理论与实践：正确使用Volatile》。
 http://www.ibm.com/developerworks/cn/java/j-jtp06197.html
 
-在Clojure里又怎么声明一个volatile变量呢？答案是volatile-mutable的metadata。
+在Clojure里又怎么声明一个volatile变量呢？
+答案是volatile-mutable的metadata。
 
 一段Java代码：
 
@@ -31,3 +32,4 @@ boolean isVolatile(LocalBinding lb){
 }
 
 如果有volatile-mutable标记，就给access modifier加上AC_VOLATILE。
+
