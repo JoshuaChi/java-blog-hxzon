@@ -4,6 +4,8 @@ http://www.ruanyifeng.com/blog/2015/02/mvcmvp_mvvm.html
 作者： 阮一峰
 日期： 2015年2月 1日
 
+hxzon：作者理解有误，应读《（寒冬winter）谈谈UI架构设计的演化》
+
 ========
 复杂的软件必须有清晰合理的架构，否则无法开发和维护。
 MVC（Model-View-Controller）是最常见的软件架构之一，业界有着广泛应用。

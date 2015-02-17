@@ -259,3 +259,28 @@ ref 保存了一个值的历史列表。
 可通过以下方式，即先转换：
 
 (assoc (merge {} a) :h 1)
+
+(assoc nil :a 1)
+;; {:a 1}
+
+========
+10，
+(def a 1)
+(def b {:a (var a)})
+
+(= (var a) (:a b))
+;; true
+
+(def a 2)
+
+(= (var a) (:a b))
+;; true
+
+========
+11，(resolve sym) 查找var
+
+(resolve 'a)
+(var a)
+
+
+

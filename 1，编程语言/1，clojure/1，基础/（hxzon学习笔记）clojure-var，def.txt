@@ -307,3 +307,17 @@ nil
 user=> s
 "a string"
 
+========
+11，查找var
+
+(find-keyword name)
+(find-keyword ns name)
+(find-ns sym)
+(find-var sym)
+(ns-resolve ns sym)
+(ns-resolve ns env sym)
+(resolve sym)
+(resolve env sym)
+
+见 《（hxzon学习笔记）clojure-关键字，符号及相关函数 》
+

@@ -200,6 +200,15 @@ need not be present in the namespace.
 在指定的命名空间中，查找该符号所对应的var或类。
 注意，如果该符号是命名空间限定的，则它不必指定的命名空间。
 
+(defn ns-resolve
+  {:added "1.0"
+   :static true}
+  ([ns sym]
+    (ns-resolve ns nil sym))
+  ([ns env sym]
+    (when-not (contains? env sym)
+      (clojure.lang.Compiler/maybeResolveIn (the-ns ns) sym))))
+
 ====
 resolve
 function
@@ -207,4 +216,10 @@ Usage: (resolve sym)
        (resolve env sym)
 
 same as (ns-resolve *ns* symbol) or (ns-resolve *ns* &env symbol)
+
+(defn resolve
+  {:added "1.0"
+   :static true}
+  ([sym] (ns-resolve *ns* sym))
+  ([env sym] (ns-resolve *ns* env sym)))
 

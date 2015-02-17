@@ -308,6 +308,7 @@ cond->> threading does not short circuit after the first true test expression.
 
 ========
 4，case
+
 case可以简单理解为java中switch的case，如下 
 
 user=> (let [mystr "hello"];首先绑定mystr的值为hello  

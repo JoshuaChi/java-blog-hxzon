@@ -341,7 +341,7 @@ Returns a stateful transducer when no collection is provided.
 ;= (1 a 2 a 3 a 4 a 5)
 
 ====
-flatten
+12，flatten
 
 function
 Usage: (flatten x)
@@ -481,7 +481,29 @@ Returns a vector of [(take-while pred coll) (drop-while pred coll)]
 ;= {4 16, 3 9, 2 4, 1 1}
 
 ====
-1.1，reductions，规约历史。
+1.1，reduce-kv
+
+function
+Usage: (reduce-kv f init coll)
+
+Reduces an associative collection. f should be a function of 3
+arguments. Returns the result of applying f to init, the first key
+and the first value in coll, then applying f to that result and the
+2nd key and value, etc. If coll contains no entries, returns init
+and f is not called. Note that reduce-kv is supported on vectors,
+where the keys will be the ordinals.
+
+(reduce-kv
+    (fn [m k v]    ;; m 是累积值，v 是当前迭代参数
+        (assoc m k [v (* v v)] ) )
+    []  ;初始是个空集合
+    [1 2 3 4])
+;= [[1 1] [2 4] [3 9] [4 16]]
+
+不支持序列。
+
+====
+1.2，reductions，规约历史。
 (reductions f coll)
 (reductions f init coll)
 

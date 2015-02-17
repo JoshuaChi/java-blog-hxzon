@@ -1,0 +1,18 @@
+﻿Facebook告诉我们如何构建网站
+作者 孙镜涛 发布于 2015年2月15日
+http://www.infoq.com/cn/news/2015/02/facebook-construct-website
+
+hxzon摘要：
+React.js、Relay和GraphQL
+
+========
+Eric Florenzano最近在自己的博客上发表了一篇题为《Facebook教我们如何构建网站》的文章，他认为软件开发有些时候需要比较大的跨越，而这将会在2015年再次上演，主角们则是Facebook的React.js、Relay和GraphQL。
+
+Eric Florenzano在该文章中提到：2003年Brad Fitzpatrick发布了Memcached，由此开启了LiveJournal架构的时代；2004年Google发布了MapReduce论文，由此诞生了Hadoop并开始风靡世界；2007年Amazon发布了Dynamo存储系统，让我们知晓了如何通过线性扩展的方式让数据库和应用程序一起工作，并导致了Cassandra、Riak等数据库的产生；2010年Twitter教会了我们如何通过客户端模板让服务器端变成一些简单的API，并引发了Web应用的又一次大转变；2012年Google发布了Angular.js 1.0，并最终成为流行的Web开发框架，这一切都有一个共同点，那就是：公司或者创业团队从生产中得到了沉痛的教训，从失败中找到了向前的出路，然后在将自己的技术突破共享出来的时候引发了一系列的变革。Fitzpatrick相信，在2015年Facebook将会通过React.js、Relay和GraphQL三把利剑引发Web应用开发的另一次跨越。
+
+Fitzpatrick做出如此判断的理由主要是基于Facebook的员工在一些演讲中所透露出的Web开发理念。例如，Pete Hunt在2013年的JSConf上做了题为《React：重新思考最佳实践》的演讲，讲述了Facebook之所以会避开某些“最佳实践”的原因，Pete Hunt认为JS模板分离了技术，但是并没有分离关注点，而框架并不知道如何分离关注点，解决这一问题的方案是组件，要充分利用JavaScript的能力，削弱模板的作用；Daniel Schafer和Jing Chen在2015年的React.js Conf上讲述了Facebook如何通过GraphQL改变既有的数据获取方式，让开发者更容易地在React应用中获取数据；Christopher Chedeau在《React：CSS in JS》中讲述了在大规模使用CSS时所面临的问题以及如何通过JS来解决。
+
+总的来说，Facebook提出的Web开发理念可以概括为：将应用分解为一个个独立的组件，与该组件相关的样式、标记、验证以及数据要求都放到组件定义的内部，对于自我渲染所需的所有数据每一个组件都有明确的声明且保存在该组件内部，同时对于哪些行为会改变组件的状态，组件状态改变之后会有哪些反应也要有明确的定义。通过这种方式编写的组件能够封装它自身的逻辑，使得组件高内聚，组件之间低耦合，增强了复用性，同时也降低了开发人员的运维难度和复杂性。
+
+毫无疑问，Facebook提出的技术与理念对于大部分Web网站开发团队而言还是有一定借鉴意义的，其中的思想也值得我们深思与学习，但是Fitzpatrick的判断是否真的会实现，Facebook的React.js、Relay和GraphQL是否会引发Web开发的再一次变革，只有等待时间来验证了。
+
