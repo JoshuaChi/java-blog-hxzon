@@ -1,0 +1,122 @@
+﻿Adam Bard-Improving your Clojure code with core.reducers
+May 27, 2013
+Adam Bard, Handsome web developer
+http://adambard.com/blog/clojure-reducers-for-mortals/
+
+Clojure is developed, maintained and documented by a cadre of extremely brainy people. This is mostly excellent news for users of clojure, but sometimes, I find myself feel a bit left behind reading about features and details of the language, especially coming from a background of procedural languages.
+Last year I read Rich Hickey's blog post on Clojure's new reducers library. My takeaways on reducers at the time were thus:
+
+Rich is really into them
+Whatever they are, they sound awesome
+In the intervening months, I've had some occasion to work with Hadoop and Mongodb, in various contexts, and developed some intuitive understanding of the map-reduce paradigm. This made me wonder if core.reducers was somehow similar, and how it could make my Clojure code more efficient, so I went back to the aforementioned post and came out with the half-digested knowlege I am about to impart to you.
+
+So what are reducers?
+Reducers are a different way of looking at the fundamental collection functions: map, filter, and reduce. Take a good look at map, filter, and reduce: one of these things is not like the others.
+Map and filter operate on any single item in a collection independently. Map-reduce frameworks take advantage of this fact to run such tasks in parallel (filter is a mapping operation in this sense). They will also combine any number of map or filter operations, so that the collection need only be traversed once.
+
+The map and filter implementations in clojure.core take partial advantage of this fact almost by accident, by virtue of being lazy. If you combine several maps or filters, you'll get a series of lazy sequences that apply each of the provided functions to the first item in each sequence. This is better than eager evaluation (which would iterate through the whole collection each operation), but not as good as it could be. Here's a simple benchmark demonstrating this (code for the benchmark function follows the article):
+
+(defn eager-map
+    "A dumb map"
+    [& args]
+    (doall (apply map args)))
+  
+  (defn eager-filter
+    "An eager filter"
+    [& args]
+    (doall (apply filter args)))
+  
+  (defn eager-test [nums]
+    (eager-filter even? (eager-map inc nums)))
+  
+  (defn lazy-test [nums]
+    (doall (filter even? (map inc nums))))
+  
+  (println "Eager v. Lazy filter+map, N=1000000, 10 repetitions")
+  (println "Eager test: " (benchmark eager-test 1000000 10) "ms")
+  (println "Lazy test:  " (benchmark lazy-test 1000000 10) "ms")
+  
+  ;; Eager v. Lazy filter+map, N=1000000, 10 repetitions
+  ;; Eager test:  1419 ms 
+  ;; Lazy test:   971 ms
+  
+Reduce is different from map and filter. It must be able to operate across several items in the collection, in at least some way. In Map-Reduce frameworks, reduce tends to be the expensive operation; difficult to parallelize and more likely to be subject to resource constraints.
+Perhaps in this light, or perhaps for other reasons, the core.reducers library makes the reasonable choice of treating reduce singularly, and as a cornerstone of computations involving collections.
+
+A “reducible” is defined, which is basically a “reducer” function duct-taped to a collection.
+Collections are “reducibles”, where the “reducer” is a sort of identity function.
+Instead of transforming the collection, map and filter transform the “reducer”.
+The actual work of applying the transformations is only realized when a reduce is called.
+In practice, this means that map and filter return functions that can be realized via reduce. This contrasts the existing situation, where map and filter return lazy sequences. This is arguably a simpler API (as long as you don't get burned expecting side effects from your lazy map), but it does take more resources preparing the seq at every step.
+
+A key trick for working with the reducers library: into uses reduce. This is the most convenient way to get a collection out of core.reducers/map or core.reducers/filter.
+
+Here's another simple benchmark demonstrating that reducers improve performance:
+
+(defn reducer-test [nums]
+    (into [] (r/filter even? (r/map inc nums)))
+    )
+  
+  (println "Eager v. Lazy v. Reducer filter+map, N=1000000, 10 repetitions")
+  (println "Eager test:    " (benchmark eager-test 1000000 10) "ms")
+  (println "Lazy test:     " (benchmark lazy-test 1000000 10) "ms")
+  (println "Reducers test: " (benchmark reducer-test 1000000 10) "ms")
+  
+  ;; Eager test:  1442 ms 
+  ;; Lazy test:   982 ms
+  ;; Reducers test:  643 ms
+  
+Folding @ home
+
+This is all well and good, but the greater performance gain in the reduces library is fold. Normally, fold means the same thing as reduce, but core.reducers/fold throws in a bit extra by being a) automatically parallizable, and b) implementing a “reduce/combine” model.
+Fold can be used just like reduce, with some extra restrictions:
+
+The function passed to fold must be associative. This allows for parallelization without too much wrangling.
+Your reducing function must provide its identity when called with no arguments. + and \* already do this.
+(defn plus [a b] (+ a b))
+  (defn plus+
+    ([] 0)
+    ([a b] (+ a b)))
+  (reduce plus [1 2 3 4]) ; => 10
+  (r/fold plus [1 2 3 4]) ; Throws an exception
+  (r/fold plus+ [1 2 3 4]) ; => 10
+  
+Behind the scenes, fold uses two functions: a “reducing” function, which it calls as a regular reduce across segments of the input collection, and a “combining” function, which combines the results of these reductions. In the simple case, such as with +, these two are the same function. But, you may provide a “combining” function separately from your “reducing” function to circumvent the conditions of associativity and identity, which need only be true for the “combining” function.
+This parallelization can provide some major performance improvements:
+
+(defn old-reduce [nums]
+    (reduce + (map inc (map inc (map inc nums)))))
+  
+  (defn new-reduce [nums]
+    (reduce + (r/map inc (r/map inc (r/map inc nums)))))
+  
+  (defn new-fold [nums]
+    (r/fold + (r/map inc (r/map inc (r/map inc nums)))))
+  
+  (println "Old reduce: " (benchmark old-reduce N times) "ms")
+  (println "New reduce: " (benchmark new-reduce N times) "ms")
+  (println "New fold:   " (benchmark new-fold N times) "ms")
+  
+  ;; Old reduce:       1450 ms
+  ;; Reducers reduce:  1256 ms
+  ;; Reducers fold:    306 ms
+  
+When to use what?
+
+clojure.core.reducers has been a part of core for a year now, which is long enough to start using it without worrying too much about stability. fold is in particular a big speed improvement, and should be used wherever the conditions of its application can be met. For the rest, the performance improvements are mostly marginal, but thinking in terms of reducers might simplify modeling your problem, and to gain an extra boost in concert with fold. You can use map and filter as almost drop-in replacements, but you must remember to apply a reducer to their output.
+Appendix A: Benchmarking code
+
+(defn benchmark [f N times]
+    (let [nums (vec (range N))
+          start (java.lang.System/currentTimeMillis)]
+      (dotimes [n times]
+        (f nums))
+      (- (java.lang.System/currentTimeMillis) start)))
+  
+Further Reading
+
+Jul 7, 2014: My Top Clojure Articles
+Jul 7, 2013: Reducers explained (through Python)
+Jun 13, 2013: Clojure.core: Batteries (almost) included
+Sep 29, 2013: Clojure's core.typed vs Haskell
+

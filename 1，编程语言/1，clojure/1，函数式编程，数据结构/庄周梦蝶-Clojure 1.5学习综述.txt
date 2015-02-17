@@ -60,6 +60,7 @@ lazy的额外开销是不必要的；
 http://clojure.com/blog/2012/05/15/anatomy-of-reducer.html
 https://github.com/clojure/clojure/blob/master/src/clj/clojure/core/reducers.clj
 
+==
 其次，reducer库还让每个数据结构自己决定处理方式，
 比如刚才提到的，String的最佳方式就是直接使用chartAt，
 java数组的最佳方式就是利用一系列array函数来原生操作数组等等，
@@ -67,6 +68,7 @@ java数组的最佳方式就是利用一系列array函数来原生操作数组�
 https://github.com/clojure/clojure/blob/master/src/clj/clojure/core/protocols.clj
 现在core库里的reduce和into也是调用这些优化过的方式。
 
+==
 最后，reduce也是以eager方式，而非lazy的方式来生成集合，这也避免了lazy的开销。
 
 Reducer库还基于fork/join框架提供了fold函数来并发处理数据集合，默认切分的子集合大小是512，
@@ -93,9 +95,10 @@ clojure 1.6貌似没有再加入一些新的thread宏。
 ========
 gen-class和protocol的相关改进
 
-gen-class增加指令exposes-methods导出protocted并final的方法，让通过gen-class生成的子类可以访问。
+gen-class 增加指令 exposes-methods 
+导出 protocted 并 final 的方法，让通过gen-class生成的子类可以访问。
 
-gen-class的constructors可以添加annotation元信息。
+gen-class 的 constructors 可以添加 annotation元信息。
 
 允许定义标记protocol，类似java里的mark interface，没有任何方法，纯粹一个接口
 
