@@ -1,4 +1,4 @@
-（hxzon翻译）clojure-读取器（读者宏）
+（clojure官方文档）读取器（读者宏）
 
 by hxzon
 http://clojure.org/reader

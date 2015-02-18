@@ -1,0 +1,258 @@
+﻿Adam Bard-Clojure.core： Batteries (almost) included
+Jun 13, 2013
+Adam Bard, Handsome web developer
+http://adambard.com/blog/clojure-batteries-included/
+
+Today, I want to provide a guided tour through some of the many libraries available from the Clojure team that don't come distributed with Clojure. Consider them Clojures standard library. Some came from old clojure.contrib libs, others are brand-new, but all are great.
+Foreword
+I spend a lot of time thinking about how to make Clojure more popular. After all, if there's more code written in Clojure, there's more need for Clojure developers, which means more opportunities to use my favorite language of late in production. One potential barrier to adoption – if only a psychological one – is that Clojure, as a Lisp-derived language, tends to eschew the batteries-included philosophy of other, more mainstream languages. Java, PHP, Python and Ruby come to mind as languages I've used that come with extensive standard libraries by default, and I'm sure C# and Perl and all the other ones I've never really dealt with.
+Clojure's default installation takes a different tack from these. Besides core, clojure includes only the following menagerie of utilities and helpers. Some of these are very useful indeed:
+
+clojure.data - Just one function, diff, which might come in handy. Used as a namespace later though.
+clojure.edn - Read edn-formatted data.
+clojure.inspector - Graphical inspectors for Clojure data
+clojure.java.io - Some very-useful clojurifications of java I/O libraries (streams, etc.)
+clojure.java.shell - Exec commands from your environment
+clojure.pprint - Pretty-printing
+clojure.set - Set operations (union, difference, intersection, and so on).
+clojure.string - All the usual string operations (trim, upper/lower case, replace, split, join, etc.) live here
+clojure.template - A small utility for templated macroing
+clojure.test - Testing utils.
+clojure.walk - Some utilities for walking tree structures.
+clojure.zip - Zipping functions. seq-zip, xml-zip and vector-zip seem to be the most useful bits at-a-glance.
+Other libraries included with clojure may be mostly only useful to the clojure.core team themselves, or people writing tools for clojure:
+
+clojure.instant - Timestamp parsers of no obvious utility
+clojure.java.browse - Contains a single function, browse-url, which accepts a url and opens a browser.
+clojure.java.javadoc - Quick browser access to javadocs
+clojure.main - Functions for actually running Clojure itself
+clojure.reflect - Some (apparently unstable) utilities for reflection)
+clojure.repl - Useful functions for working with the repl.
+clojure.stacktrace - Mostly, print stacktraces.
+clojure.xml - RH's xml utils. I'd recommend the XML library to be discussed in a bit.
+However, beyond the libraries distributed with clojure, there is a whole world of libraries maintained by the clojure team, mirroring many of the “batteries” from other languages. And thanks to Leiningen, these almost-first-class-members of the clojure experience are just an entry in :dependencies away.
+
+First on our tour, we'll check out 3 libraries available in the clojure.data namespace. Most projects won't need all of these, but a good number will probably have occasion to use at least one.
+
+data.csv
+If a library doesn't come with an easy way to deal with csv files, it probably doesn't care about you and your petty problems. But Clojure loves you, baby, and clojure.data.csv is how you know it. (Actually, it's Jonas Enlund who loves you, and who wrote this lib)
+(require '[clojure.data.csv :as csv]
+         '[clojure.java.io :as io])
+
+(with-open [in-file (io/reader "in-file.csv")]
+  (doall
+    (csv/read-csv in-file)))
+
+(with-open [out-file (io/writer "out-file.csv")]
+  (csv/write-csv out-file
+                 [["abc" "def"]
+                  ["ghi" "jkl"]]))
+data.xml
+I mentioned above Rich Hickey's effort, clojure.xml, but here's it's big brother. clojure.data.xml, maintained and likely written by Ryan Senior.
+data.xml's parsing utilities return records of the following description
+
+    #clojure.data.xml.Element{:tag :foo,
+                              :attrs {},
+                              :content ...}
+You can deal with these parsed records just like maps, as usual. Here's an excerpt from some code I recently wrote to extract items from RSS feeds:
+(defmulti get-items :tag)
+(defmethod get-items :rss [doc]
+  (->>
+    doc
+    :content
+    first
+    :content
+    (filter-tag :item)
+    (map :content)))
+
+(defmethod get-items :feed [doc]
+  (->>
+    doc
+    :content
+    (filter-tag :entry)
+    (map :content)))
+
+(defmethod get-items :default [_] [])
+You can construct XML documents by creating Elements yourself (using the (element [tag attrs content]) record definition), or you can use a Hiccup-esque syntax with sexp-as-element:
+(sexp-as-element
+  [:foo {:foo-attr "foo value"}
+    [:bar {:bar-attr "bar value"}
+      [:baz {} "The baz value"]]]))
+Good stuff.
+data.json
+Like other JSON libraries for languages with literal hash maps, Stuart Sierra's clojure.data.json is best thought of as a conversion layer between hash maps and JSON strings, although this library also provides stream-based i/o.
+(json/read-str "{\"a\":1,\"b\":2}")
+;;=> {"a" 1, "b" 2}
+
+(json/write-str {:a 1 :b 2})
+;;=> "{\"a\":1,\"b\":2}"
+What more do you need to know? If you need to deal with json in clojure, you want clojure.data.json. There's lots more functionality, so be sure to read the docs.
+tools.macro
+Adds a few syntactic sugars to macro definitions in clojure: macrolets, which are locally-scoped macros, and “symbol macros”.
+(defsymbolmacro sym (+ a b))
+(with-symbol-macros
+  (+ 1 sym))
+;; expands to (+ 1 (+ a b))
+Some nice little utils. If your projects don't already have half-baked implementations of these, you should include clojure.tools.macro before you do.
+tools.logging
+clojure.tools.logging, by Alex Taggart, “wraps”, i.e. implements, all of the big Java logging libraries at once. Write your code once, and pick your implementation later.
+The logging functions are exactly what you'd expect:
+
+(defn divide [x y]
+  (try
+    (info "dividing" x "by" y)
+    (/ x y)
+    (catch Exception ex
+      (error ex "There was an error in calculation"))))
+If you're not using Timbre, you should be using clojure.tools.logging.
+core.cache
+I must admit, when I tried to use clojure.core.cache (written and maintained by Michael Fogus), I got a bit confused for a while before I realized that I had to be storing the output of the cache. Really, I don't mind if the caching library I use is a bit stateful!
+But, I'm still happy about core.cache, because it paves the way for…
+
+core.memoize
+This library (also Fogus) is great. You use it to wrap a function, and it pops an atom right in the metadata of the function. Your function calls are instantly memoized.
+You can pick and choose your caching strategy as per core.cache, too:
+
+    (require '[clojure.core.memoize :refer (memo-lu)])
+
+    (def id (memo-lu #(do (Thread/sleep 5000) (identity %)) 3))
+
+    (id 42)
+    ; ... waits 5 seconds
+    ;=> 42
+
+    (id 42)
+    ; instantly
+    ;=> 42
+Go read all about it.
+core.match
+David Nolen's core.match is an alpha-quality attempt to bring pattern-matching to clojure. I prefer writing code to words, so let me explain it to you in the language of my people: Fizzbuzz!
+(use '[clojure.core.match :only (match)])
+
+(defn fizzbuzz
+  "
+  Print each number from 1 to 100, but for multiples of 3 print 'Fizz'
+  instead, and for multiples of 5 print 'Buzz'. For multiples of both
+  print 'FizzBuzz'
+  "
+  []
+  (doseq [n (range 1 101)]
+    (println
+      (match [(mod n 3) (mod n 5)]
+        [0 0] "FizzBuzz"
+        [0 _] "Fizz"
+        [_ 0] "Buzz"
+        :else n))))
+This library has a nice little writeup available for it, so I won't belabour it.
+I personally can't wait for this to get out of alpha, and hopefully get absorbed into clojure.core
+
+core.unify
+The core.unify library, another Michael Fogus joint, is a library that brings unification) to clojure.
+It's not a concept I was particularly familiar with before I started writing this, but I actually found the best examples in the comments section of the main library file from which the following examples are alternately inspired and outright stolen.
+
+There are three primary functions exposed by core.unify.
+
+(unify [expr1 expr2]) attempts to define what symbols (denoted by ?) it can given an expression.
+
+(u/unify {:first '?first
+          :last  '?last
+          :genre :giallo}
+
+         {:first "Dario"
+          :last  "Argento"
+          :genre :giallo})
+;; => {?first "Dario" ?last "Argento"}
+Here's most of the table from that wikipedia article, translated into core.unify
+(u/unify 'a 'a)                     ;; => {}
+(u/unify 'a 'b)                     ;; => nil
+(u/unify '?x '?x)                   ;; => {}
+(u/unify 'a '?x)                    ;; => {?x a}
+(u/unify '?x 'y)                    ;; => {?x y}
+(u/unify '(f a ?x) '(f a b))        ;; => {?x b}
+(u/unify '(f a) '(g a))             ;; => nil
+(u/unify '(f ?x) '(f ?y))           ;; => {?x ?y}
+(u/unify '(f ?x) '(g ?y))           ;; => nil
+(u/unify '(f (g ?x)) '(f ?y))       ;; => {?y (g ?x)}
+(u/unify '(f (g ?x) ?x) '(f ?y a))  ;; => {?y (g ?x) ?x a}
+(u/unify '?x '(f ?x))               ;; (throws an exception)
+(subst [expr bindings]) is the inverse of unify, in a way. Given an expression and a map of bindings, it returns the expression with the bindings substituted. Symbols can be nested:
+(u/subst
+  '[1 2 ?x ?y]
+  '{?x [3 4 ?y 6] ?y 1})
+;; => [1 2 [3 4 1 6] 1]
+(unifier [expr1 expr2]) performs a unification and then a substitution, resulting in the most complete version of the provided expressions that can be formed.
+(defn my-unifier [expr1 expr2]
+  (u/subst expr1
+  (u/unify expr1 expr2)))
+(my-unifier '(f ?y) '(f (g ?x))) ;; => (f (g ?x))
+(u/unifier '(f ?y) '(f (g ?x)))  ;; => (f (g ?x))
+The primary motivation for writing unifiers seems to be the creation of type inference systems, but I'm sure there's other cool stuff you can find to do with your newfound learning.
+core.logic
+This library, also written/maintained by David Nolen, clojure.core.logic is an implementation of both miniKanren and cKanren (pdf) in Clojure. You could think of it like core.unify, but fuller-featured.
+It lets you write declarative statements, then run them against the logic engine to get a list of results satisfying the provided conditions.
+
+Here's a sample from the primer:
+
+  (run* [q]
+    (membero q [1 2 3])
+    (membero q [3 4 5]))
+  ;; => (3)
+Of course there are better ways to expression set intersection, but there are tons of applications that clojure.core.logic can help express more concisely.
+There is pretty good documentation available on the project's wiki, but I prefer The Magical Island of Kanren as an intro (even if the syntax is mildly outdated).
+
+Also, here's a very recent blog post by the author that I found really helpful.
+
+core.typed
+Statically-typed functional programs have a nice habit of just working, once you get your types all sorted out. clojure.core.typed, written by Ambrose Bonnaire-Sergeant, lets you do the next best thing in Clojure, by adding type annotations to your functions.
+Here's how it works. First, write a function:
+
+(ns example.typed
+  (:require [clojure.core.typed :as t]))
+
+(t/ann add [Number Number -> String])
+(defn add [a b]
+  (+ a b))
+Then, call check-ns from somewhere within that namespace (I keep mine in a comment at the bottom of the file and run it with fireplace.vim):
+(t/check-ns)
+And, since I annotated that wrong, we'll see some errors:
+Type Error (example.typed:7:3) Return type of static
+method clojure.lang.Numbers/add is java.lang.Number, expected java.lang.String.
+in: (clojure.lang.Numbers/add a b)
+
+
+Type Error (example.typed:6) Expected type: String
+Actual: Number
+in: (clojure.lang.Numbers/add a b)
+
+
+Type Error (example.typed:6:1) Expected type: (Fn [Number Number -> String])
+Actual: (Fn [Number Number -> Number])
+in: (def add (fn* #))
+You probably won't annotate everything, but it's nice to have core.typed around when you forsee there might be a typing problem, and it's good to have your code checked anyhow.
+core.contracts
+I slacked off and left this out last night, but somebody called me out so now I'm back.
+Fogus's clojure.core.contracts is for people who want their functions to be even more uptight than can be had with static typing. It's basically a replacement for starting your function with a bunch of assert calls. Here's the example from the home page:
+
+(use 'clojure.core.contracts)
+
+    (def secure-doubler
+      (with-constraints
+        (fn [n] (* 2 n))
+        (contract doubler
+          "ensures doubling"
+          [x] [number? => (= (* 2 x) %)]
+          [x y] [(every? number? [x y])
+                   =>
+                 (= (* 2 (+ x y)) %)])))
+
+    (secure-doubler 10)
+    ;=> 20
+As you can see, you can specify pre- and post- conditions, and even extend the function itself. Pretty cool.
+Conclusion
+That's just a quick tour of some of the interesting libraries I found, but it's far from exhaustive. There are a ton more, though, so be sure to check out the Clojure github repo to see what else exists.
+Further Reading
+
+Jul 7, 2014: My Top Clojure Articles
+May 27, 2013: Improving your Clojure code with core.reducers
+Sep 29, 2013: Clojure's core.typed vs Haskell
+

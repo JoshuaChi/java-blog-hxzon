@@ -1,0 +1,140 @@
+﻿（clojure官方文档）Reducers
+http://clojure.org/reducers
+
+注释by hxzon
+========
+Reducers provide an alternative approach to using sequences to manipulate standard Clojure collections. 
+Sequence functions are typically applied lazily, in order, create intermediate results, and in a single thread. 
+序列函数是懒的，
+However, many sequence functions (like map and filter) could conceptually be applied in parallel, 
+yielding code that will get faster automatically as machines get more cores. 
+然而，很多序列函数是可并行化的，
+For more details on the rationale for reducers, see the original blog posts.
+
+http://clojure.com/blog/2012/05/08/reducers-a-library-and-model-for-collection-processing.html
+http://clojure.com/blog/2012/05/15/anatomy-of-reducer.html
+
+A reducer is the combination of a reducible collection (a collection that knows how to reduce itself) 
+可规约的集合（它知道如何规约自己）
+with a reducing function (the "recipe" for what needs to be done during the reduction). 
+The standard sequence operations 
+are replaced with new versions that do not perform the operation but merely transform the reducing function. 
+Execution of the operations is deferred until the final reduction is performed. 
+This removes the intermediate results and lazy evaluation seen with sequences.
+这移除了序列版因中间结果和懒求值的开销。
+
+Additionally, some collections (persistent vectors and maps) are foldable. 
+有些集合类型，还是可折叠的。
+The fold operation on a reducer executes the reduction in parallel by:
+Partitioning the reducible collection at a specified granularity (default = 512 elements)
+Applying reduce to each partition
+Recursively combining each partition using Java's fork/join framework.
+使用java fork-join框架执行合并。
+
+If a collection does not support folding, it will fall back to non-parallel reduce instead.
+如果一个集合不支持折叠，则回退到非并行化的规约。
+
+====
+reduce and fold
+
+The clojure.core.reducers namespace (aliased here as r) provides an alternate r/reduce function.
+
+(r/reduce f coll)
+(r/reduce f init coll)
+
+The reducers version differs in that:
+Map colls are reduced with reduce-kv
+When init is not provided, f is invoked with no arguments to produce an identity value
+如果没有提供初始值，则使用 f 函数的无参版本的返回值作为初始值。
+Note: f may be invoked multiple times to provide the identity value
+注意：f 可能被多次调用无参版本。
+
+In general most users will not call r/reduce directly and instead should prefer r/fold, 
+which implements parallel reduce and combine. 
+However, it may be useful to execute an eager reduce with fewer intermediate results.
+许多人可能更喜欢直接使用折叠，而不是规约。
+但规约可省掉不必要的因并行化而产生的中间结果。
+
+(r/fold reducef coll)
+(r/fold combinef reducef coll)
+(r/fold n combinef reducef coll)
+
+r/fold takes a reducible collection and partitions it into groups of approximately n (default 512) elements. 
+Each group is reduced using the reducef function. 
+The reducef function will be called with no arguments to produce an identity value in each partition. 
+The results of those reductions are then reduced with the combinef (defaults to reducef) function. 
+When called with no arguments, (combinef) must produce its identity element - this will be called multiple times. 
+Operations may be performed in parallel. 
+Results will preserve order.
+结果会保持顺序。
+
+The following functions (analagous to the sequence versions) 
+create reducers from a reducible or foldable collection: 
+下列函数会创建可规约结构：
+
+r/map 
+r/mapcat 
+r/filter 
+r/remove 
+r/flatten 
+r/take-while 
+r/take and 
+r/drop. 
+
+None of these functions actually transforms the source collection. 
+To produce an accumulated result, you must use r/reduce or r/fold. 
+To produce an output collection, use clojure.core/into to choose the collection type 
+or the provided r/foldcat to produce a collection that is reducible, foldable, seqable, and counted.
+为了生成输出的集合，使用 into 来选择集合的具体类型，
+或使用 r/foldcat 来产生可规约、可折叠、可序列、可数的集合。
+
+========
+Using reducers
+使用示例
+
+Use fold to sum with +:
+
+(require '[clojure.core.reducers :as r])
+
+(r/fold + (r/filter even? (r/map inc [1 1 1 2])))
+
+Use into to produce a final collection:
+使用 into 产生最终集合
+
+(into [] (r/filter even? (r/map inc (range 100000))))
+
+Or r/foldcat:
+
+(r/foldcat (r/filter even? (r/map inc (range 100000))))
+
+
+Specify a reduce function and a combine function with fold:
+
+;; 规约函数
+(defn count-words
+  ([] {})
+  ([freqs word]
+    (assoc freqs word (inc (get freqs word 0)))))
+
+;; 合并函数
+(defn merge-counts
+  ([] {})
+  ([& m] (apply merge-with + m)))
+ 
+(defn word-frequency [text]
+  (r/fold merge-counts count-words (clojure.string/split text #"\s+")))
+
+========
+When to use
+什么时候使用
+
+Use the reducer form of these operations when:
+
+Source data can be generated and held in memory
+源数据会被产生，且保持在内存中
+
+Work to be performed is computation (not I/O or blocking)
+
+Number of data items or work to be done is "large"
+数据较大
+

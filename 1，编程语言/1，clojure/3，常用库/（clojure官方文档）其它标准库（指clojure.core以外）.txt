@@ -1,4 +1,4 @@
-（hxzon翻译）clojure-其它标准库（指clojure.core以外）
+（clojure官方文档）其它标准库（指clojure.core以外）
 
 by hxzon
 http://clojure.org/other_libraries

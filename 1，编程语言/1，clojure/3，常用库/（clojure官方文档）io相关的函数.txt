@@ -1,4 +1,4 @@
-（hxzon翻译）clojure-io相关的函数
+（clojure官方文档）io相关的函数
 
 by hxzon
 ========

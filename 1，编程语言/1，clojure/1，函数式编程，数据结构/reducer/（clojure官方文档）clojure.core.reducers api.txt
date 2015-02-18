@@ -1,0 +1,323 @@
+﻿clojure官方文档-clojure.core.reducers api
+
+注释by hxzon
+========
+clojure.core.protocols
+
+Protocols
+
+====
+CollReduce
+
+Protocol
+Protocol for collection types that can implement reduce faster than
+first/next recursion. 
+Called by clojure.core/reduce. 
+Baseline
+implementation defined in terms of Iterable.
+
+Known implementations: 
+已知的实现：
+clojure.core.reducers.Cat, 
+clojure.lang.ASeq, 
+clojure.lang.LazySeq, 
+clojure.lang.PersistentVector, 
+java.lang.Iterable, 
+nil, 
+Object
+
+==
+coll-reduce
+function
+Usage: (coll-reduce coll f)
+       (coll-reduce coll f val)
+
+====
+IKVReduce
+
+Protocol
+Protocol for concrete associative types that can reduce themselves
+via a function of key and val faster than first/next recursion over map
+entries. Called by clojure.core/reduce-kv, and has same
+semantics (just different arg order).
+
+Known implementations: 
+clojure.lang.IPersistentMap, 
+clojure.lang.PersistentArrayMap, 
+clojure.lang.PersistentHashMap, 
+clojure.lang.PersistentTreeMap, 
+clojure.lang.PersistentVector, 
+nil
+
+==
+kv-reduce
+function
+Usage: (kv-reduce amap f init)
+
+====
+InternalReduce
+
+Protocol
+Protocol for concrete seq types that can reduce themselves
+faster than first/next recursion. Called by clojure.core/reduce.
+
+Known implementations: 
+clojure.core.VecSeq, 
+clojure.lang.ArraySeq, 
+clojure.lang.ArraySeq$ArraySeq_boolean, 
+clojure.lang.ArraySeq$ArraySeq_byte, 
+clojure.lang.ArraySeq$ArraySeq_char, 
+clojure.lang.ArraySeq$ArraySeq_double, 
+clojure.lang.ArraySeq$ArraySeq_float, 
+clojure.lang.ArraySeq$ArraySeq_int, 
+clojure.lang.ArraySeq$ArraySeq_long, 
+clojure.lang.IChunkedSeq, 
+clojure.lang.StringSeq, 
+nil, 
+Object
+
+==
+internal-reduce
+function
+Usage: (internal-reduce seq f start)
+
+========
+========
+clojure.core.reducers
+
+A library for reduction and parallel folding. Alpha and subject
+to change.  Note that fold and its derivatives require Java 7+ or
+Java 6 + jsr166y.jar for fork/join support. See Clojure's pom.xml for the
+dependency info.
+
+========
+Types
+
+Cat
+type
+Fields: [cnt left right]
+Protocols: clojure.core.protocols/CollReduce, CollFold
+Interfaces: clojure.lang.Counted, clojure.lang.Seqable
+
+========
+Public Variables and Functions
+
+====
+->Cat
+function
+Usage: (->Cat cnt left right)
+Positional factory function for class clojure.core.reducers.Cat.
+
+====
+append!
+
+function
+Usage: (append! acc x)
+.adds x to acc and returns acc
+Added in Clojure version 1.5
+添加到累加器。
+
+(defn append!
+  ".adds x to acc and returns acc"
+  {:added "1.5"}
+  [^java.util.Collection acc x]
+  (doto acc (.add x)))
+
+====
+cat
+
+function
+Usage: (cat)
+       (cat ctor)
+       (cat left right)
+
+A high-performance combining fn that yields the catenation of the
+reduced values. The result is reducible, foldable, seqable and
+counted, providing the identity collections are reducible, seqable
+and counted. The single argument version will build a combining fn
+with the supplied identity constructor. Tests for identity
+with (zero? (count x)). See also foldcat.
+Added in Clojure version 1.5
+
+====
+drop
+
+function
+Usage: (drop n)
+       (drop n coll)
+Elides the first n values from the reduction of coll.
+Added in Clojure version 1.5
+移除开头的n个元素。
+
+====
+filter
+
+function
+Usage: (filter pred)
+       (filter pred coll)
+Retains values in the reduction of coll for which (pred val)
+returns logical true. Foldable.
+Added in Clojure version 1.5
+过滤元素。可折叠的。
+
+====
+flatten
+
+function
+Usage: (flatten)
+       (flatten coll)
+Takes any nested combination of sequential things (lists, vectors,
+etc.) and returns their contents as a single, flat foldable
+collection.
+Added in Clojure version 1.5
+平铺，返回一个可折叠的集合。
+
+====
+fold
+
+function
+Usage: (fold reducef coll)
+       (fold combinef reducef coll)
+       (fold n combinef reducef coll)
+Reduces a collection using a (potentially parallel) reduce-combine
+strategy. The collection is partitioned into groups of approximately
+n (default 512), each of which is reduced with reducef (with a seed
+value obtained by calling (combinef) with no arguments). The results
+of these reductions are then reduced with combinef (default
+reducef). combinef must be associative, and, when called with no
+arguments, (combinef) must produce its identity element. These
+operations may be performed in parallel, but the results will
+preserve order.
+Added in Clojure version 1.5
+
+====
+foldcat
+
+function
+Usage: (foldcat coll)
+Equivalent to (fold cat append! coll)
+Added in Clojure version 1.5
+
+====
+folder
+
+function
+Usage: (folder coll xf)
+
+Given a foldable collection, and a transformation function xf,
+returns a foldable collection, where any supplied reducing
+fn will be transformed by xf. 
+xf is a function of reducing fn to
+reducing fn.
+Added in Clojure version 1.5
+返回一个可折叠集合，所有的规约函数会被 xf 转换。
+
+====
+map
+
+function
+Usage: (map f)
+       (map f coll)
+Applies f to every value in the reduction of coll. Foldable.
+Added in Clojure version 1.5
+
+====
+mapcat
+
+function
+Usage: (mapcat f)
+       (mapcat f coll)
+Applies f to every value in the reduction of coll, concatenating the result
+colls of (f val). Foldable.
+Added in Clojure version 1.5
+
+====
+monoid
+
+function
+Usage: (monoid op ctor)
+
+Builds a combining fn out of the supplied operator and identity
+constructor. op must be associative and ctor called with no args
+must return an identity value for it.
+Added in Clojure version 1.5
+
+基于操作函数和初始值，创建一个组合函数。
+
+(defn monoid
+  "Builds a combining fn out of the supplied operator and identity
+  constructor. op must be associative and ctor called with no args
+  must return an identity value for it."
+  {:added "1.5"}
+  [op ctor]
+  (fn m
+    ([] (ctor))
+    ([a b] (op a b))))
+
+
+====
+reduce
+
+function
+Usage: (reduce f coll)
+       (reduce f init coll)
+
+Like core/reduce except:
+When init is not provided, (f) is used.
+Maps are reduced with reduce-kv
+
+(defn reduce
+  "Like core/reduce except:
+     When init is not provided, (f) is used.
+     Maps are reduced with reduce-kv"
+
+  ([f coll] (reduce f (f) coll))
+
+  ([f init coll]
+     (if (instance? java.util.Map coll)
+       (clojure.core.protocols/kv-reduce coll f init)
+       (clojure.core.protocols/coll-reduce coll f init))))
+
+====
+reducer
+
+function
+Usage: (reducer coll xf)
+
+Given a reducible collection, and a transformation function xf,
+returns a reducible collection, where any supplied reducing
+fn will be transformed by xf. 
+xf is a function of reducing fn to
+reducing fn.
+Added in Clojure version 1.5
+
+====
+remove
+
+function
+Usage: (remove pred)
+       (remove pred coll)
+
+Removes values in the reduction of coll for which (pred val)
+returns logical true. Foldable.
+Added in Clojure version 1.5
+
+====
+take
+
+function
+Usage: (take n)
+       (take n coll)
+Ends the reduction of coll after consuming n values.
+Added in Clojure version 1.5
+
+====
+take-while
+
+function
+Usage: (take-while pred)
+       (take-while pred coll)
+Ends the reduction of coll when (pred val) returns logical false.
+Added in Clojure version 1.5
+
+

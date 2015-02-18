@@ -1,4 +1,4 @@
-﻿（hxzon翻译）clojure-Refs and Transactions
+﻿（clojure官方文档）Refs and Transactions
 
 While Vars ensure safe use of mutable storage locations via thread isolation, transactional references (Refs) ensure safe shared use of mutable storage locations via a software transactional memory (STM) system. Refs are bound to a single storage location for their lifetime, and only allow mutation of that location to occur within a transaction.
 

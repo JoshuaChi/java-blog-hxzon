@@ -1,4 +1,4 @@
-（hxzon翻译）clojure-与其它lisp的不同
+（clojure官方文档）与其它lisp的不同
 
 by hxzon
 

@@ -29,7 +29,7 @@ So we'll say simply that a reducing fn has the shape:
   
 In addition, a reducing fn may be called with no args, 
 and should then return an identity value for its operation.
-如果调用“可规约函数”时没有传入参数，而返回 identity 值。
+“可规约函数”可能不传入参数，此时需要返回 identity 值。
 
 ====
 Transforming Reducing Functions
@@ -48,6 +48,9 @@ Imagine if we were to define the cores of map, filter and mapcat in this way:
     (fn [f1]
       (fn [result input]
         (f1 result (f input)))))
+        ;; 输入映射函数，返回一个函数，
+        ;; 这个函数的输入是组合函数，输出是一个规约函数，
+
 
   (defn filtering [pred]
     (fn [f1]
@@ -55,6 +58,9 @@ Imagine if we were to define the cores of map, filter and mapcat in this way:
         (if (pred input)
           (f1 result input)
           result))))
+          ;; 输入谓词函数，返回一个函数，
+          ;; 这个函数的输入是组合函数，输出是一个函数，
+          ;; 这个函数是规约函数，但会根据谓词，忽略某些元素
 
   (defn mapcatting [f]
     (fn [f1]
@@ -65,8 +71,11 @@ There are a few things to note:
 
 The functions consist only of the core logic of their operations
 That logic does not include any notion of collection, nor order
+不包含集合的信息，不包含集合元素的顺序信息
 filtering and kin can 'skip' inputs by simply returning the incoming result
+过滤函数通过返回上一次规约结果，即跳过了某些元素
 mapcatting and kin can produce more than one result per input by simply operating on result more than once
+mapcatting函数对每个输入，可产生多个输出，
 
 Using these directly is somewhat odd, 
 because we are operating on the reducing operation rather than the collection:
@@ -75,7 +84,8 @@ because we are operating on the reducing operation rather than the collection:
   (reduce + 0 (map inc [1 2 3 4]))
   ;;becomes
   (reduce ((mapping inc) +) 0 [1 2 3 4])
-  
+  ;; inc 是映射函数，+ 是组合函数
+
 ====
 Reducers
 
@@ -84,26 +94,30 @@ The premise of the reducers library is that
 the minimum definition of collection is something that is reducible. 
 reduce ends up using a protocol (CollReduce) to ask the collection to reduce itself, 
 so we can make reducible things by extending that protocol. 
+继承该协议，使得可规约。
 Thus, given a collection and a reducing function transformer like those above, 
 we can make a reducible with a function like this:
 
-  
+  ;; 生成一个可规约结构
   (defn reducer
     ([coll xf]
      (reify
       clojure.core.protocols/CollReduce
-      (coll-reduce [_ f1 init]
+      (coll-reduce [ _ f1 init]
         (clojure.core.protocols/coll-reduce coll (xf f1) init)))))
   
 Now:
 
   
   (reduce + 0 (map inc [1 2 3 4]))
+  ;; 操作序列
   ;;becomes
   (reduce + 0 (reducer [1 2 3 4] (mapping inc)))
-  
+  ;; 操作可规约结构
+
 That's better. 
 It feels as if we have transformed the collection itself. 
+看起来我们是在转换集合。
 Note:
 
 reducer ultimately asks the source collection to reduce itself
@@ -112,8 +126,10 @@ reducer will work with any reducing function transformer
 
 Another objective of the library is to support reducer-based code 
 with the same shape as our current seq-based code. 
-Getting there is easy:
+另一个好处是，
 
+Getting there is easy:
+hxzon：原来的版本生成序列，现在生成“可规约结构”：
   
   (defn rmap [f coll]
     (reducer coll (mapping f)))
@@ -135,29 +151,33 @@ Getting there is easy:
   
 ====
 From Reducible to (Parallel) Foldable
+折叠（自动并行）
 
 While it is an interesting exercise 
 to find another fundamental way to define the core collection operations, 
 the end result is not much different, just faster, 
 certainly something a state-of-the-art compilation 
 and type system (had we one) might do for us given sequence code. 
+
 To stop here would be to completely miss the point of the library. 
 These operations have different, fundamentally simpler semantics than their sequence-based counterparts.
 
 How does one define parallel mapping/filtering/mapcatting etc? 
 We already did! 
+如何定义并行化版本的映射，过滤和映射拼接？
 As long as the transformation itself doesn't care about order (e.g. as take does), 
 then a reducer is as foldable as its source. 
 As with reduce, fold bottoms out on a protocol (CollFold), and our reducer can extend that:
+折叠基于一个协议 CollFold 。
 
-  
+  ;; 生成一个可折叠结构
   (defn folder
     ([coll xf]
        (reify
         ;;extend CollReduce as before
 
         CollFold
-        (coll-fold [_ n combinef reducef]
+        (coll-fold [ _ n combinef reducef]
           (coll-fold coll n combinef (xf reducef))))))
   
 Note that:
@@ -165,8 +185,11 @@ Note that:
 folder has the same requirements as reducer - collection + reducing function transformer
 
 when fold is applied to something that can't fold, it devolves to reduce
+（devolves，移交）
+当折叠应用于不可折叠的数据时，它移交给 reduce 。
 
 Thus the real definitions of reducers/map et al use folder (while take uses reducer):
+真正的定义：返回可折叠结构：
 
   
   (defn rmap [f coll]
@@ -179,14 +202,19 @@ Thus the real definitions of reducers/map et al use folder (while take uses redu
     (folder coll (mapcatting f)))
   
 
-Thus a wide variety of collection transformations can instead be expressed as reducing function transformations, 
+Thus a wide variety of collection transformations 
+can instead be expressed as reducing function transformations, 
 and applied in both sequential and parallel contexts, across a wide variety of data structures.
+能应用于串行和并行环境。
 
 The library deals with several other details, such as:
+reducer库还解决了其它细节：
 
 the transformers all need a nullary arity that just delegates to the transformed reducing function
+无参
 
 the transformers support a ternary arity where 2 inputs are supplied per step, as occurs with reduce-kv and map sources
+转换器支持三元参数，多出来的参数是键，当用于关联性数据时。
 
 all of the reducers are curried
 
@@ -195,6 +223,7 @@ It is my hope that the above will help illuminate the core logic underlying the 
 
 ====
 Background
+背景
 
 Much prior work highlights the value of fold as a primary mechanism for collection manipulation, 
 superior to iteration, 

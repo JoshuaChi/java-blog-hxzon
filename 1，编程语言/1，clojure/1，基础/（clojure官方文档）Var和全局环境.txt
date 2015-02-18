@@ -1,4 +1,4 @@
-（hxzon翻译）clojure-Var和全局环境
+（clojure官方文档）Var和全局环境
 
 by hxzon
 http://clojure.org/vars

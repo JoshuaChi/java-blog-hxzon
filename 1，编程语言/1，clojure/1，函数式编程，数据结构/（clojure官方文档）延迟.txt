@@ -1,4 +1,4 @@
-（hxzon翻译）clojure-延迟
+（clojure官方文档）延迟
 
 by hxzon
 http://clojure.org/lazy

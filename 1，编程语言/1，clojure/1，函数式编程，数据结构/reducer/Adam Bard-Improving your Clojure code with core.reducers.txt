@@ -30,10 +30,12 @@ So what are reducers?
 Reducers are a different way of looking at the fundamental collection functions: map, filter, and reduce. 
 Take a good look at map, filter, and reduce: one of these things is not like the others.
 Map and filter operate on any single item in a collection independently. 
+映射和过滤，对集合中的元素单独操作。
 Map-reduce frameworks take advantage of this fact to run such tasks in parallel 
 (filter is a mapping operation in this sense). 
 They will also combine any number of map or filter operations, 
 so that the collection need only be traversed once.
+它们会组合若干映射和过滤操作。
 集合只被遍历一次。
 
 The map and filter implementations in clojure.core 
@@ -45,7 +47,7 @@ This is better than eager evaluation
 使用了延迟的方式。
 Here's a simple benchmark demonstrating this (code for the benchmark function follows the article):
 
-(defn eager-map
+  (defn eager-map
     "A dumb map"
     [& args]
     (doall (apply map args)))
@@ -71,6 +73,7 @@ Here's a simple benchmark demonstrating this (code for the benchmark function fo
   
 Reduce is different from map and filter. 
 It must be able to operate across several items in the collection, in at least some way. 
+规约和映射，过滤不同，它需要操作集合中的多个元素。
 In Map-Reduce frameworks, reduce tends to be the expensive operation; 
 difficult to parallelize and more likely to be subject to resource constraints.
 
@@ -81,21 +84,23 @@ and as a cornerstone of computations involving collections.
 A “reducible” is defined, which is basically a “reducer” function duct-taped to a collection.
 Collections are “reducibles”, where the “reducer” is a sort of identity function.
 Instead of transforming the collection, map and filter transform the “reducer”.
-不转换数据结构，而是转换“规约函数”。
+映射操作和过滤操作，不再转换数据结构，而是转换“规约函数”。
 The actual work of applying the transformations is only realized when a reduce is called.
 In practice, this means that map and filter return functions that can be realized via reduce. 
+映射操作和过滤操作返回一个函数，这个函数可被规约操作“实例化”。
 This contrasts the existing situation, where map and filter return lazy sequences. 
 This is arguably a simpler API 
 (as long as you don't get burned expecting side effects from your lazy map), 
 but it does take more resources preparing the seq at every step.
 
 A key trick for working with the reducers library: into uses reduce. 
+关键：into函数使用了规约。
 This is the most convenient way to get a collection out of core.reducers/map or core.reducers/filter.
 
 Here's another simple benchmark demonstrating that reducers improve performance:
 提升了性能
 
-(defn reducer-test [nums]
+  (defn reducer-test [nums]
     (into [] (r/filter even? (r/map inc nums)))
     )
   
@@ -112,19 +117,28 @@ Here's another simple benchmark demonstrating that reducers improve performance:
 Folding @ home
 
 This is all well and good, but the greater performance gain in the reduces library is fold. 
+折叠。
 Normally, fold means the same thing as reduce, 
-but core.reducers/fold throws in a bit extra by being a) automatically parallizable, and b) 
+but core.reducers/fold throws in a bit extra by being a) 
+automatically parallizable, and b) 
 implementing a “reduce/combine” model.
+一般而言，折叠和规约是同一个概念，
+但 reducers库中的“折叠”提供了自动并行化，实现了“规约-合并”模型。
 
 Fold can be used just like reduce, with some extra restrictions:
+折叠像规约一样使用，但有以下限制：
 
 The function passed to fold must be associative. 
 This allows for parallelization without too much wrangling.
+传给折叠的函数，必须是关联型的（？）
+（wrangling，争吵）
+这允许并行化时没有冲突。
+
 
 Your reducing function must provide its identity when called with no arguments. 
 + and \* already do this.
 
-规约函数必须提供一个无参方法。
+规约函数必须能接受无参，。
 
 (defn plus [a b] (+ a b))
 (defn plus+
@@ -135,16 +149,20 @@ Your reducing function must provide its identity when called with no arguments.
 (r/fold plus+ [1 2 3 4]) ; => 10
 
 Behind the scenes, fold uses two functions: 
+
 a “reducing” function, which it calls as a regular reduce across segments of the input collection, 
 and a “combining” function, which combines the results of these reductions. 
+折叠使用了两个函数，规约和组合。
+
 In the simple case, such as with +, these two are the same function. 
 But, you may provide a “combining” function separately 
 from your “reducing” function to circumvent the conditions of associativity and identity, 
 which need only be true for the “combining” function.
 
 This parallelization can provide some major performance improvements:
+折叠的并行化，能进一步提升性能：
 
-(defn old-reduce [nums]
+  (defn old-reduce [nums]
     (reduce + (map inc (map inc (map inc nums)))))
   
   (defn new-reduce [nums]
@@ -161,13 +179,15 @@ This parallelization can provide some major performance improvements:
   ;; Reducers reduce:  1256 ms
   ;; Reducers fold:    306 ms
 
-====
+========
 When to use what?
+什么时候使用
 
 clojure.core.reducers has been a part of core for a year now, 
 which is long enough to start using it without worrying too much about stability. 
 fold is in particular a big speed improvement, 
 and should be used wherever the conditions of its application can be met. 
+在适用的场景，应该尽量使用折叠，提升性能。
 For the rest, the performance improvements are mostly marginal, 
 but thinking in terms of reducers might simplify modeling your problem, 
 and to gain an extra boost in concert with fold. 

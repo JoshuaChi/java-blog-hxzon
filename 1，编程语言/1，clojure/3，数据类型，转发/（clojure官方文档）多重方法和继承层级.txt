@@ -1,4 +1,4 @@
-（hxzon翻译）clojure-多重方法和继承层级
+（clojure官方文档）多重方法和继承层级
 
 by hxzon
 http://clojure.org/multimethods

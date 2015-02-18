@@ -1,4 +1,4 @@
-（hxzon翻译）clojure-协议
+（clojure官方文档）协议
 
 by hxzon
 =======

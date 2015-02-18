@@ -1,4 +1,4 @@
-（hxzon翻译）clojure-求值
+（clojure官方文档）求值
 
 by hxzon
 http://clojure.org/evaluation

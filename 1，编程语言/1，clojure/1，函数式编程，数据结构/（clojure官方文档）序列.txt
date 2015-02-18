@@ -1,4 +1,4 @@
-（hxzon翻译）clojure-序列
+（clojure官方文档）序列
 
 by hxzon
 http://clojure.org/sequences

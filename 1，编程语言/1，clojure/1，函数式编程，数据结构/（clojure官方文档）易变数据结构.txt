@@ -1,4 +1,4 @@
-（hxzon翻译）clojure-易变数据结构
+（clojure官方文档）易变数据结构
 
 by hxzon
 http://clojure.org/transients
