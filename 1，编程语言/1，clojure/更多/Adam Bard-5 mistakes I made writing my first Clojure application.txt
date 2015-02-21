@@ -1,0 +1,264 @@
+﻿Adam Bard-5 mistakes I made writing my first Clojure application
+我写第一个clojure程序时犯的5个错误
+Jul 2, 2014
+Adam Bard, Handsome web developer
+http://adambard.com/blog/five-mistakes-clojure-newbies-make/
+
+========
+Learn from my shame.
+
+It's been about two years since I undertook my first sizable application in Clojure, 
+and really my first experience architecting a system in a functional language. 
+It was a local dating application, and it's still up and running, despite the sins below. 
+But, reading the code now, a few dire instances of truely bad code emerge. 
+So, I crawled through for some examples, which I now impart to you:
+
+====
+Deeply Nested ifs/lets
+1，嵌套很多层 if 和 let （hxzon：有用）
+attempt-all 见《常用库》
+
+Any time you put a let in a let or an if in an if, that's a strong code smell. 
+It means you're still writing code in a way that requires you to short-circuit your functions with returns.
+意味着需要很多return语句，即短路径。
+You probably need to change your code to do fewer things. 
+Here's an example, taken straight from my old dumb self:
+
+(defn register [{{:keys [username
+                         password
+                         email
+                         email_repeat
+                         gender
+                         dob_year
+                         dob_month
+                         dob_day]} :params :as request}]
+(cond
+
+   (or (empty? username) (empty? password) (empty? email) (empty? email_repeat) (empty? gender))
+       (fail-registration "Please fill in all fields")
+
+   (not (= email email_repeat))
+       (fail-registration "Whoops! You entered the wrong email address.")
+
+   :else
+   (let [dob [(Integer/parseInt dob_year) (Integer/parseInt dob_month) (Integer/parseInt dob_day)]
+         [usr err] (user/create-user! {
+                                      :username username
+                                      :password password
+                                      :email email})]
+     (if err
+       (fail-registration err)
+       (do
+         (auth/login! username password)
+
+         ; Create an initial profile
+         (let [prof (merge (user/fetch-user-profile usr) {:name (:username usr)})
+               dob [(utils/parse-int dob_year)
+                    (utils/parse-int dob_month)
+                    (utils/parse-int dob_day)]
+               remote-addr (:remote-addr (req/ring-request))
+               [prof err] (profile/update-profile! prof {:dob dob :name username :gender gender :last_login_ip remote-addr})]
+           (if err
+            (session/flash-put! err)
+            (if (= (:gender prof) "M")
+              (mail/signup-confirmation-m usr)
+              (mail/signup-confirmation-f usr)))
+
+         ; Send to profile edit screen
+         (resp/redirect "/edit/profile")))))
+
+So what is to be done about that? 
+First, consider what the function is responsible for. It:
+首先，拆分成多个函数
+
+Checks form validation
+Constructs a user object
+Logs the user in
+Constructs a profile object
+Sends a confirmation email
+
+My favorite way of refactoring is to first write code as if the functions I need exist already; 
+top-down, you might call it.
+自上而下的写代码，假设所需的函数已存在。
+
+(defn register [request]
+  (attempt-all
+    [user-data (validate-and-clean-user-data (:params request))
+     user (create-user! user-data)
+     _ (login! (:username user) (:password user))
+     _ (create-user-profile! user (:params request)]
+
+    (do
+      (send-confirmation-email user)
+      (resp/redirect "/edit/profile"))
+    #(fail-registration (get-message %))))
+
+Here, attempt-all is a monadic error-checking construct 
+that will short-circuit to the fail-registration condition if any of the bindings fail. 
+If everything makes it to the end, 
+you can go ahead and send that confirmation mail and redirect to the profile edit page.
+
+Now, all that remains is to write validate-and-clean-user-data, create-user!, login!, and create-user-profile!, 
+each a monadic function returning an error state if failed.
+这些函数失败时，会返回失败状态。
+
+====
+No dedicated validation layer
+2，抽出校验逻辑
+
+Instead of separating things like validate-user and put-user!, 
+I embedded validation in functions that interacted with the database. 
+In theory, this means I couldn't accidentally forget to validate something; 
+in practice it made database code more bloated and complicated than it needed to be, 
+and often had to be worked around, creating unnecessary duplication.
+Here's a sample offender, but there are many more.
+
+(defn create-user! [data]
+  ; Overwrite the create user function
+  (cond
+    (not (nil? (fetch-one :users :where {:username {:$regex (str "^" (:username data) "$") :$options "-i"}})))
+        [nil "That username is already in use."]
+    (not (nil? (fetch-one :users :where {:email {:$regex (:email data) :$options "-i"}})))
+        [nil "That email address is already in use."]
+    :else
+        (let [
+              salt (auth/random-hash 64)
+              data (merge data {
+                          :subs_level nil
+                          :auth-token nil
+                          :auth-token-expires nil
+                          :passwordhash (auth/pbkdf2 (:password data) salt)
+                          :salt salt
+                          :created (utils/now)})]
+          (models/create-record! :users user-schema data))))
+
+At very worst, this function should look like this:
+
+(defn create-user! [userdata]
+  (attempt-all
+    [user (validate-and-clean-user-data userdata)]
+    (models/create-record! :users user-schema data)))
+
+This is a very good reason to make validate-and-clean-user-data idempotent; 
+it would be nice to be able to call it on the same data as many times as we want without issue.
+独立出校验逻辑，变成一个函数。
+
+====
+Rolled my own schema checking
+3，
+
+I created a schema checking tool to facilitate safer database access, 
+but I really could have just used Prismatic/Schema instead and been happier for it.
+
+使用 Prismatic/Schema 库
+
+(def user-schema
+  [
+   [:username :str]
+   [:passwordhash :str]
+   [:subs_level :str?]
+   [:experiment_tag :str?]
+   [:salt :str]
+   [:email :str]
+   [:created :datetime?]
+   [:auth-token :str?]
+   [:auth-token-expires :datetime?]
+   [:allow_system_mail :bool?]
+   [:allow_mktng_mail :bool?]
+   [:allow_retention_mail :bool?]
+   [:customer_tok :str?]
+   ])
+
+(models/model "user" :users user-schema)
+
+====
+Magic function generation
+4，隐式创建函数
+
+In the previous code sample, the model macro generates some functions: 
+fetch-user, create-user!, update-user!, and delete-user!. 
+上边的宏，隐式的创建了四个函数。
+It seemed clever at the time, but it's pretty obvious upon re-reading just how bad an idea this was. 
+In the best case, the generated functions had to be reloaded anyhow to define more specific logic; 
+in the worst, the file suddenly grew 4 undocumented functions that go on to be used in the API everywhere.
+This stings especially badly because of just how thin a wrapper around some existing functions the generated ones were, 
+and how much effort I put in to make it happen. Cripes.
+
+(defmacro model [name coll schema]
+  `(let [fetch-fn# (symbol (str "fetch-" ~name))
+         create-fn# (symbol (str "create-" ~name "!"))
+         update-fn# (symbol (str "update-" ~name "!"))
+         delete-fn# (symbol (str "delete-" ~name "!"))
+         ]
+     ; Fetch
+     (intern *ns* fetch-fn#
+             (fn [id# & args#] (fetch-record ~coll id#)))
+
+     ; Create
+     (intern *ns* create-fn#
+             (fn [data#] (create-record! ~coll ~schema data#)))
+
+     ; Update
+     (intern *ns* update-fn#
+             (fn [obj# data#] (update-record! ~coll ~schema obj# data#)))
+
+     ; Delete
+     (intern *ns* delete-fn#
+             (fn [obj#] (destroy-record! ~coll obj#)))
+     ))
+
+Remember kids: explicit is better than implicit, no matter how many measly characters you save.
+
+========
+Forgetting about reduce.
+5，忘了使用规约
+
+In most languages, this is how you sum up a list of numbers:
+
+def sum_list(nums):
+    total = 0
+    for num in nums:
+        total += num
+    return total
+
+Since this requires mutating total, this is not a good functional way of going about this problem, 
+and Clojure won't let you do this without a lot of monkeying around. 
+loop and recur might seem to be the idiomatic way around this:
+
+(defn sum-list [nums]
+  (loop [total 0 remaining nums]
+    (if (nil? remaining)
+      total
+      (recur (+ total (first nums)) (rest nums)))))
+
+However, to do so would be to forget about the power of reduce:
+
+(defn sum-list [nums] (reduce + 0 nums))
+
+or even:
+
+(def sum-list (partial reduce + 0))
+
+Another good example is the classic mapreduce word count:
+忘了已经有频率函数：
+
+;; Loop + recur
+(defn count-words [words]
+  (loop [counts {} words words]
+    (if (nil? words)
+        counts
+        (recur (update-in counts [(first words)] (fnil inc 0)) (rest words)))))
+
+;; Reduce
+(defn count-words [words]
+  (reduce
+    #(update-in %1 [%2] (fnil inc 0))
+    {} words))
+
+;; Bonus actually correct answer
+(def count-words frequencies)
+
+There are many more crimes against simplicity in this codebase, 
+but there are some of the most egregious (and fun to read!). 
+I hope you enjoyed it.
+

@@ -1,0 +1,196 @@
+﻿Adam Bard-Why Clojure? Part 2: Effortless async by design
+Apr 5, 2013
+http://adambard.com/blog/why-clojure-part-2-async-magic/
+
+========
+As a second part in what I've decided will be a series attempting to justify my choice of Clojure as a general-purpose web language, 
+I'd like to talk a little bit about writing asynchronous code in Clojure, 
+and just how easy the design decisions made by Mr. Hickey make that.
+Clojure web handling code works in the pretty standard way; 
+you write a function that accepts a request object and returns a response object, 
+and whatever happens in between is up to you. 
+In many cases, though, the in-between part is something that doesn't have an impact on your response; 
+a good example (which I will be referring to constantly) is sending an email in response to a user action.
+
+====
+Basics
+
+The basics of async with Clojure are the same as Java; 
+Clojure functions implement Java's Runnable interface, 
+and so can be spun off as regular Java threads with no extra effort.
+
+    (defn do-a-thing []
+        ; A thing you want to do
+        )
+
+    (defn do-something-else []
+        ; Another thing you want to do
+        )
+
+    (defn do-two-things []
+        (-> (Thread. do-a-thing) .start)
+        (-> (Thread. do-something-else) .start)
+
+You can make your threads closures to pass values to them:
+
+    (defn do-something-with-a-request [req]
+      (fn []
+        ; Use the state somehow
+        ))
+
+    (defn handle-request [req]
+      (-> (Thread. (do-something-with-a-request req)) .start)
+      ; Carry on as normal
+      )
+
+Is your app sending email as part of a synchronous request? It shouldn't be. 
+Are you logging requests as part of a synchronous request? You shouldn't be. 
+Asyncing these activities in other popular languages could be considered premature optimization; 
+in Clojure it's just wrapping a function.
+Just remember that your threads made this way should really be keeping to themselves. 
+If you need to access shared state, you'd better make sure you have a thread-safe way of doing it.
+
+====
+Futures
+
+If you will need the computed value later but not immediately, you can use future. 
+This will yield a future reference that, when dereferenced with @ or deref, 
+will give you the value of the computation, blocking if necessary.
+
+Here's another pointless example:
+
+    (defn do-something-with-a-request [req]
+      ; Implementation
+      )
+
+    (defn do-something-with-result [result]
+      ; Something else
+      )
+
+    (defn handle-request [req]
+      (let [result (future (fn [] (do-something-with-a-request req)))]
+        ; Do something else
+        (do-something-with-result @result)))
+
+Did someone say thread-safe?
+I dare you to find a thread-safer language. 
+Well, maybe Erlang.
+Clojure has 3 big ways to share state between threads, 
+depending on how you want to go about it: Atoms, Refs, and Agents.
+
+I wasn't able to produce a better, 
+simpler explanation of the differences between them than this Stack Overflow response, 
+so I'll just quote it here.
+
+Refs are for coordinated, synchronous access to many identities".
+Atoms are for uncoordinated, synchronous access to a single identity.
+Agents are for uncoordinated, asynchronous access to a single identity.
+Vars are for thread local isolated identities with a shared default value.
+
+Coordinated access is used when two identities need to be changes together, 
+the classic example being moving money from one bank account to another; 
+it needs to either move completely or not at all.
+
+Uncoordinated access is used when only one identity needs to update, this is a very common case.
+
+Synchronous access is where the call expects to wait until all the identities are settled before continuing.
+
+Asynchronous access is “fire and forget” and lets the identity reach its new state in its own time.
+
+Any of these should, of course, be used sparingly. 
+If you can avoid state, do so.
+
+========
+Lamina: Advanced asynchronous processing
+
+Lamina is a Clojure library that makes passing values via a queue-like interface super-easy. 
+Like, crazy easy. 
+Here's an example that prints “Hello World” every second using an asynchronous queue.
+
+    (ns example.helloqueue
+      (:require
+        [lamina.core :as lamina]))
+
+    (def ch (lamina/channel))
+
+    (defn loop-forever [f]
+      ; Since repeatedly is lazy, we wrap it in doall
+      (doall (repeatedly f)))
+
+    (defn producer []
+      (loop-forever
+        (fn []
+          (lamina/enqueue ch "Hello World!")
+          (Thread/sleep 1000))))
+
+    (defn consumer []
+       (loop-forever
+         (fn [] (println @(lamina/read-channel ch)))))
+
+    (defn main []
+      (-> (Thread. producer) .start)
+      (-> (Thread. consumer) .start))
+
+What happened there? 
+lamina/channel defines a channel. 
+lamina/enqueue sends a message to it, and lamina/read-channel reads from it. 
+When you dereference (@) read-channel, it blocks until a message appears in the channel.
+
+Update: @ztellman, Lamina's author, 
+recommends periodically to streamline this example by dispensing with the producer function entirely:
+
+    (ns example.helloperiodically
+      (:require [lamina.core :as lamina]))
+
+    (def ch (lamina/periodically 1000 (fn [] "Hello World!")))
+
+    (def loop-forever (comp doall repeatedly))
+
+    (defn consumer []
+       (loop-forever
+         (fn [] (println @(lamina/read-channel ch)))))
+
+    (defn main []
+      (-> (Thread. consumer) .start))
+
+Lamina is a big library with tons of good stuff in it, 
+so don't take this as any sort of comprehensive example.
+Hello World too trivial? 
+How about sending notification emails from your app:
+
+    (ns example.mailqueue
+      (:require
+        [lamina.core :as lamina]))
+
+    (defn send-mail [messagedata]
+        ; Implement as required
+      )
+
+    (def mail-queue (lamina/channel))
+
+    (defn enqueue-mail [messagedata]
+      ; Called whenever you want to send an email
+      (lamina/enqueue mail-queue messagedata))
+
+    (defn consume-mail []
+      (let [messagedata @(lamina/read-channel mail-queue)]
+        (send-mail messagedata)))
+
+    (defn mail-consumer []
+      (doall (repeatedly consume-mail))
+
+    ; Be sure to start the mail-consumer thread when you start your app
+    (defn main []
+      (-> (Thread. mail-consumer) .start))
+
+If you can't be bothered to remove the overhead of sending email from your main request processing for the cost of 20 lines of code, 
+well, that's just too bad.
+
+And that's just for starters
+
+There are so many different ways to use the tools the Clojure provides, 
+and that others have built on them, to improve your application. 
+I haven't been using the language for all that long, 
+but I wanted to share a few of the ways it's helped me.
+Try out Clojure today! You'll be amazed what you learn.
+

@@ -1,0 +1,153 @@
+﻿异常处理-Adam Bard-"Good Enough" error handling in Clojure
+May 13, 2013
+http://adambard.com/blog/acceptable-error-handling-in-clojure/
+
+========
+Writing Clojure is not like writing Java. 
+In Java, exceptions are an accepted part of the workflow; 
+in Clojure, they are begrudgingly supported out of necessity, but generally avoided.
+
+Why is that?
+
+Probably because writing code that throws exceptions makes your functional code a lot less functional 
+– that is, a lot less composable. 
+抛出异常，使得代码不够函数式。
+When you can't trust a function to execute and return a value you lose some functional purity. 
+And you want functional purity, don't you?
+
+So what to do when we want to write code that might expect an error to occur? 
+Let's try out a common scenario: a form validation routine. 
+表单校验路由。
+We want to take an input from a form submission, 
+which we'll call params, ensure a few things about the input, and, if everything checks out, return the object. 
+If something goes long along the way, we want to print an error message and avoid executing any other steps.
+
+Let's say we have to perform the following (contrived) validations:
+
+:address is present and not empty
+:email contains something that looks like an email address
+:phone contains a phone number in the format (555) 555-5555
+:state is one of a certain subset of US state codes.
+;; Clean up our parameters
+(defn clean-contact
+  "Accept a map containing email, phone, state, address"
+  [params]
+  ...
+)
+
+First off, since we don't want to jump out of our function with an exception, 
+we need a way of returning either an error message, or a value. 
+Let's be pragmatic and do the Dumbest Thing That Could Possibly Work. 
+In this case, a tuple of value and error message does the trick. 
+If there is an error, value is nil and error is a string error message. 
+If no error occurred, the error message is nil.
+让函数返回一个元组，值和错误信息。
+
+Let's write our simplest validator first:
+
+(defn clean-address [params]
+  "Ensure (params :address) is present"
+  (if (empty? (params :address))
+    [nil "Please enter your address"]
+    [params nil]))
+
+That's pretty easy, right? 
+Let's do a few more:
+
+(defn clean-email [params]
+  "Ensure (params :email) matches /\w@\w\.\w/"
+  (if (re-find #"\w@\w\.\w" (params :email))
+    [params nil]
+    [nil "Please enter an email address"]))
+
+(defn clean-phone [params]
+  "Ensure phone number matches /\([0-9]{3}\) [0-9]{3}-[0-9]{4}/"
+  (if (re-find #"\([0-9]{3}\) [0-9]{3}-[0-9]{4}" (params :phone))
+    [params nil]
+    [nil "Please enter your phone number in (555) 555-5555 format."]))
+
+(defn clean-state [params]
+  "Ensure state is one of OR or WA. Cascadians unite!"
+  (case (params :state)
+    "WA" [params nil]
+    "OR" [params nil]
+    [nil "We only want people from Oregon or Washington, for some reason."]))
+
+Ok, we see a pattern here. 
+[params nil] whenever everything is ok, 
+and [nil msg] whenever they're not.
+我们发现一个模式。
+Now, how to chain these together? 
+如何串联？
+Doing it straight-up is a bit ugly, but gets the job done:
+
+(defn clean-contact [params]
+  (let [[params err] (clean-email params)
+        [params err] (if (nil? err) (clean-address params) [nil err])
+        [params err] (if (nil? err) (clean-phone params) [nil err])
+        [params err] (if (nil? err) (clean-state params) [nil err])]
+    [params err])
+
+If only we had some way of creating some code that could shorten that. 
+Some sort of “function”…
+将上一个校验的返回值串联进来：
+
+(defn apply-or-error [f [val err]]
+  (if (nil? err)
+    (f val)
+    [nil err]))
+
+Now, our clean-contact function is itself a bit cleaner:
+
+(defn clean-contact [params]
+  (let [result (clean-email params)
+        result (apply-or-error clean-address result)
+        result (apply-or-error clean-phone result)
+        result (apply-or-error clean-state result)]
+    result))
+
+And we can use threading via ->> to make that a bit better still:
+使用串行宏进一步简化：
+
+(defn clean-contact [params]
+  (->> (clean-email params)
+       (apply-or-error clean-address)
+       (apply-or-error clean-phone)
+       (apply-or-error clean-state)))
+
+Finally, this seems like an excellent place to use a macro to clean things up:
+
+(defmacro err->> [val & fns]
+  (let [fns (for [f fns] `(apply-or-error ~f))]
+    `(->> [~val nil]
+          ~@fns)))
+
+(defn clean-contact [params]
+  (err->> params
+          clean-email
+          clean-address
+          clean-phone
+          clean-state))
+
+Now, we just have one more change: 
+We can shorten the name of our apply-of-error function by using a more standard terminology:
+
+(defn bind-error [f [val err]]
+  (if (nil? err)
+    (f val)
+    [nil err]))
+
+Does “bind” sound familiar? 
+What we've just done is implement a heavy-handed error monad! 
+The unit-error is just (fn [val] [val nil]).
+我们其实实现了一个单子。
+You don't need to know or care about that to derive value from this example though. 
+It's just a simple way of handling error code without losing that functional touch.
+
+If you want to see all the code from this article at once, with tests, here's the gist
+https://gist.github.com/adambard/5566389
+
+If you want to learn how to make a more robust version of this using clojure's algo.monads library, 
+I recommend this excellent post by Andrew Brehaut.
+http://brehaut.net/blog/2011/error_monads
+

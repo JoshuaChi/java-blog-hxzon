@@ -1,0 +1,175 @@
+﻿异常处理-Andrew Brehaut-An error monad in Clojure
+24 January 2011
+https://brehaut.net/blog/2011/error_monads
+
+错误处理。
+========
+This brief post shows a possible error handling monad and associated ‘attempt-all’ form for Clojure. 
+This was devised to improve the error handling in necessary evil. 
+This assumes that you are familiar with the basics of Konrad Hinsen’s clojure.contrib.monads API 
+and the basic use of macros and protocols in clojure.
+需要熟悉 monads 库。
+
+The reason I chose to use the monad library for this 
+is that it makes creating extensible binding forms very simple. 
+In this piece of code, we will be creating a binding form 
+that provides behavior similar to if-let but for an arbitrary number of clauses. 
+In addition, it also supports rich error conditions rather than just nil.
+
+它和 if-let 相似，但支持更多失败条件，而不仅仅是 nil 。
+
+Before we dive into this in detail, lets look at how we could create a maybe form 
+that mirrors if-let using the maybe-m monad. 
+maybe-m will evaluate a set of bindings and finally return a result if none of the bindings result in nil; 
+this is very similar to if-let1:
+
+maybe-m 求值一组绑定，然后返回 result，除非中途有表达式求值为 nil 。
+
+(use '[clojure.contrib.monads :only [maybe-m]])
+
+(defmacro maybe 
+    ([bindings return] 
+        `(domonad maybe-m ~bindings ~return))
+    ([bindings return else] 
+        `(let [result# (maybe ~bindings ~return)]
+            (if (nil? result#)
+                ~else
+                result#))))
+
+As a bonus, by implementing a trivial multi-arity macro, 
+this doubles as when-let-all as well as if-let-all.
+
+This is a great improvement over nested if-lets, 
+but it falls down if we need to know something about the failure case. 
+This is something that nested if-lets does provide.
+
+========
+Types of Failures
+失败类型
+
+To extend the maybe macro to provide more information than ‘it failed’ 
+I am going to create a failure type; very simply:
+定义一个失败类型：
+
+(defrecord Failure [message])
+
+(defn fail [message] (Failure. message))
+创建失败对象。
+
+This has a utility function so that consuming code can claim failure without needing to import the Failure record. 
+Note that because this needs to take an argument, it cannot be m-zero.
+
+Next, I want to define a protocol to tell me if some value is considered a failure:
+创建一个协议，表明是否失败。
+
+(defprotocol ComputationFailed
+  "A protocol that determines if a computation has resulted in a failure.
+   This allows the definition of what constitutes a failure to be extended
+   to new types by the consumer."
+  (has-failed? [self]))
+
+(extend-protocol ComputationFailed
+  Object
+  (has-failed? [self] false)
+
+  Failure
+  (has-failed? [self] true)
+
+  Exception 
+  (has-failed? [self] true))
+
+失败和异常表示失败。
+
+Obviously a Failure is a failure, but an Exception also is. 
+This allows code to return exceptions (as apposed to throwing them) 
+and have them flow through the computation like any other failure. 
+Using a protocol here also means that if other types are considered failure conditions in consuming code 
+(in necessary-evil this includes the Fault record type), 
+then the consuming code can define additional rules for those cases. 
+使用协议，使得后续可添加更多失败对象。
+Unfortunately this does mean that failure types are defined for the whole application.
+
+========
+The Monad
+
+Now that we have our failure conditions managed, it is time to implement the monad. 
+This is a trivial extension of the maybe-m implementation 
+that instead of checking for nil?, checks to see if the computation has-failed?:
+创建一个单子，类似 maybe-m ，但不是以 nil 为失败，而是以我们的协议为失败。
+
+(use '[clojure.contrib.monads :only [defmonad domonad]])
+
+(defmonad error-m 
+  [m-result identity
+   m-bind   (fn [m f] (if (has-failed? m)
+                       m
+                       (f m)))])
+
+There are only two notes I would like to make here. 
+Firstly, I opted to not catch exceptions in the else block of the if. 
+This allows exceptions to bypass the rest of the monadic behavior. 
+If you wish to capture an exception and introduce it to the monadic context, 
+you can still do that manually. 
+Secondly I have opted not to implement an m-zero or m-plus at this time as it is beyond the scope of my needs.
+
+========
+attempt-all
+
+Lastly we need to modify the maybe macro introduced above to use error-m instead:
+
+(defmacro attempt-all 
+  ([bindings return] `(domonad error-m ~bindings ~return))
+  ([bindings return else]
+     `(let [result# (attempt-all ~bindings ~return)]
+        (if (has-failed? result#) 
+            ~else
+            result#))))
+
+The usage of this form is what you would expect:
+
+(attempt-all [a 1
+              b (inc a)]
+              b
+              "failed")             ; -> 2
+
+通过 fail 返回失败对象。
+
+(attempt-all [a (fail "an error")
+              b (inc a)]
+              b
+              "failed")             ; -> "failed"
+
+(attempt-all [a (fail "an error")
+              b (inc a)]
+              b)                    ; -> #:user.Failure{:message "an error"}
+
+Footnotes
+
+Also worth noting here are clojure.contrib.core/-?> and clojure.contrib.core/-?>> 
+which are the nil checking version of -> and ->>; 
+This makes them related to the maybe form described here, but without the named values.
+值得注意的是两个新的串行宏，
+
+========
+========
+Error monads revisited
+25 January 2011
+https://brehaut.net/blog/2011/error_monads_revisited
+
+An alternative formulation of error-m and maybe-m that parameterizes the fail rules:
+另一个版本：失败的判断，通过参数来传入。
+
+(defn new-error-m
+  "Generates a new error-m implementation with the failure behaviour 
+   defined by 'failed?'"
+  [failed?]
+  (monad [m-result identity
+          m-bind   (fn [m f] (if (failed? m)
+                              m
+                              (f m)))]))
+
+;; define our previously hardcoded monads:
+(def maybe-m-2 (new-error-m nil?))
+
+(def error-m-2 (new-error-m has-failed?))
+
