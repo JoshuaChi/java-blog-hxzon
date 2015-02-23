@@ -1,0 +1,243 @@
+﻿Clojure core.async and Go: A Code Comparison
+04 JULY 2013 on clojure, go
+http://blog.drewolson.org/clojure-go-comparison/
+
+========
+Last week, Rich Hickey announced Clojure core.async in a blog post. 
+As mentioned in the post, the new core.async library has a lot in common with Go. 
+In this post, I'll compare the fundamental building blocks of concurrency in core.async and Go with code examples.
+
+Note: Clojure core.async provides two sets of operations on channels. 
+The blocking operations are for use with native threads and the non-blocking operations are for use with go blocks. 
+In this post, I'll be focusing on the non-blocking operations used with go blocks but I'll briefly mention the blocking versions.
+
+Update: It is important to note that I'm using Thread/sleep in the clojure examples for clarity. 
+This will block the entire thread and eventually starve the thread pool used for go blocks. 
+Don't use it in real code, use a timeout instead (thanks MBlume and pron).
+
+====
+Setup
+
+To install Go on OSX, just use homebrew.
+
+$ brew install go
+For clojure, you'll want to install leiningen via homebrew.
+
+$ brew install leiningen
+After generating a leiningen project, you'll need to add core.async as a dependency. 
+Unfortunately it's not yet available on maven central, 
+so you'll need to clone it and install it in your local maven repository first.
+
+$ git clone git@github.com:clojure/core.async.git
+$ cd core.async
+$ maven install
+
+Now, we can add core.async as a dependency in our project.clj file.
+
+(defproject async_example "0.1.0-SNAPSHOT"
+  :description "Async example"
+  :url "http://example.com"
+  :license {:name "MIT License" :url "http://opensource.org/licenses/MIT"}
+  :main async-example.core
+  :dependencies [[org.clojure/clojure "1.5.1"]
+                 [org.clojure/core.async "0.1.0-SNAPSHOT"]])
+
+Update: To avoid having to install core.async locally, 
+you can add the following line to your project.clj (thanks weavejester):
+
+:repositories {"sonatype-oss-public" "https://oss.sonatype.org/content/groups/public/"}
+
+We're all set to start comparing Go and core.async.
+
+====
+Goroutines and Go Blocks
+
+Both core.async and Go provide a facility for spawning "lightweight threads". 
+In core.async, this is handled via go blocks. 
+In Go, we use goroutines.
+
+Let's write an example spawning 10 lightweight threads 
+that will sleep for a random amount of time and then print a number (0-9).
+
+package main
+
+import (  
+  "fmt"
+  "math/rand"
+  "time"
+)
+
+func main() {  
+  for i := 0; i < 10; i++ {
+    go func(i int) {
+      sleep := time.Duration(rand.Intn(1000))
+      time.Sleep(sleep * time.Millisecond)
+      fmt.Println(i)
+    }(i)
+  }
+
+  time.Sleep(2000 * time.Millisecond)
+}
+
+As you can see, we use the go keyword to spawn goroutines and each waits a bit and prints its designated number.
+
+(ns async-example.core
+  (:require [clojure.core.async :refer :all])
+  (:gen-class))
+
+(defn -main [& args]
+  (doseq [i (range 10)]
+    (go
+      (Thread/sleep (rand-int 1000))
+      (println i)))
+
+  (Thread/sleep 2000))
+
+The clojure code looks quite similar (besides being a lisp) to the Go code. 
+The main difference is we use the (go ...) macro to spawn a go block.
+
+====
+Channels
+
+While goroutines and go blocks are slightly interesting in isolation, 
+they become much more powerful when combined with channels. 
+Channels can be thought of as blocking queues that goroutines 
+or go blocks can push messages onto and pull messages off of. 
+In Go, we use ch <- and <-ch to push and pull from a channel respectively. 
+In clojure, we use >! and <!.
+
+To construct channels in Go we use make(chan <type>), in clojure we use (chan).
+
+It is important to remember that, by default, 
+when a value is pushed onto a channel it blocks until it is pulled off. 
+Likewise, when a value is pulled from a channel it blocks until there is something to pull.
+
+Below is an example of 10 goroutines/go blocks pushing values onto a channel 
+and a main goroutine/go block pulling values off the channel and printing them.
+
+package main
+
+import (  
+  "fmt"
+  "math/rand"
+  "time"
+)
+
+func main() {  
+  c := make(chan int)
+
+  for i := 0; i < 10; i++ {
+    go func(i int) {
+      sleep := time.Duration(rand.Intn(1000))
+      time.Sleep(sleep * time.Millisecond)
+      c <- i
+    }(i)
+  }
+
+  for i := 0; i < 10; i++ {
+    fmt.Println(<-c)
+  }
+}
+(ns async-example.core
+  (:require [clojure.core.async :refer :all])
+  (:gen-class))
+
+(defn -main [& args]
+  (let [c (chan)]
+    (doseq [i (range 10)]
+      (go
+        (Thread/sleep (rand-int 1000))
+        (>! c i)))
+
+    (<!!
+      (go
+        (doseq [_ (range 10)]
+          (println (<! c)))))))
+
+There are a few differences here to point out. 
+First, you'll notice that we didn't spawn a goroutine for the main loop that reads the values in the go example. 
+This is because the main program itself is running in a goroutine. 
+In clojure, because core.async is a library, 
+we must put the pulling component in a go block as well.
+
+Second, you'll notice that the last go block in the clojure example is surrounded by (<!! ...). 
+This is an equivalent function to <! except that it is used with native threads instead of go blocks. 
+In core.async, go blocks return a channel that have the last value of the go block pushed onto it when execution is complete. 
+By wrapping the final go block in a call to <!!, 
+we block the main thread of the program until all the pulling is complete.
+
+Select and Alts!
+The last piece of the puzzle is the ability to pull a value off many channels. 
+Go provides select and core.async provides alts!. 
+Each will take a collection of channels and execute some code based on the first channel with activity.
+
+We can use select or alts! to add timeouts to our actions. 
+Suppose we have a goroutine/go block that will put a value onto a channel sometime between now and a second from now, 
+but we want to stop the operation if it takes longer than half a second. 
+The following code would accomplish this task.
+
+package main
+
+import (  
+  "fmt"
+  "math/rand"
+  "time"
+)
+
+func main() {  
+  rand.Seed(time.Now().UTC().UnixNano())
+
+  c := make(chan string)
+
+  go func() {
+    sleep := time.Duration(rand.Intn(1000))
+    time.Sleep(sleep * time.Millisecond)
+    c <- "success!"
+  }()
+
+  select {
+  case <-c:
+    fmt.Println("Got a value!")
+  case <-time.After(500 * time.Millisecond):
+    fmt.Println("Timeout!")
+  }
+}
+
+It's important to understand that the function time.
+After returns a channel onto which a value will be pushed after the specified timeout. 
+Note that I'm seeding the rand package so that we get different results every time the program is run.
+
+(ns async-example.core
+  (:require [clojure.core.async :refer :all])
+  (:gen-class))
+
+(defn -main [& args]
+  (let [c (chan)]
+    (go
+      (Thread/sleep (rand-int 1000))
+      (>! c "success!"))
+
+    (<!!
+      (go
+        (let [[result source] (alts! [c (timeout 500)])]
+          (if (= source c)
+            (println "Got a value!")
+            (println "Timeout!")))))))
+
+Similar to time.
+After, the timeout function returns a channel that will have a value pushed onto it after the timeout. 
+The call to alts! returns a vector of the value from the channel 
+and the channel that returned the value (called source in the above example).
+
+
+Wrap Up
+
+After spending a few days with clojure's core.async, I'm very excited about the possibilities. 
+Previously, I was using Go because I enjoyed its approach to concurrency. 
+Now, this same functionality has been added to clojure via a library. 
+To me, this is a huge win. 
+It means I can program using the concurrency style from Go without fighting its type system and verbosity. 
+To make things even better, you retain all the benefits of lisp and the java ecosystem.
+
+You can learn more about core.async from the excellent code walkthrough.
+
