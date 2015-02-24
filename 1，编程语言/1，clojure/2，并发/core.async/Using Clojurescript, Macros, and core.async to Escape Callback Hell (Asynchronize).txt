@@ -61,7 +61,13 @@ to tell which functions require a callback.
 This was inspired by To Be Continued
 https://github.com/gregspurrier/to-be-continued
 
-... 表示回调的位置，后一个函数会被插入到这个回调位置。
+... 表示回调的位置，库会在此处插入回调函数。
+
+（hxzon：库会对含有 ... 的形式，记为a，进行变换，
+在 ... 处插入回调函数，回调函数会把值放入通道。
+然后在a之后，插入一个阻塞的读。
+也就是将a转成了阻塞的操作。
+）
 
 How about reading three files?
 读取三个文件：
@@ -81,12 +87,16 @@ That's a little nice, but we can still do this much better
     (def all-contents (map #(.readFile fs % ...) ["file1" "file2" "file3"]))
     (doseq [content all-contents] (console/log content)))
 
+（hxzon：将匿名函数转成了阻塞操作。）
+
 Asynchronize also works properly in a nested fashion:
-支持嵌套的回调（hxzon未理解）：
+支持嵌套的回调：
 
   (asynchronize
     (def contents (.readFile fs (.readFile fs (.readFile fs "file" "utf8" ...) "utf8" ...) "utf8" ...))
     (console/log contents)))
+
+（hxzon：含有 ... 的形式转成了阻塞操作。）
 
 The way the above example works is it reads the content of a file named "file" containing the path to another file, 
 it then reads the content of that file again containing another file, 
@@ -146,7 +156,35 @@ This is all great stuff, but how does asynchronize benefit from using core.async
 
 ==
 Under the hood
+（hxzon重要）
 
+另见《The Anatomy of a Clojure Macro》：
+  ;; Before Expansion
+  (asynchronize
+    (def f1 (.readFile fs "file1" "utf8" ...))
+    (console/log f1))
+
+   ;; After Expansion
+  (go                                                               ; 1  
+    (def f1 (let [sc (chan) fc (chan)]                              ; 2    
+              (do
+                (.readFile fs "file1" "utf8" (fn [err res]          ; 3   
+                                               (go
+                                                 (if err
+                                                   (>! fc err)
+                                                   (>! sc res)))))
+                (let [[v c] (alts! [sc fc])]                        ; 4
+                  (try
+                    (if (= c sc)                                    
+                      v                                             ; 5  
+                      (throw (js/Error. v)))                        ; 6
+                    (finally                                         
+                      (close! sc)                                   ; 7
+                      (close! fc)))))))
+    (console/log f1))
+
+
+==
 At it's heart the asynchronize macro is extremely simple. 
 The first thing it does is create a channel to be used throughout the code block and wraps the code in a go block:
 
@@ -160,7 +198,8 @@ Next we search through all of the forms for ones ending with "..."
 and convert them into a do block which calls the function with a generated callback, 
 and then suspends itself while waiting for a value in the main channel:
 代码变换：
-寻找以 ... 结尾的形式，在 ...  处插入一个回调函数。
+寻找以 ... 结尾的形式，在其后插入一个阻塞的读，
+在 ...  处插入一个回调函数。
 
   ;; Before
   (.readFile fs "file" "utf8" ...)
@@ -168,7 +207,7 @@ and then suspends itself while waiting for a value in the main channel:
   ;; After
   (do
     (.readFile fs "file" "utf8" generated-callback) ;; note generated-callback
-    (<! c))
+    (<! c))    ;; hxzon：形成阻塞
 
 Notice the generated-callback, this is a very simple function that looks like:
 回调函数：
