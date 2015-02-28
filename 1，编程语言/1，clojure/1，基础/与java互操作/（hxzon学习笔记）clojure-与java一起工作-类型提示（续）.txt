@@ -1,0 +1,129 @@
+﻿（hxzon学习笔记）clojure-与java一起工作-类型提示（续）
+
+by hxzon
+========
+
+;; ==
+使用了不定参数，不能提示原始类型。
+
+;; ==
+(defn db-update [^String db ^String sql & {:as params}]
+ (let [ db (get-db db) ^Map params params]
+   ;; get-db 已加类型提示，所以这里不必类型提示
+   ;; params 虽然解构成map，还是得类型提示
+   (.update db sql params)
+   ))
+
+;; ==
+(defn str1 ^String [^String name]
+  name)
+
+(defn str2 [name]
+  name)
+
+(defn str3 [^String name]
+  (let [name (str1 name)
+        name (str2 name)]
+        ;; let 中每次都是新的绑定，所以每次都得加上必要的类型提示
+    (.length name)))
+
+;; ==
+(defn- -ds-to-user-identity-info
+  [^DataSet ds ^long row]
+  {"rid" (.getCell ds row "id")    ;; ds.getCell 参数类型为string或int，这里row为long，可适用 int 版本
+     "lid" (.getCell ds row "lid")
+     "name" (.getCell ds row "name")
+     }
+  )
+
+;; ==
+(defn int
+  "Coerce to int"
+  {
+   :inline (fn  [x] `(. clojure.lang.RT (~(if *unchecked-math* 'uncheckedIntCast 'intCast) ~x)))
+   :added "1.0"}
+  [x] (. clojure.lang.RT (intCast x)))
+
+hxzon：使用了内联，所以知道返回值类型？
+
+;; ==
+
+(defn- symbol-io-in []
+  (with-meta 'io-in {:tag ByteBuf}))
+;; 这是错的，tag的数据类型只能是符号或字符串，而这里是类。
+;; 需改为：
+(defn- symbol-io-in []
+  (with-meta 'io-in {:tag 'ByteBuf}))
+
+private static Symbol tagOf(Object o){
+	Object tag = RT.get(RT.meta(o), RT.TAG_KEY);
+	if(tag instanceof Symbol)
+		return (Symbol) tag;
+	else if(tag instanceof String)
+		return Symbol.intern(null, (String) tag);
+	return null;
+}
+
+;; ==
+(defn start []
+  (try 
+    (def ^ChannelFuture admServer (startServer admServerPort 
+                                               _StringDecoder _StringEncoder 
+                                               _AdminServerHandler))
+    (.. admServer channel closeFuture sync)
+    ;; 前面的 def 已经产生 var，但还未求值，即未执行 DefExpr.eval() ，所以还没有 tag 元数据
+    ;; 可以在符号前加类型提示，如下
+    ;; (.. ^ChannelFuture admServer channel closeFuture sync)
+    ;; 此时会从符号获取类型提示，见 analyzeSymbol(Symbol sym) 
+    (catch Exception e (prn e))))
+
+
+;; 如下，已经执行，所以有 tag 元数据
+(declare ^ChannelFuture admServer)
+
+(do
+  (try 
+    (def admServer (startServer admServerPort 
+                                _StringDecoder _StringEncoder 
+                                _AdminServerHandler))
+    (.. admServer channel closeFuture sync)
+    (catch Exception e (prn e))))
+
+
+;; ==
+(defmacro startServer ^ChannelFuture [port & sh]
+  (let [b (with-meta 'b {:tag 'ServerBootstrap})
+        ch (with-meta 'ch {:tag 'Channel})]
+    `(let [~b (ServerBootstrap.)]
+       (.. ~'b (group boss-group worker-group)    ;; 这里可直接用 ~b ，不影响
+         (channel NioServerSocketChannel)
+         (childHandler (proxy [io.netty.channel.ChannelInitializer] []
+                         (initChannel [~'c]
+                           (let [~ch ~'c]
+                             (.addLast (.pipeline  ~'ch) (into-array ChannelHandler (vector ~@sh)))
+                             ))))
+         (option ChannelOption/SO_BACKLOG (int 128))    ;; 这里是父类方法调用，导致类型变成父类
+         (childOption ChannelOption/SO_KEEPALIVE true))    ;; 转成父类型后，这里导致反射
+       (.. ~'b (bind ~port) sync))
+    ))
+
+这里可以改成 doto 解决反射。
+
+(defmacro startServer ^ChannelFuture [port & sh]
+  (let [b (with-meta 'b {:tag 'ServerBootstrap})
+        ch (with-meta 'ch {:tag 'Channel})]
+    `(let [~b (ServerBootstrap.)]
+       (doto ~b 
+         (.group boss-group worker-group) 
+         (.channel NioServerSocketChannel)
+         (.childHandler (proxy [io.netty.channel.ChannelInitializer] []
+                         (initChannel [~'c]
+                            (let [~ch ~'c]
+                             (.addLast (.pipeline  ~'ch) (into-array ChannelHandler (vector ~@sh)))
+                             ))))
+         (.option ChannelOption/SO_BACKLOG (int 128))
+         (.childOption ChannelOption/SO_KEEPALIVE true))
+       (.. ~b (bind ~port) sync))
+    ))
+
+;; ==

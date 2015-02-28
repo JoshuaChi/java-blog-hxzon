@@ -1,6 +1,8 @@
 ﻿（hxzon学习笔记）元数据
 by hxzon
 
+另见《（hxzon学习笔记）clojure-与java一起工作-类型提示（续）》
+
 ========
 引用类型除了可以解引用，还可以添加元数据。
 但是跟普通值不同，不能使用with-meta或者vary-meta，

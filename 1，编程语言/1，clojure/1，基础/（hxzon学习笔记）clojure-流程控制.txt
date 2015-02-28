@@ -20,6 +20,8 @@ while（循环）。
 if-some
 when-first
 when-some
+上述三个没什么用。
+
 as->
 
 ==
@@ -436,8 +438,41 @@ Usage: (if-some bindings then)
        (if-some bindings then else & oldform)
 bindings => binding-form test
 
-If test is not nil, evaluates then with binding-form bound to the
-value of test, if not, yields else
+(defmacro if-some
+  "bindings => binding-form test
+
+   If test is not nil, evaluates then with binding-form bound to the
+   value of test, if not, yields else"
+   ;; test 不为 nil 时，执行解构，并执行 then
+   ;; hxzon：不常用
+
+  {:added "1.6"}
+  ([bindings then]
+   `(if-some ~bindings ~then nil))
+  ([bindings then else & oldform]
+   (assert-args
+     (vector? bindings) "a vector for its binding"
+     (nil? oldform) "1 or 2 forms after binding vector"
+     (= 2 (count bindings)) "exactly 2 forms in binding vector")    ;; 只能传入两个元素
+
+   (let [form (bindings 0) tst (bindings 1)]
+     `(let [temp# ~tst]
+        (if (nil? temp#)
+          ~else
+          (let [~form temp#]
+            ~then))))))
+
+(if-some [a 1] a)
+;; 1
+
+(if-some [[a b] [1 2]] (+ a b))
+;; 3
+
+(if-some [[a b] []] (+ a b))
+;; java.lang.NullPointerException
+;;         at clojure.lang.Numbers.ops(Numbers.java:1013)
+;;         at clojure.lang.Numbers.add(Numbers.java:128)
+
 
 
 ========
@@ -446,18 +481,35 @@ when-first
 macro
 Usage: (when-first [x xs] & body)
 
-Roughly the same as (when (seq xs) (let [x (first xs)] body)) but xs is evaluated only once
+当 xs 不为 nil 和空集合时，将 x 绑定到 xs 的第一个元素。x 本身可使用解构。
+hxzon：不常用。
 
-(when-first [[a b] (nil 1)] (+ a b))
-;; java.lang.IllegalArgumentException: Can't call nil
+(defmacro when-first
+  "bindings => x xs
 
-(when-first [[a b] nil] (+ a b))
+  Roughly the same as (when (seq xs) (let [x (first xs)] body)) but xs is evaluated only once"
+  {:added "1.0"}
+  [bindings & body]
+  (assert-args
+     (vector? bindings) "a vector for its binding"
+     (= 2 (count bindings)) "exactly 2 forms in binding vector")
+
+  (let [[x xs] bindings]    ;; 注意，只能传入两个元素，见上
+    `(when-let [xs# (seq ~xs)]    ;; 当 xs 不为nil时，将 x 绑定到 xs 的第一个元素。注意，x 本身可以是解构形式
+       (let [~x (first xs#)]
+           ~@body))))
+
+(when-first [a [2 3]] a)
+;; 2
+
+(when-first [a nil] a)
 ;; nil
 
-(when-first [a 1] (+ a 1))
-;; java.lang.IllegalArgumentException: Don't know how to create ISeq from: java.lang.Long
+(when-first [a []] a)    ;; (seq (rest [])) = nil
+;; nil
 
-
+(when-first [[a b] [[1 2] [3 4]] ] (+ a b))    ;; 使用解构
+;; 3
 
 ========
 when-some
@@ -468,6 +520,9 @@ bindings => binding-form test
 
 When test is not nil, evaluates body with binding-form bound to the
 value of test
+
+当 test 不为 nil 时，解构，并执行 body 。
+hxzon：不常用。
 
 (when-some [[a b] [1 2]] (+ a b))
 ;; 3
@@ -481,9 +536,18 @@ as->
 macro
 Usage: (as-> expr name & forms)
 
-Binds name to expr, evaluates the first form in the lexical context
-of that binding, then binds name to that result, repeating for each
-successive form, returning the result of the last form.
+(defmacro as->
+  "Binds name to expr, evaluates the first form in the lexical context
+  of that binding, then binds name to that result, repeating for each
+  successive form, returning the result of the last form."
+
+  {:added "1.5"}
+  [expr name & forms]
+  `(let [~name ~expr
+         ~@(interleave (repeat name) forms)]
+     ~name))
+
+即 (let [a 1 a f1 a f2 ...] a)
 
 expr作为name的初始值，计算第一个形式，
 作为name的新值，再计算下一个形式，依此类推。

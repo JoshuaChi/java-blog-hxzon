@@ -2,6 +2,54 @@
 May 13, 2013
 http://adambard.com/blog/acceptable-error-handling-in-clojure/
 
+====
+hxzon学习摘要：
+
+每个函数都返回一个向量 [val err]
+
+(defn bind-error [f [val err]]
+  (if (nil? err)
+    (f val)
+    [nil err]))
+
+(defmacro err->> [val & fns]
+  (let [fns (for [f fns] `(bind-error ~f))]
+    `(->> [~val nil]
+          ~@fns)))
+
+示例：
+(defn clean-email [params]
+  "Ensure (params :email) matches /\w@\w\.\w/"
+  (if (re-find #"\w@\w\.\w" (params :email))
+    [params nil]
+    [nil "Please enter an email address"]))
+
+(defn clean-phone [params]
+  "Ensure phone number matches /\([0-9]{3}\) [0-9]{3}-[0-9]{4}/"
+  (if (re-find #"\([0-9]{3}\) [0-9]{3}-[0-9]{4}" (params :phone))
+    [params nil]
+    [nil "Please enter your phone number in (555) 555-5555 format."]))
+
+(defn clean-contact [params]
+  (err->> params
+          clean-email
+          clean-address
+          clean-phone
+          clean-state))
+
+hxzon版本：
+
+(defn bind-error [ef f val]
+  (if (ef val)
+    val
+    (f val)
+    ))
+
+(defmacro err->> [ef val & fns]
+  (let [fns (for [f fns] `(bind-error ~ef ~f))]
+    `(->> ~val
+          ~@fns)))
+
 ========
 Writing Clojure is not like writing Java. 
 In Java, exceptions are an accepted part of the workflow; 

@@ -3,6 +3,8 @@
 https://brehaut.net/blog/2011/error_monads
 
 错误处理。
+另见《异常处理-Adam Bard-"Good Enough" error handling in Clojure》
+
 ========
 This brief post shows a possible error handling monad and associated ‘attempt-all’ form for Clojure. 
 This was devised to improve the error handling in necessary evil. 

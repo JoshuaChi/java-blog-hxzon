@@ -1,0 +1,25 @@
+﻿Apache Lucene 5.0发布，不再兼容3.X系列版本
+作者 李小兵 发布于 2015年2月25日
+http://www.infoq.com/cn/news/2015/02/apache-lucene5-release
+
+========
+近日，Apache软件基金会正式发布了Apache Lucene 5.0版本，该版本的重大改进包括实现了更强大且安全的索引和降低了内存堆的使用。同时，该版本还实现了其他方面的一些改进和大量Bug的修改。本次更新共包括32项新特性、18项改进、30个Bug、40个API的修改以及其它方面的改进。
+
+Lucene 5.0实现主要更新内容包括：
+
+所有文件的访问方法都已基于Java NIO2的相关API进行了改进，这就使得Lucene的索引操作能够更加安全地处理异常
+Lucene已实现了为每个segment和每次提交都存储了唯一的id，从而使得Lucene能够更加精确地实现索引文件的复制
+在索引合并的过程中，IndexWriter总会在合并前检测已经损坏的segment，这就意味着当升级到5.0版本时,对4.X系列的索引进行合并时，会有一定的延迟
+新增了RoaringDocIdSet和SparseFixedBitSet两个类，从而实现了随机写和advance-able稀疏BitSet，索引所需堆大小能够按照比例来设置多少位和共有多少文档不在索引中
+新增Lucene50Codec编码/解码器，这就使得在索引合并时，减少了内存堆的使用，这是因为索引合并时，不是将所有的Field加载到堆中，而是先加载当前要合并Field，合并成功后再删除，然后再加载其他Field
+默认的Norms格式使用了稀疏编码，这就意味着当进行搜索时，具有大量稀疏Field的Norms将能够大大减少堆大小的使用
+该版本新增了用来打印一个树形结构以递归展示索引过程中占用堆大小的API
+FieldCache类已经不鼓励使用，当要在某个Field上进行排序时，用户应该使用Doc值来索引相应的Field，相对于使用FieldCache更加快且耗费较少的堆大小
+新增一个基于跟踪策略的过滤器缓存，该缓存能够缓存高频率使用的过滤器
+新增DateRangeField类型，该类型能够索引和搜索时间范围、关于DateRangeField的多值
+默认的编/解码器新增了一个选项，以用来控制Filed的 BEST_SPEED或者BEST_COMPRESSION
+用于基于多值Field排序的SortedSetSortField已从Lucene的沙箱中移到Luene的核心库中。
+Lucene 5.0已不再兼容Lucene 3.X系列版本，当打开3.X系列版本生成的索引将会引起格式异常。如果要升级到5.0版本，最好重建索引或者使用最新的4.10相关的索引工具更新旧的索引。
+
+Lucene是一个使用Java开发的高性能的全文检索引擎，更多关于Lucene 5.0的信息，请读者查看其发布公告和其完整改进列表请看ChangeLog。此外，基于Lucene的Solr也更新到了5.0版本,主要在易用性、维护操作、分布式集群等方面进行了改进，读者可以登录其官网了解相关信息。目前，除了Solr外，还有有众多著名的开源项目基于Lucene实现，如Elasticsearch、Hibernate Search、LinkedIn的Zoie。国内外许多公司都在使用Lucene或者基于Lucene的开源项目来构建全文检索，如Apache软件基金会的网站、Eclipse的帮助子系统等。
+

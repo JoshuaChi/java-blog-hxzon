@@ -1,7 +1,9 @@
 ﻿（hxzon学习笔记）clojure-与java一起工作-类型提示
 
 by hxzon
+另见《（hxzon学习笔记）clojure-与java一起工作-类型提示（续）》
 ========
+
 1，通过 ^ 给参数添加类型元数据。
 Clojure支持给函数参数，函数返回值，let绑定，var及表达式添加类型暗示。
 
@@ -152,7 +154,8 @@ https://code.google.com/p/clojure-doc-en2ch/wiki/Chapter_14_performance
 ;= #<IllegalArgumentException java.lang.IllegalArgumentException:
 ;= Value out of range for long: 1.0E150>
 
-通常的invoke方法（参数和返回值为Object类型）仍在，这是为了支持用封装的数字参数调用函数的情况。
+通常的invoke方法（参数和返回值为Object类型）仍在，
+这是为了支持用封装的数字参数调用函数的情况。
 
 (map round [4.5 6.9 8.2])
 ;= (5 7 8)
@@ -160,9 +163,11 @@ https://code.google.com/p/clojure-doc-en2ch/wiki/Chapter_14_performance
 ;= 4
 
 声明为接受或返回原始类型的任何clojure函数限制在4个参数内。
-这是由于实现上的一个细节：为了开发上面提到的效率而不加入严格静态的编译过程，
+这是由于实现上的一个细节
+（为了开发上面提到的效率而不加入严格静态的编译过程，
 每个可能接受原始类型的函数签名必须在单独的接口中定义。
-参数和返回值有三种（double、long和Object），即使允许最大4个参数也会产生数百种不同的接口。
+参数和返回值有三种（double、long和Object），
+即使允许最大4个参数也会产生数百种不同的接口）。
 
 ========
 2，使用原始类型数组。
