@@ -1,0 +1,578 @@
+﻿（hxzon学习笔记）netty-api
+
+hxzon：
+一个通道对应一条管道。
+处理器通过“处理器上下文”与管道，和管道上的其它处理器交互。
+一个处理器加到“多个”管道，或加入同一个管道“多次”（why？），就会有多个“处理器上下文”。
+
+ChannelGroup ：广播
+Unpooled ：生成byteBuf
+
+========
+io.netty.channel.ChannelHandlerContext
+
+hxzon：TailContext，HeadContext，DefaultChannelPipeline
+
+Enables a ChannelHandler to interact with its ChannelPipeline and other handlers. 
+通过处理器上下文，允许一个处理器，和它的管道，以及管道上的其它处理器交互。
+Among other things a handler can notify the next ChannelHandler in the ChannelPipeline 
+as well as modify the ChannelPipeline it belongs to dynamically. 
+
+==
+Notify
+
+You can notify the closest handler in the same ChannelPipeline 
+by calling one of the various methods provided here. 
+Please refer to ChannelPipeline to understand how an event flows. 
+可以通知管道上的下一个处理器。
+
+==
+Modifying a pipeline
+
+You can get the ChannelPipeline your handler belongs to by calling pipeline(). 
+A non-trivial application could insert, remove, or replace handlers in the pipeline dynamically at runtime. 
+获得管道后，可动态添加删除管道上的处理器。
+
+==
+Retrieving for later use
+
+You can keep the ChannelHandlerContext for later use, 
+such as triggering an event outside the handler methods, even from a different thread. 
+可以保持处理器上下文，以便稍后使用。
+
+ public class MyHandler extends ChannelHandlerAdapter {
+
+     private ChannelHandlerContext ctx;
+
+     public void beforeAdd(ChannelHandlerContext ctx) {
+         this.ctx = ctx;
+     }
+
+     public void login(String username, password) {
+         ctx.write(new LoginMessage(username, password));
+     }
+     ...
+ }
+
+==
+Storing stateful information
+存储有状态的信息
+
+attr(AttributeKey) allow you to store and access stateful information that is related with a handler and its context. 
+Please refer to ChannelHandler to learn various recommended ways to manage stateful information. 
+
+==
+A handler can have more than one context
+一个处理器可能有多个处理器上下文
+
+Please note that a ChannelHandler instance can be added to more than one ChannelPipeline. 
+一个处理器可被添加到多个管道，这样就有多个处理器上下文。
+It means a single ChannelHandler instance can have more than one ChannelHandlerContext 
+and therefore the single instance can be invoked with different ChannelHandlerContexts 
+if it is added to one or more ChannelPipelines more than once. 
+
+For example, the following handler will have 
+as many independent AttributeKeys as how many times it is added to pipelines, 
+regardless if it is added to the same pipeline multiple times or added to different pipelines multiple times: 
+添加到同一个管道多次，
+
+ public class FactorialHandler extends ChannelHandlerAdapter {
+
+   private final AttributeKey<Integer> counter = AttributeKey.valueOf("counter");
+
+   // This handler will receive a sequence of increasing integers starting
+   // from 1.
+   @Override
+   public void channelRead(ChannelHandlerContext ctx, Object msg) {
+     Attribute<Integer> attr = ctx.getAttr(counter);
+     Integer a = ctx.getAttr(counter).get();
+
+     if (a == null) {
+       a = 1;
+     }
+
+     attr.set(a * (Integer) msg);
+   }
+ }
+
+ // Different context objects are given to "f1", "f2", "f3", and "f4" even if
+ // they refer to the same handler instance.  Because the FactorialHandler
+ // stores its state in a context object (using an AttributeKey), the factorial is
+ // calculated correctly 4 times once the two pipelines (p1 and p2) are active.
+ FactorialHandler fh = new FactorialHandler();
+
+ ChannelPipeline p1 = Channels.pipeline();
+ p1.addLast("f1", fh);
+ p1.addLast("f2", fh);
+
+ ChannelPipeline p2 = Channels.pipeline();
+ p2.addLast("f3", fh);
+ p2.addLast("f4", fh);
+
+==
+Additional resources worth reading
+
+Please refer to the ChannelHandler, and ChannelPipeline to find out more about inbound and outbound operations, 
+what fundamental differences they have, how they flow in a pipeline, 
+and how to handle the operation in your application.
+
+========
+io.netty.channel.ChannelHandler
+
+
+Handles an I/O event or intercepts an I/O operation, and forwards it to its next handler in its ChannelPipeline. 
+
+Extend ChannelHandlerAdapter instead
+Because this interface has many methods to implement, you might want to extend ChannelHandlerAdapter instead. 
+
+==
+The context object
+上下文
+
+A ChannelHandler is provided with a ChannelHandlerContext object. 
+A ChannelHandler is supposed to interact with the ChannelPipeline it belongs to via a context object. 
+Using the context object, the ChannelHandler can pass events upstream or downstream, 
+modify the pipeline dynamically, or store the information (using AttributeKeys) which is specific to the handler. 
+
+==
+State management
+状态管理
+
+A ChannelHandler often needs to store some stateful information. 
+The simplest and recommended approach is to use member variables: 
+一种简单和推荐的方案是，使用不同的消息类型。
+
+ public interface Message {
+     // your methods here
+ }
+
+ public class DataServerHandler extends SimpleChannelInboundHandler<Message> {
+
+     private boolean loggedIn;
+
+     @Override
+     protected void messageReceived(ChannelHandlerContext ctx, Message message) {
+         Channel ch = e.getChannel();
+         if (message instanceof LoginMessage) {
+             authenticate((LoginMessage) message);
+             loggedIn = true;
+         } else (message instanceof GetDataMessage) {
+             if (loggedIn) {
+                 ch.write(fetchSecret((GetDataMessage) message));
+             } else {
+                 fail();
+             }
+         }
+     }
+     ...
+ }
+ 
+Because the handler instance has a state variable which is dedicated to one connection, 
+you have to create a new handler instance for each new channel 
+to avoid a race condition where a unauthenticated client can get the confidential information: 
+上述的方案，为了避免并发，需要为每个通道创建一个新的处理器实例。
+
+ // Create a new handler instance per channel.
+ // See ChannelInitializer.initChannel(Channel).
+ public class DataServerInitializer extends ChannelInitializer<Channel> {
+     @Override
+     public void initChannel(Channel channel) {
+         channel.pipeline().addLast("handler", new DataServerHandler());
+     }
+ }
+
+==
+Using AttributeKeys
+
+Although it's recommended to use member variables to store the state of a handler, 
+for some reason you might not want to create many handler instances. 
+In such a case, you can use AttributeKeys which are attached to the ChannelHandlerContext: 
+如果不想创建多个处理器实例，另一种方案是，在上下文存储数据。
+（hxzon：实际上是存储在通道上）
+
+ public interface Message {
+     // your methods here
+ }
+
+ @Sharable
+ public class DataServerHandler extends SimpleChannelInboundHandler<Message> {
+     private final AttributeKey<Boolean> auth =
+           AttributeKey.valueOf("auth");
+
+     @Override
+     protected void messageReceived(ChannelHandlerContext ctx, Message message) {
+         Attribute<Boolean> attr = ctx.attr(auth);
+         Channel ch = ctx.channel();
+
+         if (message instanceof LoginMessage) {
+             authenticate((LoginMessage) o);
+             attr.set(true);
+         } else (message instanceof GetDataMessage) {
+             if (Boolean.TRUE.equals(attr.get())) {
+                 ch.write(fetchSecret((GetDataMessage) o));
+             } else {
+                 fail();
+             }
+         }
+     }
+     ...
+ }
+ 
+Now that the state of the handler is attached to the ChannelHandlerContext, 
+you can add the same handler instance to different pipelines: 
+
+ public class DataServerInitializer extends ChannelInitializer<Channel> {
+
+     private static final DataServerHandler SHARED = new DataServerHandler();
+
+     @Override
+     public void initChannel(Channel channel) {
+         channel.pipeline().addLast("handler", SHARED);
+     }
+ }
+ 
+==
+The @Sharable annotation
+
+In the example above which used an AttributeKey, you might have noticed the @Sharable annotation. 
+
+If a ChannelHandler is annotated with the @Sharable annotation, 
+it means you can create an instance of the handler just once 
+and add it to one or more ChannelPipelines multiple times without a race condition. 
+
+If this annotation is not specified, you have to create a new handler instance every time you add it to a pipeline 
+because it has unshared state such as member variables. 
+
+This annotation is provided for documentation purpose, just like the JCIP annotations. 
+
+==
+Additional resources worth reading
+
+Please refer to the ChannelHandler, and ChannelPipeline to find out more about inbound and outbound operations, 
+what fundamental differences they have, how they flow in a pipeline, and how to handle the operation in your application.
+
+========
+io.netty.channel.ChannelPipeline
+管道
+
+A list of ChannelHandlers which handles or intercepts inbound events and outbound operations of a Channel. 
+ChannelPipeline implements an advanced form of the Intercepting Filter pattern 
+to give a user full control over how an event is handled 
+and how the ChannelHandlers in a pipeline interact with each other. 
+
+==
+Creation of a pipeline
+
+Each channel has its own pipeline and it is created automatically when a new channel is created. 
+每个通道都有自己的管道，随通道创建而创建。
+
+==
+How an event flows in a pipeline
+
+The following diagram describes how I/O events are processed by ChannelHandlers in a ChannelPipeline typically. 
+An I/O event is handled by a ChannelHandler and is forwarded by the ChannelHandler 
+which handled the event to the ChannelHandler which is placed right next to it. 
+A ChannelHandler can also trigger an arbitrary I/O event if necessary. 
+To forward or trigger an event, a ChannelHandler calls the event propagation methods defined in ChannelHandlerContext, 
+such as ChannelHandlerContext.fireChannelRead(Object) and ChannelHandlerContext.write(Object). 
+
+                                                 I/O Request
+                                            via Channel or
+                                        ChannelHandlerContext
+                                                      |
+  +---------------------------------------------------+---------------+
+  |                           ChannelPipeline         |               |
+  |                                                  \|/              |
+  |    +----------------------------------------------+----------+    |
+  |    |                   ChannelHandler  N                     |    |
+  |    +----------+-----------------------------------+----------+    |
+  |              /|\                                  |               |
+  |               |                                  \|/              |
+  |    +----------+-----------------------------------+----------+    |
+  |    |                   ChannelHandler N-1                    |    |
+  |    +----------+-----------------------------------+----------+    |
+  |              /|\                                  .               |
+  |               .                                   .               |
+  | ChannelHandlerContext.fireIN_EVT() ChannelHandlerContext.OUT_EVT()|
+  |          [method call]                      [method call]         |
+  |               .                                   .               |
+  |               .                                  \|/              |
+  |    +----------+-----------------------------------+----------+    |
+  |    |                   ChannelHandler  2                     |    |
+  |    +----------+-----------------------------------+----------+    |
+  |              /|\                                  |               |
+  |               |                                  \|/              |
+  |    +----------+-----------------------------------+----------+    |
+  |    |                   ChannelHandler  1                     |    |
+  |    +----------+-----------------------------------+----------+    |
+  |              /|\                                  |               |
+  +---------------+-----------------------------------+---------------+
+                  |                                  \|/
+  +---------------+-----------------------------------+---------------+
+  |               |                                   |               |
+  |       [ Socket.read() ]                    [ Socket.write() ]     |
+  |                                                                   |
+  |  Netty Internal I/O Threads (Transport Implementation)            |
+  +-------------------------------------------------------------------+
+ 
+An inbound event is handled by the ChannelHandlers in the bottom-up direction as shown on the left side of the diagram. 
+An inbound event is usually triggered by the I/O thread on the bottom of the diagram 
+一般由io线程触发。
+so that the ChannelHandlers are notified when the state of a Channel changes 
+(e.g. newly established connections and closed connections) 
+or the inbound data was read from a remote peer. 
+If an inbound event goes beyond the ChannelHandler at the top of the diagram, 
+it is discarded and logged, depending on your loglevel. 
+
+An outbound event is handled by the ChannelHandlers in the top-down direction as shown on the right side of the diagram. 
+An outbound event is usually triggered by your code that requests an outbound I/O operation, 
+such as a write request and a connection attempt. 
+If an outbound event goes beyond the ChannelHandler at the bottom of the diagram, 
+it is handled by an I/O thread associated with the Channel. 
+The I/O thread often performs the actual output operation such as SocketChannel.write(ByteBuffer). 
+
+==
+Forwarding an event to the next handler
+
+As explained briefly above, a ChannelHandler has to invoke the event propagation methods in ChannelHandlerContext 
+to forward an event to its next handler. 
+Those methods include: 
+事件传播方法
+
+Inbound event propagation methods: 
+
+ChannelHandlerContext.fireChannelRegistered() 
+ChannelHandlerContext.fireChannelActive() 
+ChannelHandlerContext.fireChannelRead(Object) 
+ChannelHandlerContext.fireChannelReadComplete() 
+ChannelHandlerContext.fireExceptionCaught(Throwable) 
+ChannelHandlerContext.fireUserEventTriggered(Object) 
+ChannelHandlerContext.fireChannelWritabilityChanged() 
+ChannelHandlerContext.fireChannelInactive() 
+
+Outbound event propagation methods: 
+
+ChannelHandlerContext.bind(SocketAddress, ChannelPromise) 
+ChannelHandlerContext.connect(SocketAddress, SocketAddress, ChannelPromise) 
+ChannelHandlerContext.write(Object, ChannelPromise) 
+ChannelHandlerContext.flush() 
+ChannelHandlerContext.read() 
+ChannelHandlerContext.disconnect(ChannelPromise) 
+ChannelHandlerContext.close(ChannelPromise) 
+
+and the following example shows how the event propagation is usually done: 
+
+ public class MyInboundHandler extends ChannelHandlerAdapter {
+     @Override
+     public void channelActive(ChannelHandlerContext ctx) {
+         System.out.println("Connected!");
+         ctx.fireChannelActive();
+     }
+ }
+
+ public clas MyOutboundHandler extends ChannelHandlerAdapter {
+     @Override
+     public void close(ChannelHandlerContext ctx, ChannelPromise promise) {
+         System.out.println("Closing ..");
+         ctx.close(promise);
+     }
+ }
+
+==
+Building a pipeline
+构建管道
+
+A user is supposed to have one or more ChannelHandlers in a pipeline to receive I/O events (e.g. read) 
+and to request I/O operations (e.g. write and close). 
+For example, a typical server will have the following handlers in each channel's pipeline, 
+but your mileage may vary depending on the complexity and characteristics of the protocol and business logic: 
+
+Protocol Decoder - translates binary data (e.g. ByteBuf) into a Java object. 
+Protocol Encoder - translates a Java object into binary data. 
+Business Logic Handler - performs the actual business logic (e.g. database access). 
+
+and it could be represented as shown in the following example: 
+
+ static final EventExecutorGroup group = new DefaultEventExecutorGroup(16);
+ ...
+
+ ChannelPipeline pipeline = ch.pipeline();
+
+ pipeline.addLast("decoder", new MyProtocolDecoder());
+ pipeline.addLast("encoder", new MyProtocolEncoder());
+
+ // Tell the pipeline to run MyBusinessLogicHandler's event handler methods
+ // in a different thread than an I/O thread so that the I/O thread is not blocked by
+ // a time-consuming task.
+ // If your business logic is fully asynchronous or finished very quickly, you don't
+ // need to specify a group.
+ pipeline.addLast(group, "handler", new MyBusinessLogicHandler());
+
+==
+Thread safety
+线程安全
+
+A ChannelHandler can be added or removed at any time because a ChannelPipeline is thread safe. 
+For example, you can insert an encryption handler when sensitive information is about to be exchanged, 
+and remove it after the exchange.
+在管道里添加和移除处理器是线程安全的。
+
+========
+io.netty.channel.Channel
+
+
+A nexus to a network socket or a component which is capable of I/O operations such as read, write, connect, and bind. 
+
+A channel provides a user: 
+
+the current state of the channel (e.g. is it open? is it connected?), 
+the configuration parameters of the channel (e.g. receive buffer size), 
+the I/O operations that the channel supports (e.g. read, write, connect, and bind), and 
+the ChannelPipeline which handles all I/O events and requests associated with the channel. 
+
+==
+All I/O operations are asynchronous.
+
+All I/O operations in Netty are asynchronous. 
+It means any I/O calls will return immediately with no guarantee that the requested I/O operation 
+has been completed at the end of the call. 
+Instead, you will be returned with a ChannelFuture instance which will notify you 
+when the requested I/O operation has succeeded, failed, or canceled. 
+
+==
+Channels are hierarchical
+通道的父子关系
+
+A Channel can have a parent depending on how it was created. 
+For instance, a SocketChannel, that was accepted by ServerSocketChannel, 
+will return the ServerSocketChannel as its parent on parent(). 
+
+The semantics of the hierarchical structure depends on the transport implementation where the Channel belongs to. 
+For example, you could write a new Channel implementation 
+that creates the sub-channels that share one socket connection, as BEEP and SSH do. 
+
+==
+Downcast to access transport-specific operations
+向下转型（子类）
+
+Some transports exposes additional operations that is specific to the transport. 
+Down-cast the Channel to sub-type to invoke such operations. 
+For example, with the old I/O datagram transport, multicast join / leave operations are provided by DatagramChannel. 
+
+==
+Release resources
+释放资源
+
+It is important to call close() or close(ChannelPromise) to release all resources once you are done with the Channel. 
+This ensures all resources are released in a proper way, i.e. filehandles.
+
+
+========
+io.netty.channel.group.ChannelGroup
+
+
+A thread-safe Set that contains open Channels and provides various bulk operations on them. 
+Using ChannelGroup, you can categorize Channels into a meaningful group 
+(e.g. on a per-service or per-state basis.) 
+A closed Channel is automatically removed from the collection, 
+so that you don't need to worry about the life cycle of the added Channel. 
+A Channel can belong to more than one ChannelGroup. 
+一个关闭的通道，会自动从集合中移除。
+一个通道可加入多个组。
+
+==
+Broadcast a message to multiple Channels
+广播
+
+If you need to broadcast a message to more than one Channel, 
+you can add the Channels associated with the recipients and call ChannelGroup.write(Object): 
+
+ ChannelGroup recipients =
+         new DefaultChannelGroup(GlobalEventExecutor.INSTANCE);
+ recipients.add(channelA);
+ recipients.add(channelB);
+ ..
+ recipients.write(Unpooled.copiedBuffer(
+         "Service will shut down for maintenance in 5 minutes.",
+         CharsetUtil.UTF_8));
+
+==
+Simplify shutdown process with ChannelGroup
+
+If both ServerChannels and non-ServerChannels exist in the same ChannelGroup, 
+any requested I/O operations on the group are performed for the ServerChannels first and then for the others. 
+如果含有服务端通道和非服务端通道，服务端通道会先执行。
+
+This rule is very useful when you shut down a server in one shot: 
+
+ ChannelGroup allChannels =
+         new DefaultChannelGroup(GlobalEventExecutor.INSTANCE);
+
+ public static void main(String[] args) throws Exception {
+     ServerBootstrap b = new ServerBootstrap(..);
+     ...
+     b.childHandler(new MyHandler());
+
+     // Start the server
+     b.getPipeline().addLast("handler", new MyHandler());
+     Channel serverChannel = b.bind(..).sync();
+     allChannels.add(serverChannel);
+
+     ... Wait until the shutdown signal reception ...
+
+     // Close the serverChannel and then all accepted connections.
+     allChannels.close().awaitUninterruptibly();
+ }
+
+ public class MyHandler extends ChannelHandlerAdapter {
+     @Override
+     public void channelActive(ChannelHandlerContext ctx) {
+         // closed on shutdown.
+         allChannels.add(ctx.channel());
+         super.channelActive(ctx);
+     }
+ }
+ 
+========
+io.netty.buffer.Unpooled
+
+
+Creates a new ByteBuf by allocating new space or by wrapping or copying existing byte arrays, byte buffers and a string. 
+
+==
+Use static import
+This classes is intended to be used with Java 5 static import statement: 
+ import static io.netty.buffer.Unpooled.*;
+
+ ByteBuf heapBuffer    = buffer(128);
+ ByteBuf directBuffer  = directBuffer(256);
+ ByteBuf wrappedBuffer = wrappedBuffer(new byte[128], new byte[256]);
+ ByteBuf copiedBuffe r = copiedBuffer(ByteBuffer.allocate(128));
+
+==
+Allocating a new buffer
+
+Three buffer types are provided out of the box. 
+
+buffer(int) allocates a new fixed-capacity heap buffer. 
+directBuffer(int) allocates a new fixed-capacity direct buffer. 
+
+Creating a wrapped buffer
+Wrapped buffer is a buffer which is a view of one or more existing byte arrays and byte buffers. 
+Any changes in the content of the original array or buffer will be visible in the wrapped buffer. 
+Various wrapper methods are provided and their name is all wrappedBuffer(). 
+You might want to take a look at the methods that accept varargs closely 
+if you want to create a buffer which is composed of more than one array to reduce the number of memory copy. 
+
+Creating a copied buffer
+Copied buffer is a deep copy of one or more existing byte arrays, byte buffers or a string. 
+Unlike a wrapped buffer, there's no shared data between the original data and the copied buffer. 
+Various copy methods are provided and their name is all copiedBuffer(). 
+It is also convenient to use this operation to merge multiple buffers into one buffer. 
+深度复制。
+
+Miscellaneous utility methods
+This class also provides various utility methods to help implementation of a new buffer type, 
+generation of hex dump and swapping an integer's byte order.
+
+

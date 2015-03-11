@@ -70,9 +70,28 @@ calc-set-value-gars go :final a &
 ========
 5，级联更新
 
-多个系统间的属性级联更新
+====
+5.1，属性间和段间的级联更新
+
+base: [zdl :final] -> #{[atk :final] [def :final]}
+cascade: [atk :final] -> #{[zdl :final]}
+
+级联信息是否加入游戏对象类型？
+
+base: [atk :base go-user] -> #{[user-lvl :base] [tl :base]}
+cascade: [user-lvl :base go-user] -> #{[atk :base] [def :base]}
+
+不加入游戏对象，会得到无关的级联属性段，
+但在 attrbar-reset-value-impl 中，
+根据游戏对象类型，进行不同的计算即可。
+
+
+====
+5.2，多个系统间的属性级联更新
 
 装备/技能=》玩家=》技能
+
+通过事件，来执行另一个系统/对象的更新。
 
 ========
 6，api设计
@@ -86,6 +105,12 @@ calc-set-value-gars go :final a &
 只需要重算 atk :final 段，
 不需要重算 atk :equip 段。
 
+-3，同时计算多个属性，（是否有必要？）
+例如更新 user-lvl 段时，
+一次性重算 atk :base ,def :base，
+因为它们基于同样的某个额外参数，而这个参数较费资源。
+
+
 ==
 attrbar-get-value [go g a vd]
 获取属性值
@@ -98,6 +123,7 @@ attrbar-set-values [go & gavs]
 仅最高层调用，不可内部使用
 初始化三个动态变量，
 然后调用 attrbar-set-values-impl
+触发事件
 
 ==
 动态变量，用于跟踪所有的值变化
@@ -271,50 +297,45 @@ attrbar-reset-value-impl [go a ]
 ====
 第6节，最终api示例：
 
-(defn attrbar-reset-value-impl
-  [go g a ]
-  (binding [*attrs-is-just-set* true]
-    (cond
-      (g-attr-go? :final Attr-user-lvl Go-User)
-      (do
-        (attrbar-calc-set-user-lvl-final go)
-        )
-      
-      (g-attr? :base Attr-atk)
-      (do
-        (attrbar-calc-set-atk-base go)
-        )
-      (g-attr? :final Attr-atk)
-      (do
-        (attrbar-calc-set-value-grs
-          go :final a 
-          :base 3
-          :equip 2
-          :skill 2)
-        )
-    
-      (g-attr? :base Attr-def )
-      (do
-        (attrbar-calc-set-def-base go)
-        )
-      (g-attr? :final Attr-def)
-      (do
-        (attrbar-calc-set-value-grs
-          go :final a 
-          :base 3
-          :equip 2
-          :skill 2)
-        )
-    
-      (g-attr-go? :final Attr-zdl Go-User)
-      (do
-        (attrbar-calc-set-value-ars
-          go :final a
-          :base
-          Attr-atk 1
-          Attr-def 2
-          )
-        )
-      ))
+(def ^:private attrbar-reset-value-fns (ref {}))
+
+(attrbar-def-reset-value-fns
+  (Attr-user-lvl 
+    :final
+    (attrbar-calc-set-user-lvl-final go)
+    )
+  (Attr-atk
+    :base
+    (attrbar-calc-set-atk-base go)
+    )
+  (Attr-atk
+    :final
+    (attrbar-calc-set-value-grs
+      go Attr-atk :final 
+      :base 3
+      :equip 2
+      :skill 2)
+    )
+  (Attr-def
+    :base
+    (attrbar-calc-set-def-base go)
+    )
+  (Attr-def
+    :final
+    (attrbar-calc-set-value-grs
+      go Attr-def :final
+      :base 3
+      :equip 2
+      :skill 2)
+    )
+  (Attr-zdl
+    :final
+    (attrbar-calc-set-value-ars
+      go Attr-zdl :final
+      :base
+      Attr-atk 1
+      Attr-def 2
+      )
+    )
   )
 
