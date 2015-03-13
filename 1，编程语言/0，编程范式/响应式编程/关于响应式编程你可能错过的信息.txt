@@ -2,7 +2,11 @@
 作者 张逸 发布于 2014年7月4日 |
 http://www.infoq.com/cn/news/2014/07/reactive-programming
 
-在函数式编程重新焕发生命力的当下，结合了函数式编程思想的函数式响应型编程（Functional Reactive Programming，简称FRP）
+hxzon：显示的对时间进行建模。
+
+========
+在函数式编程重新焕发生命力的当下，
+结合了函数式编程思想的函数式响应型编程（Functional Reactive Programming，简称FRP）
 在GUI编程等领域又吹来一阵清风。
 虽然FRP的理论与实践可以追溯到上个世纪九十年代，
 但它蕴含的诸多概念对于大多数程序员而言，还是全新的知识。
@@ -11,7 +15,7 @@ http://www.infoq.com/cn/news/2014/07/reactive-programming
 
 函数式响应型编程是使用函数式编程构建块针对响应式编程的一种编程范式。
 它主要用于GUI编程、机器人技术、音乐流处理等领域，
-通过显式地对时间进行建模来简化问题域。
+通过“显式地对时间进行建模”来简化问题域。
 
 这样的定义未免太过于宽泛了。
 Stackoverflow对此的回答倒是详尽而细致地阐述了FRP的今世前身，可惜又失之艰深，
@@ -29,35 +33,44 @@ Haskell官方网站专门介绍了FRP的知识。
 
 近日，Andre Staltz在Github上发布了一篇长文《关于响应式编程你可能错过的信息》，
 通过运用JavaScript和RxJS，以FRP的编程范式实现了如Twitter中推荐朋友的功能。
+
+（hxzon：重要）
 这篇文章围绕着FRP的一个核心概念“FRP是针对异步数据流进行编程”进行讲解，并抓住了FRP的本质，
-即将任何事物都视为一个流对象，包括变量、用户输入、属性、缓存、数据结构等。
-这种针对流的处理方式有些像管道-过滤器模式，
+即将任何事物都视为一个“流对象”，包括变量、用户输入、属性、缓存、数据结构等。
+这种针对流的处理方式有些像“管道-过滤器”模式，
 而它又与函数式语言的组合子Combinator是相呼应的。
 例如我们可以对流进行map、filter等组合操作。
 而FRP对事件的订阅，则符合观察者模式的设计思想。
+
 文中给出了一个FRP例子，它用JavaScript处理了“双击”的事件流：
 
 （hxzon：throttle，名词，风门，喉咙。动词，掐死。）
 
 // The 4 lines of code that make the multi-click logic
+// 在点击流中，250毫秒采集一次点击数，收集点击数为2以上的事件
 var multiClickStream = clickStream
     .buffer(function() { return clickStream.throttle(250); })
     .map(function(list) { return list.length; })
     .filter(function(x) { return x >= 2; });
 
 // Same as above, but detects single clicks
+// 收集单击事件
 var singleClickStream = clickStream
     .buffer(function() { return clickStream.throttle(250); })
     .map(function(list) { return list.length; })
     .filter(function(x) { return x === 1; });
 
 // Listen to both streams and render the text label accordingly
+// 监听单击事件
 singleClickStream.subscribe(function (event) {
     document.querySelector('h2').textContent = 'click';
 });
+// 监听双击事件
 multiClickStream.subscribe(function (numclicks) {
     document.querySelector('h2').textContent = ''+numclicks+'x click';
 });
+
+// 清除显示
 Rx.Observable.merge(singleClickStream, multiClickStream)
     .throttle(1000)
     .subscribe(function (suggestion) {

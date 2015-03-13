@@ -1,0 +1,275 @@
+﻿（Neal Ford）函数式思维: 对调度（dispatch）的反思
+下一代 JVM 语言如何为方法调度添加一些玄妙之处
+Neal Ford, 软件架构师, ThoughtWorks Inc.
+发布日期： 2012 年 9 月 17 日 
+http://www.ibm.com/developerworks/cn/java/j-ft15/index.html?ca=drs-
+
+========
+简介： 面向 Java™ 平台的下一代语言提供了比 Java 语言更灵活的方法调度机制。在这一期的函数式思维 专题文章中，Neal Ford 将探讨 Scala 和 Clojure 等函数语言中的调度机制，展示执行代码的新的思维方式。
+
+在 上一期 中，我探讨了如何使用 Java 泛型来模拟 Scala 中的模式匹配，让您编写出简洁的、可读性高的条件语句。Scala 模式匹配是替代调度机制 的一个示例，我们将 “调度机制” 作为一个广义的术语，用它来描述各种语言动态选择行为的方式。本期文章将扩展此讨论，向您展示各种函数 JVM 语言中的调度机制如何实现比 Java 语言更高的简洁性和灵活性。
+使用 Groovy 改善调度
+在 Java 中，条件执行以使用 if 语句而告终，不过在极少数情况下也会使用 switch 语句。由于一长串的 if 语句使得可读性变得很差，所以 Java 开发人员开始依赖于 Gang of Four (GoF) Factory（或 Abstract Factory）模式（请参阅 参考资料）。如果您使用的语言包含更灵活的决策表达式，您可以进一步简化您的大量代码。
+Groovy 有一个强大的 switch 语句，该语句可以模拟 Java 的 switch 语句的语法，而非行为，如清单 1 所示：
+
+清单 1. Groovy 极大改进的 switch 语句
+				
+class LetterGrade {
+  def gradeFromScore(score) {
+    switch (score) {
+      case 90..100 : return "A"
+      case 80..<90 : return "B"
+      case 70..<80 : return "C"
+      case 60..<70 : return "D"
+      case 0..<60  : return "F"
+      case ~"[ABCDFabcdf]" : return score.toUpperCase()
+      default: throw new IllegalArgumentException("Invalid score: ${score}")
+    }
+  }
+}
+
+Groovy switch 语句接受广泛的动态类型。在 清单 1 中，score 参数应当要么是 0 和 100 之间的一个数字，要么是一个字母分级。在 Java 中，您必须使用 return 或 break（两者遵循相同的 fall-through 语义）终止每个 case。但在 Groovy 中，与 Java 不同的是，我可以指定范围 (90..100)，非包含范围 (80..<90)，正则表达式 (~"[ABCDFabcdf]") 和一个默认条件。
+Groovy 的动态类型能够让我发送不同类型的参数并采用适当的方式进行应对，如清单 2 中的单元测试中所示：
+
+清单 2. 测试 Groovy 字母分级
+				
+@Test
+public void test_letter_grades() {
+  def lg = new LetterGrade()
+  assertEquals("A", lg.gradeFromScore(92))
+  assertEquals("B", lg.gradeFromScore(85))
+  assertEquals("D", lg.gradeFromScore(65))
+  assertEquals("F", lg.gradeFromScore("f"))
+}  
+
+更加强大的 switch 为您提供了连续的 if 与 Factory 设计模式之间的一个有用的折衷方法。Groovy 的 switch 允许您匹配范围和其他复杂类型，这在意图上与 Scala 中的模式匹配近似。
+Scala 模式匹配
+Scala 模式匹配允许您指定与对应行为匹配的 case。回顾 上一期 的字母分级示例，如清单 3 所示：
+
+清单 3. Scala 中的字母分级
+				
+val VALID_GRADES = Set("A", "B", "C", "D", "F")
+
+def letterGrade(value: Any) : String = value match {
+  case x:Int if (90 to 100).contains(x) => "A"
+  case x:Int if (80 to 90).contains(x) => "B"
+  case x:Int if (70 to 80).contains(x) => "C"
+  case x:Int if (60 to 70).contains(x) => "D"
+  case x:Int if (0 to 60).contains(x) => "F"
+  case x:String if VALID_GRADES(x.toUpperCase) => x.toUpperCase
+}
+
+在 Scala 中，我通过将参数类型声明为 Any 来支持动态输入。运转中的运算符是 match，它尝试匹配第一个 true 条件并返回结果。如清单 3 所示，每个 case 都可以包含一个保护条件来指定条件。
+清单 4 显示了执行一些字母分级选择的结果：
+
+清单 4. 测试 Scala 中的字母分级
+				
+printf("Amy scores %d and receives %s\n", 91, letterGrade(91))
+printf("Bob scores %d and receives %s\n", 72, letterGrade(72))
+printf("Sam never showed for class, scored %d, and received %s\n", 44, letterGrade(44))
+printf("Roy transfered and already had %s, which translated as %s\n", 
+    "B", letterGrade("B"))
+
+Scala 中的模式匹配常常与 Scala 的 case 类 一同使用，旨在表示代数和其他结构化数据类型。
+Clojure 的 “可变形” 语言
+用于 Java 平台的另一个下一代函数语言是 Clojure（请参阅 参考资料）。Clojure（JVM 上的一个 Lisp 实现）有一个明显不同于大部分现代语言的语法。尽管开发人员很容易适应这种语法，但该语言让主流 Java 开发人员觉得很奇怪。Lisp 语言系列最好的特性之一是同像性，这表示该语言是使用它自己的数据结构实现的，能够实现其他语言无法实现的扩展。
+Java 和类似的语言包含一些关键词，即语言的语法平台。开发人员无法在语言中创建新的关键词（不过一些类似 Java 的语言支持通过元编程进行扩展），且关键词拥有开发人员不可用的语义。例如，Java if 语句 “理解” 短路布尔求值等概念。尽管您可以使用 Java 创建方法和类，但却不能创建基本的构建块，因此您需要将问题转换成 编程语言的语法。（事实上，许多开发人员认为他们的工作就是执行这一转换。）使用 Clojure 这样的 Lisp 变体，开发人员可以针对问题修改语言，淡化语言设计人员和开发人员在语言使用上的界限。我会在未来一期的文章中探讨同像性的完整含义；这里要了解的重要特征是 Clojure（和其他 Lisp）背后的基本原理。
+在 Clojure 中，开发人员使用语言来创建可读的 (Lisp) 代码。例如，清单 5 显示 Clojure 中的字母分级示例：
+
+清单 5. Clojure 中的字母分级
+				
+(defn letter-grade [score]
+  (cond
+    (in score 90 100) "A"
+    (in score 80 90)  "B"
+    (in score 70 80)  "C"
+    (in score 60 70)  "D"
+    (in score 0 60)   "F"
+    (re-find #"[ABCDFabcdf]" score) (.toUpperCase score)))
+
+(defn in [score low high]
+  (and (number? score) (<= low score high)))
+
+在 清单 5 中，我编写了 letter-grade 方法来提高可读性，然后实现了 in 方法使其能够运作。在该代码中，cond 函数能够让我评估一系列由 in 方法处理的测试。与前面的示例一样，我同时处理数字和现有的字母分级字符串。最终，return 值应当是一个大写字符，因此，如果输入是小写的，那么我会在返回的字符串上调用 toUpperCase 方法。在 Clojure 中，方法是一等公民 (first-class citizen)，而非类，从而使方法调用 “由内而外” 发生：Java 中对 score.toUpperCase() 的调用等同于 Clojure 的 (.toUpperCase score)。
+在清单 6 中，我测试 Clojure 的字母分级实现：
+
+清单 6. 测试 Clojure 字母分级
+				
+(ns nealford-test
+  (:use clojure.test)
+  (:use lettergrades))
+
+
+(deftest numeric-letter-grades
+  (dorun (map #(is (= "A" (letter-grade %))) (range 90 100)))
+  (dorun (map #(is (= "B" (letter-grade %))) (range 80 89)))
+  (dorun (map #(is (= "C" (letter-grade %))) (range 70 79)))
+  (dorun (map #(is (= "D" (letter-grade %))) (range 60 69)))
+  (dorun (map #(is (= "F" (letter-grade %))) (range 0 59))))
+
+(deftest string-letter-grades
+  (dorun (map #(is (= (.toUpperCase %)
+           (letter-grade %))) ["A" "B" "C" "D" "F" "a" "b" "c" "d" "f"])))
+
+(run-all-tests)
+
+在本例中，测试代码比实现代码更加复杂！然而，它展示了 Clojure 代码可以有多简洁。
+在 numeric-letter-grades 测试中，我希望检查适当范围内的每个值。如果您对 Lisp 不熟悉，解码它的最简单的方法就是由内而外进行读取。首先，代码 #(is (= "A" (letter-grade %))) 创建一个接受单一参数的新匿名函数（如果您有一个接受单一参数的匿名函数，可以在主体内将它表示为 %），如果返回正确的字母评级，则返回 true。map 函数在第二个参数中的整个集合内映射该匿名函数，该集合就是适当范围内的数字列表。换言之，map 在集合中的每个项目上调用该函数，返回一批经过修改的值（我忽略了这些值）。dorun 函数允许有副作用发生，这是测试框架的依仗。在 清单 6 中，跨各个 range 调用 map 返回了一系列 true 值。来自clojure.test 命名空间的 is 方法证实该值是一个副作用。在 dorun 内调用映射函数能够让副作用正确地发生，并返回测试结果。
+Clojure 多方法
+一长串的 if 语句让人难以阅读和调试，然而 Java 在语言级别还没有特别好的替代方案。通常，人们会使用 GoF 的 Factory 或 Abstract Factory 设计模式来解决这个问题。Factory 模式在 Java 中可行是由于基于类的多态性，多态性能够让我在父类或接口中定义一个通用的方法签名，然后选择动态执行的实现。
+工厂和多态性
+Groovy 的语法比 Java 更简洁，且可读性更高，因此我会在接下来的代码示例中使用它，而非 Java，不过多态性在两种语言中的工作方式是一样的。我们结合使用接口和类来定义一个 Product 工厂，如清单 7 中所示：
+
+清单 7. 使用 Groovy 创建产品工厂
+				
+interface Product {
+  public int evaluate(int op1, int op2)
+}
+
+class Multiply implements Product {
+  @Override
+  int evaluate(int op1, int op2) {
+    op1 * op2
+  }
+}
+
+class Incrementation implements Product {
+  @Override
+  int evaluate(int op1, int op2) {
+    def sum = 0
+    op2.times {
+      sum += op1
+    }
+    sum
+  }
+}
+
+class ProductFactory {
+  static Product getProduct(int maxNumber) {
+    if (maxNumber > 10000)
+      return new Multiply()
+    else
+      return new Incrementation()
+  }
+}
+
+在 清单 7 中，我创建了一个接口来定义有关如何获取两个数字的产品的语义，并实现两个版本的算法。在 ProductFactory 中，我确定了关于从工厂中返回哪个实现的规则。
+我使用工厂作为一个抽象占位符，将其用于通过某些决策标准派生的具体实现。例如，看一下清单 8 中的代码：
+
+清单 8. 动态选择一个实现
+				
+
+@Test
+public void decisionTest() {
+  def p = ProductFactory.getProduct(10010)
+  assertTrue p.getClass() == Multiply.class
+  assertEquals(2*10010, p.evaluate(2, 10010))
+  p = ProductFactory.getProduct(9000)
+  assertTrue p.getClass() == Incrementation.class
+  assertEquals(3*3000, p.evaluate(3, 3000))
+}
+
+在 清单 8 中，我创建了两个版本的 Product 实现，确认正确的那一个从工厂返回。
+在 Java 中，继承和多态性是紧密耦合的概念：多态性触发了对象的类的使用。在其他语言中，这一耦合比较松散。
+
+========
+Clojure 中的随需多态性
+
+许多开发人员不接受 Clojure 是因为它不是一个面向对象的语言，他们认为面向对象的语言是权力的顶峰。
+这种想法是错误的：Clojure 拥有面向对象语言具有的所有功能，这些功能是独立于其他功能实现的。
+例如，Clojure 支持多态性，但又不局限于通过判断类来确定调度。
+Clojure 支持多态的多方法，调度是由开发人员想要的任何特征（或组合）触发的。
+
+下面是一个示例。
+在 Clojure 中，数据通常位于 struct 中，它模拟类的数据部分。
+我们来看一下清单 9 中的 Clojure 代码：
+
+清单 9. 在 Clojure 中定义颜色结构
+				
+(defstruct color :red :green :blue)
+
+(defn red [v]
+  (struct color v 0 0))
+
+(defn green [v]
+  (struct color 0 v 0))
+
+(defn blue [v]
+  (struct color 0 0 v))
+  
+
+在 清单 9 中，我定义了一个存放三个值的结构，分别对应于各种颜色值。
+我还创建了三个方法，它们返回填充了单一颜色的结构。
+Clojure 中的多方法是接受调度函数（返回决策标准）的一个方法定义。
+随后的定义能够让您充实不同版本的方法。
+
+清单 10 显示了多方法定义的一个示例：
+
+清单 10. 定义多方法
+				
+(defn basic-colors-in [color]
+  (for [[k v] color :when (not= v 0)] k))
+
+(defmulti color-string basic-colors-in)
+
+(defmethod color-string [:red] [color]
+  (str "Red: " (:red color)))
+
+(defmethod color-string [:green] [color]
+  (str "Green: " (:green color)))
+
+(defmethod color-string [:blue] [color]
+  (str "Blue: " (:blue color)))
+
+(defmethod color-string :default [color]
+  (str "Red:" (:red color) ", Green: " (:green color) ", Blue: " (:blue color)))
+
+在 清单 10 中，我定义了一个名为 basic-colors-in 的调度函数，它返回所有非零颜色值的矢量。
+对于方法的变体，我指定了如果调度函数返回一个颜色会怎么样；
+在本例中，它返回一个带相应颜色的字符串。
+最后一个 case 包含可选的 :default 关键词，用于处理其余的 case。
+对于这个 case，我不能假定我接收了一个颜色，因此返回结果列出了所有颜色的值。
+
+用于练习这些多方法的测试如清单 11 所示：
+
+清单 11. 测试 Clojure 中的颜色
+				
+(ns colors-test
+  (:use clojure.test)
+  (:use colors))
+
+(deftest pure-colors
+  (is (= "Red: 5" (color-string (struct color 5 0 0))))
+  (is (= "Green: 12" (color-string (struct color 0 12 0))))
+  (is (= "Blue: 40" (color-string (struct color 0 0 40)))))
+
+(deftest varied-colors
+  (is (= "Red:5, Green: 40, Blue: 6" (color-string (struct color 5 40 6)))))
+
+在 清单 11 中，当我调用带有某种颜色的方法时，它执行多方法的单一颜色版本。
+如果我使用复杂的颜色配置文件调用它，默认的方法会返回所有颜色。
+将多态性与继承性分离开来可提供强大的语境化调度机制。
+例如，以图像文件格式问题为例，每个格式都有不同的定义类型的特征集。
+通过使用一个调度函数，Clojure 能够让您构建和 Java 多态性一样语境化的强大调度，但是限制更少。
+
+========
+结束语
+在本期文章中，我带您快速了解了下一代 Java 语言中的各种调度机制。使用具有有限调度的语言往往会使您的代码杂乱无章，充斥着像设计模式这样的外来环境。在新语言中选择以前没有的替代方案会很难，因为您得转换范式；这是函数式思维要学习的一部分内容。
+
+参考资料
+学习
+The Productive Programmer（Neal Ford，O'Reilly Media，2008 年）：Neal Ford 的新书讨论了帮助您提高编码效率的工具和实践。
+
+Scala：Scala 是一种现代函数编程语言，适用于 JVM。
+
+Clojure：Clojure 是在 JVM 上运行的一种现代函数 Lisp。
+
+Functional Java：Functional Java 框架为 Java 增添了许多函数式的语言构造。
+
+设计模式:可 重用的面向对象软件的元素（Erich Gamma 等，Addison-Wesley，1994 年）：Gang of Four 有关设计模式的经典作品。 
+
+“Execution in the Kingdom of Nouns”（Steve Yegge，2006 年 3 月）：有关 Java 语言设计某些方面的趣闻。
+关于作者
+Neal Ford
+Neal Ford 是一家全球性 IT 咨询公司 ThoughtWorks 的软件架构师和 Meme Wrangler。他的工作还包括设计和开发应用程序、教材、杂志文章、课件和视频/DVD 演示，而且他是各种技术书籍的作者或编辑，包括最近的新书 The Productive Programmer 。他主要的工作重心是设计和构建大型企业应用程序。他还是全球开发人员会议上的国际知名演说家。请访问他的 Web 站点。
+
