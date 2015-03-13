@@ -1,4 +1,4 @@
-受禁锢的异步编程思维
+（老赵点滴）受禁锢的异步编程思维
 http://blog.zhaojie.me/2011/12/the-stuck-mind-of-asynchronous-programming.html
 
 hxzon：非回调的方式，保持自然的逻辑。

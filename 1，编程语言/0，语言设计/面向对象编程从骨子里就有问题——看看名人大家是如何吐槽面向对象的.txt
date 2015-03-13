@@ -2,7 +2,7 @@
 
 http://www.aqee.net/object-oriented-programming-is-inherently-harmful/
 
-
+========
 “面向对象编程是一个极其糟糕的主意，只有硅谷里的人能干出这种事情。” 
 — Edsger Dijkstra(图灵奖获得者)
 
