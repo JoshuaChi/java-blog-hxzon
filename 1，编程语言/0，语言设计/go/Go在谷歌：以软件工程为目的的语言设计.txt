@@ -2,6 +2,29 @@
 英文原文：Go at Google: Language Design in the Service of Software Engineering
 http://www.oschina.net/translate/go-at-google-language-design-in-the-service-of-software-engineering
 
+====
+1. 摘要
+2. 简介
+3. Google公司中的go语言
+4. 痛之所在
+5. C和C++中的依赖
+6. 走进 Go 语言
+7. Go 语言的依赖处理
+8. 包
+9. 远程包
+
+10. 语法
+11. 命名
+12. 语意
+13. 并发
+14. 垃圾回收
+
+15. 要组合，不要继承
+16. 错误
+
+17. 工具
+18. 结论
+19. 总结
 ========
 1. 摘要
 
