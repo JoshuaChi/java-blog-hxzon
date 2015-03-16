@@ -241,6 +241,27 @@ user=> (merge-with + {:a 1 :b 2} {:a 2 :b 98 :c 0})
 
 map的结果跟它最短的参数一样长。
 
+(map (fn [e] e) [:a :b :c])
+;;= (:a :b :c)
+;; 不能写成 (map #(%) [:a :b :c])
+
+(map (fn [e] e) {:a 'a :b 'b :c 'c})
+;;= ([:c c] [:b b] [:a a])
+
+(map-indexed (fn [k v] [k v])
+   {:a 'a :b 'b :c 'c})
+;;= ([0 [:c c]] [1 [:b b]] [2 [:a a]])
+
+(defn map-to-map [f m]
+  (into
+    {}
+    (map #(f (key %) (val %)) m)))
+
+(map-to-map
+  (fn [k v] [(name k) v])
+  {:a 'a :b 'b :c 'c})
+;;= {"c" c, "b" b, "a" a}
+
 ====
 5.1，mapv
 和map一样，但是返回的是向量，而不是惰性序列。后缀v表示向量。
@@ -251,7 +272,7 @@ map的结果跟它最短的参数一样长。
 (map-indexed f coll)
 
 返回一个惰性序列，序列里的元素，是函数 f 的求值结果，
-函数 f 应该接受两个参数：一个索引值，一个是 coll 的元素值。
+函数 f 应该接受两个参数：一个索引值（long类型），一个是 coll 的元素值。
 
 user=> (map-indexed (fn [idx item] [idx item]) "foobar")
 ([0 \f] [1 \o] [2 \o] [3 \b] [4 \a] [5 \r])

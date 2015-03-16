@@ -8,7 +8,7 @@ http://yinwang0.wordpress.com/2013/06/03/null/
 
 http://www.infoq.com/presentations/Null-References-The-Billion-Dollar-Mistake-Tony-Hoare
 
-
+========
 The null pointer is considered to be a “billion-dollar mistake” by Tony Hoare, but was he really saying that null pointer should never be used? After years of using languages both with null pointers (e.g. Java) and without them (e.g. Haskell), I found that null pointers are much easier and more natural to use than its counterparts (e.g. Haskell’s Maybe type). I have been wondering why there is such a notion of “billion-dollar mistake” until I saw the original video where Tony Hoare claims it to be his mistake. In fact, he didn’t really say that null pointer should not be used, so I realized that I made a mistake by taking the words “billion-dollar mistake” literally.
 
 Tony Hoare 认为空指针是一个“十亿美元的错误”，但他是不是真的在说永远不要使用空指针？

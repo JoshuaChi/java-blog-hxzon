@@ -43,6 +43,8 @@ merge，
 
 添加：
 (conj coll e)，
+(conj {:a 'a} [:b 'b])
+
 conj! ，可变版本
 assoc，
 assoc! ，可变版本，
