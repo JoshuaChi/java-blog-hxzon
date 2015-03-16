@@ -1,0 +1,266 @@
+﻿（hxzon学习笔记）日志-slf4 logger源码
+
+========
+1，遍历书写器，并输出
+
+/**
+   * Invoke all the appenders of this logger.
+   * 
+   * @param event
+   *          The event to log
+   */
+  public void callAppenders(ILoggingEvent event) {
+    int writes = 0;
+    for (Logger l = this; l != null; l = l.parent) {
+      writes += l.appendLoopOnAppenders(event);
+      if (!l.additive) {
+        break;
+      }
+    }
+    // No appenders in hierarchy
+    if (writes == 0) {
+      loggerContext.noAppenderDefinedWarning(this);
+    }
+  }
+
+  private int appendLoopOnAppenders(ILoggingEvent event) {
+    if (aai != null) {
+      return aai.appendLoopOnAppenders(event);
+    } else {
+      return 0;
+    }
+  }
+
+ch.qos.logback.core.spi.AppenderAttachableImpl.
+  /**
+   * Call the <code>doAppend</code> method on all attached appenders.
+   */
+  public int appendLoopOnAppenders(E e) {
+    int size = 0;
+      for (Appender<E> appender : appenderList) {
+        appender.doAppend(e);
+        size++;
+      }
+    return size;
+  }
+
+ch.qos.logback.core.UnsynchronizedAppenderBase.
+  public void doAppend(E eventObject) {
+    // WARNING: The guard check MUST be the first statement in the
+    // doAppend() method.
+      
+    // prevent re-entry.
+    if (Boolean.TRUE.equals(guard.get())) {
+      return;
+    }
+
+    try {
+      guard.set(Boolean.TRUE);
+
+      if (!this.started) {
+        if (statusRepeatCount++ < ALLOWED_REPEATS) {
+          addStatus(new WarnStatus(
+              "Attempted to append to non started appender [" + name + "].",
+              this));
+        }
+        return;
+      }
+
+      if (getFilterChainDecision(eventObject) == FilterReply.DENY) {
+        return;
+      }
+
+      // ok, we now invoke derived class' implementation of append
+      this.append(eventObject);
+
+    } catch (Exception e) {
+      if (exceptionCount++ < ALLOWED_REPEATS) {
+        addError("Appender [" + name + "] failed to append.", e);
+      }
+    } finally {
+      guard.set(Boolean.FALSE);
+    }
+  }
+
+ch.qos.logback.core.OutputStreamAppender.
+  protected void append(E eventObject) {
+    if (!isStarted()) {
+      return;
+    }
+
+    subAppend(eventObject);
+  }
+
+  /**
+   * Actual writing occurs here.
+   * <p>
+   * Most subclasses of <code>WriterAppender</code> will need to override this
+   * method.
+   * 
+   * @since 0.9.0
+   */
+  protected void subAppend(E event) {
+    if (!isStarted()) {
+      return;
+    }
+    try {
+      // this step avoids LBCLASSIC-139
+      if (event instanceof DeferredProcessingAware) {
+        ((DeferredProcessingAware) event).prepareForDeferredProcessing();
+      }
+      // the synchronization prevents the OutputStream from being closed while we
+      // are writing. It also prevents multiple threads from entering the same
+      // converter. Converters assume that they are in a synchronized block.
+      synchronized (lock) {
+        writeOut(event);
+      }
+    } catch (IOException ioe) {
+      // as soon as an exception occurs, move to non-started state
+      // and add a single ErrorStatus to the SM.
+      this.started = false;
+      addStatus(new ErrorStatus("IO failure in appender", this, ioe));
+    }
+  }
+
+  protected void writeOut(E event) throws IOException {
+    this.encoder.doEncode(event);
+  }
+
+========
+2，编码器（格式化器）
+
+ch.qos.logback.core.encoder.LayoutWrappingEncoder
+  public void doEncode(E event) throws IOException {
+    String txt = layout.doLayout(event);
+    outputStream.write(convertToBytes(txt));
+    if (immediateFlush)
+      outputStream.flush();
+  }
+
+ch.qos.logback.classic.PatternLayout
+  public String doLayout(ILoggingEvent event) {
+    if (!isStarted()) {
+      return CoreConstants.EMPTY_STRING;
+    }
+    return writeLoopOnConverters(event);
+  }
+
+  protected String writeLoopOnConverters(E event) {
+    StringBuilder buf = new StringBuilder(128);
+    Converter<E> c = head;
+    while (c != null) {
+      c.write(buf, event);
+      c = c.getNext();
+    }
+    return buf.toString();
+  }
+
+ch.qos.logback.classic.pattern.ClassOfCallerConverter
+ch.qos.logback.classic.pattern.MethodOfCallerConverter
+ch.qos.logback.classic.pattern.LineOfCallerConverter
+ch.qos.logback.classic.pattern.MessageConverter
+ch.qos.logback.classic.pattern.LineSeparatorConverter
+ch.qos.logback.classic.pattern.ExtendedThrowableProxyConverter
+
+void ch.qos.logback.core.pattern.FormattingConverter.write(StringBuilder buf, E event)
+String ch.qos.logback.classic.pattern.TargetLengthBasedClassNameAbbreviator.abbreviate(String fqClassName)
+
+
+public class ClassOfCallerConverter extends NamedConverter {
+
+  protected String getFullyQualifiedName(ILoggingEvent event) {
+    
+    StackTraceElement[] cda = event.getCallerData();
+    if (cda != null && cda.length > 0) {
+      return cda[0].getClassName();//hxzon ：获取类名
+    } else {
+      return CallerData.NA;
+    }
+  }
+}
+
+
+public class MethodOfCallerConverter extends ClassicConverter {
+
+  public String convert(ILoggingEvent le) {
+    StackTraceElement[] cda = le.getCallerData();
+    if (cda != null && cda.length > 0) {
+      return cda[0].getMethodName();//hxzon：获取方法名
+    } else {
+      return CallerData.NA;
+    }
+  }
+
+}
+
+public class LineOfCallerConverter extends ClassicConverter {
+
+  public String convert(ILoggingEvent le) {
+    StackTraceElement[] cda = le.getCallerData();
+    if (cda != null && cda.length > 0) {
+      return Integer.toString(cda[0].getLineNumber());//hxzon：获取行号
+    } else {
+      return CallerData.NA;
+    }
+  }
+
+}
+
+========
+3，获取堆栈信息
+
+ch.qos.logback.classic.spi.LoggingEvent.getCallerData()
+
+//hxzon：生成一个异常来获取堆栈信息
+public StackTraceElement[] getCallerData() {
+    if (callerDataArray == null) {
+      callerDataArray = CallerData.extract(new Throwable(), fqnOfLoggerClass,
+              loggerContext.getMaxCallerDataDepth(), loggerContext.getFrameworkPackages());
+    }
+    return callerDataArray;
+  }
+
+====
+ch.qos.logback.classic.spi.CallerData.extract(Throwable t, 
+    String fqnOfInvokingClass, int maxDepth, List<String> frameworkPackageList)
+
+Extract caller data information as an array based on a Throwable passed as parameter
+
+  public static StackTraceElement[] extract(Throwable t,
+                                            String fqnOfInvokingClass, final int maxDepth,
+                                            List<String> frameworkPackageList) {
+    if (t == null) {
+      return null;
+    }
+
+    StackTraceElement[] steArray = t.getStackTrace();
+    StackTraceElement[] callerDataArray;
+
+    int found = LINE_NA;
+    for (int i = 0; i < steArray.length; i++) {
+      if (isInFrameworkSpace(steArray[i].getClassName(),
+              fqnOfInvokingClass, frameworkPackageList)) {
+        // the caller is assumed to be the next stack frame, hence the +1.
+        found = i + 1;
+      } else {
+        if (found != LINE_NA) {
+          break;
+        }
+      }
+    }
+
+    // we failed to extract caller data
+    if (found == LINE_NA) {
+      return EMPTY_CALLER_DATA_ARRAY;
+    }
+
+    int availableDepth = steArray.length - found;
+    int desiredDepth = maxDepth < (availableDepth) ? maxDepth : availableDepth;
+
+    callerDataArray = new StackTraceElement[desiredDepth];
+    for (int i = 0; i < desiredDepth; i++) {
+      callerDataArray[i] = steArray[found + i];
+    }
+    return callerDataArray;
+  }
+

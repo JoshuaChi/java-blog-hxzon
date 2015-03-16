@@ -2,8 +2,50 @@
 作者 邓际锋 发布于 2013年3月25日
 http://www.infoq.com/cn/articles/functional-reactive-programming
 
+====
 hxzon：受益匪浅。
 
+hxzon理解：
+构造“事件流”，监听事件并执行操作（doE(fn)）。
+事件流可被过滤，转换，组合等。
+
+====
+hxzon学习笔记：
+
+那些“对外部环境具有反应能力、随时间变化”的“数据”被抽象为一种叫“信号”(Signal)的概念。
+信号分为两种，分别叫事件流(Event Stream)和行为(Behavior)。
+
+behavior可以看成这样一个函数：
+输入某个时刻，它计算得到“在那个时刻自身的采样值”。
+
+event stream也可以看成这样一个函数：
+输入也是某个时刻，如果在这个时刻有事件发生就把相应的 event 数据返回出来，
+否则就返回一个特殊的nothing表示没有任何事件发生。
+
+回调与回调之间是无法直接传递类型丰富的数据的，
+它们只能通过“修改应用程序的共享状态”来“间接地通讯”，（hxzon：重要）
+这迫使程序员不得不把应用逻辑分割得支离破碎，从而丧失了核心的组合能力！
+这便是callback风格程序的最大问题。
+
+Callback模型关注控制流，但它对控制流的描述不具有很好的组合性。
+FRP模型换了一个视角，关注数据流，且数据流的组合能力极佳，
+使得代码更接近于只描述做什么(what)的声明式(declarative)代码，
+而不是描述怎么做(how)的命令式(imperative)代码，相当简洁和直观，更符合人的自然思维!
+
+
+========
+一、Reactive？
+二、如何构建Reactive System?
+三、另外一个例子－Drag and Drop
+四、Functional Reactive Programming
+
+五、Flapjax（hxzon：重要）
+六、FRP的优势
+
+七、实现简述
+八、其它的FRP框架
+九、相关研究
+关于作者
 
 ========
 一、Reactive？
@@ -190,7 +232,8 @@ function dragE(target)
 四、Functional Reactive Programming
 
 上面两例中X风格的代码主要描述系统中数据(消息)流的结构关系，
-至于环境变化如何导致某些数据流变化，这些变化了的数据流又如何导致其它的相关数据流变化，压根儿不需要关心。
+至于环境变化如何导致某些数据流变化，
+这些变化了的数据流又如何导致其它的相关数据流变化，压根儿不需要关心。
 这是一种编程范式，称之为Reactive Programming。
 
 而主要利用函数式编程(Functional Programming)的思想和方法(函数、高阶函数)
@@ -332,7 +375,7 @@ srcEs中不断有事件发生，上述过程也就不断重复。
 本文所有示例使用的都是这个定制版Flapjax。
 
 ====
-4、Behavior
+4、Behavior（hxzon：未理解）
 
 ==
 基本API
