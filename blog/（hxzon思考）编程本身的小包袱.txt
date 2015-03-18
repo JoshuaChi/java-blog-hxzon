@@ -249,6 +249,10 @@ clojure提供了 var 引用类型 和 alter-var-root 函数。
 
 或者就像变量的可见性一样，通过名字来约定。
 
+==
+不要混淆“值不可变”和“变量不可变”。
+《王垠-Design issues in Swift language’s arrays》
+
 ========
 12，js中的with 和 clojure中的doto
 
