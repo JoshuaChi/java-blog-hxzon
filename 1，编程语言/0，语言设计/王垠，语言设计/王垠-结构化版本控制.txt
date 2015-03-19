@@ -1,0 +1,64 @@
+﻿王垠-结构化版本控制
+2012/10/16 01:00
+作者：王垠 | 来自：寂静之声
+http://blog.sina.com.cn/s/blog_5d90e82f0101cnxf.html
+
+
+
+可能已经有人看过这个 PPT，不过因为我只在另一篇博文里提了一下，而且链接是国内没法访问那种，所以觉得有必要提出来专门说一下。这个 PPT 前面主要是介绍 ydiff 结构化比较程序的一些技术细节，从28页开始，我开始讲述对一种“结构化版本控制”（structural version control）软件的设想。
+
+通常版本控制软件都是基于文本的行或者字符，可是对于程序我们可以做得更好。通过对程序文本进行 parse，我们可以构造超越现有所有的版本控制软件的机制。这个 PPT 基本上包含如下内容：
+
+如何进行对程序的结构化比较？
+程序的结构化存储会带来什么样的编程工具的发展？
+基于文本的版本控制为什么对于程序来说有一个根本性的错误？
+Darcs 为什么需要 patch theory，而 Git 为什么不用它？
+结构化版本控制的一些未来发展方向。
+
+=================
+一个命令行可用的 ydiff（Lisp专用）
+2012/09/12 08:30
+作者：王垠 | 来自：寂静之声
+http://blog.sina.com.cn/s/blog_5d90e82f0101azir.html
+
+今天终于决定作出一个直接在命令行可用的 ydiff（我之前开发的一个结构化比较程序的工具）。如果不知道这个系统，可以参考一下之前的一篇博文。
+
+由于 ydiff 使用的 Racket 语言的模块系统的一些局限性，目前我没能完全模块化这个程序（痛苦 ），所以目前只做了一个专门用于支持 Scheme 和其他 Lisp 语言的版本。使用 Scheme 或者其它 Lisp 语言（Emacs Lisp, Common Lisp, Clojure）的各位可以试一下。不过我只在 Scheme 和 Emacs Lisp 测试过，所以还不能保证其它的 Lisp 可以正确处理。
+
+
+下载地址
+
+ http://www.cs.indiana.edu/~yw21/code/ydiff-wonks.tar.gz
+
+
+用法
+
+命令行的用法很简单。只需要一行命令：
+
+  racket ydiff.rkt file1 file2
+
+或者使用 Racket 的编译器把它编译成机器代码：
+
+  raco exe ydiff.rkt
+
+然后执行：
+
+  ydiff file1 file2
+
+
+浏览结果
+
+程序会在当前目录输出一个 HTML 文件（名字叫 file1-file2.html）。你需要把 tar 包里的两个文件 "diff-s.css" 和 "nav-div.js" 放到 HTML 文件所在的目录，然后使用浏览器浏览这个文件。我知道这样对用户非常不友好，不过我还没时间去做一个独立的图形界面，所以暂时凑合着用吧 :-P
+
+文件中有动态效果并且可以点击滚动。如果你使用 Chrome 浏览器，本地 HTML 里面的 JavaScript 不会运行，所以输出结果不会有动态效果。为了弥补这一点，你可能需要安装一个本地的 Web 服务器。比如你可以下载一个 mongoose），然后把它放在本地目录，运行，然后访问"localhost:8080"。
+
+欢迎来信给我提出各种关于本程序的建议和问题：
+  shredderyin@gmail.com
+
+如果需要得到一些技术细节可以参考我的英文博客：
+  http://yinwang0.wordpress.com/2012/01/03/ydiff
+  http://yinwang0.wordpress.com/2012/02/12/structural-version-control
+
+也欢迎来 GitHub 参观我的进一步开发： 
+  https://github.com/yinwang0/ydiff
+

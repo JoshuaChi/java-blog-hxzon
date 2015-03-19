@@ -1,0 +1,76 @@
+﻿王垠-Back to the Future of Databases
+http://en.yinwang.org/blog-en/2013/04/05/database/
+寂静之声
+http://blog.sina.com.cn/yinwang0
+
+Back to the Future of Databases
+
+Why do we need databases? What a stupid question. I already heard some people say. But it is a legitimate question, and here is an answer that not many people know.
+
+First of all, why can't we just write programs that operate on objects? The answer is, obviously, we don't have enough memory to hold all the data. But why can't we just serialize and store the objects to disk and load them when we need them? The answer is yes we can, but not in Unix, because Unix manages memory as "pages", not as "objects". There are systems who lived before Unix that manage memory as objects, and it worked really well. Here are some pictures of them:
+
+IBM System/38
+
+IBM System/38
+
+Lisp Machine
+
+Lisp Machine
+
+Oberon Operating System
+
+Oberon Operating System
+
+Those systems never needed, and will never need, databases. Data integration is seamless. You don't need to know the existence of a "disk", a "file system", or a "database". You can just allocate objects and work on them. You can pretend that you can allocate infinite number of objects. Unfortunately most of those systems were terribly expensive and no single person could afford them. Plus they had problems in other aspects of their design. Finally, they died out.
+
+But this is not to say that there is nothing we can learn from their design. On the contrary, their ways are far superior than the current state-of-the-art of Unix-based systems. In comparison, Google's "Big Table" and Apache's "HBase" are just clumsy imitations of them. They need much more work. They will never be seamless.
+
+But any how, Unix rules the world. We can live with it, but it is just mediocre. Please don't believe everything that the modern Operating Systems books tell you. Sometimes you have to look further into the past for the future. As Einstein said, "nothing is more needed to overcome the modernist's snobbishness."
+
+Unix used to be free, but you get what you pay for. Although there is a thing called "virtual memory", your programs can't just allocate objects and then operate on them without any knowledge about the "file system". Nothing works seamlessly in Unix. It is more like a "non-operating system" than an "operating system". It leaves too much work for you to do, and leaves more than enough rope to hang yourself.
+
+That is why people "invented" databases. The combination "Unix + databases" is supposed to be a cheap replacement for those advanced systems where programs don't need to know the existence of such a second-level data storage layer, whether it is a file system or a database. But because of some irreparable design issues, Unix still can't achieve that even with the help of databases. However, databases were somehow considered a big thing, and people who made it became the richest men in the world.
+
+Consequently, you have to take database classes if you want a Computer Science degree. So here is an ultimate cheat sheet for those who really want to know what a database is. You will not need to sit through a semester's course if you remember the few things that I put below. Trust me, many students got A+'s because I told them this ;-)
+
+The so-called "primary keys" of a database table are in essence persistent memory addresses. When serializing an object, you can't just put the memory address of an object onto disk. The address may not be the same when the object is reloaded into memory. This is why you need primary keys. In a sense, "keys" are a more general notion than "addresses" -- addresses are just keys that are integers.
+
+But what are "foreign keys"? Well, they are persistent pointers (i.e. references to primary keys). Whenever you need to dereference a pointer, you do a "join" in the database.
+
+A database "schema" is in essence a "structure type", like the struct definition in C. For example, the schema created by the following SQL statement
+
+CREATE TABLE Students ( sid CHAR(20),
+                        name CHAR(20),
+                        login CHAR(20),
+                        age INTEGER,
+                        gpa REAL )
+is equivalent to the C struct
+
+struct student {
+  char* sid;
+  char* name;
+  char* login;
+  int age;
+  double gpa;
+}
+That's almost the whole story. You have addresses, pointers, dereference operation, structure types, so now you can implement things like linked lists, graphs etc. With them, you can implement something like Dijkstra's shortest path algorithm in a database. You just need to take a data structure class, and then translate what you learned there into a database language like SQL.
+
+What is SQL then? It is a "non-programming language". SQL wasn't designed for programmers. It was designed for manual input by human operators (usually non-technical people like accountants). You type in a "query", and the computer prints out a "response". That is why it is called a "query language". This language does its job for human operators, but it was then abused. It was interfaced with computer programs (in place of humans) using band-aids and then used to write serious programs. I doubt if those people knew what they were doing, but it just happened, like many other silly things. The result is a fragile system held together by band-aids. You have to be very careful otherwise you lose blood.
+
+If you really want to learn SQL, here is the cheat sheet for it:
+
+The query
+
+SELECT Book.title
+ FROM Book
+ WHERE price > 100
+is equivalent to the Lisp expression
+
+(map (lambda (b) b.title)
+     (filter (lambda (p) (> p 100)) Book)
+This program is then sent to the "database engine" for execution. That is, we move the program to the data, instead of loading the data to the program. And that's also the principle behind Google's MapReduce.
+
+The problem with SQL is that you need yet another layer of language before programs can operate the database. SQL is a weak and quirky language. It is not Turing-complete and at some places it doesn't "compose". You need to combine it with a decent language before you can write serious programs. Your programs send SQL commands to the database to store and load data, just like a human operator would do. This is a very low-tech way of data integration. It is error-prone, inefficient and subject to security risks such as "SQL injection".
+
+Maybe you have seen, for some weird reasons we are trapped in the Dark Ages of computer programming. We are not supposed to be here since better designed systems already existed. It would be foolish to dismiss them as failures. They are just ahead of their times. By looking to the past, we may see a way back to the future.
+

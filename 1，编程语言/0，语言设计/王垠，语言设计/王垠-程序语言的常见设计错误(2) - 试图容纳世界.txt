@@ -3,6 +3,9 @@ http://www.yinwang.org/blog-cn/2013/04/18/language-design-mistake2/
 
 hxzon摘要：
 静态类型的好处：限制。
+hxzon观点：
+即便是java ，字段固定也不能保证字段的值稳定，
+没有 head 和 head 为 null 是一样的。
 
 ========
 之前的一篇文章里，我谈到了程序语言设计的一个常见错误倾向：
@@ -58,6 +61,9 @@ Python 认为这更加符合这个世界的工作原理，
 你想要的其实就是 Java 里的“类型”，像这样：
 
 List<有一个头和两只手的正常人> normalPeople;
+
+（hxzon观点：即便是java ，字段固定也不能保证字段的值稳定，
+没有 head 和 head 为 null 是一样的。）
 
 很可惜，Python 不提供给你这种机制，
 因为这种机制按照 Python 的“哲学”，不足以容纳这个世界的博大精深的万千变化。
