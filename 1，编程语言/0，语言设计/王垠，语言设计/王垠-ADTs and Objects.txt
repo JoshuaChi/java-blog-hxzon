@@ -3,17 +3,38 @@ http://en.yinwang.org/blog-en/2012/03/19/adt-obj/
 寂静之声
 http://blog.sina.com.cn/yinwang0
 
+========
 ADTs and Objects
+抽象数据类型和对象
 
-After reading William Cook's essay On Understanding Data Abstraction, Revisited, let me try to condense the difference between abstract data types (ADTs) and objects into a few words.
+After reading William Cook's essay On Understanding Data Abstraction, 
+Revisited, let me try to condense the difference 
+between abstract data types (ADTs) and objects into a few words.
 
 (To avoid ambiguity, I use "instances" to stand for data created by instantiating ADTs)
+为了避免歧义，我使用“实例”这个词表示根据抽象数据类型所创建的数据。
 
-"Instances" created by the same ADT share the same functions (methods). Functions may be parameterized, but the code is the same in each instance. Because of this, they need to share the same representation.
+"Instances" created by the same ADT share the same functions (methods). 
+Functions may be parameterized, 
+but the code is the same in each instance. 
+Because of this, they need to share the same representation.
 
-"Objects" (as proposed by Cook) don't necessarily share function code. Each object may have a completely different set of functions (with matching names and types). This is in essence the same as "call-backs" in GUI widgets. Because of this diversity, each object may have completely different representation.
+"Objects" (as proposed by Cook) don't necessarily share function code. 
+Each object may have a completely different set of functions 
+(with matching names and types). 
+This is in essence the same as "call-backs" in GUI widgets. 
+Because of this diversity, each object may have completely different representation.
 
-Ironically, it is usually the former case in mainstream object-oriented languages like Java and C++. In Java you can somehow achieve the latter with interfaces and anonymous classes, but it is awkward. JavaScript's prototype-based system seems to be closer to the essence of the latter, but still not feel natural.
+Ironically, it is usually the former case in mainstream object-oriented languages like Java and C++. 
+In Java you can somehow achieve the latter with interfaces and anonymous classes, 
+but it is awkward. 
+JavaScript's prototype-based system 
+seems to be closer to the essence of the latter, but still not feel natural.
 
-But different from Cook's view, I think it is better not to consider binary operations like set union as methods. Union may take two sets with different representations and create a new one, thus it can operate by using the "true methods" of both arguments (possibly iterators and membership).
+But different from Cook's view, 
+I think it is better not to consider binary operations like set union as methods. 
+Union may take two sets with different representations and create a new one, 
+thus it can operate by using the "true methods" of both arguments 
+(possibly iterators and membership).
+“合并”函数能处理两个底层实现不同的集合，它内部能“自动分派”到合适的方法。
 

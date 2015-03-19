@@ -3,15 +3,45 @@ http://en.yinwang.org/blog-en/2012/04/26/propositions-as-programs/
 寂静之声
 http://blog.sina.com.cn/yinwang0
 
+========
+The Curry-Howard correspondence says that propositions are types, 
+and proofs are programs. 
+I had been wondering if there is a simpler way to think about it, so I came up with this:
 
-
-The Curry-Howard correspondence says that propositions are types, and proofs are programs. I had been wondering if there is a simpler way to think about it, so I came up with this:
+（proposition
+[英]ˌprɒpəˈzɪʃn
+[美]ˌprɑ:pəˈzɪʃn
+n.  命题;建议;主张
+v.  提议;建议
+）
 
 Propositions are programs; proofs are "abstract interpretation" of them to True.
+命题是程序，证明是“抽象解释器”。
 
-Here True is a meta-level truth value. A theorem prover is then an "abstract interpreter" which tries to evaluate the proposition to True. This computational process which derives True from the proposition, is called a judgment. Here I may have conflated the concept "abstract interpretation". I chose to use this term just because those two words "abstract" and "interpretation" conveys the general idea I hope to capture, but the term "abstract interpretation" here may not be what you use to think it is. I could have used "supercompilation", but I don't think the word conveys the concept very well.
+Here True is a meta-level truth value. 
+A theorem prover is then an "abstract interpreter" 
+which tries to evaluate the proposition to True. 
+This computational process which derives True from the proposition, 
+is called a judgment. 
+Here I may have conflated the concept "abstract interpretation". 
+I chose to use this term 
+just because those two words "abstract" and "interpretation" conveys the general idea I hope to capture, 
+but the term "abstract interpretation" here may not be what you use to think it is. 
+I could have used "supercompilation", 
+but I don't think the word conveys the concept very well.
 
-Any way, this is a special kind of evaluation. It may be partial evaluation, supercompilation, or some sort of static analysis, whatever you call it. It can also take human inputs interactively, as long as it is semantic-preserving -- it returns True whenever an actual interpreter would return True. But it is a lot more efficient, because unlike a normal interpreter, it takes shortcuts (e.g. induction hypotheses). If it thus evaluates to True, then the proposition is proved. This is much like fortune-telling. It immediately tells you the result that an actual interpreter would eventually give you. It has a limited number of basic "reduction operations" such as unfolding, induction and rewriting, so we can record reduction sequences as "proofs", and we can verify them later on.
+Any way, this is a special kind of evaluation. 
+It may be partial evaluation, supercompilation, or some sort of static analysis, 
+whatever you call it. 
+It can also take human inputs interactively, as long as it is semantic-preserving 
+-- it returns True whenever an actual interpreter would return True. 
+But it is a lot more efficient, because unlike a normal interpreter, 
+it takes shortcuts (e.g. induction hypotheses). 
+If it thus evaluates to True, then the proposition is proved. 
+This is much like fortune-telling. 
+It immediately tells you the result that an actual interpreter would eventually give you. 
+It has a limited number of basic "reduction operations" such as unfolding, 
+induction and rewriting, so we can record reduction sequences as "proofs", and we can verify them later on.
 
 This seems to match what we have been doing with proof assistants like Coq, and possibly a more natural way of thinking about this kind of theorem proving. I feel that the propositions in Coq are a little far-fetched to be called "types" of the proof terms (note: not to be confused with tactics). For example, we can have a proof term like
 
