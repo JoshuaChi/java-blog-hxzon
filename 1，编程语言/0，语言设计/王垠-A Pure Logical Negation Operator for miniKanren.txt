@@ -1,0 +1,121 @@
+﻿王垠-A Pure Logical Negation Operator for miniKanren
+By Yin Wang, yinwang0.wordpress.com
+七月 6日, 2013
+
+
+Have you ever noticed that some examples from The Reasoned Schemer are not so reasonable? If so, you may want to read this post.
+
+Motivation
+miniKanren is an educational logic programming language designed by Dan Friedman, William Byrd and Oleg Kiselyov. For teaching logic programming, they also co-authored the book The Reasoned Schemer (TRS). As a person hugely benefitted from this book (and also every other book of the “little book” series), I highly recommend TRS to you.
+
+While elegantly designed, miniKanren hasn’t a “pure” negation operator. There is a ‘conda’ operator which is similar to Prolog’s cut, but it is not pure. That means once it is used, we may miss possible answers even they exist. Thus although the ‘conda’ operator exists, it is not recommended for serious use.
+
+But now we have a problem, if we can’t have a ‘cond’ operator with implicit negation of the conditions of the previous lines, we will have trouble interpreting the results from some code from The Reasoned Schemer (TRS). For example, on “Frame 30″ of TRS, we have the following program, which invokes remembero, a “logic function” for deleting an item from a list.
+
+The definition of remembero is (notice the ‘conde’ operator):
+
+(define rembero
+  (lambda (x l out)
+    (conde
+      ((nullo l) (== '() out))
+      ((caro l x) (cdro l out))
+      ((exist (res)
+         (exist (d)
+           (cdro l d)
+           (rembero x d res))
+         (exist (a)
+           (caro l a)
+           (conso a res out)))))))
+If it is used this way:
+
+(run* (out)
+ (exist (y)
+   (rembero y `(a b ,y d peas e) out)))
+Running it and we have the following results:
+
+;; =>
+;; ((b a d peas e)               ; y == a
+;;  (a b d peas e)               ; y == b
+;;  (a b d peas e)               ; y == y
+;;  (a b d peas e)               ; unreasonable beyond this point
+;;  (a b peas d e)
+;;  (a b e d peas)
+;;  (a b _.0 d peas e))
+In this example, we got 7 answers, 4 of which shouldn’t happen, because the fresh variable y should never fail to remove itself and then go on to remove d, peas and e. This result from The Reasoned Schemer is unreasonable!
+
+Pure Negation Operator
+As a student in Dan’s class (B521), I was puzzled by the above results. I asked Dan and Will why this happens. They told me that this is because ‘conde’ operator of miniKanren is not exactly like ‘cond’ of Scheme. In Scheme, every line in the ‘cond’ expression implicitly has a negation of all previous conditions. This is to say, we execute the second line only if the first condition fails, and we execute the third line only the conditions on the first and second lines both fail, and so on.
+
+On the other hand, the ‘conde’ operator of miniKanren doesn’t implicitly insert the negation of the conditions on the previous lines. The reason that miniKanren doesn’t do this is because there is no easy of doing “negation” in logic programming. According to Will Byrd, this is a thorny subject that has been researched for over 30 years.
+
+As a dare devil who didn’t believe how hard this is, I thought: “Why not try my luck and see how far I could go competing with these 30 years of research?” Out of this evil-minded motivation, I independently reimplemented miniKanren and added a negation operator in it (named “noto”, naturally). Different from ‘conda’ and Prolog’s cut, noto is pure in the sense that it doesn’t cut out possible answers if they exist. Using noto, I defined a new conditional construct named ‘condc’, which implicitly inserts negations of all previous conditions on each line.
+
+If we use the ‘condc’ operator to redefine remebero (only one character is changed), we will have the following (more reasonable) results:
+
+;; redefine rembero using condc operator
+(define rembero
+  (lambda (x l out)
+    (condc
+      ((nullo l) (== '() out))
+      ((caro l x) (cdro l out))
+      ((exist (res)
+         (exist (d)
+           (cdro l d)
+           (rembero x d res))
+         (exist (a)
+           (caro l a)
+           (conso a res out)))))))
+
+(run* (out)
+ (exist (y)
+   (rembero y `(a b ,y d peas e) out)))
+
+;; =>
+;; (((b a d peas e) ())
+;;  ((a b d peas e) ())
+;;  ((a b d peas e)
+;;   (constraints:
+;;    ((noto (caro (b #1(y) d peas e) #1(y)))
+;;     (noto (caro (a b #1(y) d peas e) #1(y)))))))
+We got only 3 answers (instead of 7), plus two constraints for the third answer. Here I briefly describe what these three answers mean.
+
+The first answer (b a d peas e) happens when “y is a”, thus it removes the first item from the list. The second answer is when “y is b”, thus it removes the second item (b) from the list, and the resulting list is (a b d peas e). If you are confused, we still have a “b” here after “a” because y is b!
+
+The third answer is more interesting. It not only has an answer (a b d peas e), but also has two constraints attached to this answer. The constraints are saying: If we are to have this answer, neither (caro (b y d peas e) y) nor (caro (a b y d peas e) y) should hold, which is basically saying “y is neither a nor b”. This is correct, because if y is either a or b, we would not have reached this answer because y would have removed the first two items and the iteration would have stopped.
+
+We have no more answers beyond the third, because under no condition should y be able to remove ‘d’, ‘peas’ or ‘e’, because the logic variable y will definitely remove y, no matter what it is! It iteration will definitely stop at that point. Clear?
+
+How does it work?
+The principle behind this negation operator (named “noto”) is to propagate the negation of goals as constraints (as in constraint logic programming) down the execution paths of the miniKanren program.
+
+When the negation of a goal G is first encountered, as (noto G), a specially designed “evil unifier” (unify-evil) is invoked. As its name suggests, unify-evil works similar to unify, but in a “negative way”. The goal of unify-evil is to take every chance to make the goal G fail! Basically, it tries its best to find values that can be bound to the free logic variables, such that G can fail.
+If unify-evil cannot make G fail no matter how hard it tries, then we know that G will succeed, thus we know that the goal (noto G) will fail. Thus we don’t produce any answers. We backtrack and explore other paths.
+If unify-evil succeeds in making G fail, then (noto G) has a chance to succeed. But at this moment it is too early to declare success, because the ungrounded logic variables may pick up some other values later, which could make G succeed, and consequently make (noto G) fail.
+Because of (3), we will have to propagate the negation of G as a constraint down the stream of the execution, checking that G fails every time we have new information about the unbound logic variables (e.g. some fresh variables are later bound).
+If at the end of the execution path unify-evil still can make G fail, then we can declare the success of (noto G). This (noto G), if it is not a tautology implied by the current substitution, should be included in the final answer.
+A successful value, together with the non-tautology constraints on the logic variables, will be output together as the answer.
+This is why the above example of remembero produces the results:
+
+(run* (out)
+ (exist (y)
+   (rembero y `(a b ,y d peas e) out)))
+
+;; =>
+;; (((b a d peas e) ())
+;;  ((a b d peas e) ())
+;;  ((a b d peas e)
+;;   (constraints:
+;;    ((noto (caro (b #1(y) d peas e) #1(y)))
+;;     (noto (caro (a b #1(y) d peas e) #1(y)))))))
+Limitations
+Nested negations does not work properly, so if you have (noto (noto (== x 10))), you are not guaranteed to have x bound to 10. I have a later version of the negation operator did make this work, but it caused non-termination problems, and I ran out of allocated time soon after that.  More work needs to be done to make nested negations work.
+
+After several years of this experiment, I had an interesting discussion with Oleg Kiselyov on this topic. An excerpt of our conversation is included as comments at the bottom of the code. In his words, although the implementation of noto works to some degree, it is not perfect. To the best of his knowledge, no negation operators work perfectly until this day.
+
+So, did I beat 30 years of hardcore research? Probably not. But consider this – it took me less than a month to think of and implement all this. I worked completely independently, day and night. This happened in 2008 when I first learned miniKanren and logic programming. Today as a mature programming languages researcher, I’d like to take it as an amusement to revisit and see how far I can go on the path I have started exploring 5 years ago.
+
+Code
+The reimplemented miniKanren, together with the negation operator, has been available from my GitHub for years without being noticed. Now I made it an independent project and hope to have time (and public pressure) to develop it further. I also hope to gather ideas from real logic programming gurus about how to make negation work perfectly.
+
+If you are interested in playing with it, or you want to research on this topic, my code is here for free:
+

@@ -159,15 +159,33 @@ ydiff: 结构化的程序比较
 
 （不耐烦的人：点击【这里】可进入 DEMO）
 
-ydiff是我去年的时候抽空做的一个概念模型，用于试验在“程序结构化编辑和存储”实现之后，我们如何对比两个源程序，由此也引发了一些对版本控制 (version control) 的思考。这里我简要介绍一下。
+ydiff是我去年的时候抽空做的一个概念模型，
+用于试验在“程序结构化编辑和存储”实现之后，
+我们如何对比两个源程序，
+由此也引发了一些对版本控制 (version control) 的思考。
+这里我简要介绍一下。
 
-ydiff的主要功能是检测代码的修改，包括删除，添加，修改，移动和分解。ydiff含有实验性的 parser combinator library 和多种程序语言的 parser（C++, JavaScript, Python，Scheme 和 Emacs Lisp）。虽然写这些 parser 很花了些功夫，但是这里我要说明的主要问题是：如果程序被直接保存为一种标准化的数据结构，那么 ydiff 会非常容易的扩展到支持所有程序语言。这是目前的文本编辑和存储的方式不可能做到的。
+ydiff的主要功能是检测代码的修改，包括删除，添加，修改，移动和分解。
+ydiff含有实验性的 parser combinator library 和
+多种程序语言的 parser（C++, JavaScript, Python，Scheme 和 Emacs Lisp）。
+虽然写这些 parser 很花了些功夫，但是这里我要说明的主要问题是：
+如果程序被直接保存为一种标准化的数据结构，
+那么 ydiff 会非常容易的扩展到支持所有程序语言。
+这是目前的文本编辑和存储的方式不可能做到的。
 
-而且我正在设想如何实现超越文本方式的版本控制 (version control)。这个内容比较复杂，我以后再讲。有兴趣的话可以暂时参考我之前的一个 talk。
+而且我正在设想如何实现超越文本方式的版本控制 (version control)。
+这个内容比较复杂，我以后再讲。
+有兴趣的话可以暂时参考我之前的一个 talk。
 
-ydiff是开源软件，主要算法全部使用 Scheme (Racket) 实现，比较结果的网页界面含有一点 JavaScript。但是由于只是概念模型，还没有设计良好的运行界面，所以现在只是把 DEMO 拿出来示意一下。如果有兴趣看代码，可以访问我的 GitHub，不过注意这些代码目前不是处于很好的状态。
+ydiff是开源软件，主要算法全部使用 Scheme (Racket) 实现，
+比较结果的网页界面含有一点 JavaScript。
+但是由于只是概念模型，还没有设计良好的运行界面，
+所以现在只是把 DEMO 拿出来示意一下。
+如果有兴趣看代码，可以访问我的 GitHub，
+不过注意这些代码目前不是处于很好的状态。
 
-上图是 ydiff 对两个不同版本的 Python 程序生成对比结果之后的界面。（点击【这里】可进入 DEMO）
+上图是 ydiff 对两个不同版本的 Python 程序生成对比结果之后的界面。
+（点击【这里】可进入 DEMO）
 
 图例：
 
@@ -184,16 +202,43 @@ ydiff是开源软件，主要算法全部使用 Scheme (Racket) 实现，比较�
 
 另外的 DEMO：
 
-C++ DEMO1：D8, Google的 V8 JavaScript引擎里的 debugger。这里比较的两个版本跨域两年的时间间隔，普通的 diff 会输出非常不可读的内容，但是 ydiff 的比较结果可以一目了然的看到在这两年里这个程序的变化。比如你会发现 Shell::Initialize 函数被切分成了4个函数： Shell::Initialize， Shell::CreateGlobalTemplate， Shell::RenewEvaluationContext 和 Shell::InstallUtilityScript
-C++ DEMO2：V8 中的两个处理器模拟器（MIPS 和 ARM）对比。这里对比的内容不是同一个程序的两个不同版本，而是两个不同的程序。对比结果可以清晰的显示其中的相似性，所以我觉得在检查程序侵权和作业抄袭方面可能会有用处。
+C++ DEMO1：
+D8, Google的 V8 JavaScript引擎里的 debugger。
+这里比较的两个版本跨域两年的时间间隔，
+普通的 diff 会输出非常不可读的内容，
+但是 ydiff 的比较结果可以一目了然的看到在这两年里这个程序的变化。
+比如你会发现 Shell::Initialize 函数被切分成了4个函数： 
+Shell::Initialize， Shell::CreateGlobalTemplate， 
+Shell::RenewEvaluationContext 和 Shell::InstallUtilityScript
+
+C++ DEMO2：
+V8 中的两个处理器模拟器（MIPS 和 ARM）对比。
+这里对比的内容不是同一个程序的两个不同版本，而是两个不同的程序。
+对比结果可以清晰的显示其中的相似性，
+所以我觉得在检查程序侵权和作业抄袭方面可能会有用处。
+
 JavaScript：对比 ydiff 自己的浏览器程序的两个版本。
-Emacs Lisp：对比 Taylor Campbell 的 paredit-mode.el 的两个版本。同时推荐 paredit-mode。它是一个非常不错的结构化编辑 Lisp 的 Emacs mode。
-Scheme：对比两个不的 miniKanren 实现。miniKanren 是 IU 的 Dan Friedman 教授设计的主要用于教学的逻辑式编程语言，这里比较的是原来的版本和一个我重新写过的版本。
-S-expression：对比我的 Scheme 编译器的一个优化算法生成的两个不同中间结果（IR）。
 
-希望这些例子可以展示数据结构化存储之后可能带来的编程环境的变化。有些公司已经有类似产品。比如，SmartDifferencer，CodeCompare，以及 Compare++。比较之后我发现 ydiff 相比之下是算法最精确的一个，也是唯一可以检测到代码分解的软件。界面还很粗糙，但是比 SmartDifferencer 友好。
+Emacs Lisp：
+对比 Taylor Campbell 的 paredit-mode.el 的两个版本。
+同时推荐 paredit-mode。
+它是一个非常不错的结构化编辑 Lisp 的 Emacs mode。
 
-----
+Scheme：对比两个不的 miniKanren 实现。
+miniKanren 是 IU 的 Dan Friedman 教授设计的主要用于教学的逻辑式编程语言，
+这里比较的是原来的版本和一个我重新写过的版本。
+
+S-expression：
+对比我的 Scheme 编译器的一个优化算法生成的两个不同中间结果（IR）。
+
+希望这些例子可以展示数据结构化存储之后可能带来的编程环境的变化。
+有些公司已经有类似产品。
+比如，SmartDifferencer，CodeCompare，以及 Compare++。
+比较之后我发现 ydiff 相比之下是算法最精确的一个，
+也是唯一可以检测到代码分解的软件。
+界面还很粗糙，但是比 SmartDifferencer 友好。
+
+相关文章：
 结构化版本控制
 一个命令行可用的 ydiff（Lisp专用）
 
