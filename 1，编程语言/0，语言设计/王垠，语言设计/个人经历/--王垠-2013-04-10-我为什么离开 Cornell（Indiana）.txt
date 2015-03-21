@@ -1,7 +1,13 @@
-﻿王垠-2013-04-10-我为什么离开 Cornell
+﻿王垠-2013-04-10-我为什么离开 Cornell（Indiana）
 http://www.yinwang.org/blog-cn/2013/04/10/cornell/
 
-很多人都知道，我曾经在 Cornell 博士就读，两年之后转学到了 Indiana 大学。
+hxzon注：
+康奈尔大学计算机系，康奈尔大学计算机系全美排名第六 2006
+印第安纳大学伯明顿分校 2008
+
+========
+很多人都知道，我曾经在 Cornell 博士就读，
+两年之后转学到了 Indiana 大学。
 几乎所有人，包括 Indiana 大学的人都感觉奇怪，
 为什么会有人从 Cornell 这样的“牛校”转学到 Indiana。
 我曾经在之前的博文里提到 Cornell 的情况，
@@ -17,7 +23,8 @@ http://www.yinwang.org/blog-cn/2013/04/10/cornell/
 可是 Cornell 仍然继续等着你游上岸边……”
 
 这就是一个非常形象的，对我在 Cornell 的两年的总结。
-现在看看我在 Indiana 学到了什么，而 Cornell 教会了我什么，感觉简直一个天上一个地下。
+现在看看我在 Indiana 学到了什么，
+而 Cornell 教会了我什么，感觉简直一个天上一个地下。
 Dan Friedman 和 R. Kent Dybvig，他们的教育真的像是爱因斯坦所说的，
 像是珍贵的礼物，而不是沉重的负担。
 他们教会我的东西，让我不再在乎任何“牛校”的博士学位甚至教授职位，
