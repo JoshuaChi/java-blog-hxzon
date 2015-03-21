@@ -19,46 +19,39 @@ Clojure is a Lisp-1
 clojure是lisp-1的，变量和函数名在同一个空间。
 lisp-2的变量和函数名在2个空间，可以同时有一个变量f和一个函数f。
 Clojure和Scheme是Lisp-1，CLisp是Lisp-2。
-分属两个空间，会使得在某些地方，需要明确表明某个符号是变量还是函数，否则会歧义。
+分属两个空间，会使得在某些地方，
+需要明确表明某个符号是变量还是函数，否则会歧义。
+（hxzon补充：lisp-2 不方便）
 
+==
 () is not the same as nil
-
 空列表不等同于nil。
 
 The reader is side-effect free
-
-阅读器（读取宏？）是无副作用的。
+读取器是无副作用的。
 
 Keywords are not Symbols
-
 关键字不是符号。
 
 Symbols are not storage locations (see Var)
-
-符号不是存储位置。（参见var。）
+符号不是存储位置。（参见var）（hxzon：注意）
 
 nil is not a Symbol
-
 nil不是一个符号。
 
 t is not syntax, use true
-
 使用true而不是t。
 
 The read table is currently not accessible to user programs
-
 当前，阅读表不能被用户程序访问。
 
 let binds sequentially
-
 let的绑定是顺序的，后面的绑定可读到前面绑定的值。
 
 do is not a looping construct
-
 do不是一个循环结构。
 
 There is no tail-call optimization, use recur.
-
 没有尾递归调用优化，请使用recur。
 
 syntax-quote does symbol resolution, so `x is not the same as 'x.
@@ -68,9 +61,9 @@ syntax-quote does symbol resolution, so `x is not the same as 'x.
 反引用对符号进行处理（会加上命名空间），所以`x不等同于'x。
 反引用会自动生成唯一名字。
 波浪号表示继续求值（在反引用表达式中），逗号等同于空白符。
+（hxzon补充：common lisp没有自动加上命名空间）
 
 There is reader syntax for maps and vectors
-
 映射和向量有语法糖。
 
 cons, first and rest manipulate sequence abstractions, not concrete cons cells
@@ -78,7 +71,6 @@ cons, first and rest manipulate sequence abstractions, not concrete cons cells
 cons，first和rest对序列进行操作，而不是具体的cons单元。
 
 Most data structures are immutable
-
 多数数据结构都是不可变的。
 
 lambda is fn, and supports overloading by arity
@@ -86,24 +78,31 @@ lambda is fn, and supports overloading by arity
 lambda是函数，支持元数重载。
 
 = is the equality predicate
-
 等号是相等断言。
 
-All (global) Vars can be dynamically rebound without interfering with lexical local bindings. 
-No special declarations are necessary to distinguish between dynamic and lexical bindings. 
-Since Clojure is a Lisp-1, (global) functions can be dynamically rebound.
+All (global) Vars can be dynamically rebound 
+without interfering with lexical local bindings. 
+No special declarations are necessary 
+to distinguish between dynamic and lexical bindings. 
+Since Clojure is a Lisp-1, 
+(global) functions can be dynamically rebound.
 
 所有（全局）变量可被动态重绑定，不需要用词法本地绑定来干预。
 不需要特殊声明来区分动态和词法绑定。
 因为clojure是lisp-1，（全局）函数可被动态重绑定。
 
 
-No letrec, labels or flet - use (fn name [args]...) for self-reference, letfn for mutual reference.
+No letrec, labels or flet 
+- use (fn name [args]...) for self-reference, 
+letfn for mutual reference.
 
-没有letrec，labels和flet，使用(fn name [args]...)来引用自身，letfn来彼此引用（两个函数在定义时相互引用对方）。
+没有letrec，labels和flet，
+使用(fn name [args]...)来引用自身，
+letfn来彼此引用（两个函数在定义时相互引用对方）。
 
 In Clojure nil means 'nothing'. 
-It signifies the absence of a value, of any type, and is not specific to lists or sequences.
+It signifies the absence of a value, of any type, 
+and is not specific to lists or sequences.
 
 nil意味着无。
 它是任何值的占位符，不仅仅是列表和序列。
@@ -119,13 +118,14 @@ false means one of the two possible boolean values, the other being true
 false和true是唯一可用的两个布尔值。
 
 There is more to collections than lists. 
-You can have instances of empty collections, some of which have literal support ([], {}, and ()). 
+You can have instances of empty collections, 
+some of which have literal support ([], {}, and ()). 
 Thus there can be no sentinel empty collection value.
 
 集合不仅仅只有列表一种。
 可以使用字面量（[], {}, and ()）来创建各种空集合。
 （sentinel，哨兵。）
-？没有其它方式表示空集合。
+没有统一的方式表示空集合（hxzon需区分具体类型）。
 
 Coming from Scheme, nil may map most closely to your notion of #f.
 
@@ -135,8 +135,10 @@ Coming from Scheme, nil may map most closely to your notion of #f.
 A big difference in Clojure, is sequences. 
 Sequences are not specific collections, esp. 
 they are not necessarily concrete lists. 
-When you ask an empty collection for a sequence of its elements (by calling seq) it returns nil, saying "I can't produce one". 
-When you ask a sequence on its last element for the rest it returns another logical sequence. 
+When you ask an empty collection for a sequence of its elements 
+(by calling seq) it returns nil, saying "I can't produce one". 
+When you ask a sequence on its last element 
+for the rest it returns another logical sequence. 
 You can only tell if that sequence is empty by calling seq on it in turn. 
 This enables sequences and the sequence protocol to be lazy.
 
@@ -149,9 +151,13 @@ This enables sequences and the sequence protocol to be lazy.
 这是为了序列和序列协议能够延迟生成（延迟求值）。
 
 Some of the sequence functions correspond to functions from Scheme and CL 
-that there manipulated only pairs/conses ('lists') and returned sentinel values ('() and nil) that represented 'empty' lists. 
-The Clojure return values differ in not returning specific empty collections, but rather another logical sequence. 
-Some of the sequence functions have no counterpart in Scheme/CL, and map to Haskell/ML-like functions. 
+that there manipulated only pairs/conses ('lists') 
+and returned sentinel values ('() and nil) that represented 'empty' lists. 
+The Clojure return values differ in not returning specific empty collections, 
+but rather another logical sequence. 
+Some of the sequence functions 
+have no counterpart in Scheme/CL, 
+and map to Haskell/ML-like functions. 
 Some of those functions return infinite or calculated sequences, 
 where the analogy to concrete data-structures like Scheme/CL lists is tenuous at best.
 
@@ -166,11 +172,13 @@ where the analogy to concrete data-structures like Scheme/CL lists is tenuous at
 
 
 It helps to distinguish collections/data-structures and seqs/iteration. 
-In both CL and Scheme they are conflated, in Clojure they are separate.
+In both CL and Scheme they are conflated, 
+in Clojure they are separate.
 
 （conflated，合并。）
 “集合/数据结构”和“序列/迭代”是不同的。
-在Scheme和CL中，它们是同一的。而在clojure中，它们是分离的。
+在Scheme和CL中，它们是同一的。
+而在clojure中，它们是分离的。
 
 ====
 表格：
@@ -213,6 +221,8 @@ nil/non-nil
 #f/non-#f
 false/true
 
+（hxzon：clojure中，nil 和 false 表示假，其它的都为真）
+
 --
 List/sequence library manipulates distinguished concrete type(s)?
 
@@ -220,7 +230,7 @@ List/sequence library manipulates distinguished concrete type(s)?
 No - seq abstraction with many collection implementations
 Yes - cons and vector
 Yes - pair
-No - Iterator abstraction with many collection implementations
+(java)No - Iterator abstraction with many collection implementations
 
 --
 Singleton empty-list value?

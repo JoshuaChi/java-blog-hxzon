@@ -3,6 +3,11 @@
 ========
 1，字面量语法
 
+1.1-解构：
+顺序解构 [a b c & rest :as all ]
+映射结构 {:a a :b b :or {a 1 b 2} :as all}
+[a b c & {:keys x y z} ]
+
 2，函数一等公民
 
 3，宏
