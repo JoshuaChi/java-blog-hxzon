@@ -1,4 +1,4 @@
-﻿（hxzon思考）游戏开发-属性设计-v2
+﻿（hxzon思考）游戏开发-属性系统设计-v2
 
 by hxzon
 ========
@@ -85,6 +85,28 @@ cascade: [user-lvl :base go-user] -> #{[atk :base] [def :base]}
 但在 attrbar-reset-value-impl 中，
 根据游戏对象类型，进行不同的计算即可。
 
+====
+5.1-ext，属性间和段间的级联更新
+
+不同的游戏对象，使用不同的算法，
+即同一属性段，如果游戏对象不同，则有不同的依赖，
+即级联关系不同。
+
+base: [attr group go-key ] -> #{ [attr group] }
+cascade: [attr group go-key] -> #{ [attr group] }
+
+go-key 标识对象的特征。
+另，[attr group nil] 表示适用于所有游戏对象。
+
+不同的属性段，会使用不同的特征。
+用全局映射表 [attr group] -> f 表示属性段所对应的特征提取函数。
+（如果只有少量几个属性段使用特别的特征，则直接使用一个函数即可。）
+
+获取级联关系的算法：
+go-key1  = (get-go-key a1 g1 go)
+ags-cascade = (get-cascade [a1 g1 go-key1])
+go-key2 = (get-go-key a2 g2 go)
+ags-cascade = (get-cascade [a2 g2 go-key2])
 
 ====
 5.2，多个系统间的属性级联更新
@@ -109,6 +131,7 @@ cascade: [user-lvl :base go-user] -> #{[atk :base] [def :base]}
 例如更新 user-lvl 段时，
 一次性重算 atk :base ,def :base，
 因为它们基于同样的某个额外参数，而这个参数较费资源。
+（可将这个额外参数定义为一个属性段）
 
 
 ==
@@ -240,6 +263,8 @@ attrbar-set-value-impl [go g a v]
 
 ====
 7.2，
+
+关联关系只用属性表达，不含“段”和“对象特征”。
 
 attrbar-reset-value-impl [go a ]
 业务逻辑的实现
